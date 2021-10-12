@@ -208,7 +208,7 @@ static const struct regmap_range s2mpg10_read_only_regs[] = {
 	regmap_reg_range(0x000, 0x000), /* Common Block - CHIP_ID_M */
 	regmap_reg_range(0x00A, 0x00C), /* Common Block - SPD_CTRL */
 	regmap_reg_range(0x100, 0x105), /* INT1~6 */
-	regmap_reg_range(0x10C, 0x10F), /* STATUS, ON/OFFSRC */
+	regmap_reg_range(0x10C, 0x10D), /* STATUS */
 	regmap_reg_range(0xA40, 0xA8A), /* Meter data */
 };
 

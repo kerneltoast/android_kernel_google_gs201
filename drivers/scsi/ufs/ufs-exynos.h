@@ -169,6 +169,9 @@ struct exynos_ufs {
 	/* ufs command logging */
 	u8 enable_cmd_log;
 	struct pixel_cmd_log cmd_log;
+
+	/* security_out write counter */
+	u32 security_out_wc;
 };
 
 static inline struct exynos_ufs *to_exynos_ufs(struct ufs_hba *hba)
@@ -187,6 +190,7 @@ void exynos_ufs_cmd_log_end(struct ufs_vs_handle *handle,
 
 #ifdef CONFIG_SCSI_UFS_CRYPTO
 int pixel_ufs_crypto_init(struct ufs_hba *hba);
+int pixel_ufs_crypto_init_sw_keys_mode(struct ufs_hba *hba);
 void pixel_ufs_crypto_resume(struct ufs_hba *hba);
 #else
 static inline int pixel_ufs_crypto_init(struct ufs_hba *hba)

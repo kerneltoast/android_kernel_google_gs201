@@ -107,6 +107,12 @@ struct s2mpg10_platform_data {
 	unsigned int b10_soft_ocp_warn_dvs_mask;
 	unsigned int b10_soft_ocp_warn_lvl;
 
+	unsigned int buck_ocp_ctrl1;
+	unsigned int buck_ocp_ctrl2;
+	unsigned int buck_ocp_ctrl3;
+	unsigned int buck_ocp_ctrl4;
+	unsigned int buck_ocp_ctrl5;
+
 	/* ---- RTC ---- */
 	struct sec_wtsr_smpl *wtsr_smpl;
 	struct rtc_time *init_time;

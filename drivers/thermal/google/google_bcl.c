@@ -74,18 +74,18 @@
 #define PPMCTL_MASK (0xFF)
 #define OCP_WARN_MASK (0x1F)
 #define SMPL_WARN_MASK (0xE0)
-#define B3M_UPPER_LIMIT (7000)
-#define B3M_LOWER_LIMIT (1688)
-#define B3M_STEP (166)
-#define B2M_UPPER_LIMIT (12000)
-#define B2M_LOWER_LIMIT (4000)
-#define B2M_STEP (250)
-#define B10M_UPPER_LIMIT (10500)
-#define B10M_LOWER_LIMIT (2500)
-#define B10M_STEP (250)
-#define B2S_UPPER_LIMIT (12000)
-#define B2S_LOWER_LIMIT (4000)
-#define B2S_STEP (250)
+#define B3M_UPPER_LIMIT (9600)
+#define B3M_LOWER_LIMIT (3400)
+#define B3M_STEP (200)
+#define B2M_UPPER_LIMIT (14400)
+#define B2M_LOWER_LIMIT (5100)
+#define B2M_STEP (300)
+#define B10M_UPPER_LIMIT (14400)
+#define B10M_LOWER_LIMIT (5100)
+#define B10M_STEP (300)
+#define B2S_UPPER_LIMIT (14400)
+#define B2S_LOWER_LIMIT (5100)
+#define B2S_STEP (300)
 #define SMPL_BATTERY_VOLTAGE (4200)
 #define SMPL_UPPER_LIMIT (3300)
 #define SMPL_LOWER_LIMIT (2600)
@@ -1895,7 +1895,7 @@ static DEVICE_ATTR_RW(smpl_lvl);
 
 static int get_ocp_lvl(struct bcl_device *bcl_dev, u64 *val, u8 addr,
 		       u8 pmic, u8 mask, u16 limit,
-		       u8 step)
+		       u16 step)
 {
 	u8 value = 0;
 	unsigned int ocp_warn_lvl;
@@ -1932,7 +1932,7 @@ static int get_ocp_lvl(struct bcl_device *bcl_dev, u64 *val, u8 addr,
 }
 
 static int set_ocp_lvl(struct bcl_device *bcl_dev, u64 val, u8 addr, u8 pmic, u8 mask,
-		       u16 llimit, u16 ulimit, u8 step, u8 id)
+		       u16 llimit, u16 ulimit, u16 step, u8 id)
 {
 	u8 value;
 	int ret;
@@ -2408,6 +2408,26 @@ static const struct attribute_group triggered_lvl_group = {
 	.name = "triggered_lvl",
 };
 
+static ssize_t offsrc_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%#x\n", bcl_dev->offsrc);
+}
+
+static DEVICE_ATTR_RO(offsrc);
+
+static ssize_t pwronsrc_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%#x\n", bcl_dev->pwronsrc);
+}
+
+static DEVICE_ATTR_RO(pwronsrc);
+
 static ssize_t enable_mitigation_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
@@ -2700,6 +2720,8 @@ static struct attribute *instr_attrs[] = {
 	&dev_attr_mpmm_settings.attr,
 	&dev_attr_ppm_settings.attr,
 	&dev_attr_enable_mitigation.attr,
+	&dev_attr_offsrc.attr,
+	&dev_attr_pwronsrc.attr,
 	NULL,
 };
 
@@ -2890,6 +2912,20 @@ static int google_set_main_pmic(struct bcl_device *bcl_dev)
 	}
 	bcl_dev->main_pmic_i2c = main_dev->pmic;
 	bcl_dev->triggered_irq[IRQ_SMPL_WARN] = gpio_to_irq(pdata_main->smpl_warn_pin);
+#if IS_ENABLED(CONFIG_SOC_GS101)
+	bcl_dev->main_pmic_i2c = main_dev->pmic;
+	/* clear S2MPG_10 information every boot */
+	/* see b/166671802#comment34 and b/195455000 */
+	s2mpg10_read_reg(bcl_dev->main_pmic_i2c, S2MPG10_PM_OFFSRC, &val);
+	pr_info("S2MPG10 OFFSRC : %#x\n", val);
+	bcl_dev->offsrc = val;
+	s2mpg10_read_reg(bcl_dev->main_pmic_i2c, S2MPG10_PM_PWRONSRC, &val);
+	pr_info("S2MPG10 PWRONSRC: %#x\n", val);
+	bcl_dev->pwronsrc = val;
+	s2mpg10_write_reg(bcl_dev->main_pmic_i2c, S2MPG10_PM_OFFSRC, 0);
+	s2mpg10_write_reg(bcl_dev->main_pmic_i2c, S2MPG10_PM_PWRONSRC, 0);
+	bcl_dev->triggered_irq[IRQ_SMPL_WARN] = gpio_to_irq(pdata_main->smpl_warn_pin);
+#endif
 	irq_set_status_flags(bcl_dev->triggered_irq[IRQ_SMPL_WARN], IRQ_DISABLE_UNLAZY);
 	bcl_dev->triggered_pin[IRQ_SMPL_WARN] = pdata_main->smpl_warn_pin;
 	bcl_dev->triggered_lvl[IRQ_SMPL_WARN] = SMPL_BATTERY_VOLTAGE -

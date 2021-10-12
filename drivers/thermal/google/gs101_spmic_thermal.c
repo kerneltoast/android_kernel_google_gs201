@@ -142,6 +142,7 @@ static int gs101_spmic_thermal_get_temp(void *data, int *temp)
 	u8 data_buf[S2MPG11_METER_NTC_BUF];
 	u8 reg = S2MPG11_METER_LPF_DATA_NTC0_1 +
 		 S2MPG11_METER_NTC_BUF * s->adc_chan;
+	u8 mask = 0x1;
 
 	emul_temp = s->emul_temperature;
 	if (emul_temp) {
@@ -149,9 +150,17 @@ static int gs101_spmic_thermal_get_temp(void *data, int *temp)
 		return 0;
 	}
 
+	if (!(gs101_spmic_thermal->adc_chan_en & (mask << s->adc_chan)))
+		return -EIO;
+
 	ret = s2mpg11_bulk_read(gs101_spmic_thermal->i2c, reg,
 				S2MPG11_METER_NTC_BUF, data_buf);
 	raw = data_buf[0] + ((data_buf[1] & 0xf) << 8);
+
+	// All 0 usually means the NTC is not ready.
+	if (!ret && !raw)
+		return -EBUSY;
+
 	*temp = gs101_map_volt_temp(raw);
 
 	return ret;
@@ -265,6 +274,19 @@ static struct thermal_zone_of_device_ops gs101_spmic_thermal_ops = {
 	.set_emul_temp = gs101_spmic_thermal_set_emul_temp,
 };
 
+static ssize_t channel_temp_show(struct kobject *kobj,
+			 struct kobj_attribute *attr, char *buf)
+{
+	struct thermal_zone_device *tzd = to_thermal_zone(kobj_to_dev(
+			kobj->parent));
+
+	thermal_zone_device_update(tzd, THERMAL_EVENT_UNSPECIFIED);
+
+	return sysfs_emit(buf, "%d\n", tzd->temperature);
+}
+
+static struct kobj_attribute channel_temp_attr = __ATTR_RO(channel_temp);
+
 /*
  * Register thermal zones.
  */
@@ -274,9 +296,10 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 	struct thermal_zone_device *tzd;
 	struct device *dev = gs101_spmic_thermal->dev;
 	u8 mask = 0x1;
+	struct kobject *kobj;
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
-		dev_info(dev, "Registering %d sensor\n", i);
+		dev_info(dev, "Registering channel %d\n", i);
 		tzd = devm_thermal_zone_of_sensor_register(gs101_spmic_thermal->dev, i,
 							   &gs101_spmic_thermal->sensor[i],
 							   &gs101_spmic_thermal_ops);
@@ -292,6 +315,8 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 			thermal_zone_device_enable(tzd);
 		else
 			thermal_zone_device_disable(tzd);
+		kobj = kobject_create_and_add("adc_channel", &tzd->device.kobj);
+		sysfs_create_file(kobj, &channel_temp_attr.attr);
 	}
 	return 0;
 }

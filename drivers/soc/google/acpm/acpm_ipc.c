@@ -31,6 +31,9 @@
 #include "../vh/kernel/systrace.h"
 
 #define IPC_TIMEOUT				(10000000)
+/*The unit of cnt is 10us*/
+/*10000 * 10us = 100ms*/
+#define SW_CNT_TIMEOUT_100MS			(10000)
 #define IPC_NB_RETRIES				5
 #define APM_SYSTICK_PERIOD_US			(20345)
 #define IPC_TIMEOUT_COUNT_US			(500*1000)
@@ -575,6 +578,7 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	u32 retry_cnt = 0;
 	u32 count = 0;
 	unsigned long flags;
+	unsigned int cnt_10us = 0;
 
 	if (channel_id >= acpm_ipc->num_channels && !cfg)
 		return -EIO;
@@ -667,7 +671,7 @@ retry:
 			if (!test_bit(seq_num - 1, channel->bitmap_seqnum))
 				break;
 			now = sched_clock();
-			if (timeout < now) {
+			if (timeout < now || cnt_10us > SW_CNT_TIMEOUT_100MS) {
 				if (retry_cnt > IPC_NB_RETRIES) {
 					timeout_flag = true;
 					break;
@@ -703,11 +707,16 @@ retry:
 					++retry_cnt;
 					continue;
 				}
+				cnt_10us = 0;
 			} else {
-				if (w_mode)
+				if (w_mode) {
+					/*assume at least 50us delay here*/
 					usleep_range(50, 100);
-				else
+					cnt_10us += 5;
+				} else {
 					udelay(10);
+					cnt_10us++;
+				}
 			}
 		} while (true);
 

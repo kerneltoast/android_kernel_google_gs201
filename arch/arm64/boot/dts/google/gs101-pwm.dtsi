@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Samsung's SoC PWM device tree source
+ *
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+/ {
+	sec_pwm: pwm@10DF0000 {
+		compatible = "samsung,s3c6400-pwm";
+		reg = <0x00000000 0x10DF0000 0x00001000>;
+		samsung,pwm-outputs = <0>, <1>, <2>, <3>, <4>;
+		#pwm-cells = <3>;
+		clocks = <&clock GATE_PERIC1_TOP0_PWM>, <&clock OSCCLK>;
+		clock-names = "pwm_pclk", "pwm_sclk";
+		status = "disabled";
+	};
+};

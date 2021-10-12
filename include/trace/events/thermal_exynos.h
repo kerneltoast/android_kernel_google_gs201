@@ -237,6 +237,24 @@ TRACE_EVENT(thermal_exynos_hard_limit_cdev_update,
 					__entry->prev_max_state, __entry->state)
 );
 
+TRACE_EVENT(thermal_exynos_tpu_pause,
+	TP_PROTO(const char *tmu_name, bool is_paused),
+
+	TP_ARGS(tmu_name, is_paused),
+
+	TP_STRUCT__entry(
+		__field(const char *, tmu_name)
+		__field(bool, is_paused)
+	),
+
+	TP_fast_assign(
+		__entry->tmu_name = tmu_name;
+		__entry->is_paused = is_paused;
+	),
+
+	TP_printk("tmu_name:%s is_paused=%d", __entry->tmu_name, __entry->is_paused)
+);
+
 TRACE_EVENT(thermal_exynos_cpu_pause,
 	TP_PROTO(const char *tmu_name, const struct cpumask *cpus, bool is_cpu_paused),
 

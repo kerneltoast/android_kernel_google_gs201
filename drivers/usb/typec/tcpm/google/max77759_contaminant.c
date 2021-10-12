@@ -655,7 +655,7 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 {
 	struct regmap *regmap = chip->data.regmap;
 	struct max77759_contaminant *contaminant = chip->contaminant;
-	u8 vcc2;
+	u8 vcc2, pwr_ctrl;
 	int ret;
 
 	if (!contaminant)
@@ -698,19 +698,36 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 	if (ret < 0)
 		return ret;
 
+	/* Disable Auto disacharge before enabling toggling */
+	ret = max77759_read8(regmap, TCPC_POWER_CTRL, &pwr_ctrl);
+	logbuffer_log(chip->log, "TCPC_POWER_CTRL:0x%x ret:%d", pwr_ctrl, ret);
+	if (pwr_ctrl & TCPC_POWER_CTRL_AUTO_DISCHARGE) {
+		logbuffer_log(chip->log, "TCPC_POWER_CTRL_AUTO_DISCHARGE not cleared");
+		ret = regmap_update_bits(regmap, TCPC_POWER_CTRL, TCPC_POWER_CTRL_AUTO_DISCHARGE,
+					 0);
+		if (ret < 0)
+			logbuffer_log(chip->log, "[%s]: Disabling auto discharge failed", __func__);
+	}
+
 	ret = max77759_write8(regmap, TCPC_ROLE_CTRL, TCPC_ROLE_CTRL_DRP |
 			      (TCPC_ROLE_CTRL_CC_RD <<
 			       TCPC_ROLE_CTRL_CC1_SHIFT) |
 			      (TCPC_ROLE_CTRL_CC_RD <<
 			       TCPC_ROLE_CTRL_CC2_SHIFT));
-	if (ret < 0)
+	if (ret < 0) {
+		logbuffer_log(chip->log, "[%s]: Enabling DRP failed ret:%d", __func__,
+			      ret);
 		return ret;
+	}
 
 	/* Enable Look4Connection before sending the command */
 	ret = max77759_update_bits8(regmap, TCPC_TCPC_CTRL, TCPC_TCPC_CTRL_EN_LK4CONN_ALRT,
 				    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT);
-	if (ret < 0)
+	if (ret < 0) {
+		logbuffer_log(chip->log, "[%s]: Enabling looking for connection failed ret:%d",
+			      __func__, ret);
 		return ret;
+	}
 
 	ret = max77759_write8(regmap, TCPC_COMMAND, TCPC_CMD_LOOK4CONNECTION);
 	if (ret < 0)
