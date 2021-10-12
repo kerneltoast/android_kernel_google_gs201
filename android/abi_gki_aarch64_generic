@@ -66,6 +66,7 @@
   blkdev_put
   blk_execute_rq_nowait
   blk_get_request
+  blk_ksm_init_passthrough
   blk_put_request
   blk_queue_flag_clear
   blk_queue_flag_set
@@ -389,6 +390,7 @@
   __devm_regmap_init_spi
   devm_regulator_bulk_get
   devm_regulator_get
+  devm_regulator_get_exclusive
   devm_regulator_get_optional
   devm_regulator_put
   devm_regulator_register
@@ -1179,6 +1181,7 @@
   of_get_regulator_init_data
   of_iomap
   of_irq_find_parent
+  of_irq_get
   of_irq_get_byname
   of_irq_parse_one
   of_machine_is_compatible
@@ -1493,6 +1496,9 @@
   rtc_tm_to_time64
   rtc_update_irq
   rtc_valid_tm
+  __rt_mutex_init
+  rt_mutex_lock
+  rt_mutex_unlock
   rtnl_is_locked
   rtnl_lock
   rtnl_unlock
@@ -1821,6 +1827,8 @@
   __traceiter_android_vh_ufs_send_tm_command
   __traceiter_android_vh_ufs_send_uic_command
   __traceiter_android_vh_ufs_update_sysfs
+  __traceiter_android_vh_usb_dev_resume
+  __traceiter_android_vh_usb_dev_suspend
   __traceiter_clock_set_rate
   __traceiter_cpu_frequency
   __traceiter_device_pm_callback_end
@@ -1886,6 +1894,8 @@
   __tracepoint_android_vh_ufs_send_tm_command
   __tracepoint_android_vh_ufs_send_uic_command
   __tracepoint_android_vh_ufs_update_sysfs
+  __tracepoint_android_vh_usb_dev_resume
+  __tracepoint_android_vh_usb_dev_suspend
   __tracepoint_clock_set_rate
   __tracepoint_cpu_frequency
   __tracepoint_device_pm_callback_end

@@ -106,6 +106,11 @@ struct usb_psy_data {
 	/* Tracks attached state from Type-C */
 	bool attached;
 
+	/*
+	 * Expedite UI notification.
+	 */
+	bool expedite_connect_status;
+
 	bool usb_configured;
 
 	/* Alarm for forcing to DCP port on enumeration timeout */
@@ -258,6 +263,25 @@ static void set_sdp_current_limit(struct usb_psy_data *usb, int ua)
 		disable_proto_votes(usb_icl_proto_el, log, voter_map);
 }
 
+/*
+ * Enable 5V/500mA charging for DCP ports upon connect.
+ * Defer increasing to 1.5A later once PD negotiation completes.
+ */
+static void expedite_connect(struct usb_psy_data *usb)
+{
+	int ret;
+	struct usb_vote vote;
+
+	init_vote(&vote, proto_voter_reason[BC12_CDP_DCP], BC12_CDP_DCP, 500000);
+
+	ret = gvotable_cast_vote(usb->usb_icl_proto_el, vote.reason, &vote, true);
+
+	logbuffer_log(usb->log, "%s: %s voting usb proto_el: %d by %s", __func__,
+		      ret < 0 ? "error" : "",  vote.val, vote.reason);
+
+	usb->expedite_connect_status = true;
+}
+
 static void set_bc_current_limit(struct gvotable_election *usb_icl_proto_el,
 				 enum power_supply_usb_type usb_type,
 				 struct logbuffer *log)
@@ -346,8 +370,15 @@ static int usb_psy_data_get_prop(struct power_supply *psy,
 		val->intval = usb->sink_enabled;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		/* Report the voted value to reflect TA capability */
-		val->intval = usb->current_max_cache;
+		/*
+		 * When expedite_connect_status is true, we have to mask
+		 * presenting slow charging notification to UI.
+		 * Hence report CDP_DCP_ICL_UA.
+		 * Report the voted value to reflect TA capability when
+		 * expedite_connect_status isn't set.
+		 */
+		val->intval = usb->expedite_connect_status ? CDP_DCP_ICL_UA :
+			usb->current_max_cache;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		/* Report in uv */
@@ -405,6 +436,11 @@ static int usb_psy_data_set_prop(struct power_supply *psy,
 		usb->usb_configured = false;
 		ops->tcpc_set_port_data_capable(client, usb->usb_type);
 
+		/* Expedite connect for UX notification */
+		if (usb->usb_type == POWER_SUPPLY_USB_TYPE_DCP)
+			expedite_connect(usb);
+
+		/* Defer setting actual BC current limit to later */
 		kthread_mod_delayed_work(usb->wq, &usb->bc_icl_work,
 					 usb->usb_type != POWER_SUPPLY_USB_TYPE_UNKNOWN ?
 					 msecs_to_jiffies(BC_VOTE_DELAY_MS) : 0);
@@ -470,6 +506,11 @@ void usb_psy_set_attached_state(void *usb_psy, bool attached)
 	}
 
 	usb->attached = attached;
+
+	/* Clear on disconnect */
+	if (!attached)
+		usb->expedite_connect_status = false;
+
 	power_supply_changed(usb->usb_psy);
 }
 EXPORT_SYMBOL_GPL(usb_psy_set_attached_state);
@@ -655,6 +696,8 @@ static void bc_icl_work_item(struct kthread_work *work)
 			     struct usb_psy_data, bc_icl_work);
 
 	set_bc_current_limit(usb->usb_icl_proto_el, usb->usb_type, usb->log);
+	/* Clear as the actual currect limit is now set */
+	usb->expedite_connect_status = false;
 }
 
 static void sdp_icl_work_item(struct kthread_work *work)

@@ -670,6 +670,7 @@ int bcm_spi_sync(struct bcm_spi_priv *priv, void *tx_buf,
 	xfer.len = len;
 	xfer.tx_buf = tx_buf;
 	xfer.rx_buf = rx_buf;
+	xfer.bits_per_word = 8; /* bits_per_word; */
 
 	/* Sync */
 	pk_log("w", (unsigned char *)xfer.tx_buf, len);
@@ -689,7 +690,8 @@ static int bcm_ssi_tx(struct bcm_spi_priv *priv, int length)
 	struct bcm_ssi_tx_frame *tx = priv->tx_buf;
 	struct bcm_ssi_rx_frame *rx = priv->rx_buf;
 	struct bcm_spi_strm_protocol *strm = &priv->tx_strm;
-	int bits_per_word = (length >= 255) ? CONFIG_SPI_DMA_BITS_PER_WORD : 8;
+	int bits_per_word = (length + strm->ctrl_len >= MIN_DMA_SIZE) ?
+				CONFIG_SPI_DMA_BITS_PER_WORD : 8;
 	int ret;
 	unsigned short m_write;
 	unsigned short bytes_to_write = (unsigned short)length;
@@ -780,9 +782,12 @@ int bcm_ssi_rx(struct bcm_spi_priv *priv, size_t *length)
 {
 	struct bcm_ssi_tx_frame *tx = priv->tx_buf;
 	struct bcm_ssi_rx_frame *rx = priv->rx_buf;
+	struct circ_buf *rd_circ = &priv->read_buf;
 	struct bcm_spi_strm_protocol *strm = &priv->rx_strm;
 	unsigned short ctrl_len = strm->pckt_len + 1;  /* +1 for rx status */
 	unsigned short payload_len;
+	int bits_per_word = 8;
+	size_t sz_to_recv = 0;
 
 #ifdef CONFIG_REG_IO
 	if (likely(ssi_dbg_rng) &&
@@ -819,13 +824,26 @@ int bcm_ssi_rx(struct bcm_spi_priv *priv, size_t *length)
 		return -1;
 	}
 
-	/* TODO: limit max payload to 254 because of exynos3 bug */
-	*length = min((unsigned short)(strm->frame_len-ctrl_len),
-			payload_len);  /* MAX_SPI_FRAME_LEN */
-	memset(tx->data, 0, *length + ctrl_len - 1); /* -1 for rx status */
+	*length = min((unsigned short)(strm->frame_len - ctrl_len), payload_len);
 
+	/* SWGNSSGLL-24487 : slowing down read speed if buffer is half full */
+	if (CIRC_CNT(rd_circ->head, rd_circ->tail, BCM_SPI_READ_BUF_SIZE) >
+			BCM_SPI_READ_BUF_SIZE / 2) {
+		msleep(DELAY_FOR_SYSTEM_OVERLOADED_MS);
+		if (*length >= READ_SIZE_FOR_SYSTEM_OVERLOADED)
+			*length = READ_SIZE_FOR_SYSTEM_OVERLOADED;
+	}
 
-	if (bcm_spi_sync(priv, tx, rx, *length+ctrl_len, 8))
+	sz_to_recv = *length + ctrl_len;
+	if (sz_to_recv >= MIN_DMA_SIZE) {
+		bits_per_word = CONFIG_SPI_DMA_BITS_PER_WORD;
+		if (sz_to_recv & (CONFIG_SPI_DMA_BYTES_PER_WORD - 1))
+			*length = (sz_to_recv & ~(CONFIG_SPI_DMA_BYTES_PER_WORD - 1))
+					- ctrl_len;
+	}
+	memset(tx->data, 0, *length + ctrl_len - 1); /* -1 for status byte */
+
+	if (bcm_spi_sync(priv, tx, rx, *length+ctrl_len, bits_per_word))
 		return -1;
 
 	payload_len = bcm_ssi_get_len(strm->ctrl_byte, rx->data);
@@ -889,7 +907,6 @@ void bcm_on_packet_received(void *_priv, unsigned char *data, unsigned int size)
 
 	priv->packet_received += size;
 	mutex_unlock(&priv->rlock);
-	wake_up(&priv->poll_wait);
 	bcm_check_overrun(priv, avail);
 }
 
@@ -924,6 +941,7 @@ static void bcm_rxtx_work_func(struct work_struct *work)
 #endif
 	struct bcm_spi_priv *priv = container_of(work,
 			struct bcm_spi_priv, rxtx_work);
+	struct circ_buf *rd_circ = &priv->read_buf;
 	struct circ_buf *wr_circ = &priv->write_buf;
 	struct bcm_spi_strm_protocol *strm = &priv->tx_strm;
 	unsigned short rx_pckt_len = priv->rx_strm.pckt_len;
@@ -944,6 +962,7 @@ static void bcm_rxtx_work_func(struct work_struct *work)
 		int    ret = 0;
 		size_t avail = 0;
 		size_t written = 0;
+		size_t sz_to_send = 0;
 
 		/* Read first */
 		if (!gpio_is_valid(priv->host_req)) {
@@ -1052,6 +1071,13 @@ static void bcm_rxtx_work_func(struct work_struct *work)
 			 */
 		}
 
+		/* we should align xfer size to DMA word size. */
+		sz_to_send = avail + strm->ctrl_len;
+		if (sz_to_send >= MIN_DMA_SIZE &&
+			sz_to_send & (CONFIG_SPI_DMA_BYTES_PER_WORD - 1))
+			avail = (sz_to_send & ~(CONFIG_SPI_DMA_BYTES_PER_WORD - 1))
+				- strm->ctrl_len;
+
 		/* Copy from wr_circ the data */
 		while (avail > 0) {
 			size_t cnt_to_end = CIRC_CNT_TO_END(
@@ -1076,15 +1102,25 @@ static void bcm_rxtx_work_func(struct work_struct *work)
 		if (ret)
 			break;
 
-		wake_up(&priv->poll_wait);
+		/*
+		 * SWGNSSAND-2159  While looping,
+		 * wake up lhd only if rx ring is more than 12.5% full
+		 */
+		if (CIRC_CNT(rd_circ->head, rd_circ->tail, BCM_SPI_READ_BUF_SIZE) >
+				BCM_SPI_READ_BUF_SIZE / 8) {
+			wake_up(&priv->poll_wait);
+		}
 #ifdef DEBUG_1HZ_STAT
 		bbd_update_stat(STAT_TX_SSI, written);
 #endif
 
-	} while (gpio_get_value(priv->host_req) ||
-		CIRC_CNT(wr_circ->head, wr_circ->tail, BCM_SPI_WRITE_BUF_SIZE));
+	} while (!atomic_read(&priv->suspending) &&
+		(gpio_get_value(priv->host_req) ||
+		CIRC_CNT(wr_circ->head, wr_circ->tail, BCM_SPI_WRITE_BUF_SIZE)));
 
 	bcm477x_bye(priv);
+
+	wake_up(&priv->poll_wait);
 
 	/* Enable irq */
 	spin_lock_irqsave(&priv->irq_lock, flags);
@@ -1205,12 +1241,11 @@ static int gps_pinctrl_select(struct bcm_spi_priv *data, bool on)
 
 /* SPI driver operations */
 
-static int bcm_spi_suspend(struct device *dev, pm_message_t state)
+static int bcm_spi_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct bcm_spi_priv *priv = spi_get_drvdata(spi);
 	unsigned long flags;
-
 
 	atomic_set(&priv->suspending, 1);
 
@@ -1510,6 +1545,11 @@ static const struct of_device_id match_table[] = {
 };
 #endif
 
+static const struct dev_pm_ops bcm_spi_pm_ops = {
+	.suspend = bcm_spi_suspend,
+	.resume = bcm_spi_resume,
+};
+
 static struct spi_driver bcm_spi_driver = {
 	.id_table = bcm_spi_id,
 	.probe = bcm_spi_probe,
@@ -1521,8 +1561,7 @@ static struct spi_driver bcm_spi_driver = {
 #ifdef CONFIG_OF
 		.of_match_table = match_table,
 #endif
-		.suspend = bcm_spi_suspend,
-		.resume = bcm_spi_resume,
+		.pm = &bcm_spi_pm_ops,
 	},
 };
 

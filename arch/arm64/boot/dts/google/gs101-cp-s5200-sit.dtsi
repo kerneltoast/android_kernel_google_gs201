@@ -263,8 +263,8 @@
 						tpmon,measure = <TPMON_MEASURE_TP>;
 						tpmon,target = <TPMON_TARGET_GRO>;
 						tpmon,idx = <0>;
-						tpmon,threshold = <100 200>;	/* Mbps */
-						tpmon,values = <10000 50000 100000>;
+						tpmon,threshold = <200>;	/* Mbps */
+						tpmon,values = <100000 2000000>;
 					};
 					tpmon_mif {
 						tpmon,enable = <1>;

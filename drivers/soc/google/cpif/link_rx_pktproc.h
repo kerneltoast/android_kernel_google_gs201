@@ -165,11 +165,6 @@ struct pktproc_queue {
 	struct napi_struct napi;
 	struct napi_struct *napi_ptr;
 	atomic_t stop_napi_poll;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	struct timespec64 flush_time;
-#else
-	struct timespec flush_time;
-#endif
 
 	/* Statistics */
 	struct pktproc_statistics stat;

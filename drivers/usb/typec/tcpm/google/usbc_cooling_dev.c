@@ -182,7 +182,7 @@ static int suspend_usb(struct usb_port_cooling_dev_info *usb_cdev_info)
 
 	/* suspend USBIN */
 	ret = gvotable_cast_vote(usb_cdev_info->usb_icl_votable, USBC_COOLING_DEV_VOTER,
-				 (void *)ENABLE_ICL_VOTE, THROTTLE_USBIN_LIMIT);
+				 (void *)THROTTLE_USBIN_LIMIT, ENABLE_ICL_VOTE);
 	if (ret < 0) {
 		dev_err(usb_cdev_info->dev, "Couldn't vote for USB ICL ret=%d\n", ret);
 		return ret;
@@ -213,7 +213,7 @@ static int resume_usb(struct usb_port_cooling_dev_info *usb_cdev_info)
 
 	/* enable USBIN */
 	ret = gvotable_cast_vote(usb_cdev_info->usb_icl_votable, USBC_COOLING_DEV_VOTER,
-				 (void *)DISABLE_ICL_VOTE, THROTTLE_USBIN_LIMIT);
+				 (void *)THROTTLE_USBIN_LIMIT, DISABLE_ICL_VOTE);
 	if (ret < 0) {
 		dev_err(usb_cdev_info->dev, "Couldn't un-vote for USB ICL ret=%d\n", ret);
 		return ret;

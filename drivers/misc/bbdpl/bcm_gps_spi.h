@@ -10,7 +10,10 @@
 
 #define WORD_BURST_SIZE			4
 #define CONFIG_SPI_DMA_BYTES_PER_WORD	4
-#define CONFIG_SPI_DMA_BITS_PER_WORD	32
+#define CONFIG_SPI_DMA_BITS_PER_WORD	(CONFIG_SPI_DMA_BYTES_PER_WORD * 8)
+#define MIN_DMA_SIZE			64
+#define DELAY_FOR_SYSTEM_OVERLOADED_MS	100
+#define READ_SIZE_FOR_SYSTEM_OVERLOADED	1024
 
 #define SSI_MODE_STREAM		0x00
 #define SSI_MODE_DEBUG		0x80
@@ -110,8 +113,8 @@ struct bcm_failsafe_data_recordlist {
  *
  *******************/
 
-#define BCM_SPI_READ_BUF_SIZE	(8*PAGE_SIZE)
-#define BCM_SPI_WRITE_BUF_SIZE	(8*PAGE_SIZE)
+#define BCM_SPI_READ_BUF_SIZE	(16 * PAGE_SIZE)
+#define BCM_SPI_WRITE_BUF_SIZE	(16 * PAGE_SIZE)
 
 /* TODO: limit max payload to 254 because of exynos3 bug */
 #define MAX_SPI_DREG_FRAME_LEN 254
