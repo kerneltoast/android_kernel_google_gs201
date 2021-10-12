@@ -1096,13 +1096,15 @@ static int pktproc_perftest_thread(void *arg)
 				continue;
 
 			if (ppa->use_napi) {
-				if (session_queue) {
-					if (cpu_online(perf->ipi_cpu[i]))
-						smp_call_function_single(perf->ipi_cpu[i],
-							pktproc_perftest_napi_schedule,
-							(void *)q, 0);
-					else
-						pktproc_perftest_napi_schedule(q);
+				int napi_cpu = perf->ipi_cpu[0];
+
+				if (session_queue)
+					napi_cpu = perf->ipi_cpu[i];
+
+				if (napi_cpu >= 0 && cpu_online(napi_cpu)) {
+					smp_call_function_single(napi_cpu,
+								 pktproc_perftest_napi_schedule,
+								 (void *)q, 0);
 				} else {
 					pktproc_perftest_napi_schedule(q);
 				}
@@ -1132,8 +1134,8 @@ static ssize_t perftest_store(struct device *dev,
 
 	static struct task_struct *worker_task;
 	int ret;
-	int cpu = 5;
 
+	perf->ipi_cpu[0] = -1;
 	if (ppa->use_exclusive_irq) {
 		perf->ipi_cpu[0] = 4;
 		perf->ipi_cpu[1] = 4;
@@ -1141,11 +1143,23 @@ static ssize_t perftest_store(struct device *dev,
 		perf->ipi_cpu[3] = 4;
 	}
 
-	ret = sscanf(buf, "%d %d %hu %d %d %hx:%hx:%hx:%hx:%hx:%hx:%hx:%hx %d %d %d %d",
-		&perf->mode, &perf->session, &perf->ch, &cpu, &perf->udelay,
-		&perf->clat_ipv6[0], &perf->clat_ipv6[1], &perf->clat_ipv6[2], &perf->clat_ipv6[3],
-		&perf->clat_ipv6[4], &perf->clat_ipv6[5], &perf->clat_ipv6[6], &perf->clat_ipv6[7],
-		&perf->ipi_cpu[0], &perf->ipi_cpu[1], &perf->ipi_cpu[2], &perf->ipi_cpu[3]);
+	switch (perf->mode) {
+	case PERFTEST_MODE_CLAT:
+		ret = sscanf(buf, "%d %d %hu %d %d %hx:%hx:%hx:%hx:%hx:%hx:%hx:%hx %d %d %d %d",
+			     &perf->mode, &perf->session, &perf->ch, &perf->cpu, &perf->udelay,
+			     &perf->clat_ipv6[0], &perf->clat_ipv6[1], &perf->clat_ipv6[2],
+			     &perf->clat_ipv6[3], &perf->clat_ipv6[4], &perf->clat_ipv6[5],
+			     &perf->clat_ipv6[6], &perf->clat_ipv6[7],
+			     &perf->ipi_cpu[0], &perf->ipi_cpu[1], &perf->ipi_cpu[2],
+			     &perf->ipi_cpu[3]);
+		break;
+	default:
+		ret = sscanf(buf, "%d %d %hu %d %d %d %d %d %d",
+			     &perf->mode, &perf->session, &perf->ch, &perf->cpu, &perf->udelay,
+			     &perf->ipi_cpu[0], &perf->ipi_cpu[1], &perf->ipi_cpu[2],
+			     &perf->ipi_cpu[3]);
+		break;
+	}
 
 	if (ret < 1)
 		return -EINVAL;
@@ -1169,8 +1183,8 @@ static ssize_t perftest_store(struct device *dev,
 
 		perf->test_run = true;
 		worker_task = kthread_create_on_node(pktproc_perftest_thread,
-			mld, cpu_to_node(cpu), "perftest/%d", cpu);
-		kthread_bind(worker_task, cpu);
+			mld, cpu_to_node(perf->cpu), "perftest/%d", perf->cpu);
+		kthread_bind(worker_task, perf->cpu);
 		wake_up_process(worker_task);
 		break;
 	default:

@@ -257,10 +257,10 @@ struct pktproc_perftest {
 	int session;
 	u16 ch;
 	int cpu;
+	int ipi_cpu[PKTPROC_MAX_QUEUE];
 	int udelay;
 	u32 seq_counter[PKTPROC_MAX_QUEUE];
 	u16 clat_ipv6[8];
-	int ipi_cpu[PKTPROC_MAX_QUEUE];
 };
 
 struct pktproc_perftest_data {
