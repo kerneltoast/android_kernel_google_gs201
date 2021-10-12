@@ -64,8 +64,10 @@ dtbo-$(CONFIG_BOARD_CLOUDRIPPER) += \
         gs201-ravenclaw-dev1_1.dtbo \
         gs201-cheetah-proto1.dtbo \
         gs201-cheetah-proto1_1.dtbo \
+	gs201-cheetah-proto1_1-wingboard.dtbo \
         gs201-panther-proto1.dtbo \
-        gs201-panther-proto1_1.dtbo
+        gs201-panther-proto1_1.dtbo \
+        gs201-panther-proto1_1-wingboard.dtbo
 
 dtbo-$(CONFIG_BOARD_GS201_EMULATOR) += \
         gs201-emulator.dtbo
@@ -78,8 +80,10 @@ gs201-ravenclaw-dev1_0.dtbo-base := gs201-a0.dtb
 gs201-ravenclaw-dev1_1.dtbo-base := gs201-a0.dtb
 gs201-cheetah-proto1.dtbo-base := gs201-a0.dtb
 gs201-cheetah-proto1_1.dtbo-base := gs201-a0.dtb
+gs201-cheetah-proto1_1-wingboard.dtbo-base := gs201-a0.dtb
 gs201-panther-proto1.dtbo-base := gs201-a0.dtb
 gs201-panther-proto1_1.dtbo-base := gs201-a0.dtb
+gs201-panther-proto1_1-wingboard.dtbo-base := gs201-a0.dtb
 gs201-emulator.dtbo-base := gs201-a0.dtb
 gs201-hybrid.dtbo-base := gs201-a0.dtb
 
