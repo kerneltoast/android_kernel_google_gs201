@@ -65,6 +65,7 @@ enum cp_boot_mode {
 	CP_BOOT_REQ_CP_RAM_LOGGING = 5,
 	CP_BOOT_MODE_MANUAL = 7,
 	CP_BOOT_EXT_BAAW = 11,
+	CP_BOOT_REQ_CP_RAM_LOGGING_E = 13,
 	MAX_CP_BOOT_MODE
 };
 struct boot_mode {

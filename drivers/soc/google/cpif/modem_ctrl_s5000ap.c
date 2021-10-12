@@ -251,6 +251,7 @@ static int init_control_messages(struct modem_ctl *mc)
 	int ds_det;
 #if IS_ENABLED(CONFIG_CP_BTL)
 	unsigned int sbi_ext_backtrace_mask, sbi_ext_backtrace_pos;
+	unsigned int sbi_ext_backtrace_ext_mask, sbi_ext_backtrace_ext_pos;
 #endif
 
 	if (modem->offset_cmsg_offset)
@@ -289,6 +290,14 @@ static int init_control_messages(struct modem_ctl *mc)
 	mif_dt_read_u32(np, "sbi_ext_backtrace_pos", sbi_ext_backtrace_pos);
 	update_ctrl_msg(&mld->ap2cp_united_status, mc->mdm_data->btl.enabled,
 				sbi_ext_backtrace_mask, sbi_ext_backtrace_pos);
+
+	if (mc->mdm_data->btl.support_extension) {
+		mif_info("btl extension enable:%d\n", mc->mdm_data->btl.extension_enabled);
+		mif_dt_read_u32(np, "sbi_ext_backtrace_ext_mask", sbi_ext_backtrace_ext_mask);
+		mif_dt_read_u32(np, "sbi_ext_backtrace_ext_pos", sbi_ext_backtrace_ext_pos);
+		update_ctrl_msg(&mld->ap2cp_united_status, mc->mdm_data->btl.extension_enabled,
+					sbi_ext_backtrace_ext_mask, sbi_ext_backtrace_ext_pos);
+	}
 #endif
 
 	mif_dt_read_u32(np, "sbi_sys_rev_mask", sbi_sys_rev_mask);

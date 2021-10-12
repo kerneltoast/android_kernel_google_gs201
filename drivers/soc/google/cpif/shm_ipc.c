@@ -252,6 +252,8 @@ static int cp_shmem_check_mem_map_on_cp(struct device *dev)
 			shmem_index = SHMEM_VSS;
 		else if (!strncmp((const char *)&name, "GOL\0", sizeof(name)))
 			shmem_index = SHMEM_BTL;
+		else if (!strncmp((const char *)&name, "EGOL\0", sizeof(name)))
+			shmem_index = SHMEM_BTL_EXT;
 		else if (!strncmp((const char *)&name, "B2L\0", sizeof(name)))
 			shmem_index = SHMEM_L2B;
 		else if (!strncmp((const char *)&name, "PKP\0", sizeof(name)))

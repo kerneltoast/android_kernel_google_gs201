@@ -87,13 +87,14 @@
 #define SHMEM_IPC		3
 #define SHMEM_VPA		4
 #define SHMEM_BTL		5
-#define SHMEM_PKTPROC		6
-#define SHMEM_PKTPROC_UL	7
-#define SHMEM_ZMC		8
-#define SHMEM_C2C		9
-#define SHMEM_MSI		10
-#define SHMEM_DDM		11
-#define MAX_CP_SHMEM		12
+#define SHMEM_BTL_EXT		6
+#define SHMEM_PKTPROC		7
+#define SHMEM_PKTPROC_UL	8
+#define SHMEM_ZMC		9
+#define SHMEM_C2C		10
+#define SHMEM_MSI		11
+#define SHMEM_DDM		12
+#define MAX_CP_SHMEM		13
 
 /* TPMON measure */
 #define TPMON_MEASURE_TP		0

@@ -32,6 +32,8 @@
 #define BTL_MAP_SIZE		SZ_1M	/* per PCI BAR2 limit */
 #endif
 
+#define convert_to_kb(x) ((x) << (PAGE_SHIFT - 10))
+
 /* fops */
 static int btl_open(struct inode *inode, struct file *filep)
 {
@@ -282,6 +284,7 @@ int cp_btl_create(struct cp_btl *btl, struct device *dev)
 {
 	struct modem_data *pdata = NULL;
 	int ret = 0;
+	struct sysinfo s;
 
 	if (!dev) {
 		mif_err("dev is null\n");
@@ -301,6 +304,8 @@ int cp_btl_create(struct cp_btl *btl, struct device *dev)
 	atomic_set(&btl->active, 0);
 
 	mif_dt_read_string(dev->of_node, "cp_btl_node_name", btl->name);
+	mif_dt_read_u32_noerr(dev->of_node, "cp_btl_support_extension", btl->support_extension);
+	mif_dt_read_u32_noerr(dev->of_node, "cp_btl_extension_dram_size", btl->extension_dram_size);
 
 	btl->id = pdata->cp_num;
 	if (btl->id >= MAX_BTL_ID) {
@@ -327,8 +332,26 @@ int cp_btl_create(struct cp_btl *btl, struct device *dev)
 		}
 		btl->mem.size = cp_shmem_get_size(btl->id, SHMEM_BTL);
 
+		if (btl->support_extension) {
+			si_meminfo(&s);
+			mif_info("total mem (%ld kb)\n", convert_to_kb(s.totalram));
+			/* DRAM size: over 8GB -> BTL size: 64MB */
+			/* DRAM size: under 8GB -> BTL size: 32MB */
+			if (convert_to_kb(s.totalram) > btl->extension_dram_size) {
+				btl->mem.size += cp_shmem_get_size(btl->id, SHMEM_BTL_EXT);
+				pdata->btl.extension_enabled = true;
+			} else {
+				cp_shmem_release_rmem(btl->id, SHMEM_BTL_EXT, 0);
+				pdata->btl.extension_enabled = false;
+			}
+		}
+
 		/* BAAW */
 		exynos_smc(SMC_ID_CLK, SSS_CLK_ENABLE, 0, 0);
+
+		if (btl->support_extension)
+			exynos_smc(SMC_ID, CP_BOOT_REQ_CP_RAM_LOGGING_E, 0, 0);
+
 		ret = (int)exynos_smc(SMC_ID, CP_BOOT_REQ_CP_RAM_LOGGING, 0, 0);
 		if (ret) {
 			mif_err("exynos_smc() error:%d\n", ret);
@@ -373,6 +396,8 @@ create_exit:
 		vunmap(btl->mem.v_base);
 
 	cp_shmem_release_rmem(btl->id, SHMEM_BTL, 0);
+	if (btl->support_extension)
+		cp_shmem_release_rmem(btl->id, SHMEM_BTL_EXT, 0);
 
 	return ret;
 }

@@ -35,6 +35,10 @@ struct cp_btl {
 
 	struct mem_link_device *mld;
 	struct miscdevice miscdev;
+
+	bool support_extension;
+	u32 extension_dram_size;
+	bool extension_enabled;
 };
 
 #if IS_ENABLED(CONFIG_CP_BTL)
