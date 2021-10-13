@@ -8,7 +8,7 @@
 #ifndef __EXYNOS_ALT_H_
 #define __EXYNOS_ALT_H_
 
-#ifdef CONFIG_EXYNOS_ALT_DVFS
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 void exynos_alt_call_chain(void);
 #else
 #define exynos_alt_call_chain() do {} while (0)
