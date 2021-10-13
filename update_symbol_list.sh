@@ -345,6 +345,10 @@ else
   echo " Compiling with BUILD_KERNEL=1 is now required until the new symbol(s)"
   echo " are merged. Re-compile using the below command:"
   echo
-  echo " SKIP_MRPROPER=1 BUILD_KERNEL=1 ./build_slider.sh"
+  if [ -z "${DEVICE_KERNEL_BUILD_CONFIG}" ]; then
+    echo " SKIP_MRPROPER=1 BUILD_KERNEL=1 ./build_slider.sh"
+  else
+    echo " SKIP_MRPROPER=1 BUILD_KERNEL=1 ./build_cloudripper.sh"
+  fi
   echo
 fi
