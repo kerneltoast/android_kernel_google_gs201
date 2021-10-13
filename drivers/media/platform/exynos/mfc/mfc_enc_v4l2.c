@@ -512,8 +512,10 @@ static int mfc_enc_s_fmt_vid_cap_mplane(struct file *file, void *priv,
 	pix_fmt_mp->plane_fmt[0].bytesperline = 0;
 
 	ret = mfc_rm_instance_open(dev, ctx);
-	if (ret)
+	if (ret) {
 		mfc_ctx_err("Failed to instance open\n");
+		return ret;
+	}
 
 	mfc_debug_leave();
 	return 0;
