@@ -76,9 +76,6 @@
 #define DIT_REG_CLAT_TX_CLAT_SRC_INTERVAL	(16)
 
 /* macro for DIT register operation */
-#define PADDR_LO(paddr)	(paddr & 0xFFFFFFFF)
-#define PADDR_HI(paddr)	((paddr >> 32) & 0xF)
-
 #define WRITE_REG_PADDR_LO(dc, paddr, offset) \
 		writel(PADDR_LO(paddr), dc->register_base + offset)
 #define WRITE_REG_PADDR_HI(dc, paddr, offset) \

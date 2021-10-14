@@ -191,15 +191,15 @@ struct mem_link_device {
 	 */
 	phys_addr_t boot_start;
 	size_t boot_size;
-	struct page **boot_pages;	/* pointer to the page table for vmap */
 	u8 __iomem *boot_base;
+	u32 boot_img_offset;		/* From IPC base */
+	u32 boot_img_size;
 
 	/**
 	 * {physical address, size, virtual address} for IPC region
 	 */
 	phys_addr_t start;
 	size_t size;
-	struct page **pages;		/* pointer to the page table for vmap */
 	u8 __iomem *base;		/* virtual address of ipc mem start */
 #if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
 	u8 __iomem *hiprio_base;	/* virtual address of priority queue start */
@@ -215,11 +215,6 @@ struct mem_link_device {
 	 */
 	u8 __iomem *acpm_base;
 	int acpm_size;
-
-	/**
-	 * CP Binary size for CRC checking
-	 */
-	u32 cp_binary_size;
 
 	/* Boot link device */
 	struct legacy_link_device legacy_link_dev;
@@ -366,6 +361,7 @@ struct mem_link_device {
 	struct ctrl_msg ap2cp_handover_block_info;
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+	u8 __iomem *msi_reg_base;
 	int msi_irq_base;
 	int msi_irq_base_enabled;
 #endif

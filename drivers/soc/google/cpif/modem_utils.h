@@ -41,6 +41,9 @@
 
 #define PR_BUFFER_SIZE	128
 
+#define PADDR_LO(paddr)	((paddr) & 0xFFFFFFFF)
+#define PADDR_HI(paddr)	(((paddr) >> 32) & 0xF)
+
 enum mif_log_id {
 	MIF_IPC_RL2AP = 1,
 	MIF_IPC_AP2CP,

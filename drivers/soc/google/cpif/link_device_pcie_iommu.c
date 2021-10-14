@@ -26,7 +26,7 @@ void cpif_pcie_iommu_enable_regions(struct mem_link_device *mld)
 		return;
 
 	for (shmem_idx = 0 ; shmem_idx < MAX_CP_SHMEM ; shmem_idx++) {
-		if (shmem_idx == SHMEM_MSI)
+		if (shmem_idx == SHMEM_MSI && !(mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE))
 			continue;
 
 		if (shmem_idx == SHMEM_PKTPROC)

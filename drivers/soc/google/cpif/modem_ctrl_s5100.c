@@ -123,7 +123,7 @@ static void cp2ap_wakeup_work(struct work_struct *work)
 			mc->cp_power_stats.last_entry_timestamp_usec);
 	spin_unlock_irqrestore(&mc->power_stats_lock, flags);
 
-	s5100_poweron_pcie(mc);
+	s5100_poweron_pcie(mc, false);
 }
 
 static void cp2ap_suspend_work(struct work_struct *work)
@@ -594,14 +594,17 @@ static int register_pcie(struct link_device *ld)
 	struct platform_device *pdev = to_platform_device(mc->dev);
 	static int is_registered;
 	struct mem_link_device *mld = to_mem_link_device(ld);
+	u32 cp_num = ld->mdm_data->cp_num;
 
 #if IS_ENABLED(CONFIG_GS_S2MPU)
-	u32 cp_num;
 	u32 shmem_idx;
 	int ret;
 	struct device_node *s2mpu_dn;
 #endif
 	mif_info("CP EP driver initialization start.\n");
+
+	if (!mld->msi_reg_base && (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE))
+		mld->msi_reg_base = cp_shmem_get_region(cp_num, SHMEM_MSI);
 
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 
@@ -617,10 +620,8 @@ static int register_pcie(struct link_device *ld)
 		return -EPROBE_DEFER;
 	}
 
-	cp_num = ld->mdm_data->cp_num;
-
 	for (shmem_idx = 0 ; shmem_idx < MAX_CP_SHMEM ; shmem_idx++) {
-		if (shmem_idx == SHMEM_MSI)
+		if (shmem_idx == SHMEM_MSI && !(mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE))
 			continue;
 
 		if (cp_shmem_get_base(cp_num, shmem_idx)) {
@@ -653,7 +654,7 @@ static int register_pcie(struct link_device *ld)
 
 	msleep(200);
 
-	s5100_poweron_pcie(mc);
+	s5100_poweron_pcie(mc, !!(mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE));
 
 	if (is_registered == 0) {
 		/* initialize the pci_dev for modem_ctl */
@@ -914,6 +915,67 @@ static int check_cp_status(struct modem_ctl *mc, unsigned int count)
 	return ret;
 }
 
+static int set_cp_rom_boot_img(struct mem_link_device *mld)
+{
+	struct link_device *ld = &mld->link_dev;
+	struct modem_ctl *mc = ld->mc;
+	struct modem_data *modem = mc->mdm_data;
+	unsigned long boot_img_addr;
+
+	if (!(mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)) {
+		mif_err("Invalid attr:0x%lx\n", mld->attrs);
+		return -EPERM;
+	}
+
+	if (!mld->msi_reg_base) {
+		mif_err("MSI region is not assigned yet\n");
+		return -EINVAL;
+	}
+
+	boot_img_addr = cp_shmem_get_base(modem->cp_num, SHMEM_IPC) + mld->boot_img_offset;
+
+	iowrite32(PADDR_LO(boot_img_addr),
+		  mld->msi_reg_base + offsetof(struct msi_reg_type, img_addr_lo));
+	iowrite32(PADDR_HI(boot_img_addr),
+		  mld->msi_reg_base + offsetof(struct msi_reg_type, img_addr_hi));
+	iowrite32(mld->boot_img_size,
+		  mld->msi_reg_base + offsetof(struct msi_reg_type, img_size));
+
+	mif_info("boot_img addr:0x%lX size:0x%X\n", boot_img_addr, mld->boot_img_size);
+
+	s51xx_pcie_send_doorbell_int(mc->s51xx_pdev, mld->intval_ap2cp_msg);
+
+	return 0;
+}
+
+static void debug_cp_rom_boot_img(struct mem_link_device *mld)
+{
+	unsigned char str[64 * 3];
+	u8 __iomem *img_base;
+	u32 img_size;
+
+	if (!(mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)) {
+		mif_err("Invalid attr:0x%lx\n", mld->attrs);
+		return;
+	}
+
+	img_base = mld->base + mld->boot_img_offset;
+	img_size = ioread32(mld->msi_reg_base + offsetof(struct msi_reg_type, img_size));
+
+	mif_err("boot_stage:0x%X err_report:0x%X img_lo:0x%X img_hi:0x%X img_size:0x%X\n",
+		ioread32(mld->msi_reg_base + offsetof(struct msi_reg_type, boot_stage)),
+		ioread32(mld->msi_reg_base + offsetof(struct msi_reg_type, err_report)),
+		ioread32(mld->msi_reg_base + offsetof(struct msi_reg_type, img_addr_lo)),
+		ioread32(mld->msi_reg_base + offsetof(struct msi_reg_type, img_addr_hi)),
+		img_size);
+
+	if (img_size > 64)
+		img_size = 64;
+
+	dump2hex(str, (img_size ? img_size * 3 : 1), img_base, img_size);
+	mif_err("img_content:%s\n", str);
+}
+
 static int start_normal_boot(struct modem_ctl *mc)
 {
 	struct link_device *ld = get_current_link(mc->bootd);
@@ -954,15 +1016,24 @@ static int start_normal_boot(struct modem_ctl *mc)
 		return ret;
 	}
 
+	if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE) {
+		register_pcie(ld);
+		if (mc->s51xx_pdev && mc->pcie_registered)
+			set_cp_rom_boot_img(mld);
+	}
+
 	ret = check_cp_status(mc, 200);
 	if (ret < 0) {
 		mif_err("ERR! check_cp_status fail (err %d)\n", ret);
+		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)
+			debug_cp_rom_boot_img(mld);
 		if (cpif_wake_lock_active(mc->ws))
 			cpif_wake_unlock(mc->ws);
 		return ret;
 	}
 
-	register_pcie(ld);
+	if (!(mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE))
+		register_pcie(ld);
 
 	mif_info("---\n");
 	return 0;
@@ -1122,8 +1193,9 @@ int s5100_send_panic_noti_ext(void)
 
 static int start_dump_boot(struct modem_ctl *mc)
 {
-	int err;
 	struct link_device *ld = get_current_link(mc->bootd);
+	struct mem_link_device *mld = to_mem_link_device(ld);
+	int err = 0;
 
 	mif_err("+++\n");
 
@@ -1134,22 +1206,32 @@ static int start_dump_boot(struct modem_ctl *mc)
 		mif_err("%s: link_start_dump_boot is null\n", ld->name);
 		return -EFAULT;
 	}
+
 	err = ld->link_start_dump_boot(ld, mc->bootd);
 	if (err)
 		return err;
+
+	if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE) {
+		register_pcie(ld);
+		if (mc->s51xx_pdev && mc->pcie_registered)
+			set_cp_rom_boot_img(mld);
+	}
 
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE], 1, 0);
 
 	err = check_cp_status(mc, 200);
 	if (err < 0) {
 		mif_err("ERR! check_cp_status fail (err %d)\n", err);
+		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)
+			debug_cp_rom_boot_img(mld);
 		return err;
 	}
 
 	/* do not handle cp2ap_wakeup irq during dump process */
 	mif_disable_irq(&mc->cp_gpio_irq[CP_GPIO_IRQ_CP2AP_WAKEUP]);
 
-	register_pcie(ld);
+	if (!(mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE))
+		register_pcie(ld);
 
 	mif_err("---\n");
 	return err;
@@ -1250,7 +1332,7 @@ exit:
 	return 0;
 }
 
-int s5100_poweron_pcie(struct modem_ctl *mc)
+int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 {
 	struct link_device *ld;
 	struct mem_link_device *mld;
@@ -1279,7 +1361,8 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 		goto exit;
 	}
 
-	if (mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_WAKEUP], true) == 0) {
+	if (!boot_on &&
+	    mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_WAKEUP], true) == 0) {
 		mif_err("skip pci power on : condition not met\n");
 		goto exit;
 	}

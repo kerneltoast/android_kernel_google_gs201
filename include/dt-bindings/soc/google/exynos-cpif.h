@@ -141,6 +141,7 @@
 #define LINK_ATTR_DUMP_ALIGNED		(0x1 << 9) /* DUMP with 4-bytes alignment */
 #define LINK_ATTR_XMIT_BTDLR		(0x1 << 10) /* Used to download CP bootloader */
 #define LINK_ATTR_XMIT_BTDLR_SPI	(0x1 << 11) /* Download CP bootloader by SPI */
+#define LINK_ATTR_XMIT_BTDLR_PCIE	(0x1 << 12) /* CP ROM booting via PCIe */
 
 /* IO device attr */
 #define IO_ATTR_SIPC4			(0x1 << 0)

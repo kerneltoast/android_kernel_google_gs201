@@ -2083,6 +2083,23 @@ static int link_load_cp_image(struct link_device *ld, struct io_device *iod,
 	}
 
 	mutex_lock(&mld->vmap_lock);
+
+	if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE) {
+		struct modem_data *modem = mld->link_dev.mdm_data;
+
+		/*
+		 * Copy boot img to data buffer for keeping the IPC region integrity.
+		 * boot_img_offset should be 64KB aligned.
+		 */
+		mld->boot_img_offset = round_up(modem->legacy_raw_buffer_offset, SZ_64K);
+		mld->boot_img_size = img.size;
+
+		valid_space = mld->size - mld->boot_img_offset;
+		v_base = mld->base + mld->boot_img_offset;
+
+		goto check_img;
+	}
+
 	if (mld->boot_base == NULL) {
 		mld->boot_base = cp_shmem_get_nc_region(cp_shmem_get_base(ld->mdm_data->cp_num,
 					SHMEM_CP), mld->boot_size);
@@ -2098,6 +2115,7 @@ static int link_load_cp_image(struct link_device *ld, struct io_device *iod,
 	/* Calculate base address (0: BOOT_MODE, 1: DUMP_MODE) */
 	v_base = (img.mode) ? mld->base : mld->boot_base;
 
+check_img:
 	/**
 	 * Check the size of the boot image
 	 * fix the integer overflow of "img.m_offset + img.len" from Jose Duart
