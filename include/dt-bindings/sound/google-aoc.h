@@ -38,6 +38,7 @@
 #define IDX_HIFI_RX             0x10
 #define IDX_HAPTIC_NoHOST_RX	0x20000011
 #define IDX_US_RX		0x13
+#define IDX_INCALL_PB2_RX       0x14
 
 #define IDX_EP1_TX		0x40000000
 #define IDX_EP2_TX		0x40000001
