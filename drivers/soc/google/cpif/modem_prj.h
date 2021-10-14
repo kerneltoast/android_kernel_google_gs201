@@ -512,10 +512,6 @@ struct link_device {
 	void (*stop_timers)(struct mem_link_device *mld);
 
 	int (*handover_block_info)(struct link_device *ld, unsigned long arg);
-
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-	int (*register_pcie)(struct link_device *ld);
-#endif
 };
 
 static inline struct sk_buff *rx_alloc_skb(unsigned int length,

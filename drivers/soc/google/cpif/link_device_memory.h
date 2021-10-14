@@ -362,11 +362,10 @@ struct mem_link_device {
 	struct ctrl_msg ap2cp_kerneltime_usec;	/* for DRAM_V2 */
 	struct ctrl_msg ap2cp_handover_block_info;
 
-	u32 __iomem *doorbell_addr;
-	struct pci_dev *s51xx_pdev;
-
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	int msi_irq_base;
 	int msi_irq_base_enabled;
+#endif
 
 	u32 __iomem *srinfo_base;
 	u32 srinfo_size;

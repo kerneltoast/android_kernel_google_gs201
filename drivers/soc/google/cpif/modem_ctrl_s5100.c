@@ -523,6 +523,169 @@ static int init_control_messages(struct modem_ctl *mc)
 	return 0;
 }
 
+static int request_pcie_msi_int(struct link_device *ld,
+				struct platform_device *pdev)
+{
+	int ret, base_irq;
+	struct mem_link_device *mld = to_mem_link_device(ld);
+	struct device *dev = &pdev->dev;
+	struct modem_ctl *mc = ld->mc;
+	int irq_offset = 0;
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+	int i;
+#endif
+
+	mif_info("Request MSI interrupt.\n");
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	if (ppa->use_exclusive_irq)
+		base_irq = s51xx_pcie_request_msi_int(mc->s51xx_pdev, 5);
+	else
+#endif
+		base_irq = s51xx_pcie_request_msi_int(mc->s51xx_pdev, 4);
+
+	mif_info("Request MSI interrupt. : BASE_IRQ(%d)\n", base_irq);
+	mld->msi_irq_base = base_irq;
+
+	if (base_irq <= 0) {
+		mif_err("Can't get MSI IRQ!!!\n");
+		return -EFAULT;
+	}
+
+	ret = devm_request_irq(dev, base_irq + irq_offset, shmem_irq_handler,
+			       IRQF_SHARED, "mif_cp2ap_msg", mld);
+	if (ret) {
+		mif_err("Can't request cp2ap_msg interrupt!!!\n");
+		return -EIO;
+	}
+	irq_offset++;
+
+	ret = devm_request_irq(dev, base_irq + irq_offset, shmem_tx_state_handler,
+			       IRQF_SHARED, "mif_cp2ap_status", mld);
+	if (ret) {
+		mif_err("Can't request cp2ap_status interrupt!!!\n");
+		return -EIO;
+	}
+	irq_offset++;
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	if (ppa->use_exclusive_irq) {
+		for (i = 0; i < ppa->num_queue; i++) {
+			struct pktproc_queue *q = ppa->q[i];
+
+			q->irq = mld->msi_irq_base + irq_offset + q->irq_idx;
+			ret = devm_request_irq(dev, q->irq, q->irq_handler,
+					       IRQF_SHARED, "pktproc", q);
+			if (ret) {
+				mif_err("devm_request_irq() for pktproc%d error %d\n", i, ret);
+				return -EIO;
+			}
+			irq_offset++;
+		}
+	}
+#endif
+
+	mld->msi_irq_base_enabled = 1;
+
+	return base_irq;
+}
+
+static int register_pcie(struct link_device *ld)
+{
+	struct modem_ctl *mc = ld->mc;
+	struct platform_device *pdev = to_platform_device(mc->dev);
+	static int is_registered;
+	struct mem_link_device *mld = to_mem_link_device(ld);
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+	u32 cp_num;
+	u32 shmem_idx;
+	int ret;
+	struct device_node *s2mpu_dn;
+#endif
+	mif_info("CP EP driver initialization start.\n");
+
+#if IS_ENABLED(CONFIG_GS_S2MPU)
+
+	s2mpu_dn = of_parse_phandle(mc->dev->of_node, "s2mpu", 0);
+	if (!s2mpu_dn) {
+		mif_err("Failed to find s2mpu from device tree\n");
+		return -EINVAL;
+	}
+
+	mc->s2mpu = s2mpu_fwnode_to_info(&s2mpu_dn->fwnode);
+	if (!mc->s2mpu) {
+		mif_err("Failed to get S2MPU\n");
+		return -EPROBE_DEFER;
+	}
+
+	cp_num = ld->mdm_data->cp_num;
+
+	for (shmem_idx = 0 ; shmem_idx < MAX_CP_SHMEM ; shmem_idx++) {
+		if (shmem_idx == SHMEM_MSI)
+			continue;
+
+		if (cp_shmem_get_base(cp_num, shmem_idx)) {
+			ret =  s2mpu_open(mc->s2mpu,
+					  cp_shmem_get_base(cp_num, shmem_idx),
+					  cp_shmem_get_size(cp_num, shmem_idx),
+					  DMA_BIDIRECTIONAL);
+			if (ret) {
+				mif_err("S2MPU open failed error=%d\n", ret);
+				return -EINVAL;
+			}
+		}
+	}
+
+	/* Also setup AoC window for voice calls */
+	ret =  s2mpu_open(mc->s2mpu,
+			  AOC_PCIE_WINDOW_START, AOC_PCIE_WINDOW_SIZE,
+			  DMA_BIDIRECTIONAL);
+
+	if (ret) {
+		mif_err("S2MPU AoC open failed error=%d\n", ret);
+		return -EINVAL;
+	}
+
+#endif
+
+	msleep(200);
+
+	s5100_poweron_pcie(mc);
+
+	if (is_registered == 0) {
+		/* initialize the pci_dev for modem_ctl */
+		mif_info("s51xx_pcie_init start\n");
+		s51xx_pcie_init(mc);
+		if (!mc->s51xx_pdev) {
+			mif_err("s51xx_pdev is NULL. Check if CP wake up is done.\n");
+			return -EINVAL;
+		}
+
+		/* debug: check MSI 32bit or 64bit - should be set as 32bit before this point*/
+		// debug: pci_read_config_dword(s51xx_pcie.s51xx_pdev, 0x50, &msi_val);
+		// debug: mif_err("MSI Control Reg : 0x%x\n", msi_val);
+
+		request_pcie_msi_int(ld, pdev);
+		first_save_s51xx_status(mc->s51xx_pdev);
+
+		is_registered = 1;
+	} else {
+		if (mc->phone_state == STATE_CRASH_RESET) {
+			print_msi_register(mc->s51xx_pdev);
+			enable_irq(mld->msi_irq_base);
+		}
+	}
+
+	print_msi_register(mc->s51xx_pdev);
+	mc->pcie_registered = true;
+
+	mif_info("CP EP driver initialization end.\n");
+
+	return 0;
+}
+
 static int power_on_cp(struct modem_ctl *mc)
 {
 	struct link_device *ld = get_current_link(mc->iod);
@@ -798,10 +961,7 @@ static int start_normal_boot(struct modem_ctl *mc)
 		return ret;
 	}
 
-	if (ld->register_pcie) {
-		mif_info("register_pcie\n");
-		ld->register_pcie(ld);
-	}
+	register_pcie(ld);
 
 	mif_info("---\n");
 	return 0;
@@ -988,10 +1148,7 @@ static int start_dump_boot(struct modem_ctl *mc)
 	/* do not handle cp2ap_wakeup irq during dump process */
 	mif_disable_irq(&mc->cp_gpio_irq[CP_GPIO_IRQ_CP2AP_WAKEUP]);
 
-	if (ld->register_pcie) {
-		mif_info("register_pcie\n");
-		ld->register_pcie(ld);
-	}
+	register_pcie(ld);
 
 	mif_err("---\n");
 	return err;

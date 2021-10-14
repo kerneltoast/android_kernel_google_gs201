@@ -8,11 +8,8 @@
 #include "modem_toe_device.h"
 
 bool check_mem_link_tx_pending(struct mem_link_device *mld);
-
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-int request_pcie_msi_int(struct link_device *ld,
-				struct platform_device *pdev);
-#endif
+irqreturn_t shmem_tx_state_handler(int irq, void *data);
+irqreturn_t shmem_irq_handler(int irq, void *data);
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
 bool shmem_ap2cp_write_clatinfo(struct mem_link_device *mld, struct clat_info *clat);
