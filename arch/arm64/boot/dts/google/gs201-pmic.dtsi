@@ -1344,8 +1344,8 @@
 		s2mpg13_gpio: s2mpg13_gpio {
 			gpio-controller;
 			#gpio-cells = <2>;
-			ngpios = <6>;
-			gpio-ranges = <&s2mpg13_pinctrl 0 0 6>;
+			ngpios = <8>;
+			gpio-ranges = <&s2mpg13_pinctrl 0 0 8>;
 		};
 
 		s2mpg13_pinctrl: s2mpg13_pinctrl {
