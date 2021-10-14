@@ -512,6 +512,21 @@
 				};
 			};
 
+			dai_fe_incall_pb2_rx: fe_incall_pb2_rx {
+				dai-name = "audio_incall_pb_2";
+				stream-name = "audio_incall_pb_2";
+				id = <IDX_INCALL_PB2_RX>;
+				playback;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_INCALL_PB2_RX>;
+				};
+				platform {
+					rx1 {
+						of_drv = <&aoc_incall_ep>;
+					};
+				};
+			};
+
 			dai_be_i2s0_rx: be_i2s0_rx {
 				dai-name = "I2S_0_RX Playback";
 				stream-name = "I2S_0_RX Playback";
