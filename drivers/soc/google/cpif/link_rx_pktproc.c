@@ -631,7 +631,7 @@ static struct sk_buff *cpif_build_skb_single(struct pktproc_queue *q, u8 *src, u
 }
 
 static struct sk_buff *cpif_build_skb_gro(struct pktproc_queue *q, u8 *src, u16 len,
-		int *buffer_count)
+		int *buffer_count, bool *nomem)
 {
 	struct sk_buff *skb_head, *skb, *last;
 	struct pktproc_desc_sktbuf *desc;
@@ -644,7 +644,7 @@ static struct sk_buff *cpif_build_skb_gro(struct pktproc_queue *q, u8 *src, u16 
 	skb_head = cpif_build_skb_single(q, src, len, q->ppa->skb_padding_size,
 					sizeof(struct skb_shared_info), buffer_count);
 	if (unlikely(!skb_head))
-		goto gro_fail;
+		goto gro_fail_nomem;
 
 	hdr_len = cpif_prepare_lro_and_get_headlen(skb_head, &is_udp);
 	skb_shinfo(skb_head)->gso_size = skb_head->len - hdr_len;
@@ -663,20 +663,20 @@ static struct sk_buff *cpif_build_skb_gro(struct pktproc_queue *q, u8 *src, u16 
 
 		if (!is_desc_valid(q, desc)) {
 			mif_err_limited("Err! invalid desc. HW GRO failed\n");
-			goto gro_fail;
+			goto gro_fail_inval;
 		}
 
 		tmp_src = get_packet_vaddr(q, desc);
 		if (!tmp_src) {
 			mif_err_limited("Err! invalid packet vaddr. HW GRO failed\n");
-			goto gro_fail;
+			goto gro_fail_inval;
 		}
 
 		tmp_len = desc->length;
 		skb = cpif_build_skb_single(q, tmp_src, tmp_len, q->ppa->skb_padding_size,
 					sizeof(struct skb_shared_info), buffer_count);
 		if (unlikely(!skb))
-			goto gro_fail;
+			goto gro_fail_nomem;
 		skb->transport_header = q->ppa->skb_padding_size - hdr_len;
 		skb->network_header = q->ppa->skb_padding_size - hdr_len;
 		skb->mac_header = q->ppa->skb_padding_size - hdr_len;
@@ -726,7 +726,9 @@ static struct sk_buff *cpif_build_skb_gro(struct pktproc_queue *q, u8 *src, u16 
 
 	return skb_head;
 
-gro_fail:
+gro_fail_nomem:
+	*nomem = true;
+gro_fail_inval:
 	if (skb_head)
 		dev_kfree_skb_any(skb_head);
 	return NULL;
@@ -756,16 +758,13 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	}
 
 	if (!is_desc_valid(q, &desc_done_ptr)) {
-		ret = -EPERM;
+		ret = -EINVAL;
 		goto rx_error_on_desc;
 	}
 
 	src = get_packet_vaddr(q, &desc_done_ptr);
 	if (!src) {
 		ret = -EINVAL;
-		if (q->manager)
-			ld->link_trigger_cp_crash(q->mld, CRASH_REASON_MIF_RX_BAD_DATA,
-					"invalid data address. null given");
 		goto rx_error_on_desc;
 	}
 
@@ -814,13 +813,22 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	if (q->manager) {
 		/* guaranteed that only TCP/IP, UDP/IP in this case */
 		if (desc_done_ptr.lro == (LRO_MODE_ON | LRO_FIRST_SEG)) {
+			bool nomem = false;
 			if (!csum)
 				mif_info("CSUM error on LRO: 0x%lX\n",
 						desc_done_ptr.status);
-			skb = cpif_build_skb_gro(q, src, len, &buffer_count);
+			skb = cpif_build_skb_gro(q, src, len, &buffer_count, &nomem);
 			if (unlikely(!skb)) {
-				ret = -EINVAL;
-				goto rx_error_on_desc;
+				if (nomem) {
+					ret = -ENOMEM;
+					if (buffer_count != 0) /* intermediate seg */
+						q->done_ptr = circ_new_ptr(q->num_desc,
+							q->done_ptr, 1);
+					goto rx_error;
+				} else {
+					ret = -EINVAL;
+					goto rx_error_on_desc;
+				}
 			}
 			q->stat.lro_cnt++;
 		} else {
@@ -882,7 +890,9 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	return buffer_count;
 
 rx_error_on_desc:
-	mif_err_limited("Skip invalid descriptor at %d\n", q->done_ptr);
+	mif_err_limited("Skip invalid descriptor at %d and crash\n", q->done_ptr);
+	ld->link_trigger_cp_crash(q->mld, CRASH_REASON_MIF_RX_BAD_DATA,
+				"invalid descriptor given");
 	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 
 rx_error:
