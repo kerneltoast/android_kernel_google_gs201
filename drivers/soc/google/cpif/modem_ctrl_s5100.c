@@ -650,6 +650,10 @@ static int register_pcie(struct link_device *ld)
 
 #endif
 
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	cpif_pcie_iommu_enable_regions(mld);
+#endif
+
 	msleep(200);
 
 	s5100_poweron_pcie(mc);
@@ -1328,10 +1332,6 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 			}
 		}
 	}
-#endif
-
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-	cpif_pcie_iommu_enable_regions(mld);
 #endif
 
 	if (mc->s51xx_pdev != NULL) {
