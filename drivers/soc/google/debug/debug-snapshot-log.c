@@ -647,12 +647,16 @@ static void dbg_snapshot_print_irq(void)
 	pr_info("----------------------------------------------------------\n");
 
 	for_each_irq_nr(i) {
-		struct irq_desc *desc = irq_to_desc(i);
+		struct irq_data *data;
+		struct irq_desc *desc;
 		unsigned int irq_stat = 0;
 		const char *name;
 
-		if (!desc)
+		data = irq_get_irq_data(i);
+		if (!data)
 			continue;
+
+		desc = irq_data_to_desc(data);
 
 		for_each_possible_cpu(cpu)
 			irq_stat += *per_cpu_ptr(desc->kstat_irqs, cpu);

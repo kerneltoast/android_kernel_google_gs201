@@ -18,7 +18,12 @@
 
 static irqreturn_t exynos_ecc_handler(int irq, void *dev_id)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_data *data;
+	struct irq_desc *desc = NULL;
+
+	data = irq_get_irq_data(irq);
+	if (data)
+		desc = irq_data_to_desc(data);
 
 	dbg_snapshot_ecc_dump();
 	if (desc && desc->action && desc->action->name)
