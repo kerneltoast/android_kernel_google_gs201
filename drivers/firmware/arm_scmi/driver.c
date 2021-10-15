@@ -1395,21 +1395,6 @@ void scmi_unrequest_protocol_device(const struct scmi_device_id *id_table)
 	mutex_unlock(&scmi_requested_devices_mtx);
 }
 
-static int scmi_cleanup_txrx_channels(struct scmi_info *info)
-{
-	int ret;
-	struct idr *idr = &info->tx_idr;
-
-	ret = idr_for_each(idr, info->desc->ops->chan_free, idr);
-	idr_destroy(&info->tx_idr);
-
-	idr = &info->rx_idr;
-	ret = idr_for_each(idr, info->desc->ops->chan_free, idr);
-	idr_destroy(&info->rx_idr);
-
-	return ret;
-}
-
 static int scmi_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -1451,7 +1436,7 @@ static int scmi_probe(struct platform_device *pdev)
 
 	ret = scmi_xfer_info_init(info);
 	if (ret)
-		goto clear_txrx_setup;
+		return ret;
 
 	if (scmi_notification_init(handle))
 		dev_err(dev, "SCMI Notifications NOT available.\n");
@@ -1464,7 +1449,7 @@ static int scmi_probe(struct platform_device *pdev)
 	ret = scmi_acquire_protocol(handle, SCMI_PROTOCOL_BASE);
 	if (ret) {
 		dev_err(dev, "unable to communicate with SCMI\n");
-		goto notification_exit;
+		return ret;
 	}
 
 	mutex_lock(&scmi_list_mutex);
@@ -1503,12 +1488,6 @@ static int scmi_probe(struct platform_device *pdev)
 	}
 
 	return 0;
-
-notification_exit:
-	scmi_notification_exit(&info->handle);
-clear_txrx_setup:
-	scmi_cleanup_txrx_channels(info);
-	return ret;
 }
 
 void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id)
@@ -1520,6 +1499,7 @@ static int scmi_remove(struct platform_device *pdev)
 {
 	int ret = 0, id;
 	struct scmi_info *info = platform_get_drvdata(pdev);
+	struct idr *idr = &info->tx_idr;
 	struct device_node *child;
 
 	mutex_lock(&scmi_list_mutex);
@@ -1543,7 +1523,14 @@ static int scmi_remove(struct platform_device *pdev)
 	idr_destroy(&info->active_protocols);
 
 	/* Safe to free channels since no more users */
-	return scmi_cleanup_txrx_channels(info);
+	ret = idr_for_each(idr, info->desc->ops->chan_free, idr);
+	idr_destroy(&info->tx_idr);
+
+	idr = &info->rx_idr;
+	ret = idr_for_each(idr, info->desc->ops->chan_free, idr);
+	idr_destroy(&info->rx_idr);
+
+	return ret;
 }
 
 static ssize_t protocol_version_show(struct device *dev,
