@@ -41,7 +41,7 @@ allmodules: $(ext_modules) $(install_uapi_headers_targets) depmod
 
 aoc/alsa: | aoc
 
-aoc/usb: | aoc
+aoc/usb: | aoc/alsa aoc
 
 power/reset: | bms
 
