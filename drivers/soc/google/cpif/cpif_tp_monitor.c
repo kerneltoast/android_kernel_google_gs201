@@ -1508,10 +1508,13 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			}
 
 			data = &tpmon->data[count];
-			memset(data, 0, sizeof(struct tpmon_data));
-			memcpy(data, &child_data, sizeof(struct tpmon_data));
-
+			memcpy(data, &child_data, sizeof(child_data));
 			data->tpmon = tpmon;
+
+			/* check enabled */
+			mif_dt_read_u32(boost_np, "enable", data->enable);
+			if (!data->enable)
+				continue;
 
 			/* threshold */
 			mif_dt_count_u32_elems(boost_np, "boost_threshold",
@@ -1529,7 +1532,6 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			}
 
 			/* measure */
-			mif_dt_read_u32(boost_np, "enable", data->enable);
 			mif_dt_read_u32(boost_np, "proto", data->proto);
 			mif_dt_read_u32(boost_np, "measure", data->measure);
 			spin_lock_irqsave(&tpmon->lock, flags);
@@ -1553,10 +1555,9 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			list_add_tail(&data->data_node, &tpmon->all_data_list);
 			spin_unlock_irqrestore(&tpmon->lock, flags);
 
-			mif_info("name:%s measure:%d target:%d enable:%d\n",
-				data->name, data->measure, data->target, data->enable);
-			mif_info("extra_idx:%d level:%d/%d proto:%d\n",
-				data->extra_idx, data->num_threshold, data->num_level, data->proto);
+			mif_info("name:%s measure:%d target:%d extra_idx:%d level:%d/%d proto:%d\n",
+				 data->name, data->measure, data->target, data->extra_idx,
+				 data->num_threshold, data->num_level, data->proto);
 
 			count++;
 		}
