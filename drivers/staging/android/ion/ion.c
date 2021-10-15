@@ -27,17 +27,6 @@
 
 #include "ion_private.h"
 
-/*
- * ION_IOC_FREE and ion_handle_data is deprecated from ION after 4.14.
- * But it is used to study the version of ION by libion in Android.
- * Therefore, ion_ioctl() should not blaim if a user send ION_IOC_FREE.
- */
-struct ion_handle_data {
-	int handle;
-};
-
-#define ION_IOC_FREE	_IOWR(ION_IOC_MAGIC, 1, struct ion_handle_data)
-
 #define ION_CURRENT_ABI_VERSION  2
 
 static struct ion_device *internal_dev;
@@ -67,10 +56,8 @@ static int ion_alloc_fd(size_t len, unsigned int heap_id_mask,
 		return PTR_ERR(dmabuf);
 
 	fd = dma_buf_fd(dmabuf, O_CLOEXEC);
-	if (fd < 0) {
-		pr_err("%s: failed to get dmabuf fd err %d\n", __func__, -fd);
+	if (fd < 0)
 		dma_buf_put(dmabuf);
-	}
 
 	return fd;
 }
@@ -124,10 +111,8 @@ static int ion_query_heaps(struct ion_heap_query *query)
 		goto out;
 	}
 
-	if (query->cnt <= 0) {
-		pr_err("%s: invalid heapdata cnt %u\n", __func__, query->cnt);
+	if (query->cnt <= 0)
 		goto out;
-	}
 
 	max_cnt = query->cnt;
 
@@ -181,10 +166,8 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int ret = 0;
 	union ion_ioctl_arg data;
 
-	if (_IOC_SIZE(cmd) > sizeof(data)) {
-		pr_err("%s: unknown ioctl %#x\n", __func__, cmd);
+	if (_IOC_SIZE(cmd) > sizeof(data))
 		return -EINVAL;
-	}
 
 	/*
 	 * The copy_from_user is unconditional here for both read and write
@@ -225,9 +208,6 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		data.ion_abi_version = ION_CURRENT_ABI_VERSION;
 		break;
 	default:
-		if (cmd != ION_IOC_FREE)
-			pr_err("%s: unknown ioctl %#x\n", __func__, cmd);
-
 		return -ENOTTY;
 	}
 
