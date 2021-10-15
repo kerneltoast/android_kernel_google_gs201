@@ -368,4 +368,3 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ipv6_gen_linklocal_addr);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sound_usb_support_cpu_suspend);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_snd_compr_use_pause_in_drain);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_kmalloc_slab);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mmap_region);

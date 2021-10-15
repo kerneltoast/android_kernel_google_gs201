@@ -117,9 +117,6 @@ DECLARE_HOOK(android_vh_mem_cgroup_css_online,
 DECLARE_HOOK(android_vh_mem_cgroup_css_offline,
 	TP_PROTO(struct cgroup_subsys_state *css, struct mem_cgroup *memcg),
 	TP_ARGS(css, memcg));
-DECLARE_HOOK(android_vh_mmap_region,
-	TP_PROTO(struct vm_area_struct *vma, unsigned long addr),
-	TP_ARGS(vma, addr));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */

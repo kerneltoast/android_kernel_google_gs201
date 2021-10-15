@@ -1964,8 +1964,6 @@ out:
 	vma_set_page_prot(vma);
 	vm_write_end(vma);
 
-	trace_android_vh_mmap_region(vma, addr);
-
 	return addr;
 
 unmap_and_free_vma:
