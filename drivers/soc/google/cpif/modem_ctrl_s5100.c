@@ -1382,7 +1382,7 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 	/* wait Tx done if it is running */
 	spin_unlock_irqrestore(&mc->pcie_tx_lock, flags);
 
-	if (exynos_pcie_poweron(mc->pcie_ch_num) != 0)
+	if (exynos_pcie_poweron(mc->pcie_ch_num, (boot_on ? 1 : 3)) != 0)
 		goto exit;
 
 	mc->pcie_powered_on = true;
