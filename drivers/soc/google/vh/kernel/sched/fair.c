@@ -1499,6 +1499,8 @@ void rvh_cpu_cgroup_online_pixel_mod(void *data, struct cgroup_subsys_state *css
 		vtg->group = VG_NNAPI_HAL;
 	} else if (strcmp(name, "rt") == 0) {
 		vtg->group = VG_RT;
+	} else if (strcmp(name, "dex2oat") == 0) {
+		vtg->group = VG_DEX2OAT;
 	} else {
 		vtg->group = VG_SYSTEM;
 	}
