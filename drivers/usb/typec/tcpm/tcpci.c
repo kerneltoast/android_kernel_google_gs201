@@ -813,12 +813,6 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	if (tcpci->data->vbus_vsafe0v)
 		tcpci->tcpc.is_vbus_vsafe0v = tcpci_is_vbus_vsafe0v;
 
-	if (tcpci->data->auto_discharge_disconnect) {
-		tcpci->tcpc.enable_auto_vbus_discharge = tcpci_enable_auto_vbus_discharge;
-		tcpci->tcpc.set_auto_vbus_discharge_threshold =
-			tcpci_set_auto_vbus_discharge_threshold;
-	}
-
 	err = tcpci_parse_config(tcpci);
 	if (err < 0)
 		return ERR_PTR(err);
