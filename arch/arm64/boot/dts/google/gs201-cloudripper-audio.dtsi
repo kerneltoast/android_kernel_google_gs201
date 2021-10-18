@@ -15,14 +15,16 @@
 &dai_be_tdm0_rx {
 	codec {
 		sound-dai = <&cs35l45_1 0>,
-			<&cs35l45_2 0>;
+			<&cs35l45_2 0>,
+			<&cs35l45_3 0>;
 	};
 };
 
 &dai_be_tdm0_tx {
 	codec {
 		sound-dai = <&cs35l45_1 0>,
-			<&cs35l45_2 0>;
+			<&cs35l45_2 0>,
+			<&cs35l45_3 0>;
 	};
 };
 
@@ -189,7 +191,7 @@
 		interrupt-parent = <&gpa6>;
 		interrupts = <3 0 0>;
 
-		reset-gpios = <&gpp17 1 0>;
+		reset-gpios = <&gpp17 1 GPIO_ACTIVE_HIGH>;
 
 		VA-supply = <&s_bucka_reg>;
 		VP-supply = <&V_SYS_dummy>;
@@ -227,7 +229,7 @@
 		interrupt-parent = <&gpa8>;
 		interrupts = <6 0 0>;
 
-		reset-gpios = <&gpp25 2 0>;
+		reset-gpios = <&gpp25 2 GPIO_ACTIVE_HIGH>;
 
 		VA-supply = <&s_bucka_reg>;
 		VP-supply = <&V_SYS_dummy>;
@@ -264,8 +266,7 @@
 		interrupt-parent = <&gpa6>;
 		interrupts = <2 0 0>;
 
-		/* TODO: it is wrong, need to correct after pmic driver ready */
-		reset-gpios = <&s2mpg13_gpio 13 0>;
+		reset-gpios = <&s2mpg13_gpio 7 GPIO_ACTIVE_HIGH>;
 
 		VA-supply = <&s_bucka_reg>;
 		VP-supply = <&V_SYS_dummy>;
