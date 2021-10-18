@@ -625,9 +625,56 @@ static inline int ufshcd_get_rsp_upiu_result(struct utp_upiu_rsp *ucd_rsp_ptr)
 static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
 					struct ufshcd_lrb *lrbp)
 {
+	int result = 0;
+	int scsi_status;
+	u8 response_code, opcode;
+	u8 *asc, *sense_buffer;
+	int ocs;
+
 	pixel_ufs_update_io_stats(hba, lrbp, false);
 	pixel_ufs_update_req_stats(hba, lrbp);
 	pixel_ufs_trace_upiu_cmd(hba, lrbp, false);
+
+	if (!lrbp->cmd)
+		return;
+
+	opcode = lrbp->cmd->cmnd[0];
+	if (opcode != SYNCHRONIZE_CACHE && opcode != START_STOP)
+		return;
+
+	ocs = ufshcd_get_tr_ocs(lrbp);
+	if (hba->quirks & UFSHCD_QUIRK_BROKEN_OCS_FATAL_ERROR) {
+		if (be32_to_cpu(lrbp->ucd_rsp_ptr->header.dword_1) &
+					MASK_RSP_UPIU_RESULT)
+			ocs = OCS_SUCCESS;
+	}
+	if (ocs != OCS_SUCCESS)
+		return;
+
+	if (ufshcd_get_req_rsp(lrbp->ucd_rsp_ptr) != UPIU_TRANSACTION_RESPONSE)
+		return;
+
+	result = ufshcd_get_rsp_upiu_result(lrbp->ucd_rsp_ptr);
+	scsi_status = result & MASK_SCSI_STATUS;
+	if (scsi_status != SAM_STAT_CHECK_CONDITION)
+		return;
+
+	sense_buffer = lrbp->ucd_rsp_ptr->sr.sense_data;
+	response_code = sense_buffer[0] & 0x7f;
+	if (response_code >= 0x72)
+		asc = sense_buffer + 2;
+	else
+		asc = sense_buffer + 12;
+
+	/*
+	 * Ignore piggybacked SCSI reset, since it prevents system suspend.
+	 * 1) Make response_code deferred: 0x71
+	 * 2) Make scsi_report_sense not to send an uevent of UNIT ATTENTION
+	 */
+	if (*asc == 0x29) {
+		sense_buffer[0] = 0x71;
+		*(sense_buffer + 12) = 0;
+	}
 }
 
 static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
