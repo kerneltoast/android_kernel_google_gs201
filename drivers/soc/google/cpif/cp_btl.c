@@ -349,9 +349,6 @@ int cp_btl_create(struct cp_btl *btl, struct device *dev)
 		/* BAAW */
 		exynos_smc(SMC_ID_CLK, SSS_CLK_ENABLE, 0, 0);
 
-		if (btl->support_extension)
-			exynos_smc(SMC_ID, CP_BOOT_REQ_CP_RAM_LOGGING_E, 0, 0);
-
 		ret = (int)exynos_smc(SMC_ID, CP_BOOT_REQ_CP_RAM_LOGGING, 0, 0);
 		if (ret) {
 			mif_err("exynos_smc() error:%d\n", ret);
