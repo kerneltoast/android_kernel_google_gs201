@@ -100,10 +100,10 @@ static inline void pm_qos_set_value_for_cpus(struct pm_qos_request *new_req,
 
 	if (new_cpus) {
 		/* cpus_affine changed, so the old CPUs need to be refreshed */
-		new_req_cpus = atomic_read(&new_req->cpus_affine) | new_cpus;
-		atomic_set(&new_req->cpus_affine, new_cpus);
+		new_req_cpus = new_req->cpus_affine | new_cpus;
+		new_req->cpus_affine = new_cpus;
 	} else {
-		new_req_cpus = atomic_read(&new_req->cpus_affine);
+		new_req_cpus = new_req->cpus_affine;
 	}
 
 	if (new_action != PM_QOS_REMOVE_REQ) {
@@ -123,7 +123,7 @@ static inline void pm_qos_set_value_for_cpus(struct pm_qos_request *new_req,
 	plist_for_each_entry(req, &c->list, node) {
 		unsigned long affected_cpus;
 
-		affected_cpus = atomic_read(&req->cpus_affine) & new_req_cpus;
+		affected_cpus = req->cpus_affine & new_req_cpus;
 		if (!affected_cpus)
 			continue;
 
@@ -372,7 +372,8 @@ void cpu_latency_qos_add_request(struct pm_qos_request *req, s32 value)
 
 	switch (req->type) {
 	case PM_QOS_REQ_AFFINE_CORES:
-		if (!atomic_cmpxchg_relaxed(&req->cpus_affine, 0, CPUMASK_ALL)) {
+		if (!req->cpus_affine) {
+			req->cpus_affine = CPUMASK_ALL;
 			req->type = PM_QOS_REQ_ALL_CORES;
 			WARN(1, "Affine cores not set for request with affinity flag\n");
 		}
@@ -389,13 +390,13 @@ void cpu_latency_qos_add_request(struct pm_qos_request *req, s32 value)
 			mask = desc->irq_data.common->affinity;
 
 			/* Get the current affinity */
-			atomic_set(&req->cpus_affine, *cpumask_bits(mask));
+			req->cpus_affine = *cpumask_bits(mask);
 			req->irq_notify.irq = req->irq;
 			req->irq_notify.notify = cpu_pm_qos_irq_notify;
 			req->irq_notify.release = cpu_pm_qos_irq_release;
 		} else {
 			req->type = PM_QOS_REQ_ALL_CORES;
-			atomic_set(&req->cpus_affine, CPUMASK_ALL);
+			req->cpus_affine = CPUMASK_ALL;
 			WARN(1, "IRQ-%d not set for request with affinity flag\n",
 					req->irq);
 		}
@@ -405,7 +406,7 @@ void cpu_latency_qos_add_request(struct pm_qos_request *req, s32 value)
 		WARN(1, "Unknown request type %d\n", req->type);
 		/* fall through */
 	case PM_QOS_REQ_ALL_CORES:
-		atomic_set(&req->cpus_affine, CPUMASK_ALL);
+		req->cpus_affine = CPUMASK_ALL;
 		break;
 	}
 
@@ -424,7 +425,7 @@ void cpu_latency_qos_add_request(struct pm_qos_request *req, s32 value)
 		if (ret) {
 			WARN(1, "IRQ affinity notify set failed\n");
 			req->type = PM_QOS_REQ_ALL_CORES;
-			atomic_set(&req->cpus_affine, CPUMASK_ALL);
+			req->cpus_affine = CPUMASK_ALL;
 			pm_qos_update_target(
 				&cpu_latency_constraints,
 				&req->node, PM_QOS_UPDATE_REQ, value);
