@@ -25,7 +25,13 @@ enum dit_init_type {
 	DIT_INIT_DEINIT,
 };
 
-int dit_init(struct link_device *ld, enum dit_init_type type);
+enum dit_store_type {
+	DIT_STORE_NONE = 0,
+	DIT_STORE_BACKUP,
+	DIT_STORE_RESTORE,
+};
+
+int dit_init(struct link_device *ld, enum dit_init_type type, enum dit_store_type store);
 int dit_get_irq_affinity(void);
 int dit_set_irq_affinity(int affinity);
 int dit_set_pktproc_queue_num(enum dit_direction dir, u32 queue_num);
