@@ -214,7 +214,6 @@ static void __init kasan_init_shadow(void)
 {
 	u64 kimg_shadow_start, kimg_shadow_end;
 	u64 mod_shadow_start, mod_shadow_end;
-	u64 vmalloc_shadow_end;
 	phys_addr_t pa_start, pa_end;
 	u64 i;
 
@@ -223,8 +222,6 @@ static void __init kasan_init_shadow(void)
 
 	mod_shadow_start = (u64)kasan_mem_to_shadow((void *)MODULES_VADDR);
 	mod_shadow_end = (u64)kasan_mem_to_shadow((void *)MODULES_END);
-
-	vmalloc_shadow_end = (u64)kasan_mem_to_shadow((void *)VMALLOC_END);
 
 	/*
 	 * We are going to perform proper setup of shadow memory.
@@ -244,18 +241,12 @@ static void __init kasan_init_shadow(void)
 
 	kasan_populate_early_shadow(kasan_mem_to_shadow((void *)PAGE_END),
 				   (void *)mod_shadow_start);
+	kasan_populate_early_shadow((void *)kimg_shadow_end,
+				   (void *)KASAN_SHADOW_END);
 
-	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
-		BUILD_BUG_ON(VMALLOC_START != MODULES_END);
-		kasan_populate_early_shadow((void *)vmalloc_shadow_end,
-					    (void *)KASAN_SHADOW_END);
-	} else {
-		kasan_populate_early_shadow((void *)kimg_shadow_end,
-					    (void *)KASAN_SHADOW_END);
-		if (kimg_shadow_start > mod_shadow_end)
-			kasan_populate_early_shadow((void *)mod_shadow_end,
-						    (void *)kimg_shadow_start);
-	}
+	if (kimg_shadow_start > mod_shadow_end)
+		kasan_populate_early_shadow((void *)mod_shadow_end,
+					    (void *)kimg_shadow_start);
 
 	for_each_mem_range(i, &pa_start, &pa_end) {
 		void *start = (void *)__phys_to_virt(pa_start);
