@@ -572,7 +572,7 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
-	err = dit_init(ld, DIT_INIT_NORMAL);
+	err = dit_init(ld, DIT_INIT_NORMAL, DIT_STORE_NONE);
 	if ((err < 0) && (err != -EPERM)) {
 		mif_err("dit_init() error %d\n", err);
 		return;

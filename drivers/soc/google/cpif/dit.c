@@ -1209,7 +1209,7 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 	spin_unlock(&dc->src_lock);
 
 	/* try init and kick again */
-	dit_init(NULL, DIT_INIT_RETRY);
+	dit_init(NULL, DIT_INIT_RETRY, DIT_STORE_NONE);
 	if (dir < DIT_DIR_MAX)
 		dit_kick(dir, true);
 
@@ -1370,7 +1370,6 @@ static bool dit_check_clat_enabled(void)
 static int dit_reg_backup_restore_internal(bool backup, const u16 *offset,
 	const u16 *size, void **buf, const unsigned int arr_len)
 {
-	unsigned long flags;
 	unsigned int i;
 	int ret = 0;
 
@@ -1383,18 +1382,10 @@ static int dit_reg_backup_restore_internal(bool backup, const u16 *offset,
 			}
 		}
 
-		spin_lock_irqsave(&dc->src_lock, flags);
-		if (dit_is_kicked_any() || !dc->init_done) {
-			ret = -EAGAIN;
-			spin_unlock_irqrestore(&dc->src_lock, flags);
-			goto exit;
-		}
-
 		if (backup)
 			BACKUP_REG_VALUE(dc, buf[i], offset[i], size[i]);
 		else
 			RESTORE_REG_VALUE(dc, buf[i], offset[i], size[i]);
-		spin_unlock_irqrestore(&dc->src_lock, flags);
 	}
 
 exit:
@@ -1643,7 +1634,7 @@ static int dit_init_desc(enum dit_direction dir)
 	return 0;
 }
 
-int dit_init(struct link_device *ld, enum dit_init_type type)
+int dit_init(struct link_device *ld, enum dit_init_type type, enum dit_store_type store)
 {
 	unsigned long flags;
 	unsigned int dir;
@@ -1681,6 +1672,12 @@ int dit_init(struct link_device *ld, enum dit_init_type type)
 	dc->init_done = false;
 	spin_unlock_irqrestore(&dc->src_lock, flags);
 
+	if (store == DIT_STORE_BACKUP) {
+		ret = dit_reg_backup_restore(true);
+		if (ret)
+			goto exit;
+	}
+
 	if (type == DIT_INIT_DEINIT)
 		goto exit;
 
@@ -1696,6 +1693,12 @@ int dit_init(struct link_device *ld, enum dit_init_type type)
 	if (ret) {
 		mif_err("dit hw init failed\n");
 		goto exit;
+	}
+
+	if (store == DIT_STORE_RESTORE) {
+		ret = dit_reg_backup_restore(false);
+		if (ret)
+			goto exit;
 	}
 
 	ret = dit_net_init(dc);
@@ -2434,13 +2437,7 @@ static int dit_suspend(struct device *dev)
 	if (unlikely(!dc) || unlikely(!dc->ld))
 		return 0;
 
-	ret = dit_reg_backup_restore(true);
-	if (ret) {
-		mif_err("reg backup failed ret:%d\n", ret);
-		return ret;
-	}
-
-	ret = dit_init(NULL, DIT_INIT_DEINIT);
+	ret = dit_init(NULL, DIT_INIT_DEINIT, DIT_STORE_BACKUP);
 	if (ret) {
 		mif_err("deinit failed ret:%d\n", ret);
 		return ret;
@@ -2467,19 +2464,13 @@ static int dit_resume(struct device *dev)
 
 	dit_set_irq_affinity(dc->irq_affinity);
 
-	ret = dit_init(NULL, DIT_INIT_NORMAL);
+	ret = dit_init(NULL, DIT_INIT_NORMAL, DIT_STORE_RESTORE);
 	if (ret) {
 		mif_err("init failed ret:%d\n", ret);
 		for (dir = 0; dir < DIT_DIR_MAX; dir++) {
 			if (dit_is_busy(dir))
 				mif_err("busy (dir:%d)\n", dir);
 		}
-		return ret;
-	}
-
-	ret = dit_reg_backup_restore(false);
-	if (ret) {
-		mif_err("reg restore failed ret:%d\n", ret);
 		return ret;
 	}
 

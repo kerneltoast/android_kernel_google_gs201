@@ -162,6 +162,12 @@ enum dit_init_type {
 	DIT_INIT_DEINIT,
 };
 
+enum dit_store_type {
+	DIT_STORE_NONE = 0,
+	DIT_STORE_BACKUP,
+	DIT_STORE_RESTORE,
+};
+
 enum dit_int_enable_bits {
 	TX_DST0_INT_ENABLE_BIT = 0,
 	TX_DST1_INT_ENABLE_BIT,
@@ -407,7 +413,7 @@ enum dit_idle_ip {
 #define DIT_SRC_DESC_RING_LEN_PADDING	(2)
 
 int dit_create(struct platform_device *pdev);
-int dit_init(struct link_device *ld, enum dit_init_type type);
+int dit_init(struct link_device *ld, enum dit_init_type type, enum dit_store_type store);
 int dit_enqueue_reg_value_with_ext_lock(u32 value, u32 offset);
 int dit_enqueue_reg_value(u32 value, u32 offset);
 int dit_read_rx_dst_poll(struct napi_struct *napi, int budget);
