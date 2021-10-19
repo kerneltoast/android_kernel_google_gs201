@@ -17,7 +17,6 @@
 #include <linux/blk-pm.h>
 #include <linux/blkdev.h>
 #include "ufshcd.h"
-#include "ufshcd-add-info.h"
 #include "ufs_quirks.h"
 #include "unipro.h"
 #include "ufs-sysfs.h"
