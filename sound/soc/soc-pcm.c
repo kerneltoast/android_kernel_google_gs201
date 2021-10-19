@@ -1274,7 +1274,6 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	int stream, struct snd_soc_dapm_widget_list **list)
 {
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(fe, 0);
-	struct snd_soc_card_ext *card_ext;
 	int paths;
 
 	if (fe->num_cpus > 1) {
@@ -1282,8 +1281,6 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 			"%s doesn't support Multi CPU yet\n", __func__);
 		return -EINVAL;
 	}
-
-	card_ext = container_of(fe->card, struct snd_soc_card_ext, card);
 
 	/* get number of valid DAI paths and their widgets */
 	paths = snd_soc_dapm_dai_get_connected_widgets(cpu_dai, stream, list,
