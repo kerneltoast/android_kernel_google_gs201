@@ -2985,6 +2985,7 @@ bool shmem_ap2cp_write_clatinfo(struct mem_link_device *mld, struct clat_info *c
 	struct modem_ctl *mc = ld->mc;
 	unsigned long remain;
 	unsigned long timeout = msecs_to_jiffies(CLATINFO_ACK_TIMEOUT);
+	bool ret = true;
 
 	if (mld->disable_hw_clat)
 		return false;
@@ -3020,20 +3021,21 @@ bool shmem_ap2cp_write_clatinfo(struct mem_link_device *mld, struct clat_info *c
 	set_ctrl_msg(&mld->ap2cp_clatinfo_index, clat->clat_index);
 
 	mif_info("send ap2cp_clatinfo_irq: %d\n", mld->int_ap2cp_clatinfo_send);
+	reinit_completion(&mc->clatinfo_ack);
 	cp_mbox_set_interrupt(CP_MBOX_IRQ_IDX_0, mld->int_ap2cp_clatinfo_send);
 
-	reinit_completion(&mc->clatinfo_ack);
 	remain = wait_for_completion_timeout(&mc->clatinfo_ack, timeout);
 	if (remain == 0) {
 		mif_err("clatinfo ack not delivered from cp\n");
-		mutex_unlock(&mld->clatinfo_lock);
-		return false;
+		ret = false;
+		goto out;
 	}
 
 	/* set clat_ndev with clat registers */
 	if (clat->ipv4_iface[0])
 		iodevs_for_each(ld->msd, toe_set_iod_clat_netdev, clat);
 
+out:
 	mutex_unlock(&mld->clatinfo_lock);
 
 	/* clear clat_ndev but take a delay to prevent null ndev */
@@ -3042,7 +3044,7 @@ bool shmem_ap2cp_write_clatinfo(struct mem_link_device *mld, struct clat_info *c
 		iodevs_for_each(ld->msd, toe_set_iod_clat_netdev, clat);
 	}
 
-	return true;
+	return ret;
 }
 EXPORT_SYMBOL(shmem_ap2cp_write_clatinfo);
 
