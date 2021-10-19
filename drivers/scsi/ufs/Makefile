@@ -43,3 +43,5 @@ CFLAGS_ufs-pixel-fips_sha256.o := -DBUILD_FIPS140_KO
 hostprogs := ufs-pixel-fips_gen_hmac
 HOSTLDLIBS_ufs-pixel-fips_gen_hmac := -lcrypto -lelf
 $(obj)/ufs-pixel-fips140.o: $(obj)/ufs-pixel-fips_gen_hmac
+
+obj-$(CONFIG_SCSI_UFS_PIXEL_ACVP) += ufs-pixel-acvp.o

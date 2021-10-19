@@ -216,4 +216,12 @@ config SCSI_UFS_PIXEL_FIPS140
 	  test for cases where the hardware component does not support
 	  the functionality natively.
 
+config SCSI_UFS_PIXEL_ACVP
+	tristate "Build FIPS 140 ACVP Module"
+	depends on m && SCSI_UFS_PIXEL_FIPS140
+	help
+	  Build a module to enable testing UFS crypto engine for ACVP
+	  certification. This module should be built to perform testing and
+	  should not be included in a release build.
+
 endif
