@@ -8,9 +8,6 @@ function exit_if_error {
   fi
 }
 
-# TODO (b/196974386): remove strict symbol list workaround settings after __close_fd issue been resolved.
-TRIM_NONLISTED_KMI=0
-ENABLE_STRICT_KMI=0
 BUILD_KERNEL=1
 
 EXPERIMENTAL_BUILD=${EXPERIMENTAL_BUILD:-0}
