@@ -47,6 +47,7 @@ enum edgetpu_ext_commands {
 
 enum edgetpu_ext_client_type {
 	EDGETPU_EXTERNAL_CLIENT_TYPE_DSP,
+	EDGETPU_EXTERNAL_CLIENT_TYPE_AOC,
 };
 
 /*
