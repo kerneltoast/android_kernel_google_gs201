@@ -381,16 +381,7 @@ static ssize_t exynos_pcie_rc_show(struct device *dev, struct device_attribute *
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "10 : L12 Enable\n");
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "11 : L12 Disable\n");
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "12 : L12 State\n");
-
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "14 : PCIe Hot Reset\n");
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-				"20 : Check Link Speed\n");
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-				"21 : Change Link Speed - target: GEN1\n");
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-				"22 : Change Link Speed - target: GEN2\n");
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-				"23 : Change Link Speed - target: GEN3\n");
 
 	return ret;
 }
@@ -402,7 +393,6 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 	int ret = 0;
 	int i = 0;
-	int cur_link_speed;
 
 	if (sscanf(buf, "%10d", &op_num) == 0)
 		return -EINVAL;
@@ -489,33 +479,6 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 
 	case 16:
 		exynos_pcie_rc_set_outbound_atu(1, 0x47200000, 0x0, SZ_1M);
-		break;
-
-	case 20:
-		dev_info(dev, "Check Current Link Speed....\n");
-		cur_link_speed =
-			exynos_pcie_rc_check_link_speed(exynos_pcie->ch_num);
-		if (cur_link_speed > 0)
-			dev_info(dev, "\tCurrent Link Speed = GEN%d", cur_link_speed);
-
-		break;
-
-	case 21:
-		dev_info(dev, "Change Link Speed: Target Link Speed = GEN1\n");
-		exynos_pcie_rc_change_link_speed(exynos_pcie->ch_num, 1);
-
-		break;
-
-	case 22:
-		dev_info(dev, "Change Link Speed: Target Link Speed = GEN2\n");
-		exynos_pcie_rc_change_link_speed(exynos_pcie->ch_num, 2);
-
-		break;
-
-	case 23:
-		dev_info(dev, "Change Link Speed: Target Link Speed = GEN3\n");
-		exynos_pcie_rc_change_link_speed(exynos_pcie->ch_num, 3);
-
 		break;
 
 	default:
@@ -792,24 +755,36 @@ static ssize_t power_stats_show(struct device *dev, struct device_attribute *att
 
 static DEVICE_ATTR_RO(power_stats);
 
-static ssize_t link_speed_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t link_speed_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
-	int ret = 0;
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
-	int link_speed;
 
-	link_speed = exynos_pcie_rc_check_link_speed(exynos_pcie->ch_num);
-	if (link_speed > 0) {
-		dev_info(dev, "\tCurrent Link Speed = GEN%d", link_speed);
-		ret = scnprintf(buf, PAGE_SIZE, "GEN%d\n", link_speed);
-	} else {
-		ret = scnprintf(buf, PAGE_SIZE, "Link is not up\n");
-	}
-
-	return ret;
+	return scnprintf(buf, PAGE_SIZE, "GEN%d\n", exynos_pcie->max_link_speed);
 }
 
-static DEVICE_ATTR_RO(link_speed);
+static ssize_t link_speed_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int link_speed;
+	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+
+	if (sscanf(buf, "%10d", &link_speed) == 0)
+		return -EINVAL;
+
+	if (link_speed < 1 || link_speed > 3) {
+		dev_info(dev, "Value needs to be between 1-3\n");
+		return -EINVAL;
+	}
+
+	dev_info(dev, "Change Link Speed: Target Link Speed = GEN%d\n", link_speed);
+	exynos_pcie->max_link_speed = link_speed;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(link_speed);
 
 static inline int create_pcie_sys_file(struct device *dev)
 {
@@ -2692,7 +2667,7 @@ retry:
 				goto retry;
 			} else {
 				dev_info(dev, "Current Link Speed is GEN%d (MAX GEN%d)\n",
-					 val, exynos_pcie->max_link_speed);
+					val, exynos_pcie->max_link_speed);
 			}
 		}
 
