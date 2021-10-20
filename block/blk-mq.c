@@ -3966,7 +3966,7 @@ int blk_poll(struct request_queue *q, blk_qc_t cookie, bool spin)
 		return 0;
 
 	if (current->plug)
-		blk_flush_plug_list(current->plug, false);
+		blk_flush_plug(current->plug, false);
 
 	hctx = q->queue_hw_ctx[blk_qc_t_to_queue_num(cookie)];
 
