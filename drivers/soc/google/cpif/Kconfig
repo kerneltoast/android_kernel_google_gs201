@@ -124,13 +124,6 @@ config CPIF_TP_MONITOR
 	help
 	  This enables CP network throughput monitor
 
-config LINK_DEVICE_PCIE_S2MPU
-	tristate "Use PCIE S2MPU"
-	depends on LINK_DEVICE_PCIE
-	default n
-	help
-	  Gate some addresses AP and CP shared
-
 config LINK_DEVICE_PCIE_IOMMU
 	bool "Use PCIE IOMMU"
 	depends on LINK_DEVICE_PCIE && EXYNOS_PCIE_IOMMU

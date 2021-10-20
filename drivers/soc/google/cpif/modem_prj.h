@@ -714,9 +714,6 @@ struct modem_ctl {
 	struct modem_irq cp_gpio_irq[CP_GPIO_IRQ_MAX];
 
 	bool s5100_cp_reset_required;
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
-	bool s5100_s2mpu_enabled;
-#endif
 
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	struct s2mpu_info *s2mpu;

@@ -39,9 +39,6 @@
 #include <linux/exynos-busmon.h>
 #endif
 
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
-#include <soc/google/exynos-s2mpu.h>
-#endif
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 #include "link_device_pcie_iommu.h"
 #endif
@@ -1259,11 +1256,6 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 	struct mem_link_device *mld;
 	bool force_crash = false;
 	unsigned long flags;
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
-	int ret;
-	u32 cp_num;
-	u32 shmem_idx;
-#endif
 
 	if (mc == NULL) {
 		mif_err("Skip pci power on : mc is NULL\n");
@@ -1311,28 +1303,6 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 		goto exit;
 
 	mc->pcie_powered_on = true;
-
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_S2MPU)
-	if (!mc->s5100_s2mpu_enabled) {
-		mc->s5100_s2mpu_enabled = true;
-		cp_num = ld->mdm_data->cp_num;
-
-		for (shmem_idx = 0 ; shmem_idx < MAX_CP_SHMEM ; shmem_idx++) {
-			if (shmem_idx == SHMEM_MSI)
-				continue;
-
-			if (cp_shmem_get_base(cp_num, shmem_idx)) {
-				ret = (int) exynos_set_dev_stage2_ap("hsi2", 0,
-					cp_shmem_get_base(cp_num, shmem_idx),
-					cp_shmem_get_size(cp_num, shmem_idx), ATTR_RW);
-				mif_info("pcie s2mpu idx:%d - addr:0x%08lx size:0x%08x ret:%d\n",
-					shmem_idx,
-					cp_shmem_get_base(cp_num, shmem_idx),
-					cp_shmem_get_size(cp_num, shmem_idx), ret);
-			}
-		}
-	}
-#endif
 
 	if (mc->s51xx_pdev != NULL) {
 		s51xx_pcie_restore_state(mc->s51xx_pdev);
