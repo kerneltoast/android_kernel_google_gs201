@@ -13,11 +13,13 @@
 &pinctrl_6 {
 	ese1_spi_rst: ese1-spi-rst {
 		samsung,pins ="gph1-4";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
 	ese2_spi_rst: ese2-spi-rst {
 		samsung,pins ="gph0-4";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
