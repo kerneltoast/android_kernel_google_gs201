@@ -767,7 +767,7 @@ static int exynos_ufs_pwr_change_notify(struct ufs_hba *hba,
 }
 
 static void exynos_ufs_set_nexus_t_xfer_req(struct ufs_hba *hba,
-					    int tag, bool cmd)
+					    int tag, bool is_scsi_cmd)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	u32 type;
@@ -780,7 +780,7 @@ static void exynos_ufs_set_nexus_t_xfer_req(struct ufs_hba *hba,
 
 	type =  hci_readl(&ufs->handle, HCI_UTRL_NEXUS_TYPE);
 
-	if (cmd)
+	if (is_scsi_cmd)
 		type |= (1 << tag);
 	else
 		type &= ~(1 << tag);
