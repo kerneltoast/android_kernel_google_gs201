@@ -27,8 +27,10 @@
 	synaptics,spi-mode = <0>;
 	synaptics,spi-byte-delay-us = <0>;
 	synaptics,spi-block-delay-us = <0>;
-	synaptics,panel_map = <&sdc_s6e3hc3_c10>;
-	synaptics,firmware_names = "synaptics.img";
+	synaptics,panel_map = <&sdc_s6e3hc3_c10>,
+			      <&boe_nt37290>;
+	synaptics,firmware_names = "synaptics.img",
+				   "synaptics_b.img";
 
 	controller-data {
 		cs-gpio = <&gpp20 3 0>;
