@@ -307,6 +307,9 @@ int cp_btl_create(struct cp_btl *btl, struct device *dev)
 	mif_dt_read_u32_noerr(dev->of_node, "cp_btl_support_extension", btl->support_extension);
 	mif_dt_read_u32_noerr(dev->of_node, "cp_btl_extension_dram_size", btl->extension_dram_size);
 
+	if (btl->support_extension)
+		btl->extension_enabled = true;
+
 	btl->id = pdata->cp_num;
 	if (btl->id >= MAX_BTL_ID) {
 		mif_err("id is over max:%d\n", btl->id);
@@ -324,12 +327,6 @@ int cp_btl_create(struct cp_btl *btl, struct device *dev)
 	mif_info("name:%s id:%d link:%d\n", btl->name, btl->id, btl->link_type);
 	switch (btl->link_type) {
 	case LINKDEV_SHMEM:
-		btl->mem.v_base = cp_shmem_get_region(btl->id, SHMEM_BTL);
-		if (!btl->mem.v_base) {
-			mif_err("cp_shmem_get_region() error:v_base\n");
-			ret = -ENOMEM;
-			goto create_exit;
-		}
 		btl->mem.size = cp_shmem_get_size(btl->id, SHMEM_BTL);
 
 		if (btl->support_extension) {
@@ -339,11 +336,19 @@ int cp_btl_create(struct cp_btl *btl, struct device *dev)
 			/* DRAM size: under 8GB -> BTL size: 32MB */
 			if (convert_to_kb(s.totalram) > btl->extension_dram_size) {
 				btl->mem.size += cp_shmem_get_size(btl->id, SHMEM_BTL_EXT);
-				pdata->btl.extension_enabled = true;
 			} else {
 				cp_shmem_release_rmem(btl->id, SHMEM_BTL_EXT, 0);
-				pdata->btl.extension_enabled = false;
+				btl->extension_enabled = false;
 			}
+		}
+
+		/* TODO: cached */
+		btl->mem.v_base = cp_shmem_get_nc_region(cp_shmem_get_base(btl->id, SHMEM_BTL),
+					btl->mem.size);
+		if (!btl->mem.v_base) {
+			mif_err("cp_shmem_get_region() error:v_base\n");
+			ret = -ENOMEM;
+			goto create_exit;
 		}
 
 		/* BAAW */
@@ -393,7 +398,7 @@ create_exit:
 		vunmap(btl->mem.v_base);
 
 	cp_shmem_release_rmem(btl->id, SHMEM_BTL, 0);
-	if (btl->support_extension)
+	if (btl->extension_enabled)
 		cp_shmem_release_rmem(btl->id, SHMEM_BTL_EXT, 0);
 
 	return ret;
