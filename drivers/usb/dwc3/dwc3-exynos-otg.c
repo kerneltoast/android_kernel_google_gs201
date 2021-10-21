@@ -261,7 +261,6 @@ int dwc3_otg_phy_enable(struct otg_fsm *fsm, int owner, bool on)
 	struct dwc3_otg	*dotg = container_of(otg, struct dwc3_otg, otg);
 	struct dwc3	*dwc = dotg->dwc;
 	struct dwc3_exynos *exynos = dotg->exynos;
-	struct device   *exynos_dev = exynos->dev;
 	struct device	*dev = dotg->dwc->dev;
 	int ret = 0;
 	u8 owner_bit = 0;
@@ -297,11 +296,6 @@ int dwc3_otg_phy_enable(struct otg_fsm *fsm, int owner, bool on)
 			 * dwc3_otg_phy_enable function enables
 			 * both combo phy and usb2 phy
 			 */
-			ret = pm_runtime_get_sync(exynos_dev);
-			if (ret < 0) {
-				dev_err(dev, "failed to resume exynos device\n");
-				goto err;
-			}
 			ret = pm_runtime_get_sync(dev);
 			if (ret < 0) {
 				dev_err(dev, "failed to resume exynos device\n");
@@ -346,10 +340,11 @@ err:
 			/* We must disable gadget here. (Ignore other job) */
 			atomic_set(&dev->power.usage_count, 1);
 			pm_runtime_put_sync_suspend(dev);
-			pm_runtime_put_sync_suspend(exynos_dev);
 
 			if (dotg->pm_qos_int_val)
 				exynos_pm_qos_update_request(&dotg->pm_qos_int_req, 0);
+
+			msleep(500);
 
 			/* Wait for end of runtime suspend */
 			wait_counter = 0;
@@ -358,7 +353,7 @@ err:
 				wait_counter++;
 				msleep(20);
 
-				if (wait_counter > 20) {
+				if (wait_counter > 10) {
 					dev_err(dev, "Can't wait runtime suspend!!!!\n");
 					dev_err(dev, "RPM Usage Count : %d",
 							atomic_read(&dev->power.usage_count));
@@ -516,9 +511,8 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		return -EINVAL;
 	}
 
-	__pm_stay_awake(dotg->wakelock);
-
 	if (on) {
+		__pm_stay_awake(dotg->wakelock);
 		exynos->vbus_state = true;
 		while (dwc->gadget_driver == NULL) {
 			wait_counter++;
@@ -583,10 +577,10 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 			msleep(100);
 
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
+err1:
+		__pm_relax(dotg->wakelock);
 	}
 
-err1:
-	__pm_relax(dotg->wakelock);
 	return 0;
 }
 
