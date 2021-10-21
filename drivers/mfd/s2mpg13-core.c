@@ -302,6 +302,16 @@ static int s2mpg13_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata) {
 		s2mpg13->pdata = pdata;
+
+		pdata->irq_base = irq_alloc_descs(-1, 0, S2MPG13_IRQ_NR, -1);
+		if (pdata->irq_base < 0) {
+			pr_err("%s:%s devm_irq_alloc_descs Fail! ret(%d)\n",
+			       S2MPG13_MFD_DEV_NAME, __func__, pdata->irq_base);
+			ret = pdata->irq_base;
+			goto err;
+		}
+
+		s2mpg13->irq_base = pdata->irq_base;
 		s2mpg13->wakeup = pdata->wakeup;
 	} else {
 		ret = -EINVAL;
