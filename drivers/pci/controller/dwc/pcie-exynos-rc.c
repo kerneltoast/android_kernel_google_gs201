@@ -378,9 +378,6 @@ static ssize_t exynos_pcie_rc_show(struct device *dev, struct device_attribute *
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "0 : PCIe Unit Test\n");
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "1 : Link Test\n");
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "2 : DisLink Test\n");
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "10 : L12 Enable\n");
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "11 : L12 Disable\n");
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "12 : L12 State\n");
 	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "14 : PCIe Hot Reset\n");
 
 	return ret;
@@ -392,7 +389,6 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 	int op_num;
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 	int ret = 0;
-	int i = 0;
 
 	if (sscanf(buf, "%10d", &op_num) == 0)
 		return -EINVAL;
@@ -428,39 +424,6 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 		dev_info(dev, "## LTSSM ##\n");
 		ret = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0xff;
 		dev_info(dev, "PCIE_ELBI_RDLH_LINKUP :0x%x\n", ret);
-		break;
-
-	case 10:
-		dev_info(dev, "L1.2 Enable....on PCIe_ch%d\n", exynos_pcie->ch_num);
-		exynos_pcie_rc_l1ss_ctrl(1, PCIE_L1SS_CTRL_TEST, exynos_pcie->ch_num);
-
-		for (i = 0; i < 5; i++) {
-			dev_info(dev, "[sysfs-TEST_%d]: LTSSM: 0x%08x", i,
-				 exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP));
-			dev_info(dev, "PM_STATE = 0x%08x(if 0x6->L1.2 state)\n",
-				 exynos_phy_pcs_read(exynos_pcie, 0x188));
-		}
-
-		break;
-
-	case 11:
-		dev_info(dev, "L1.2 Disable....on PCIe_ch%d\n", exynos_pcie->ch_num);
-		exynos_pcie_rc_l1ss_ctrl(0, PCIE_L1SS_CTRL_TEST, exynos_pcie->ch_num);
-
-		for (i = 0; i < 5; i++) {
-			dev_info(dev, "[sysfs-TEST_%d]: LTSSM: 0x%08x", i,
-				 exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP));
-			dev_info(dev, "PM_STATE = 0x%08x(if 0x6->L1.2 state)\n",
-				 exynos_phy_pcs_read(exynos_pcie, 0x188));
-		}
-
-		break;
-
-	case 12:
-		dev_info(dev, "l1ss_ctrl_id_state = 0x%08x\n", exynos_pcie->l1ss_ctrl_id_state);
-		dev_info(dev, "LTSSM: 0x%08x, PM_STATE = 0x%08x\n",
-			 exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP),
-			 exynos_phy_pcs_read(exynos_pcie, 0x188));
 		break;
 
 	case 13:
@@ -618,13 +581,82 @@ exit:
 static DEVICE_ATTR(eom2, S_IWUSR | S_IWGRP | S_IRUSR | S_IRGRP,
 		   exynos_pcie_eom2_show, exynos_pcie_eom2_store);
 
+static ssize_t l12_state_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	int  ret;
+	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+
+	ret = scnprintf(buf, PAGE_SIZE, "l1ss_ctrl_id_state = 0x%08x\n",
+			exynos_pcie->l1ss_ctrl_id_state);
+	ret += scnprintf(buf, PAGE_SIZE, "LTSSM: 0x%08x, PM_STATE = 0x%08x\n",
+			 exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP),
+			 exynos_phy_pcs_read(exynos_pcie, PM_POWER_STATE));
+	return ret;
+}
+
+static ssize_t l12_state_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+	int ch_num = exynos_pcie->ch_num;
+	int enable;
+
+	if (sscanf(buf, "%10d", &enable) == 0)
+		return -EINVAL;
+
+	if (enable == 1) {
+		dev_info(dev, "L1.2 Enable....on PCIe_ch%d\n", ch_num);
+		exynos_pcie_rc_l1ss_ctrl(1, PCIE_L1SS_CTRL_TEST, ch_num);
+	} else if (enable == 0) {
+		dev_info(dev, "L1.2 Disable....on PCIe_ch%d\n", ch_num);
+		exynos_pcie_rc_l1ss_ctrl(0, PCIE_L1SS_CTRL_TEST, ch_num);
+	} else {
+		dev_err(dev, "Value needs to be 0 or 1\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t link_speed_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "GEN%d\n", exynos_pcie->max_link_speed);
+}
+
+static ssize_t link_speed_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int link_speed;
+	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+
+	if (sscanf(buf, "%10d", &link_speed) == 0)
+		return -EINVAL;
+
+	if (link_speed < 1 || link_speed > 3) {
+		dev_info(dev, "Value needs to be between 1-3\n");
+		return -EINVAL;
+	}
+
+	dev_info(dev, "Change Link Speed: Target Link Speed = GEN%d\n", link_speed);
+	exynos_pcie->max_link_speed = link_speed;
+
+	return count;
+}
+
 static ssize_t link_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int ret = 0;
 	u32 val;
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 
-	if (exynos_pcie->phy_control == PCIE_PHY_ISOLATION) {
+	if (exynos_pcie->phy_control == PCIE_PHY_ISOLATION ||
+	    exynos_pcie->state != STATE_LINK_UP) {
 		val = L2;   /* Not linked is equivalent to L2 */
 		goto exit;
 	}
@@ -663,8 +695,6 @@ exit:
 
 	return ret;
 }
-
-static DEVICE_ATTR_RO(link_state);
 
 static u64 power_stats_get_ts(void)
 {
@@ -753,38 +783,10 @@ static ssize_t power_stats_show(struct device *dev, struct device_attribute *att
 	return ret;
 }
 
-static DEVICE_ATTR_RO(power_stats);
-
-static ssize_t link_speed_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
-
-	return scnprintf(buf, PAGE_SIZE, "GEN%d\n", exynos_pcie->max_link_speed);
-}
-
-static ssize_t link_speed_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	int link_speed;
-	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
-
-	if (sscanf(buf, "%10d", &link_speed) == 0)
-		return -EINVAL;
-
-	if (link_speed < 1 || link_speed > 3) {
-		dev_info(dev, "Value needs to be between 1-3\n");
-		return -EINVAL;
-	}
-
-	dev_info(dev, "Change Link Speed: Target Link Speed = GEN%d\n", link_speed);
-	exynos_pcie->max_link_speed = link_speed;
-
-	return count;
-}
-
+static DEVICE_ATTR_RW(l12_state);
 static DEVICE_ATTR_RW(link_speed);
+static DEVICE_ATTR_RO(link_state);
+static DEVICE_ATTR_RO(power_stats);
 
 static inline int create_pcie_sys_file(struct device *dev)
 {
@@ -794,7 +796,7 @@ static inline int create_pcie_sys_file(struct device *dev)
 
 	ret = device_create_file(dev, &dev_attr_pcie_rc_test);
 	if (ret) {
-		dev_err(dev, "%s: couldn't create device file for test(%d)\n", __func__, ret);
+		dev_err(dev, "couldn't create device file for test(%d)\n", ret);
 
 		return ret;
 	}
@@ -805,37 +807,39 @@ static inline int create_pcie_sys_file(struct device *dev)
 
 	ret = device_create_file(dev, &dev_attr_eom1);
 	if (ret) {
-		dev_err(dev, "%s: couldn't create device file for eom(%d)\n", __func__, ret);
+		dev_err(dev, "couldn't create device file for eom(%d)\n", ret);
 		return ret;
 	}
 
 	if (num_lane > 0) {
 		ret = device_create_file(dev, &dev_attr_eom2);
 		if (ret) {
-			dev_err(dev, "%s: couldn't create device file for eom(%d)\n",
-				__func__, ret);
-
+			dev_err(dev, "couldn't create device file for eom(%d)\n", ret);
 			return ret;
 		}
 	}
 
-	ret = device_create_file(dev, &dev_attr_link_state);
+	ret = device_create_file(dev, &dev_attr_l12_state);
 	if (ret) {
-		dev_err(dev, "%s: couldn't create device file for linkst(%d)\n", __func__, ret);
-		return ret;
-	}
-
-	ret = device_create_file(dev, &dev_attr_power_stats);
-	if (ret) {
-		dev_err(dev, "%s: couldn't create device file for power_stats(%d)\n",
-			__func__, ret);
+		dev_err(dev, "couldn't create device file for l12_state(%d)\n", ret);
 		return ret;
 	}
 
 	ret = device_create_file(dev, &dev_attr_link_speed);
 	if (ret) {
-		dev_err(dev, "%s: couldn't create device file for link_speed(%d)\n",
-			__func__, ret);
+		dev_err(dev, "couldn't create device file for link_speed(%d)\n", ret);
+		return ret;
+	}
+
+	ret = device_create_file(dev, &dev_attr_link_state);
+	if (ret) {
+		dev_err(dev, "couldn't create device file for linkst(%d)\n", ret);
+		return ret;
+	}
+
+	ret = device_create_file(dev, &dev_attr_power_stats);
+	if (ret) {
+		dev_err(dev, "couldn't create device file for power_stats(%d)\n", ret);
 		return ret;
 	}
 
@@ -845,9 +849,10 @@ static inline int create_pcie_sys_file(struct device *dev)
 static inline void remove_pcie_sys_file(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_pcie_rc_test);
+	device_remove_file(dev, &dev_attr_l12_state);
+	device_remove_file(dev, &dev_attr_link_speed);
 	device_remove_file(dev, &dev_attr_link_state);
 	device_remove_file(dev, &dev_attr_power_stats);
-	device_remove_file(dev, &dev_attr_link_speed);
 }
 
 static int exynos_pcie_rc_clock_enable(struct pcie_port *pp, int enable)
