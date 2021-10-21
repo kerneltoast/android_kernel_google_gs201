@@ -293,7 +293,8 @@ struct pktproc_adaptor {
 	bool use_exclusive_irq;	/* Exclusive interrupt */
 	u32 exclusive_irq_idx[PKTPROC_MAX_QUEUE];
 	bool use_hw_iocc;	/* H/W IO cache coherency */
-	u32 max_packet_size;	/* Max packet size */
+	u32 max_packet_size;	/* Max packet size CP sees */
+	u32 true_packet_size;	/* True packet size AP allocated */
 	bool use_dedicated_baaw;	/* BAAW for 36bit address */
 
 	struct device *dev;

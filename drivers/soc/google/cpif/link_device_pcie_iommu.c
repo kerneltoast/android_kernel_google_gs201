@@ -110,7 +110,7 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 			     u32 idx, u32 *map_cnt)
 {
 	struct cpif_pcie_iommu_ctrl *ioc = &q->ioc;
-	const size_t pf_size = q->ppa->max_packet_size;
+	const size_t pf_size = q->ppa->true_packet_size;
 	void *addr_des, *addr_asc;
 
 	/*

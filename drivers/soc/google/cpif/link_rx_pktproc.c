@@ -415,7 +415,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 	for (i = 0; i < space; i++) {
 		u8 *dst_vaddr = NULL;
 
-		dst_paddr = q->q_buff_pbase + (q->ppa->max_packet_size * fore);
+		dst_paddr = q->q_buff_pbase + (q->ppa->true_packet_size * fore);
 		if (dst_paddr > (q->q_buff_pbase + q->q_buff_size))
 			mif_err_limited("dst_paddr:0x%lx is over 0x%lx\n",
 					dst_paddr, q->q_buff_pbase + q->q_buff_size);
@@ -436,14 +436,16 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 			if (dst_vaddr)
 				goto dma_map;
 
-			dst_vaddr = q->q_buff_vbase + (q->ppa->max_packet_size * fore);
+			dst_vaddr = q->q_buff_vbase + (q->ppa->true_packet_size * fore);
 			if (dst_vaddr > (q->q_buff_vbase + q->q_buff_size))
 				mif_err_limited("dst_vaddr:%pK is over %pK\n",
 						dst_vaddr, q->q_buff_vbase + q->q_buff_size);
 
 dma_map:
-			q->dma_addr[fore] = dma_map_single_attrs(q->ppa->dev, dst_vaddr,
-					q->ppa->max_packet_size, DMA_FROM_DEVICE, 0);
+			q->dma_addr[fore] =
+				dma_map_single_attrs(q->ppa->dev,
+						     dst_vaddr + q->ppa->skb_padding_size,
+						     q->ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 			if (dma_mapping_error(q->ppa->dev, q->dma_addr[fore])) {
 				mif_err_limited("dma_map_single_attrs() failed\n");
 				spin_unlock_irqrestore(&q->lock, flags);
@@ -740,6 +742,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	int buffer_count = 0;
 	u16 len;
 	u8 ch_id;
+	/* It will be the start of skb->data */
 	u8 *src;
 	struct pktproc_adaptor *ppa = q->ppa;
 	struct sk_buff *skb = NULL;
@@ -841,7 +844,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		}
 	} else { /* use memcpy or pcie iommu */
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-		skb = build_skb(src - ppa->skb_padding_size, ppa->max_packet_size);
+		skb = build_skb(src - ppa->skb_padding_size, ppa->true_packet_size);
 #else
 		if (ppa->use_napi)
 			skb = napi_alloc_skb(q->napi_ptr, len);
@@ -1351,6 +1354,10 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 		ppa->use_hw_iocc);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Max packet size:%d\n",
 		ppa->max_packet_size);
+	if (ppa->true_packet_size != ppa->max_packet_size) {
+		count += scnprintf(&buf[count], PAGE_SIZE - count, "True packet size:%d\n",
+			ppa->true_packet_size);
+	}
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Padding size:%d\n",
 		ppa->skb_padding_size);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Dedicated BAAW:%d\n",
@@ -1706,9 +1713,16 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 		mif_err("not compatible with pcie iommu\n");
 		return -EINVAL;
 	}
+#endif
 
-	ppa->max_packet_size = roundup_pow_of_two(ppa->max_packet_size);
-	mif_info("adjusted iommu max_packet_size:%u\n", ppa->max_packet_size);
+	ppa->true_packet_size = ppa->max_packet_size;
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	ppa->true_packet_size += ppa->skb_padding_size;
+	ppa->true_packet_size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+
+	mif_info("adjusted iommu required:%u true_packet_size:%u\n",
+		 ppa->true_packet_size, roundup_pow_of_two(ppa->true_packet_size));
+	ppa->true_packet_size = roundup_pow_of_two(ppa->true_packet_size);
 #endif
 
 	return 0;
@@ -1846,7 +1860,6 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			q->info_v2->desc_mode = ppa->desc_mode;
 			q->info_v2->irq_mode = ppa->use_exclusive_irq;
 			q->info_v2->max_packet_size = ppa->max_packet_size;
-
 			q->q_info_ptr = &q->info_v2->q_info[i];
 			break;
 		default:
@@ -1871,7 +1884,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 				dma_sync_single_for_device(ppa->dev,
 						q->q_buff_pbase, q->q_buff_size, DMA_FROM_DEVICE);
 
-			q->num_desc = buff_size_by_q / ppa->max_packet_size;
+			q->num_desc = buff_size_by_q / ppa->true_packet_size;
 			q->q_info_ptr->num_desc = q->num_desc;
 
 			q->desc_ringbuf = ppa->desc_vbase +
@@ -1903,7 +1916,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 				q->cp_buff_pbase = ppa->cp_base + ppa->buff_rgn_offset +
 					(i * buff_size_by_q);
 				q->q_buff_size = buff_size_by_q;
-				q->num_desc = buff_size_by_q / ppa->max_packet_size;
+				q->num_desc = buff_size_by_q / ppa->true_packet_size;
 				q->alloc_rx_buf = pktproc_fill_data_addr_without_bm;
 				q->clear_data_addr = pktproc_clear_data_addr_without_bm;
 			}
