@@ -21,7 +21,7 @@ void cpif_page_pool_delete(struct cpif_page_pool *pool)
 				continue;
 			if (cur->page) {
 				init_page_count(cur->page);
-				__free_pages(cur->page, PAGE_FRAG_CACHE_MAX_ORDER);
+				__free_pages(cur->page, pool->page_order);
 			}
 			kvfree(cur);
 		}
@@ -31,7 +31,7 @@ void cpif_page_pool_delete(struct cpif_page_pool *pool)
 	if (tmp_page) {
 		if (tmp_page->page) {
 			init_page_count(tmp_page->page);
-			__free_pages(tmp_page->page, PAGE_FRAG_CACHE_MAX_ORDER);
+			__free_pages(tmp_page->page, pool->page_order);
 		}
 		kvfree(tmp_page);
 	}
@@ -52,7 +52,7 @@ void cpif_page_init_tmp_page(struct cpif_page_pool *pool)
 EXPORT_SYMBOL(cpif_page_init_tmp_page);
 
 #define EXTRA_PAGE_COUNT	1000
-struct cpif_page_pool *cpif_page_pool_create(u64 num_page)
+struct cpif_page_pool *cpif_page_pool_create(u64 num_page, u64 page_size)
 {
 	int i;
 	struct cpif_page_pool *pool;
@@ -72,6 +72,12 @@ struct cpif_page_pool *cpif_page_pool_create(u64 num_page)
 		goto fail;
 	}
 
+	pool->page_size = page_size;
+	pool->page_order = get_order(page_size);
+
+	mif_info("num_page: %d page_size: %d page_order: %d\n",
+			num_page, page_size, pool->page_order);
+
 	for (i = 0; i < num_page; i++) {
 		struct cpif_page *cur = kvzalloc(sizeof(struct cpif_page), GFP_KERNEL);
 
@@ -79,7 +85,7 @@ struct cpif_page_pool *cpif_page_pool_create(u64 num_page)
 			mif_err("failed to alloc cpif_page\n");
 			goto fail;
 		}
-		cur->page = dev_alloc_pages(PAGE_FRAG_CACHE_MAX_ORDER);
+		cur->page = dev_alloc_pages(pool->page_order);
 		if (unlikely(!cur->page)) {
 			mif_err("failed to get page\n");
 			cur->usable = false;
@@ -120,13 +126,13 @@ void *cpif_cur_page_base(struct cpif_page_pool *pool, bool used_tmp_alloc)
 }
 EXPORT_SYMBOL(cpif_cur_page_base);
 
-#define RECYCLING_MAX_TRIAL	10
+#define RECYCLING_MAX_TRIAL	100
 static void *cpif_alloc_recycling_page(struct cpif_page_pool *pool, u64 alloc_size)
 {
 	u32 idx = pool->rpage_arr_idx;
 	struct cpif_page *cur = pool->recycling_page_arr[idx];
 	u32 ret;
-	int retry_count = RECYCLING_MAX_TRIAL;
+	int retry_count = RECYCLING_MAX_TRIAL / (pool->page_order + 1);
 
 	if (cur->offset < 0) { /* this page cannot handle next packet */
 		cur->usable = false;
@@ -142,7 +148,7 @@ try_next_rpage:
 	}
 
 	if (page_ref_count(cur->page) == 1) { /* no one uses this page */
-		cur->offset = PAGE_FRAG_CACHE_MAX_SIZE - alloc_size;
+		cur->offset = pool->page_size - alloc_size;
 		cur->usable = true;
 		goto assign_page;
 	}
@@ -151,9 +157,6 @@ try_next_rpage:
 		goto assign_page;
 
 	/* else, the page is not ready to be used, need to see next one */
-	mif_err_limited("cannot use the page: ref: %d usable: %d idx: %d\n",
-			page_ref_count(cur->page), cur->usable, idx);
-
 	if (retry_count > 0) {
 		retry_count--;
 		goto try_next_rpage;
@@ -176,7 +179,7 @@ static void *cpif_alloc_tmp_page(struct cpif_page_pool *pool, u64 alloc_size)
 
 	/* new page is required */
 	if (!tmp->usable) {
-		struct page *new_pg = dev_alloc_pages(PAGE_FRAG_CACHE_MAX_ORDER);
+		struct page *new_pg = dev_alloc_pages(pool->page_order);
 
 		if (unlikely(!new_pg)) {
 			mif_err_limited("failed to get page\n");
@@ -185,11 +188,11 @@ static void *cpif_alloc_tmp_page(struct cpif_page_pool *pool, u64 alloc_size)
 
 		/* unref fully used old tmp page */
 		if (tmp->page)
-			__free_pages(tmp->page, PAGE_FRAG_CACHE_MAX_ORDER);
+			__free_pages(tmp->page, pool->page_order);
 		tmp->page = new_pg;
 		pool->using_tmp_alloc = true;
 		tmp->usable = true;
-		tmp->offset = PAGE_FRAG_CACHE_MAX_SIZE - alloc_size;
+		tmp->offset = pool->page_size - alloc_size;
 	}
 
 	ret = tmp->offset;
@@ -207,6 +210,12 @@ void *cpif_page_alloc(struct cpif_page_pool *pool, u64 alloc_size, bool *used_tm
 {
 	void *ret;
 
+	if (alloc_size > pool->page_size) {
+		mif_err_limited("requested size exceeds page size. r_size: %d p_size: %d\n",
+				alloc_size, pool->page_size);
+		return NULL;
+	}
+
 	if (!pool->using_tmp_alloc) {
 		ret = cpif_alloc_recycling_page(pool, alloc_size);
 		if (ret) {
@@ -215,6 +224,7 @@ void *cpif_page_alloc(struct cpif_page_pool *pool, u64 alloc_size, bool *used_tm
 		}
 	}
 
+	mif_err_limited("cannot recycle page, alloc new one with size: %d\n", pool->page_size);
 	ret = cpif_alloc_tmp_page(pool, alloc_size);
 	if (!ret) {
 		mif_err_limited("failed to tmp page alloc: return\n");

@@ -59,7 +59,7 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 		goto fail;
 
 	/* create recycling page array */
-	cm->data_pool = cpif_page_pool_create(total_page_count);
+	cm->data_pool = cpif_page_pool_create(total_page_count, PAGE_FRAG_CACHE_MAX_SIZE);
 	if (unlikely(!cm->data_pool))
 		goto fail;
 

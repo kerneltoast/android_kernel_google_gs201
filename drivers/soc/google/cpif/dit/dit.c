@@ -883,10 +883,8 @@ static int dit_fill_rx_dst_data_buffer(enum dit_desc_ring ring_num, unsigned int
 			return -ENOMEM;
 		}
 
-		if (desc_info->dst_page_pool[ring_num]) {
-			dst_skb[dst_rp_pos]->head_frag = 0;
+		if (desc_info->dst_page_pool[ring_num])
 			skb_reserve(dst_skb[dst_rp_pos], dc->page_recycling_skb_padding);
-		}
 
 #if defined(DIT_DEBUG_LOW)
 		snapshot[DIT_DIR_RX][ring_num].alloc_skbs++;
@@ -1549,6 +1547,7 @@ error:
 	return ret;
 }
 
+#define POOL_PAGE_SIZE	4096
 static int dit_init_page_pool(enum dit_direction dir, enum dit_desc_ring ring_num)
 {
 	struct dit_desc_info *desc_info;
@@ -1569,10 +1568,11 @@ static int dit_init_page_pool(enum dit_direction dir, enum dit_desc_ring ring_nu
 
 	max_pkt_size = desc_info->buf_size + dc->page_recycling_skb_padding +
 		sizeof(struct skb_shared_info);
-	num_pkt_per_page = PAGE_FRAG_CACHE_MAX_SIZE / max_pkt_size;
+	num_pkt_per_page = POOL_PAGE_SIZE / max_pkt_size;
 	total_page_count = desc_info->dst_desc_ring_len / num_pkt_per_page;
 
-	desc_info->dst_page_pool[ring_num] = cpif_page_pool_create(total_page_count);
+	desc_info->dst_page_pool[ring_num] = cpif_page_pool_create(total_page_count,
+						POOL_PAGE_SIZE);
 	if (unlikely(!desc_info->dst_page_pool[ring_num]))
 		return -ENOMEM;
 
