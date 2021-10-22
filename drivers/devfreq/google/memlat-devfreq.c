@@ -126,7 +126,6 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 				    &devfreq_domain_name))
 		return -ENODEV;
 
-	data->l123_restrict = 0;
 	not_using_ect = exynos_devfreq_parse_ect(data, devfreq_domain_name);
 #endif
 
