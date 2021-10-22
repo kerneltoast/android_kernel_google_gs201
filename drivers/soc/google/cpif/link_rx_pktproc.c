@@ -612,24 +612,54 @@ static struct sk_buff *cpif_build_skb_single(struct pktproc_queue *q, u8 *src, u
 		u16 front_pad_size, u16 rear_pad_size, int *buffer_count)
 {
 	struct sk_buff *skb;
-	u16 total_len;
 
-	total_len = SKB_DATA_ALIGN(len + front_pad_size);
-	total_len += SKB_DATA_ALIGN(rear_pad_size);
-	skb = build_skb(src - front_pad_size, total_len);
-	if (unlikely(!skb)) {
-		mif_err_limited("build_skb() error\n");
-		q->stat.err_nomem++;
-		if (!q->manager->already_retrieved)
-			q->manager->already_retrieved = src;
-		return NULL;
+	if (q->manager) {
+		u16 total_len;
+
+		total_len = SKB_DATA_ALIGN(len + front_pad_size);
+		total_len += SKB_DATA_ALIGN(rear_pad_size);
+
+		skb = build_skb(src - front_pad_size, total_len);
+		if (unlikely(!skb))
+			goto error;
+
+		skb_reserve(skb, front_pad_size);
+	} else {
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		skb = build_skb(src - front_pad_size, q->ppa->true_packet_size);
+		if (unlikely(!skb))
+			goto error;
+
+		skb_reserve(skb, front_pad_size);
+#else
+		if (q->ppa->use_napi) {
+			skb = napi_alloc_skb(q->napi_ptr, len);
+			if (unlikely(!skb))
+				goto error;
+		} else {
+			skb = dev_alloc_skb(len);
+			if (unlikely(!skb))
+				goto error;
+		}
+
+		skb_copy_to_linear_data(skb, src, len);
+#endif
 	}
-	skb_reserve(skb, front_pad_size);
-	skb_put(skb, len);
-	*buffer_count = *buffer_count + 1;
 
+	skb_put(skb, len);
+	*buffer_count += 1;
 	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
+
 	return skb;
+
+error:
+	mif_err_limited("getting skb failed\n");
+
+	q->stat.err_nomem++;
+	if (q->manager && !q->manager->already_retrieved)
+		q->manager->already_retrieved = src;
+
+	return NULL;
 }
 
 static struct sk_buff *cpif_build_skb_gro(struct pktproc_queue *q, u8 *src, u16 len,
@@ -812,59 +842,33 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		return 1; /* dit cannot support HW GRO packets */
 	}
 
-	/* Build skb */
-	if (q->manager) {
-		/* guaranteed that only TCP/IP, UDP/IP in this case */
-		if (desc_done_ptr.lro == (LRO_MODE_ON | LRO_FIRST_SEG)) {
-			bool nomem = false;
-			if (!csum)
-				mif_info("CSUM error on LRO: 0x%lX\n",
-						desc_done_ptr.status);
-			skb = cpif_build_skb_gro(q, src, len, &buffer_count, &nomem);
-			if (unlikely(!skb)) {
-				if (nomem) {
-					ret = -ENOMEM;
-					if (buffer_count != 0) /* intermediate seg */
-						q->done_ptr = circ_new_ptr(q->num_desc,
-							q->done_ptr, 1);
-					goto rx_error;
-				} else {
-					ret = -EINVAL;
-					goto rx_error_on_desc;
-				}
-			}
-			q->stat.lro_cnt++;
-		} else {
-			skb = cpif_build_skb_single(q, src, len, ppa->skb_padding_size,
-					sizeof(struct skb_shared_info), &buffer_count);
-			if (unlikely(!skb)) {
+	/* guaranteed that only TCP/IP, UDP/IP in this case */
+	if (desc_done_ptr.lro == (LRO_MODE_ON | LRO_FIRST_SEG)) {
+		bool nomem = false;
+
+		if (!csum)
+			mif_info("CSUM error on LRO: 0x%lX\n", desc_done_ptr.status);
+
+		skb = cpif_build_skb_gro(q, src, len, &buffer_count, &nomem);
+		if (unlikely(!skb)) {
+			if (nomem) {
 				ret = -ENOMEM;
+				if (buffer_count != 0) /* intermediate seg */
+					q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 				goto rx_error;
+			} else {
+				ret = -EINVAL;
+				goto rx_error_on_desc;
 			}
 		}
-	} else { /* use memcpy or pcie iommu */
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-		skb = build_skb(src - ppa->skb_padding_size, ppa->true_packet_size);
-#else
-		if (ppa->use_napi)
-			skb = napi_alloc_skb(q->napi_ptr, len);
-		else
-			skb = dev_alloc_skb(len);
-#endif
+		q->stat.lro_cnt++;
+	} else {
+		skb = cpif_build_skb_single(q, src, len, ppa->skb_padding_size,
+					    sizeof(struct skb_shared_info), &buffer_count);
 		if (unlikely(!skb)) {
-			mif_err_limited("alloc_skb() error\n");
-			q->stat.err_nomem++;
 			ret = -ENOMEM;
 			goto rx_error;
 		}
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-		skb_reserve(skb, ppa->skb_padding_size);
-#else
-		skb_copy_to_linear_data(skb, src, len);
-#endif
-		skb_put(skb, len);
-		buffer_count++;
-		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 	}
 
 	if (csum)
@@ -1824,7 +1828,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		ppa->skb_padding_size = max(NET_SKB_PAD + NET_IP_ALIGN, LRO_MAX_HEADLEN);
 	else {
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-		ppa->skb_padding_size = NET_SKB_PAD + NET_IP_ALIGN;
+		ppa->skb_padding_size = max(NET_SKB_PAD + NET_IP_ALIGN, LRO_MAX_HEADLEN);
 #else
 		ppa->skb_padding_size = 0;
 #endif
