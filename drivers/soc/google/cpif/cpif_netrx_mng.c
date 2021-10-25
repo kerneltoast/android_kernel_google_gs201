@@ -11,7 +11,7 @@
 
 #include "cpif_netrx_mng.h"
 
-#define NETRX_POOL_PAGE_SIZE	4096
+#define NETRX_POOL_PAGE_SIZE	32768
 struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pair,
 						u64 desc_size, u64 databuf_cp_pbase,
 						u64 max_packet_size, u64 num_packet)
@@ -40,14 +40,18 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	cm->max_packet_size = max_packet_size;
 	cm->num_packet = num_packet;
 
-	/* deriving size of the data map : large enough to handle num_packet */
+	/* finding the least number of pages required for data map */
 	num_packet_per_page = NETRX_POOL_PAGE_SIZE / max_packet_size;
-	total_page_count = num_packet / num_packet_per_page + 2;
-	cm->total_buf_size =  NETRX_POOL_PAGE_SIZE * total_page_count;
+	total_page_count = num_packet / num_packet_per_page + 1;
+	/**
+	 * total buffer size is calculated based on worst case. buffer
+	 * composed of 4KB pages only
+	 */
+	cm->total_buf_size =  (num_packet + 100) * PAGE_SIZE;
 
-	cm->desc_map = cpif_vmap_create(desc_cp_pbase, desc_size, desc_size, 0);
+	cm->desc_map = cpif_vmap_create(desc_cp_pbase, desc_size, desc_size);
 	cm->data_map = cpif_vmap_create(databuf_cp_pbase, cm->total_buf_size,
-					NETRX_POOL_PAGE_SIZE, max_packet_size);
+					max_packet_size);
 	if (!cm->desc_map || !cm->data_map) {
 		if (cm->desc_map)
 			cpif_vmap_free(cm->desc_map);
@@ -55,7 +59,7 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	}
 
 	/* map descriptor region in advance */
-	temp = cpif_vmap_map_area(cm->desc_map, desc_ap_pbase, 0);
+	temp = cpif_vmap_map_area(cm->desc_map, 0, 0, desc_ap_pbase);
 	if (temp != desc_cp_pbase)
 		goto fail;
 
@@ -63,6 +67,8 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	cm->data_pool = cpif_page_pool_create(total_page_count, NETRX_POOL_PAGE_SIZE);
 	if (unlikely(!cm->data_pool))
 		goto fail;
+
+	spin_lock_init(&cm->lock);
 
 	/* initialize data address list */
 	INIT_LIST_HEAD(&cm->data_addr_list);
@@ -120,9 +126,14 @@ void cpif_init_netrx_mng(struct cpif_netrx_mng *cm)
 }
 struct cpif_addr_pair *cpif_map_rx_buf(struct cpif_netrx_mng *cm)
 {
-	void *data, *page_base;
+	struct page *page;
+	void *data;
+	u64 page_size;
+	unsigned long flags;
 	struct cpif_addr_pair *ret = NULL;
 	bool used_tmp_alloc = false;
+
+	spin_lock_irqsave(&cm->lock, flags);
 
 	if (unlikely(!cm->data_map)) {
 		mif_err_limited("data map is not created yet\n");
@@ -131,16 +142,20 @@ struct cpif_addr_pair *cpif_map_rx_buf(struct cpif_netrx_mng *cm)
 
 	data = cpif_page_alloc(cm->data_pool, cm->max_packet_size, &used_tmp_alloc);
 	if (!data) {
+		spin_unlock_irqrestore(&cm->lock, flags);
 		mif_err_limited("failed to page alloc: return\n");
 		goto done;
 	}
-	page_base = cpif_cur_page_base(cm->data_pool, used_tmp_alloc);
+	page = cpif_get_cur_page(cm->data_pool, used_tmp_alloc);
+	page_size = cpif_cur_page_size(cm->data_pool, used_tmp_alloc);
 
 	ret = kzalloc(sizeof(struct cpif_addr_pair), GFP_ATOMIC);
-	if (!ret)
+	if (!ret) {
+		spin_unlock_irqrestore(&cm->lock, flags);
 		return NULL;
-	ret->cp_addr = cpif_vmap_map_area(cm->data_map, virt_to_phys(page_base),
-						virt_to_phys(data));
+	}
+	ret->cp_addr = cpif_vmap_map_area(cm->data_map, page_to_phys(page),
+						page_size, virt_to_phys(data));
 	if (ret->cp_addr == 0) {  /* cp_addr cannot be allocated */
 		mif_err_limited("failed to vmap and get cp_addr\n");
 		goto done;
@@ -148,20 +163,27 @@ struct cpif_addr_pair *cpif_map_rx_buf(struct cpif_netrx_mng *cm)
 
 	/* returns addr that cp is allowed to write */
 	ret->ap_addr = data;
+	ret->page = page;
+	ret->page_order = get_order(page_size);
 	list_add_tail(&ret->addr_item, &cm->data_addr_list);
 done:
+	spin_unlock_irqrestore(&cm->lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL(cpif_map_rx_buf);
 
 void *cpif_unmap_rx_buf(struct cpif_netrx_mng *cm, u64 cp_addr, bool free)
 {
+	unsigned long flags;
 	u64 ap_paddr = 0;
 	void *ap_addr = NULL;
 	struct cpif_addr_pair *apair;
 
+	spin_lock_irqsave(&cm->lock, flags);
+
 	if (cm->data_map) {
 		if (cm->already_retrieved) {
+			spin_unlock_irqrestore(&cm->lock, flags);
 			ap_addr = cm->already_retrieved;
 			cm->already_retrieved = NULL;
 			return ap_addr;
@@ -169,15 +191,11 @@ void *cpif_unmap_rx_buf(struct cpif_netrx_mng *cm, u64 cp_addr, bool free)
 
 		ap_paddr = cpif_vmap_unmap_area(cm->data_map, cp_addr);
 		if (unlikely(ap_paddr == 0)) {
+			spin_unlock_irqrestore(&cm->lock, flags);
 			mif_err_limited("failed to receive ap_addr\n");
 			return NULL;
 		}
 		ap_addr = phys_to_virt(ap_paddr);
-	}
-
-	if (ap_addr && free) {
-		__free_pages(virt_to_page(ap_addr), 0);
-		ap_addr = NULL;
 	}
 
 	apair = list_first_entry_or_null(&cm->data_addr_list, struct cpif_addr_pair,
@@ -185,9 +203,15 @@ void *cpif_unmap_rx_buf(struct cpif_netrx_mng *cm, u64 cp_addr, bool free)
 	if (unlikely(!apair))
 		mif_err_limited("failed to get addr pair from data addr list\n");
 	else {
+		if (ap_addr && free) {
+			__free_pages(apair->page, apair->page_order);
+			ap_addr = NULL;
+		}
 		list_del(&apair->addr_item);
 		kfree(apair);
 	}
+
+	spin_unlock_irqrestore(&cm->lock, flags);
 
 	return ap_addr; /* returns NULL or unmapped AP virtual address */
 }

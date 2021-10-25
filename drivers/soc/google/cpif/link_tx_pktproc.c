@@ -427,7 +427,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
 	ppa_ul->desc_map = cpif_vmap_create(ppa_ul->cp_base + ppa_ul->desc_rgn_offset,
-			ppa_ul->desc_rgn_size, ppa_ul->desc_rgn_size, 0);
+			ppa_ul->desc_rgn_size, ppa_ul->desc_rgn_size);
 	if (unlikely(!ppa_ul->desc_map)) {
 		mif_err("failed to create desc map for pktproc ul\n");
 		ret = -ENOMEM;
@@ -435,7 +435,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 	}
 
 	ppa_ul->buff_map = cpif_vmap_create(ppa_ul->cp_base + ppa_ul->buff_rgn_offset,
-			ppa_ul->buff_rgn_size, ppa_ul->buff_rgn_size, 0);
+			ppa_ul->buff_rgn_size, ppa_ul->buff_rgn_size);
 	if (unlikely(!ppa_ul->buff_map)) {
 		mif_err("failed to create buff map for pktproc ul\n");
 		cpif_vmap_free(ppa_ul->desc_map);
@@ -443,7 +443,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		goto create_error;
 	}
 
-	temp = cpif_vmap_map_area(ppa_ul->desc_map, memaddr + ppa_ul->desc_rgn_offset, 0);
+	temp = cpif_vmap_map_area(ppa_ul->desc_map, 0, 0, memaddr + ppa_ul->desc_rgn_offset);
 	if (temp != ppa_ul->cp_base + ppa_ul->desc_rgn_offset) {
 		cpif_vmap_free(ppa_ul->desc_map);
 		cpif_vmap_free(ppa_ul->buff_map);
@@ -451,7 +451,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		goto create_error;
 	}
 
-	temp = cpif_vmap_map_area(ppa_ul->buff_map, memaddr + ppa_ul->buff_rgn_offset, 0);
+	temp = cpif_vmap_map_area(ppa_ul->buff_map, 0, 0, memaddr + ppa_ul->buff_rgn_offset);
 	if (temp != ppa_ul->cp_base + ppa_ul->buff_rgn_offset) {
 		cpif_vmap_free(ppa_ul->desc_map);
 		cpif_vmap_free(ppa_ul->buff_map);

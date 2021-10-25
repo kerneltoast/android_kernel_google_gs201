@@ -1547,7 +1547,7 @@ error:
 	return ret;
 }
 
-#define POOL_PAGE_SIZE	4096
+#define POOL_PAGE_SIZE	32768
 static int dit_init_page_pool(enum dit_direction dir, enum dit_desc_ring ring_num)
 {
 	struct dit_desc_info *desc_info;

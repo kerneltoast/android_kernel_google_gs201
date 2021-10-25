@@ -13,11 +13,13 @@
 #include "cpif_vmapper.h"
 
 struct cpif_addr_pair {
-	u64	cp_addr; /* cp address */
-	void	*ap_addr; /* ap virtual address */
+	u64			cp_addr;	/* cp address */
+	void			*ap_addr;	/* ap virtual address */
+
+	struct page		*page;	/* page holding the ap address */
+	u64			page_order;
 
 	struct list_head	addr_item;
-
 };
 
 struct cpif_netrx_mng {
@@ -30,6 +32,7 @@ struct cpif_netrx_mng {
 
 	struct cpif_page_pool	*data_pool;
 	struct list_head	data_addr_list;
+	spinlock_t		lock;
 
 	/* contains pre-unmapped AP addr which couldn't be delivered to kernel yet */
 	void *already_retrieved;
