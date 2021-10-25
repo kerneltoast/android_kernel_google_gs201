@@ -695,3 +695,24 @@ const char *get_cpif_driver_version(void)
 {
 	return &(cpif_driver_version[0]);
 }
+
+int copy_from_user_memcpy_toio(void __iomem *dst, const void __user *src, size_t count)
+{
+	u8 buf[256];
+
+	while (count) {
+		size_t c = count;
+
+		if (c > sizeof(buf))
+			c = sizeof(buf);
+		if (copy_from_user(buf, src, c))
+			return -EFAULT;
+
+		memcpy_toio(dst, buf, c);
+		count -= c;
+		dst += c;
+		src += c;
+	}
+
+	return 0;
+}

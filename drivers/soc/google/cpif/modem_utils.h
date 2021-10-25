@@ -619,4 +619,6 @@ static inline int cpif_wake_lock_active(struct wakeup_source *ws)
 	return ws->active;
 }
 
+int copy_from_user_memcpy_toio(void __iomem *dst, const void __user *src, size_t count);
+
 #endif/*__MODEM_UTILS_H__*/

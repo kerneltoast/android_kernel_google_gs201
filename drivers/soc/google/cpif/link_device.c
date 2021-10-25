@@ -2189,7 +2189,7 @@ static int link_load_cp_image(struct link_device *ld, struct io_device *iod,
 
 	dst = (void __iomem *)(v_base + img.m_offset);
 	src = (void __user *)((unsigned long)img.binary);
-	ret = copy_from_user(dst, src, img.len);
+	ret = copy_from_user_memcpy_toio(dst, src, img.len);
 	if (ret) {
 		mif_err("%s: ERR! BOOT copy_from_user fail\n", ld->name);
 		goto out;
