@@ -31,6 +31,7 @@
 	focaltech,reset-gpio = <&gpp23 2 0>;
 	focaltech,max-touch-number = <10>;
 	focaltech,display-coords = <0 0 1079 2399>;
+	focaltech,panel_map = <&sdc_s6e3fc3_p10 0>;
 
 	controller-data {
 		cs-gpio = <&gpp20 3 0>;
