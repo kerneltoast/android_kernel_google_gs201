@@ -182,14 +182,13 @@
 				/* CSID_RST_L GPP2[2] */
 				reset-gpios = <&gpp2 2 GPIO_ACTIVE_HIGH>;
 
-				/* Power sequence */
-				regulators =
-					<&slg51002_ldo8 &slg51002_ldo1
-					&slg51002_ldo4 &s_ldo12_reg
-					&slg51002_gpio3 &slg51002_ldo3>;
-				regulator-voltages =
-					<1100000 2850000 2900000 1800000 0
-					2900000>;
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo1-supply = <&slg51002_ldo1>;
+				ldo3-supply = <&slg51002_ldo3>;
+				ldo4-supply = <&slg51002_ldo4>;
+				ldo8-supply = <&slg51002_ldo8>;
+				gpio3-supply = <&slg51002_gpio3>;
 
 				clocks =
 					<&clock CIS_CLK3>,
@@ -213,7 +212,7 @@
 					"ldo1",
 					"ldo3",
 					"ldo4",
-					"S2MPG13_LDO12",
+					"s2mpg13_ldo12",
 					"reset",
 					"mclk_on";
 				power-up-seq-types =
@@ -239,7 +238,7 @@
 				power-down-seqs =
 					"mclk_off",
 					"reset",
-					"S2MPG13_LDO12",
+					"s2mpg13_ldo12",
 					"ldo4",
 					"ldo3",
 					"ldo1",
@@ -283,12 +282,10 @@
 				/* GPIOs */
 				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
 
-				/* Power sequence */
-				regulators =
-					<&slg51002_ldo7 &slg51002_ldo5
-					&s_ldo12_reg>;
-				regulator-voltages =
-					<1100000 3000000 1800000>;
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo5-supply = <&slg51002_ldo5>;
+				ldo7-supply = <&slg51002_ldo7>;
 
 				clocks =
 					<&clock CIS_CLK1>,
@@ -309,7 +306,7 @@
 				power-up-seqs =
 					"ldo7",
 					"ldo5",
-					"S2MPG13_LDO12",
+					"s2mpg13_ldo12",
 					"mclk_on",
 					"reset";
 				power-up-seq-types =
@@ -329,7 +326,7 @@
 				power-down-seqs =
 					"reset",
 					"mclk_off",
-					"S2MPG13_LDO12",
+					"s2mpg13_ldo12",
 					"ldo5",
 					"ldo7";
 				power-down-seq-types =
@@ -364,11 +361,10 @@
 				/* GPIOs */
 				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
 
-				/* Power sequence */
-				regulators =
-					<&slg51002_ldo6 &slg51002_ldo2 &s_ldo12_reg>;
-				regulator-voltages =
-					<1100000 2850000 1800000>;
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo2-supply = <&slg51002_ldo2>;
+				ldo6-supply = <&slg51002_ldo6>;
 
 				clocks =
 					<&clock CIS_CLK0>,
@@ -387,7 +383,7 @@
 
 				/* Power up sequence */
 				power-up-seqs =
-					"S2MPG13_LDO12",
+					"s2mpg13_ldo12",
 					"ldo6",
 					"ldo2",
 					"mclk_on",
@@ -411,7 +407,7 @@
 					"mclk_off",
 					"ldo2",
 					"ldo6",
-					"S2MPG13_LDO12";
+					"s2mpg13_ldo12";
 				power-down-seq-types =
 					"gpio",
 					"pinctrl",
@@ -441,14 +437,13 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <32>;
 
-				/* Power sequence */
-				regulators =
-					<&slg51002_ldo8 &slg51002_ldo1
-					&slg51002_ldo4 &s_ldo12_reg
-					&slg51002_gpio3 &slg51002_ldo3>;
-				regulator-voltages =
-					<1100000 2850000 2900000 1800000 0
-					2900000>;
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo1-supply = <&slg51002_ldo1>;
+				ldo3-supply = <&slg51002_ldo3>;
+				ldo4-supply = <&slg51002_ldo4>;
+				ldo8-supply = <&slg51002_ldo8>;
+				gpio3-supply = <&slg51002_gpio3>;
 
 				/* Power up sequence */
 				power-up-seqs =
@@ -457,7 +452,7 @@
 					"ldo1",
 					"ldo3",
 					"ldo4",
-					"S2MPG13_LDO12";
+					"s2mpg13_ldo12";
 				power-up-seq-types =
 					"regulator",
 					"regulator",
@@ -475,7 +470,7 @@
 
 				/* Power down sequence */
 				power-down-seqs =
-					"S2MPG13_LDO12",
+					"s2mpg13_ldo12",
 					"ldo4",
 					"ldo3",
 					"ldo1",
@@ -512,15 +507,12 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <8>;
 
-				/* Power sequence */
-				regulators =
-					<&s_ldo12_reg>;
-				regulator-voltages =
-					<1800000>;
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"S2MPG13_LDO12";
+					"s2mpg13_ldo12";
 				power-up-seq-types =
 					"regulator";
 				power-up-seq-delays-us =
@@ -528,7 +520,7 @@
 
 				/* Power down sequence */
 				power-down-seqs =
-					"S2MPG13_LDO12";
+					"s2mpg13_ldo12";
 				power-down-seq-types =
 					"regulator";
 				power-down-seq-delays-us =
@@ -550,15 +542,12 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <8>;
 
-				/* Power sequence */
-				regulators =
-					<&s_ldo12_reg>;
-				regulator-voltages =
-					<1800000>;
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"S2MPG13_LDO12";
+					"s2mpg13_ldo12";
 				power-up-seq-types =
 					"regulator";
 				power-up-seq-delays-us =
@@ -566,7 +555,7 @@
 
 				/* Power down sequence */
 				power-down-seqs =
-					"S2MPG13_LDO12";
+					"s2mpg13_ldo12";
 				power-down-seq-types =
 					"regulator";
 				power-down-seq-delays-us =
@@ -588,15 +577,13 @@
 				reg-addr-bitwidth = <8>;
 				reg-value-bitwidth = <8>;
 
-				/* Power sequence */
-				regulators =
-					<&slg51002_ldo4 &s_ldo12_reg>;
-				regulator-voltages =
-					<2900000 1800000>;
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo4-supply = <&slg51002_ldo4>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"S2MPG13_LDO12",
+					"s2mpg13_ldo12",
 					"ldo4";
 				power-up-seq-types =
 					"regulator",
@@ -608,7 +595,7 @@
 				/* Power down sequence */
 				power-down-seqs =
 					"ldo4",
-					"S2MPG13_LDO12";
+					"s2mpg13_ldo12";
 				power-down-seq-types =
 					"regulator",
 					"regulator";
@@ -632,16 +619,14 @@
 				reg-addr-bitwidth = <16>;
 				reg-value-bitwidth = <32>;
 
-				/* Power sequence */
-				regulators =
-					<&s_ldo12_reg &slg51002_gpio2
-					&slg51002_ldo3>;
-				regulator-voltages =
-					<1800000 0 2900000>;
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo3-supply = <&slg51002_ldo3>;
+				gpio2-supply = <&slg51002_gpio2>;
 
 				/* Power up sequence */
 				power-up-seqs =
-					"S2MPG13_LDO12",
+					"s2mpg13_ldo12",
 					"ldo3",
 					"gpio2";
 				power-up-seq-types =
@@ -657,7 +642,7 @@
 				power-down-seqs =
 					"gpio2",
 					"ldo3",
-					"S2MPG13_LDO12";
+					"s2mpg13_ldo12";
 				power-down-seq-types =
 					"regulator",
 					"regulator",
