@@ -2086,7 +2086,7 @@ static int shmem_init_comm(struct link_device *ld, struct io_device *iod)
 		if (ld->link_type == LINKDEV_SHMEM)
 			write_clk_table_to_shmem(mld);
 
-		if (!atomic_read(&mld->init_end_cnt)) {
+		if (cp_online(mc) && !atomic_read(&mld->init_end_cnt)) {
 			mif_err("%s: %s -> INIT_END -> %s\n", ld->name, iod->name, mc->name);
 			atomic_inc(&mld->init_end_cnt);
 			send_ipc_irq(mld, cmd2int(CMD_INIT_END));

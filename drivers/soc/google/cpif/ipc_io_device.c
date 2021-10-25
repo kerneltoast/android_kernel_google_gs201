@@ -234,6 +234,7 @@ static ssize_t ipc_write(struct file *filp, const char __user *data,
 	unsigned int cnt = (unsigned int)count;
 	struct timespec64 ts;
 	int curr_init_end_cnt;
+	int retry = 0;
 
 	/* Record the timestamp */
 	ktime_get_ts64(&ts);
@@ -264,8 +265,8 @@ static ssize_t ipc_write(struct file *filp, const char __user *data,
 	}
 
 	/* Wait for a while if a new CMD_INIT_END is sent */
-	curr_init_end_cnt = atomic_read(&mld->init_end_cnt);
-	if (curr_init_end_cnt != mld->last_init_end_cnt) {
+	while ((curr_init_end_cnt = atomic_read(&mld->init_end_cnt)) != mld->last_init_end_cnt &&
+	       retry++ < 3) {
 		mif_info_limited("%s: wait for INIT_END done (%dms) cnt:%d last:%d cmd:0x%02X\n",
 				 iod->name, INIT_END_WAIT_MS,
 				 curr_init_end_cnt, mld->last_init_end_cnt,
