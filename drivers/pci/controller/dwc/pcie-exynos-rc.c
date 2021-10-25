@@ -422,8 +422,9 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 		break;
 	case 3:
 		dev_info(dev, "## LTSSM ##\n");
-		ret = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0xff;
-		dev_info(dev, "PCIE_ELBI_RDLH_LINKUP :0x%x\n", ret);
+		ret = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+		      & PCIE_ELBI_LTSSM_STATE_MASK;
+		dev_info(dev, "LTSSM :0x%x\n", ret);
 		break;
 
 	case 13:
@@ -1257,8 +1258,8 @@ static int exynos_pcie_rc_link_up(struct dw_pcie *pci)
 	if (exynos_pcie->state != STATE_LINK_UP)
 		return 0;
 
-	val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-	if (val >= 0x0d && val <= 0x15)
+	val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & PCIE_ELBI_LTSSM_STATE_MASK;
+	if (val >= S_RCVRY_LOCK && val <= S_L1_IDLE)
 		return 1;
 
 	return 0;
@@ -2011,8 +2012,9 @@ void exynos_pcie_rc_cpl_timeout_work(struct work_struct *work)
 	dev_info(pci->dev, "check LTSSM +++\n");
 	count = 0;
 	while (count < LNKRCVYWAIT_TIMEOUT) {
-		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-		if (val >= 0x11 && val <= 0x14) {
+		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+		      & PCIE_ELBI_LTSSM_STATE_MASK;
+		if (val >= S_L0 && val <= S_L1_IDLE) {
 			dev_info(dev, "LTSSM == 0x%x Link OK\n", val);
 			return;
 		}
@@ -2445,9 +2447,9 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 		readl(exynos_pcie->phy_pcs_base + 0x188));
 	dev_dbg(dev, "DBI Link Control Register: 0x%x\n", readl(exynos_pcie->rc_dbi_base + 0x80));
 
-	val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
+	val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & PCIE_ELBI_LTSSM_STATE_MASK;
 	dev_dbg(dev, "%s: link state:%x\n", __func__, val);
-	if (!(val >= 0x0d && val <= 0x14)) {
+	if (!(val >= S_RCVRY_LOCK && val <= S_L1_IDLE)) {
 		dev_info(dev, "%s, pcie link is not up\n", __func__);
 
 		return;
@@ -2479,9 +2481,9 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 
 	count = 0;
 	do {
-		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP);
-		val = val & 0x1f;
-		if (val == 0x15) {
+		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+		      & PCIE_ELBI_LTSSM_STATE_MASK;
+		if (val == S_L2_IDLE) {
 			dev_dbg(dev, "received Enter_L23_READY DLLP packet\n");
 
 			break;
@@ -2586,9 +2588,9 @@ retry:
 	if (exynos_pcie->use_cache_coherency)
 		exynos_pcie_rc_set_iocc(pp, 1);
 
-	dev_dbg(dev, "D state: %x, %x\n",
-		exynos_elbi_read(exynos_pcie, PCIE_PM_DSTATE) & 0x7,
-		exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP));
+	dev_dbg(dev, "D state: %x, LTSSM: %x\n",
+		exynos_elbi_read(exynos_pcie, PCIE_PM_DSTATE) & PCIE_PM_DSTATE_MASK,
+		exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & PCIE_ELBI_LTSSM_STATE_MASK);
 
 	save_before_state = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP);
 	/* DBG: sleep_range(48000, 50000); */
@@ -2597,26 +2599,21 @@ retry:
 	exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_ENABLE, PCIE_APP_LTSSM_ENABLE);
 	count = 0;
 	while (count < MAX_TIMEOUT) {
-		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-		/* if (val != save_before_state) {
-		 *	dev_info(dev, "PCIE_ELBI_RDLH_LINKUP :0x%x\n", val);
-		 *	save_before_state = val;
-		 *	}
-		 */
-		if (val == 0x11)
+		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+		      & PCIE_ELBI_LTSSM_STATE_MASK;
+		if (val == S_L0)
 			break;
-
 		count++;
-
 		usleep_range(10, 12);
 	}
 
 	if (count >= MAX_TIMEOUT) {
 		try_cnt++;
 
-		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-		dev_err(dev, "%s: Link is not up, try count: %d, linksts: %s(0x%x)\n",
-			__func__, try_cnt, LINK_STATE_DISP(val), val);
+		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+		      & PCIE_ELBI_LTSSM_STATE_MASK;
+		dev_err(dev, "Link is not up, try count: %d, linksts: %s(0x%x)\n",
+			try_cnt, LINK_STATE_DISP(val), val);
 
 		if (try_cnt < 10) {
 			gpio_set_value(exynos_pcie->perst_gpio, 0);
@@ -2638,8 +2635,9 @@ retry:
 			return -EPIPE;
 		}
 	} else {
-		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0xff;
-		dev_dbg(dev, "%s: %s(0x%x)\n", __func__, LINK_STATE_DISP(val), val);
+		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+		      & PCIE_ELBI_LTSSM_STATE_MASK;
+		dev_dbg(dev, "%s(0x%x)\n", LINK_STATE_DISP(val), val);
 
 		dev_dbg(dev, "(phy+0xC08=0x%x)(phy+0x1408=0x%x)(phy+0xC6C=0x%x)(phy+0x146C=0x%x)\n",
 			exynos_phy_read(exynos_pcie, 0xC08),
@@ -2680,12 +2678,11 @@ retry:
 		count = 0;
 		dev_dbg(dev, "check L0 state after link recovery\n");
 		while (count < MAX_TIMEOUT) {
-			val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-			if (val >= 0x11 && val <= 0x14)
+			val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+			      & PCIE_ELBI_LTSSM_STATE_MASK;
+			if (val >= S_L0 && val <= S_L1_IDLE)
 				break;
-
 			count++;
-
 			usleep_range(10, 12);
 		}
 
@@ -3063,12 +3060,11 @@ int exynos_pcie_l1_exit(int ch_num)
 
 		/* Max timeout = 3ms (300 * 10us) */
 		while (count < MAX_L1_EXIT_TIMEOUT) {
-			val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x1f;
-			if (val == 0x11)
+			val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+			      & PCIE_ELBI_LTSSM_STATE_MASK;
+			if (val == S_L0)
 				break;
-
 			count++;
-
 			udelay(10);
 		}
 
@@ -3453,13 +3449,13 @@ int exynos_pcie_rc_chk_link_status(int ch_num)
 		return 0;
 
 	if (exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM) {
-		val = readl(exynos_pcie->elbi_base + PCIE_ELBI_RDLH_LINKUP) & 0x1f;
-		if (val >= 0x0d && val <= 0x14) {
+		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+		      & PCIE_ELBI_LTSSM_STATE_MASK;
+		if (val >= S_RCVRY_LOCK && val <= S_L1_IDLE) {
 			link_status = 1;
 		} else {
 			dev_err(dev, "Check unexpected state - H/W:0x%x, S/W:%d\n",
 				val, exynos_pcie->state);
-			/* exynos_pcie->state = STATE_LINK_DOWN; */
 			link_status = 0;
 		}
 
@@ -3551,11 +3547,10 @@ int exynos_pcie_rc_change_link_speed(int ch_num, int target_speed)
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, 4, val);
 
 	for (i = 0; i < MAX_TIMEOUT_SPEEDCHANGE; i++) {
-		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-
-		if (val >= 0x11 && val <= 0x14)
+		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+		      & PCIE_ELBI_LTSSM_STATE_MASK;
+		if (val >= S_L0 && val <= S_L1_IDLE)
 			break;
-
 		usleep_range(80, 100);
 	}
 
@@ -3563,10 +3558,8 @@ int exynos_pcie_rc_change_link_speed(int ch_num, int target_speed)
 		exynos_pcie_rc_rd_own_conf(pp, PCIE_LINK_CTRL_STAT, 4, &new_speed);
 		new_speed = new_speed >> 16;
 		new_speed &= PCIE_LINK_CTRL_LINK_SPEED_MASK;
-
 		if (new_speed == target_speed)
 			break;
-
 		usleep_range(80, 100);
 	}
 
@@ -3709,7 +3702,6 @@ static void __maybe_unused exynos_pcie_rc_set_tpoweron(struct pcie_port *pp, int
 	writel(val, ep_dbi_base + WIFI_L1SS_CONTROL);
 }
 
-/* Temporary remove: Need to enable to use sicd powermode */
 #if IS_ENABLED(CONFIG_EXYNOS_PCIE_SICD)
 static int exynos_pcie_rc_power_mode_event(struct notifier_block *nb, unsigned long event,
 					   void *data)
@@ -3726,9 +3718,9 @@ static int exynos_pcie_rc_power_mode_event(struct notifier_block *nb, unsigned l
 		if (exynos_pcie->use_sicd) {
 			if (exynos_pcie->ip_ver >= 0x889500) {
 				if (exynos_pcie->state != STATE_LINK_DOWN) {
-					val = readl(exynos_pcie->elbi_base +
-						PCIE_ELBI_RDLH_LINKUP) & 0x3f;
-					if (val == 0x14 || val == 0x15) {
+					val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
+					      & PCIE_ELBI_LTSSM_STATE_MASK
+					if (val == S_L1_IDLE || val == S_L2_IDLE) {
 						ret = NOTIFY_DONE;
 						/* Change tpower on time to
 						 * value
