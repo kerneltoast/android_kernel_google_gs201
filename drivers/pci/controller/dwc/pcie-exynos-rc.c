@@ -392,6 +392,10 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 
 	if (sscanf(buf, "%10d", &op_num) == 0)
 		return -EINVAL;
+
+	if (exynos_pcie->use_phy_isol_con)
+		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
+
 	switch (op_num) {
 	case 0:
 		dev_info(dev, "## PCIe UNIT test START ##\n");
@@ -447,6 +451,8 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 	default:
 		dev_err(dev, "Unsupported Test Number(%d)...\n", op_num);
 	}
+	if (exynos_pcie->use_phy_isol_con)
+		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
 
 	return count;
 }
@@ -1926,13 +1932,16 @@ void exynos_pcie_rc_dislink_work(struct work_struct *work)
 	struct dw_pcie *pci = exynos_pcie->pci;
 	struct pcie_port *pp = &pci->pp;
 	struct device *dev = pci->dev;
+	unsigned long flags;
 
 	if (exynos_pcie->state == STATE_LINK_DOWN)
 		return;
 
+	spin_lock_irqsave(&exynos_pcie->conf_lock, flags);
 	exynos_pcie_rc_print_link_history(pp);
 	exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
 	exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
+	spin_unlock_irqrestore(&exynos_pcie->conf_lock, flags);
 
 	exynos_pcie->linkdown_cnt++;
 	dev_info(dev, "link down and recovery cnt: %d\n", exynos_pcie->linkdown_cnt);

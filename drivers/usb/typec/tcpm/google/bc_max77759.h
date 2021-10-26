@@ -23,6 +23,13 @@
 #define NOBCCOMP                BIT(5)
 #define DCDCPL                  BIT(7)
 
+#define VENDOR_BC_CTRL2         0x90
+#define DPDNMAN                 BIT(4)
+#define DPDRV                   GENMASK(3, 2)
+#define DPDRV_SHIFT             2
+#define DPDRV_3V0               0x2
+#define DPDRV_OPEN              0x3
+
 #define VENDOR_BC_STATUS1       0x87
 #define CHGTYP                  GENMASK(1, 0)
 #define DCDTMO                  BIT(2)
@@ -45,6 +52,7 @@ void bc12_reset_retry(struct bc12_status *bc12);
 void bc12_teardown(struct bc12_status *bc12);
 void bc12_enable(struct bc12_status *bc12, bool enable);
 bool bc12_get_status(struct bc12_status *bc12);
+enum power_supply_usb_type get_usb_type(struct bc12_status *bc12);
 
 #endif /*__BC_MAX77759_H */
 
