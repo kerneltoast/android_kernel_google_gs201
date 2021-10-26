@@ -158,7 +158,7 @@
 				pktproc_dl_use_napi = <1>;
 				/* H/W IO cache coherency */
 				pktproc_dl_use_hw_iocc = <0>;
-				pktproc_dl_max_packet_size = <2048>;
+				pktproc_dl_max_packet_size = <1628>;
 				pktproc_dl_use_dedicated_baaw = <0>;
 
 				/* Packet processor for UL */
