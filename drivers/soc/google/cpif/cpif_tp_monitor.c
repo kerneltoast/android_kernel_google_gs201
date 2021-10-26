@@ -56,7 +56,6 @@ static int tpmon_calc_rx_speed_internal(
 {
 	u64 rx_bytes;
 	u64 delta_msec;
-	u32 msec_max;
 	ktime_t curr_time;
 	unsigned long flags;
 
@@ -73,14 +72,12 @@ static int tpmon_calc_rx_speed_internal(
 	rx_data->rx_bytes = 0;
 	spin_unlock_irqrestore(&tpmon->lock, flags);
 
-	check_stat ? (msec_max = tpmon->monitor_interval_msec * 2) :
-		(msec_max = tpmon->trigger_msec_max);
-	if (delta_msec > msec_max) {
+	if (!check_stat && (delta_msec > tpmon->trigger_msec_max)) {
 		rx_data->rx_mbps = 0;
 		return -EIO;
 	}
 
-	rx_data->rx_mbps = rx_bytes * 8 * 1000 / delta_msec / 1000000;
+	rx_data->rx_mbps = rx_bytes * 8 / delta_msec / 1000;
 
 	return 0;
 }
