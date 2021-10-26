@@ -827,7 +827,7 @@ void tpmon_add_rx_bytes(struct sk_buff *skb)
 	case 6:
 		proto = ipv6_hdr(skb)->nexthdr;
 		if (proto == IPPROTO_FRAGMENT)
-			proto = inner_ipv6_hdr(skb)->nexthdr;
+			proto = skb->data[sizeof(struct ipv6hdr)];
 		break;
 	default:
 		mif_err_limited("Non IPv4/IPv6 packet:0x%x\n",
