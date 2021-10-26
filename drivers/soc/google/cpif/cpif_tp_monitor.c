@@ -1084,9 +1084,8 @@ static ssize_t curr_level_show(struct device *dev,
 	int i;
 
 	len += scnprintf(buf + len, PAGE_SIZE - len,
-			"start at %dMbps min:%dmsec max:%dmsec\n",
-			tpmon->trigger_mbps, tpmon->trigger_msec_min,
-			tpmon->trigger_msec_max);
+			"trigger min:%dmsec max:%dmsec\n",
+			tpmon->trigger_msec_min, tpmon->trigger_msec_max);
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"monitor interval:%dmsec hold:%dmsec stop:%dMbps\n",
 			tpmon->monitor_interval_msec,
@@ -1471,11 +1470,10 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 		return -ENODEV;
 	}
 
-	mif_dt_read_u32(tpmon_np, "trigger_mbps", tpmon->trigger_mbps);
 	mif_dt_read_u32(tpmon_np, "trigger_msec_min", tpmon->trigger_msec_min);
 	mif_dt_read_u32(tpmon_np, "trigger_msec_max", tpmon->trigger_msec_max);
-	mif_info("trigger:%dMbps min:%dmsec max:%dmsec\n",
-		tpmon->trigger_mbps, tpmon->trigger_msec_min, tpmon->trigger_msec_max);
+	mif_info("trigger min:%dmsec max:%dmsec\n",
+		tpmon->trigger_msec_min, tpmon->trigger_msec_max);
 
 	mif_dt_read_u32(tpmon_np, "monitor_interval_msec",
 		tpmon->monitor_interval_msec);
