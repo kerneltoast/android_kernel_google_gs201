@@ -6349,6 +6349,27 @@ static irqreturn_t ufshcd_check_errors(struct ufs_hba *hba, u32 intr_status)
 	return retval;
 }
 
+struct ctm_info {
+	struct ufs_hba	*hba;
+	unsigned long	pending;
+	unsigned int	ncpl;
+};
+
+static bool ufshcd_compl_tm(struct request *req, void *priv, bool reserved)
+{
+	struct ctm_info *const ci = priv;
+	struct completion *c;
+
+	WARN_ON_ONCE(reserved);
+	if (test_bit(req->tag, &ci->pending))
+		return true;
+	ci->ncpl++;
+	c = req->end_io_data;
+	if (c)
+		complete(c);
+	return true;
+}
+
 /**
  * ufshcd_tmc_handler - handle task management function completion
  * @hba: per adapter instance
@@ -6481,7 +6502,6 @@ out:
 static int __ufshcd_issue_tm_cmd(struct ufs_hba *hba,
 		struct utp_task_req_desc *treq, u8 tm_function)
 {
-	struct request **tmf_rqs = ufs_hba_add_info(hba)->tmf_rqs;
 	struct request_queue *q = hba->tmf_queue;
 	struct Scsi_Host *host = hba->host;
 	DECLARE_COMPLETION_ONSTACK(wait);
@@ -6500,6 +6520,7 @@ static int __ufshcd_issue_tm_cmd(struct ufs_hba *hba,
 	ufshcd_hold(hba, false);
 
 	spin_lock_irqsave(host->host_lock, flags);
+	blk_mq_start_request(req);
 
 	task_tag = req->tag;
 	hba->tmf_rqs[req->tag] = req;
@@ -9252,7 +9273,6 @@ static const struct blk_mq_ops ufshcd_tmf_ops = {
  */
 int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 {
-	struct request ***tmf_rqs = &ufs_hba_add_info(hba)->tmf_rqs;
 	int err;
 	struct Scsi_Host *host = hba->host;
 	struct device *dev = hba->dev;
