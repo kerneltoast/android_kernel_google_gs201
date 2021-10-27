@@ -1192,7 +1192,22 @@ static void itmon_post_handler_by_client(struct itmon_dev *itmon,
 		now = ktime_get();
 		interval = ktime_sub(now, pdata->last_time);
 		pdata->last_time = now;
-		pdata->err_cnt_by_cpu++;
+
+		/* Ignore specific speculative accesses */
+		if (trans_type == TRANS_TYPE_READ &&
+			info->errcode == ERRCODE_DECERR &&
+			info->target_addr < 0x10000 &&
+			/* addr ends with 40: 0x7240, 0x7140, 0xd540 .. */
+			(info->target_addr & 0xFF) == 0x40 &&
+			/* size (2 ^ axsize) = 4 */
+			info->axsize == 2 &&
+			/* burst (axlen + 1) = 16 */
+			info->axlen == 15)
+			/* no-op */
+			;
+		else
+			pdata->err_cnt_by_cpu++;
+
 		if (pdata->err_cnt_by_cpu > pdata->panic_threshold)
 			pdata->policy[CPU].error = true;
 

@@ -23,6 +23,7 @@
 #include <linux/phy/phy.h>
 #include <linux/acpi.h>
 #include <linux/usb/of.h>
+#include <linux/pm.h>
 
 #include "../core/phy.h"
 #include "xhci.h"
@@ -32,6 +33,8 @@
 #include "xhci-exynos.h"
 #include "../dwc3/dwc3-exynos.h"
 #include <soc/google/exynos-cpupm.h>
+#include <trace/hooks/sound.h>
+#include <trace/hooks/usb.h>
 
 static struct hc_driver xhci_exynos_hc_driver;
 
@@ -65,11 +68,22 @@ int xhci_exynos_bus_suspend(struct usb_hcd *hcd)
 	struct xhci_hcd_exynos *xhci_exynos = priv->xhci_exynos;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	int ret, ret_phy, main_hcd;
+	int bypass = 0;
+	struct usb_device *udev = hcd->self.root_hub;
+	pm_message_t msg;
 
 	if (hcd == xhci->main_hcd)
 		main_hcd = 1;
 	else
 		main_hcd = 0;
+
+	msg.event = 0;
+	trace_android_vh_usb_dev_suspend(udev, msg, &bypass);
+	if (bypass) {
+		ret = 0;
+		ret_phy = 0;
+		return 0;
+	}
 
 	ret = xhci_bus_suspend(hcd);
 
@@ -91,11 +105,21 @@ int xhci_exynos_bus_resume(struct usb_hcd *hcd)
 	struct xhci_hcd_exynos *xhci_exynos = priv->xhci_exynos;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	int ret, main_hcd;
+	int bypass = 0;
+	struct usb_device *udev = hcd->self.root_hub;
+	pm_message_t msg;
 
 	if (hcd == xhci->main_hcd)
 		main_hcd = 1;
 	else
 		main_hcd = 0;
+
+	msg.event = 0;
+	trace_android_vh_usb_dev_resume(udev, msg, &bypass);
+	if (bypass) {
+		ret = 0;
+		return 0;
+	}
 
 	if (hcd == xhci->main_hcd &&
 	    xhci_exynos->port_state == PORT_USB2) {
@@ -245,6 +269,7 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 	int usb2_detect = 0;
 	int port, i;
 	int bInterfaceClass = 0;
+	bool ap_suspend_enabled = false;
 
 	if (udev->bus->root_hub == udev) {
 		dev_dbg(ddev, "this dev is a root hub\n");
@@ -283,13 +308,21 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 						udev->do_remote_wakeup =
 							(udev->config->desc.bmAttributes &
 								USB_CONFIG_ATT_WAKEUP) ? 1 : 0;
-						if (udev->do_remote_wakeup == 1) {
-							device_init_wakeup(ddev, 1);
-							usb_enable_autosuspend(dev);
-						}
 						dev_dbg(ddev, "%s, remote_wakeup = %d\n",
 							__func__, udev->do_remote_wakeup);
 						break;
+					}
+				}
+
+				if (udev->do_remote_wakeup == 1) {
+					device_init_wakeup(ddev, 1);
+					usb_enable_autosuspend(dev);
+					trace_android_vh_sound_usb_support_cpu_suspend(udev, 0,
+									&ap_suspend_enabled);
+					if (ap_suspend_enabled) {
+						xhci_exynos->ap_suspend_enabled = true;
+						__pm_relax(xhci_exynos->main_wakelock);
+						__pm_relax(xhci_exynos->shared_wakelock);
 					}
 				}
 			}
@@ -540,26 +573,36 @@ int xhci_exynos_wake_lock(struct xhci_hcd_exynos *xhci_exynos,
 	}
 
 	if (is_lock) {
-		if (is_main_hcd) {
-			dev_info(xhci_exynos->dev, "%s: Main HCD WAKE LOCK\n", __func__);
-			__pm_stay_awake(xhci_exynos->main_wakelock);
+		if (xhci_exynos->ap_suspend_enabled) {
+			dev_info(xhci_exynos->dev, "%s: audio device, skip WAKE LOCK\n", __func__);
 		} else {
-			dev_info(xhci_exynos->dev, "%s: Shared HCD WAKE LOCK\n", __func__);
-			__pm_stay_awake(xhci_exynos->shared_wakelock);
+			if (is_main_hcd) {
+				dev_info(xhci_exynos->dev, "%s: Main HCD WAKE LOCK\n", __func__);
+				__pm_stay_awake(xhci_exynos->main_wakelock);
+			} else {
+				dev_info(xhci_exynos->dev, "%s: Shared HCD WAKE LOCK\n", __func__);
+				__pm_stay_awake(xhci_exynos->shared_wakelock);
+			}
 		}
 		/* Add a routine for disable IDLEIP (IP idle) */
 		dev_info(xhci_exynos->dev, "IDLEIP(SICD) disable.\n");
 		idle_ip_index = dwc3_otg_get_idle_ip_index();
 		exynos_update_ip_idle_status(idle_ip_index, 0);
 	} else {
-		if (is_main_hcd) {
-			dev_info(xhci_exynos->dev, "%s: Main HCD WAKE UNLOCK\n", __func__);
-			__pm_relax(xhci_exynos->main_wakelock);
+		if (xhci_exynos->ap_suspend_enabled) {
+			dev_info(xhci_exynos->dev, "%s: audio device, skip WAKE UNLOCK\n",
+				 __func__);
 		} else {
-			dev_info(xhci_exynos->dev, "%s: Shared HCD WAKE UNLOCK\n", __func__);
-			__pm_relax(xhci_exynos->shared_wakelock);
+			if (is_main_hcd) {
+				dev_info(xhci_exynos->dev, "%s: Main HCD WAKE UNLOCK\n", __func__);
+				__pm_relax(xhci_exynos->main_wakelock);
+			} else {
+				dev_info(xhci_exynos->dev, "%s: Shared HCD WAKE UNLOCK\n",
+					 __func__);
+				__pm_relax(xhci_exynos->shared_wakelock);
+			}
 		}
-
+		dev_info(xhci_exynos->dev, "IDLEIP(SICD) enable.\n");
 		/* Add a routine for enable IDLEIP (IP idle) */
 		idle_ip_index = dwc3_otg_get_idle_ip_index();
 		exynos_update_ip_idle_status(idle_ip_index, 1);
@@ -775,6 +818,8 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	device_set_wakeup_enable(&xhci->main_hcd->self.root_hub->dev, 1);
 	device_set_wakeup_enable(&xhci->shared_hcd->self.root_hub->dev, 1);
 
+	xhci_exynos->ap_suspend_enabled = false;
+
 	/*
 	 * Prevent runtime pm from being on as default, users should enable
 	 * runtime pm using power/control in sysfs.
@@ -881,6 +926,9 @@ static int __maybe_unused xhci_exynos_suspend(struct device *dev)
 	struct usb_hcd	*hcd = xhci_exynos->hcd;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ret;
+	int bypass = 0;
+	struct usb_device *udev = hcd->self.root_hub;
+	pm_message_t msg;
 
 	/*
 	 * xhci_suspend() needs `do_wakeup` to know whether host is allowed
@@ -890,6 +938,13 @@ static int __maybe_unused xhci_exynos_suspend(struct device *dev)
 	 * reconsider this when xhci_exynos_suspend enlarges its scope, e.g.,
 	 * also applies to runtime suspend.
 	 */
+
+	msg.event = 0;
+	trace_android_vh_usb_dev_suspend(udev, msg, &bypass);
+	if (bypass) {
+		ret = 0;
+		return 0;
+	}
 
 	ret = xhci_suspend(xhci, device_may_wakeup(dev));
 	if (ret)
@@ -904,6 +959,16 @@ static int __maybe_unused xhci_exynos_resume(struct device *dev)
 	struct usb_hcd	*hcd = xhci_exynos->hcd;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ret;
+	int bypass = 0;
+	struct usb_device *udev = hcd->self.root_hub;
+	pm_message_t msg;
+
+	msg.event = 0;
+	trace_android_vh_usb_dev_resume(udev, msg, &bypass);
+	if (bypass) {
+		ret = 0;
+		return 0;
+	}
 
 	ret = xhci_priv_resume_quirk(hcd);
 	if (ret)

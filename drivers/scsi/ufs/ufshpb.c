@@ -13,6 +13,7 @@
 #include <linux/async.h>
 
 #include "ufshcd.h"
+#include "ufshcd-add-info.h"
 #include "ufshpb.h"
 #include "../sd.h"
 

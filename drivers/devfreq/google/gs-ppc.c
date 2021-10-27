@@ -85,7 +85,7 @@ static void exynos_read_ppc(struct exynos_devfreq_data *data)
 			ppc.pmcnt1 = __raw_readl(data->um_data.va_base[idx] + PMCNT1);
 			trace_dvfs_read_ppc(ppc.ccnt, ppc.pmcnt0, ppc.pmcnt1,
 					    data->um_data.pa_base[idx]);
-			if (data->um_data.ppc_val[i].pmcnt1 < ppc.pmcnt1) {
+			if (data->um_data.ppc_val[i].pmcnt1 <= ppc.pmcnt1) {
 				data->um_data.ppc_val[i].ccnt = ppc.ccnt;
 				data->um_data.ppc_val[i].pmcnt0 = ppc.pmcnt0;
 				data->um_data.ppc_val[i].pmcnt1 = ppc.pmcnt1;
