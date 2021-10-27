@@ -936,9 +936,6 @@
 				   1014000   155000
 				    546000   100000
 			>;
-
-			/* Default remove MIF L1/L2/L3 */
-			l123_restrict = "1";
 		};
 
 		devfreq_1: devfreq_int@17000020 {
