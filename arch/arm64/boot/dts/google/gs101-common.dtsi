@@ -371,4 +371,8 @@
 	vreg2-supply = <&m_ldo19_reg>;
 };
 
+&aoc {
+	sensor_1v8-supply = <&s_ldo7_reg>;
+	sensor_3v3-supply = <&s_ldo6_reg>;
+};
 

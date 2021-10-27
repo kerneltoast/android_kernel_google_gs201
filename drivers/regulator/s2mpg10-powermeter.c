@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * drivers/regulator/s2mpg10-powermeter.c
+ * s2mpg10-powermeter.c
  *
  * Copyright (c) 2015 Samsung Electronics Co., Ltd
  *              http://www.samsung.com
@@ -655,6 +655,8 @@ static int s2mpg10_meter_probe(struct platform_device *pdev)
 	struct s2mpg10_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct s2mpg10_platform_data *pdata = iodev->pdata;
 	struct s2mpg10_meter *s2mpg10;
+	u8 dsm_trim_high = 0, dsm_trim_low = 0;
+	char dsm_trim, dsm_result;
 	int ret;
 
 	if (!pdata) {
@@ -673,6 +675,29 @@ static int s2mpg10_meter_probe(struct platform_device *pdev)
 	mutex_init(&s2mpg10->meter_lock);
 	platform_set_drvdata(pdev, s2mpg10);
 
+	/* w/a powermeter offset rising */
+	ret = s2mpg10_read_reg(s2mpg10->i2c, S2MPG10_METER_DSM_TRIM_OFFSET, &dsm_trim_low);
+	ret = s2mpg10_read_reg(s2mpg10->i2c, S2MPG10_METER_BUCK_METER_TRIM3, &dsm_trim_high);
+	pr_info("%s: DSM_TRIM_OFFSET: 0x%x\n", __func__, dsm_trim_low);
+	pr_info("%s: BUCK_METER_TRIM3: 0x%x\n", __func__, dsm_trim_high);
+
+	dsm_trim = (dsm_trim_high & S2MPG10_METER_DSM_TRIM_HIGH_MASK) |
+				(dsm_trim_low & S2MPG10_METER_DSM_TRIM_LOW_MASK);
+	if (dsm_trim & BIT(7)) {
+		dsm_result = dsm_trim + S2MPG10_DSM_TRIM_OFFSET_ADD_VALUE;
+	} else {
+		if (dsm_trim >= S2MPG10_DSM_TRIM_OFFSET_THRESHOLD)
+			dsm_result = S2MPG10_DSM_TRIM_OFFSET_MAX_VALUE;
+		else
+			dsm_result = dsm_trim + S2MPG10_DSM_TRIM_OFFSET_ADD_VALUE;
+	}
+	pr_info("%s: dsm_trim: %d, dsm_result: %d\n", __func__, dsm_trim, dsm_result);
+	ret = s2mpg10_update_reg(s2mpg10->i2c, S2MPG10_METER_DSM_TRIM_OFFSET,
+				dsm_result & S2MPG10_METER_DSM_TRIM_LOW_MASK,
+				S2MPG10_METER_DSM_TRIM_LOW_MASK);
+	ret = s2mpg10_update_reg(s2mpg10->i2c, S2MPG10_METER_BUCK_METER_TRIM3,
+				dsm_result & S2MPG10_METER_DSM_TRIM_HIGH_MASK,
+				S2MPG10_METER_DSM_TRIM_HIGH_MASK);
 #if !IS_ENABLED(CONFIG_ODPM)
 
 	/* initial setting */

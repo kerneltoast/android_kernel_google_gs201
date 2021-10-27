@@ -32,7 +32,7 @@ static ssize_t vmstat_show(struct kobject *kobj,
 	}
 	put_online_cpus();
 
-	return sprintf(buf, "%s %d\n%s %d\n%s %d\n",
+	return sprintf(buf, "%s %lu\n%s %lu\n%s %lu\n",
 			"pgalloc_costly_order", pages,
 			"pgcache_miss", miss_count,
 			"pgcache_hit", hit_count);

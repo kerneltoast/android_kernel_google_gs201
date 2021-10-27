@@ -215,6 +215,7 @@ struct exynos_devfreq_data {
 	struct thermal_cooling_device *cooling_dev;
 	unsigned long cooling_state;
 	unsigned long sysfs_req;
+	struct lock_class_key devfreq_lock_key;
 };
 
 struct exynos_profile_data {

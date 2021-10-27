@@ -20,6 +20,7 @@
 #define INCALL_RX		0x8000000F
 #define INCALL_TX		0xC0000010
 #define HAPTIC_RX		0x80000011
+#define ERASER_TX	        0xC0000012
 
 #define IDX_EP1_RX		0x0
 #define IDX_EP2_RX		0x1

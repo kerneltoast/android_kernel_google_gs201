@@ -878,8 +878,7 @@ static const char * const typec_data_role_name[] = {
 };
 
 static int tcpm_set_roles(struct tcpc_dev *dev, bool attached,
-			  enum typec_role pwr, enum typec_data_role data,
-			  bool usb_comm_capable)
+			  enum typec_role pwr, enum typec_data_role data)
 {
 	struct fusb302_chip *chip = container_of(dev, struct fusb302_chip,
 						 tcpc_dev);

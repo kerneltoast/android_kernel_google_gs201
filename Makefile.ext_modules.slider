@@ -13,7 +13,7 @@ ext_modules += aoc/usb
 ext_modules += bluetooth/broadcom
 ext_modules += bms
 ext_modules += display/samsung
-ext_modules += edgetpu/drivers/edgetpu
+ext_modules += edgetpu/abrolhos/drivers/edgetpu
 ext_modules += gpu/mali_kbase
 ext_modules += gpu/mali_pixel
 ext_modules += lwis
@@ -22,7 +22,6 @@ ext_modules += power/reset
 ext_modules += touch/common
 ext_modules += touch/fts/ftm5
 ext_modules += touch/sec
-ext_modules += wlan/bcmdhd43752
 ext_modules += wlan/bcmdhd4389
 
 # Add any modules which have their own UAPI headers to this list.  This will
@@ -42,7 +41,7 @@ allmodules: $(ext_modules) $(install_uapi_headers_targets) depmod
 
 aoc/alsa: | aoc
 
-aoc/usb: | aoc
+aoc/usb: | aoc/alsa aoc
 
 power/reset: | bms
 

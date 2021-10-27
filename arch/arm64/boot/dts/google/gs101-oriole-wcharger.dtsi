@@ -11,7 +11,7 @@
 	p9412@3c {
 		fod = [97 36 91 2e 97 10 9b 05 9f f3 9f ee 19 06 01 3c];
 		fod_epp = [8a 6d 86 56 8e 3b 8b 3e 8c 33 91 0b 20 13 01 50];
-		fod_hpp = [91 9D 8D 86 8B 6B 88 5C 89 51 8E 29];
+		fod_hpp = [A4 72 8F 78 8B 6B 88 5C 89 51 8E 29];
 		google,q_value = <67>;
 
 		google,alignment_scalar_low_current = <200>;

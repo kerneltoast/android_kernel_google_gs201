@@ -691,7 +691,8 @@
 			"itsc",
 			"sysreg_dns",
 			"ssmt_d0_itsc",
-			"ssmt_d1_itsc";
+			"ssmt_d1_itsc",
+			"sysreg_dns";
 
 		clocks =
 			<&clock UMUX_CLKCMU_ITP_BUS>,

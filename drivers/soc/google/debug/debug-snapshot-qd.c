@@ -225,17 +225,18 @@ static void dbg_snapshot_qd_list_dump(void)
 	dev_info(qdump_dev, "quickdump physical / virtual memory layout:\n");
 	for (i = 0; i < dss_qd_table.num_regions; i++) {
 		entry = &dss_qd_table.entry[i];
-		dev_info(qdump_dev, "%-16s: -%16s: phys:0x%pa / virt:0x%pK / size:0x%zx\n",
+		dev_info(qdump_dev, "%-16s: -%16s: phys:%pad / virt:%pK / size:0x%llx\n",
 			entry->name,
 			entry->struct_name,
 			&entry->phys_addr,
-			entry->virt_addr,
+			(void *)entry->virt_addr,
 			entry->size);
 
 		size += entry->size;
 	}
 
-	dev_info(qdump_dev, "total_quick_dump_size: %ldKB, quick_dump_entry: 0x%x\n", size / SZ_1K,
+	dev_info(qdump_dev, "total_quick_dump_size: %ldKB, quick_dump_entry: 0x%llx\n",
+			size / SZ_1K,
 			__raw_readq(dbg_snapshot_get_header_vaddr() + DSS_OFFSET_QD_ENTRY));
 }
 

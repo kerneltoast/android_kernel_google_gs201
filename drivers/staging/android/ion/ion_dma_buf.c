@@ -352,11 +352,8 @@ struct dma_buf *ion_dmabuf_alloc(struct ion_device *dev, size_t len,
 	exp_info.priv = buffer;
 
 	dmabuf = dma_buf_export(&exp_info);
-	if (IS_ERR(dmabuf)) {
-		pr_err("%s: failed to export dmabuf (err %ld)\n",
-		       __func__, -PTR_ERR(dmabuf));
+	if (IS_ERR(dmabuf))
 		ion_buffer_destroy(dev, buffer);
-	}
 
 	return dmabuf;
 }
