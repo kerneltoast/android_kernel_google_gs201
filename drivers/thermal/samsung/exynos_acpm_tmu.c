@@ -34,9 +34,14 @@ void exynos_acpm_tmu_set_test_mode(bool mode)
 	acpm_tmu_test_mode = mode;
 }
 
-void exynos_acpm_tmu_log(bool mode)
+void exynos_acpm_tmu_enable_log(bool mode)
 {
 	acpm_tmu_log = mode;
+}
+
+bool exynos_acpm_tmu_is_log_enabled(void)
+{
+	return acpm_tmu_log;
 }
 
 #define acpm_ipc_latency_check() \

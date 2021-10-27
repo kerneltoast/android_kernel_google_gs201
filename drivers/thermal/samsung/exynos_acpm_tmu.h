@@ -118,7 +118,8 @@ int exynos_acpm_tmu_set_resume(void);
 int exynos_acpm_tmu_ipc_dump(int no, unsigned int dump[]);
 bool exynos_acpm_tmu_is_test_mode(void);
 void exynos_acpm_tmu_set_test_mode(bool mode);
-void exynos_acpm_tmu_log(bool mode);
+void exynos_acpm_tmu_enable_log(bool mode);
+bool exynos_acpm_tmu_is_log_enabled(void);
 
 void exynos_acpm_tmu_set_threshold(int tz, unsigned char temp[]);
 void exynos_acpm_tmu_set_hysteresis(int tz, unsigned char hyst[]);
