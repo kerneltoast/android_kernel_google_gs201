@@ -7,8 +7,8 @@
 #include "link_device_pcie_iommu.h"
 
 extern int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
-			  int prot, int ch_num);
-extern size_t pcie_iommu_unmap(unsigned long iova, size_t size, int ch_num);
+			  int prot, int hsi_block_num);
+extern size_t pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num);
 
 void cpif_pcie_iommu_enable_regions(struct mem_link_device *mld)
 {
@@ -16,7 +16,6 @@ void cpif_pcie_iommu_enable_regions(struct mem_link_device *mld)
 
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 	struct link_device *ld = &mld->link_dev;
-	struct modem_ctl *mc = ld->mc;
 
 	u32 cp_num = ld->mdm_data->cp_num;
 	u32 shmem_idx;
@@ -36,9 +35,10 @@ void cpif_pcie_iommu_enable_regions(struct mem_link_device *mld)
 			size = cp_shmem_get_size(cp_num, shmem_idx);
 
 		if (cp_shmem_get_base(cp_num, shmem_idx)) {
+			/* ToDo: Set hsi_block_num by variable */
 			ret = pcie_iommu_map(cp_shmem_get_base(cp_num, shmem_idx),
 					     cp_shmem_get_base(cp_num, shmem_idx),
-					     size, 0, mc->pcie_ch_num);
+					     size, 0, 1);
 			mif_info("pcie iommu idx:%d addr:0x%08lx size:0x%08x ret:%d\n",
 				 shmem_idx, cp_shmem_get_base(cp_num, shmem_idx), size, ret);
 		}
@@ -109,7 +109,6 @@ void cpif_pcie_iommu_reset(struct pktproc_queue *q)
 void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 			     u32 idx, u32 *map_cnt)
 {
-	struct modem_ctl *mc = dev_get_drvdata(q->ppa->dev);
 	struct cpif_pcie_iommu_ctrl *ioc = &q->ioc;
 	const size_t pf_size = q->ppa->max_packet_size;
 	void *addr_des, *addr_asc;
@@ -138,8 +137,9 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 		mif_debug("map idx:%u src_pa:0x%lX va:0x%p size:0x%lX\n",
 			  ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);
 
+		/* ToDo: Set hsi_block_num by variable */
 		ret = pcie_iommu_map(ioc->map_src_pa, virt_to_phys(ioc->map_page_va),
-				     map_size, 0, mc->pcie_ch_num);
+				     map_size, 0, 1);
 		if (ret) {
 			mif_err("map failure idx:%u src_pa:0x%lX va:0x%p size:0x%X\n",
 				ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);
@@ -184,7 +184,6 @@ set_map:
 void cpif_pcie_iommu_try_ummap_va(struct pktproc_queue *q, unsigned long src_pa,
 				  void *addr, u32 idx)
 {
-	struct modem_ctl *mc = dev_get_drvdata(q->ppa->dev);
 	struct cpif_pcie_iommu_ctrl *ioc = &q->ioc;
 	struct page *p = virt_to_head_page(addr);
 	u32 unmap_size;
@@ -208,7 +207,8 @@ void cpif_pcie_iommu_try_ummap_va(struct pktproc_queue *q, unsigned long src_pa,
 
 	mif_debug("unmap src_pa:0x%lX size:0x%X\n", ioc->unmap_src_pa, unmap_size);
 
-	ret = pcie_iommu_unmap(ioc->unmap_src_pa, unmap_size, mc->pcie_ch_num);
+	/* ToDo: Set hsi_block_num by variable */
+	ret = pcie_iommu_unmap(ioc->unmap_src_pa, unmap_size, 1);
 	if (ret != unmap_size) {
 		mif_err("invalid unmap size:0x%X expected:0x%X src_pa:0x%lX\n",
 			ret, unmap_size, ioc->unmap_src_pa);
