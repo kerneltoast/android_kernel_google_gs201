@@ -27,6 +27,7 @@ struct cpif_va_mapper *cpif_vmap_create(u64 va_start, u64 va_size, u64 item_size
 	if (va_size == item_size) /* no need to use item list */
 		goto skip_item_list;
 	INIT_LIST_HEAD(&vmap->item_list);
+	spin_lock_init(&vmap->lock);
 
 skip_item_list:
 	cpif_sysmmu_set_use_iocc();
@@ -40,6 +41,7 @@ void cpif_vmap_free(struct cpif_va_mapper *vmap)
 {
 	struct cpif_vmap_item *temp, *temp2;
 	int err;
+	unsigned long flags;
 
 	if (unlikely(!vmap)) {
 		mif_err("no vmap to free\n");
@@ -74,6 +76,7 @@ void cpif_vmap_free(struct cpif_va_mapper *vmap)
 		vmap->out = NULL;
 	}
 
+	spin_lock_irqsave(&vmap->lock, flags);
 	list_for_each_entry_safe(temp, temp2, &vmap->item_list, item) {
 		err = cpif_iommu_unmap(temp->vaddr_base, vmap->item_size);
 		if (err == 0)
@@ -81,6 +84,7 @@ void cpif_vmap_free(struct cpif_va_mapper *vmap)
 		list_del(&temp->item);
 		kfree(temp);
 	}
+	spin_unlock_irqrestore(&vmap->lock, flags);
 
 	kfree(vmap);
 	vmap = NULL;
@@ -187,6 +191,7 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 	u64 ret = 0;
 	struct cpif_vmap_item *temp;
 	struct cpif_vmap_item *target;
+	unsigned long flags;
 
 	if (vmap->va_size == vmap->item_size) { /* when va and pa is mapped at once */
 
@@ -202,14 +207,17 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 	}
 
 	if (unlikely(!vmap->out)) { /* first time to unmap */
+		spin_lock_irqsave(&vmap->lock, flags);
 		temp = list_first_entry_or_null(&vmap->item_list,
 						struct cpif_vmap_item, item);
 		if (unlikely(!temp)) {
 			mif_err_limited("failed to get item from list\n");
+			spin_unlock_irqrestore(&vmap->lock, flags);
 			return 0;
 		}
 		vmap->out = temp;
 		list_del(&temp->item);
+		spin_unlock_irqrestore(&vmap->lock, flags);
 	}
 
 	target = vmap->out;
@@ -237,6 +245,7 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 		}
 		kfree(vmap->out);
 		/* update vmap->out to the next item to be unmapped */
+		spin_lock_irqsave(&vmap->lock, flags);
 		temp = list_first_entry_or_null(&vmap->item_list,
 						struct cpif_vmap_item, item);
 		if (unlikely(!temp)) {
@@ -248,11 +257,12 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 				vmap->in = NULL;
 			} else /* last of last, initialize vmap->out */
 				vmap->out = NULL;
-
+			spin_unlock_irqrestore(&vmap->lock, flags);
 			return ret;
 		}
 		vmap->out = temp;
 		list_del(&temp->item);
+		spin_unlock_irqrestore(&vmap->lock, flags);
 	}
 
 	return ret;

@@ -11,6 +11,7 @@
 
 #include "cpif_netrx_mng.h"
 
+#define NETRX_POOL_PAGE_SIZE	4096
 struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pair,
 						u64 desc_size, u64 databuf_cp_pbase,
 						u64 max_packet_size, u64 num_packet)
@@ -40,13 +41,13 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	cm->num_packet = num_packet;
 
 	/* deriving size of the data map : large enough to handle num_packet */
-	num_packet_per_page = PAGE_FRAG_CACHE_MAX_SIZE / max_packet_size;
+	num_packet_per_page = NETRX_POOL_PAGE_SIZE / max_packet_size;
 	total_page_count = num_packet / num_packet_per_page + 2;
-	cm->total_buf_size =  PAGE_FRAG_CACHE_MAX_SIZE * total_page_count;
+	cm->total_buf_size =  NETRX_POOL_PAGE_SIZE * total_page_count;
 
 	cm->desc_map = cpif_vmap_create(desc_cp_pbase, desc_size, desc_size, 0);
 	cm->data_map = cpif_vmap_create(databuf_cp_pbase, cm->total_buf_size,
-					PAGE_FRAG_CACHE_MAX_SIZE, max_packet_size);
+					NETRX_POOL_PAGE_SIZE, max_packet_size);
 	if (!cm->desc_map || !cm->data_map) {
 		if (cm->desc_map)
 			cpif_vmap_free(cm->desc_map);
@@ -59,7 +60,7 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 		goto fail;
 
 	/* create recycling page array */
-	cm->data_pool = cpif_page_pool_create(total_page_count, PAGE_FRAG_CACHE_MAX_SIZE);
+	cm->data_pool = cpif_page_pool_create(total_page_count, NETRX_POOL_PAGE_SIZE);
 	if (unlikely(!cm->data_pool))
 		goto fail;
 
@@ -175,7 +176,7 @@ void *cpif_unmap_rx_buf(struct cpif_netrx_mng *cm, u64 cp_addr, bool free)
 	}
 
 	if (ap_addr && free) {
-		page_ref_dec(phys_to_page(ap_paddr & ~0x7FFF));
+		__free_pages(virt_to_page(ap_addr), 0);
 		ap_addr = NULL;
 	}
 

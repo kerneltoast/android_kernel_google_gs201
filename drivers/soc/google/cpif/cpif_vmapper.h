@@ -30,6 +30,7 @@ struct cpif_va_mapper {
 
 	/* vmap table guaranteed to be mapped/unmapped sequentially */
 	struct list_head	item_list;
+	spinlock_t		lock; /* locked used for item_list */
 	struct cpif_vmap_item	*out; /* item to be unmapped, after list out */
 	struct cpif_vmap_item	*in;  /* item mapped recently, before list in */
 };

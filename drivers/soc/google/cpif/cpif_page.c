@@ -46,12 +46,13 @@ void cpif_page_init_tmp_page(struct cpif_page_pool *pool)
 	if (pool->tmp_page) {
 		pool->tmp_page->usable = false;
 		pool->tmp_page->offset = 0;
-		/* do not free the page since it can be in use by kernel */
+		if (pool->tmp_page->page)
+			__free_pages(pool->tmp_page->page, pool->page_order);
 	}
 }
 EXPORT_SYMBOL(cpif_page_init_tmp_page);
 
-#define EXTRA_PAGE_COUNT	1000
+#define EXTRA_PAGE_COUNT	8000
 struct cpif_page_pool *cpif_page_pool_create(u64 num_page, u64 page_size)
 {
 	int i;
