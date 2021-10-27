@@ -2156,6 +2156,36 @@ pause_reset_store(struct device *dev, struct device_attribute *attr, const char 
 	return count;
 }
 
+static ssize_t ipc_dump1_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	union {
+		unsigned int dump[2];
+		unsigned char val[8];
+	} data;
+
+	exynos_acpm_tmu_ipc_dump(0, data.dump);
+
+	return sysfs_emit(buf, "%3u %3u %3u %3u %3u %3u %3u\n",
+			data.val[1], data.val[2], data.val[3],
+			data.val[4], data.val[5], data.val[6], data.val[7]);
+}
+
+static ssize_t ipc_dump2_show(struct device *dev, struct device_attribute *attr,
+				char *buf)
+{
+	union {
+		unsigned int dump[2];
+		unsigned char val[8];
+	} data;
+
+	exynos_acpm_tmu_ipc_dump(EXYNOS_GPU_TMU_GRP_ID, data.dump);
+
+	return sysfs_emit(buf, "%3u %3u %3u %3u %3u %3u %3u\n",
+			data.val[1], data.val[2], data.val[3],
+			data.val[4], data.val[5], data.val[6], data.val[7]);
+}
+
 #define create_s32_param_attr(name)						\
 	static ssize_t								\
 	name##_show(struct device *dev, struct device_attribute *devattr,	\
@@ -2207,6 +2237,8 @@ static DEVICE_ATTR_WO(pause_reset);
 static DEVICE_ATTR_RO(hardlimit_time_in_state_ms);
 static DEVICE_ATTR_RO(hardlimit_total_count);
 static DEVICE_ATTR_WO(hardlimit_reset);
+static DEVICE_ATTR_RO(ipc_dump1);
+static DEVICE_ATTR_RO(ipc_dump2);
 create_s32_param_attr(k_po);
 create_s32_param_attr(k_pu);
 create_s32_param_attr(k_i);
@@ -2236,12 +2268,12 @@ static struct attribute *gs_tmu_attrs[] = {
 	&dev_attr_hardlimit_time_in_state_ms.attr,
 	&dev_attr_hardlimit_total_count.attr,
 	&dev_attr_hardlimit_reset.attr,
+	&dev_attr_ipc_dump1.attr,
+	&dev_attr_ipc_dump2.attr,
 	NULL,
 };
 
-static const struct attribute_group gs_tmu_attr_group = {
-	.attrs = gs_tmu_attrs,
-};
+ATTRIBUTE_GROUPS(gs_tmu);
 
 static void hard_limit_stats_setup(struct gs_tmu_data *data)
 {
@@ -2302,108 +2334,51 @@ static void exynos_acpm_tmu_test_cp_call(bool mode)
 	}
 }
 
-static int emul_call_get(void *data, unsigned long long *val)
+static int
+emul_call_show(char *buf, const struct kernel_param *kp)
 {
-	*val = exynos_acpm_tmu_is_test_mode();
-
-	return 0;
+	return sysfs_emit(buf, "%d\n", exynos_acpm_tmu_is_test_mode());
 }
 
-static int emul_call_set(void *data, unsigned long long val)
+static int emul_call_store(const char *buf, const struct kernel_param *kp)
 {
-	int status = exynos_acpm_tmu_is_test_mode();
+	bool status = exynos_acpm_tmu_is_test_mode();
+	bool enable;
 
-	if ((val == 0 || val == 1) && val != status) {
-		exynos_acpm_tmu_set_test_mode(val);
-		exynos_acpm_tmu_test_cp_call(val);
+	if (kstrtobool(buf, &enable))
+		return -EINVAL;
+
+	if (enable != status) {
+		exynos_acpm_tmu_set_test_mode(enable);
+		exynos_acpm_tmu_test_cp_call(enable);
 	}
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(emul_call_fops, emul_call_get, emul_call_set, "%llu\n");
 
-static int log_print_set(void *data, unsigned long long val)
+module_param_call(emul_call, emul_call_store, emul_call_show, NULL, 0600);
+
+static int
+log_print_show(char *buf, const struct kernel_param *kp)
 {
-	if (val == 0 || val == 1)
-		exynos_acpm_tmu_log(val);
+	return sysfs_emit(buf, "%d\n", exynos_acpm_tmu_is_log_enabled());
+}
+
+static int
+log_print_store(const char *buf, const struct kernel_param *kp)
+{
+	bool enable;
+
+	if (kstrtobool(buf, &enable))
+		return -EINVAL;
+
+	exynos_acpm_tmu_enable_log(enable);
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(log_print_fops, NULL, log_print_set, "%llu\n");
 
-static ssize_t ipc_dump1_read(struct file *file, char __user *user_buf,
-			      size_t count, loff_t *ppos)
-{
-	union {
-		unsigned int dump[2];
-		unsigned char val[8];
-	} data;
-	char buf[48];
-	ssize_t ret;
-
-	exynos_acpm_tmu_ipc_dump(0, data.dump);
-
-	ret = scnprintf(buf, sizeof(buf), "%3u %3u %3u %3u %3u %3u %3u\n",
-		        data.val[1], data.val[2], data.val[3],
-		        data.val[4], data.val[5], data.val[6], data.val[7]);
-	if (ret < 0)
-		return ret;
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, ret);
-}
-
-static ssize_t ipc_dump2_read(struct file *file, char __user *user_buf,
-			      size_t count, loff_t *ppos)
-{
-	union {
-		unsigned int dump[2];
-		unsigned char val[8];
-	} data;
-	char buf[48];
-	ssize_t ret;
-
-	exynos_acpm_tmu_ipc_dump(EXYNOS_GPU_TMU_GRP_ID, data.dump);
-
-	ret = scnprintf(buf, sizeof(buf), "%3u %3u %3u %3u %3u %3u %3u\n",
-		        data.val[1], data.val[2], data.val[3],
-		        data.val[4], data.val[5], data.val[6], data.val[7]);
-	if (ret < 0)
-		return ret;
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, ret);
-}
-
-static const struct file_operations ipc_dump1_fops = {
-	.open = simple_open,
-	.read = ipc_dump1_read,
-	.llseek = default_llseek,
-};
-
-static const struct file_operations ipc_dump2_fops = {
-	.open = simple_open,
-	.read = ipc_dump2_read,
-	.llseek = default_llseek,
-};
+module_param_call(log_print, log_print_store, log_print_show, NULL, 0600);
 #endif
-
-static struct dentry *debugfs_root;
-
-static int gs_thermal_create_debugfs(void)
-{
-	debugfs_root = debugfs_create_dir("gs-thermal", NULL);
-	if (!debugfs_root) {
-		pr_err("Failed to create gs thermal debugfs\n");
-		return 0;
-	}
-
-#if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
-	debugfs_create_file("emul_call", 0644, debugfs_root, NULL, &emul_call_fops);
-	debugfs_create_file("log_print", 0644, debugfs_root, NULL, &log_print_fops);
-	debugfs_create_file("ipc_dump1", 0644, debugfs_root, NULL, &ipc_dump1_fops);
-	debugfs_create_file("ipc_dump2", 0644, debugfs_root, NULL, &ipc_dump2_fops);
-#endif
-	return 0;
-}
 
 #define PARAM_NAME_LENGTH	25
 
@@ -2709,10 +2684,6 @@ static int gs_tmu_probe(struct platform_device *pdev)
 	if (data->hardlimit_enable)
 		hard_limit_stats_setup(data);
 
-	ret = sysfs_create_group(&pdev->dev.kobj, &gs_tmu_attr_group);
-	if (ret)
-		dev_err(&pdev->dev, "cannot create gs tmu attr group");
-
 	mutex_lock(&data->lock);
 	list_add_tail(&data->node, &dtm_dev_list);
 	num_of_devices++;
@@ -2727,7 +2698,6 @@ static int gs_tmu_probe(struct platform_device *pdev)
 	thermal_zone_device_enable(data->tzd);
 
 	if (list_is_singular(&dtm_dev_list)) {
-		gs_thermal_create_debugfs();
 		register_pm_notifier(&gs_tmu_pm_nb);
 	}
 
@@ -2838,6 +2808,7 @@ static SIMPLE_DEV_PM_OPS(gs_tmu_pm,
 static struct platform_driver gs_tmu_driver = {
 	.driver = {
 		.name   = "gs-tmu",
+		.dev_groups = gs_tmu_groups,
 		.pm     = EXYNOS_TMU_PM,
 		.of_match_table = gs_tmu_match,
 		.suppress_bind_attrs = true,
