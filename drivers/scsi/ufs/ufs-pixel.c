@@ -639,7 +639,8 @@ static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
 		return;
 
 	opcode = lrbp->cmd->cmnd[0];
-	if (opcode != SYNCHRONIZE_CACHE && opcode != START_STOP)
+	if (opcode != SYNCHRONIZE_CACHE && opcode != START_STOP &&
+			opcode != WRITE_10 && opcode != READ_10)
 		return;
 
 	ocs = ufshcd_get_tr_ocs(lrbp);
