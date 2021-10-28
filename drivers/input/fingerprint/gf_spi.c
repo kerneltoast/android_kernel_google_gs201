@@ -43,7 +43,7 @@
 
 #define VER_MAJOR 1
 #define VER_MINOR 2
-#define PATCH_LEVEL 12
+#define PATCH_LEVEL 13
 
 #define WAKELOCK_HOLD_TIME 500 /* in ms */
 
@@ -60,7 +60,7 @@ static int SPIDEV_MAJOR;
 
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 static LIST_HEAD(device_list);
-static DEFINE_MUTEX(device_list_lock);
+static DEFINE_MUTEX(gf_spi_lock);
 static struct wakeup_source *fp_wakeup_source;
 static struct gf_dev gf;
 
@@ -90,6 +90,7 @@ static void gf_enable_irq(struct gf_dev *gf_dev)
 	}
 
 	enable_irq(gf_dev->irq);
+	enable_irq_wake(gf_dev->irq);
 	gf_dev->irq_enabled = 1;
 }
 
@@ -100,8 +101,9 @@ static void gf_disable_irq(struct gf_dev *gf_dev)
 		return;
 	}
 
-	gf_dev->irq_enabled = 0;
 	disable_irq(gf_dev->irq);
+	disable_irq_wake(gf_dev->irq);
+	gf_dev->irq_enabled = 0;
 }
 
 #ifdef AP_CONTROL_CLK
@@ -337,17 +339,14 @@ static int irq_setup(struct gf_dev *gf_dev)
 		pr_err("failed to request IRQ:%d\n", gf_dev->irq);
 		return status;
 	}
-	enable_irq_wake(gf_dev->irq);
-	gf_dev->irq_enabled = 1;
+	gf_enable_irq(gf_dev);
 
 	return status;
 }
 
 static void irq_cleanup(struct gf_dev *gf_dev)
 {
-	gf_dev->irq_enabled = 0;
-	disable_irq(gf_dev->irq);
-	disable_irq_wake(gf_dev->irq);
+	gf_disable_irq(gf_dev);
 	free_irq(gf_dev->irq, gf_dev);
 }
 
@@ -382,7 +381,7 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 	}
 }
 
-static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long gf_ioctl_handler(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct gf_dev *gf_dev = &gf;
 	struct gf_key gf_key;
@@ -518,6 +517,17 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
+static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	int retval = 0;
+
+	mutex_lock(&gf_spi_lock);
+	retval = gf_ioctl_handler(filp, cmd, arg);
+	mutex_unlock(&gf_spi_lock);
+
+	return retval;
+}
+
 #ifdef CONFIG_COMPAT
 static long gf_compat_ioctl(struct file *filp, unsigned int cmd,
 			    unsigned long arg)
@@ -531,7 +541,7 @@ static int gf_open(struct inode *inode, struct file *filp)
 	struct gf_dev *gf_dev = &gf;
 	int status = -ENXIO;
 
-	mutex_lock(&device_list_lock);
+	mutex_lock(&gf_spi_lock);
 
 	list_for_each_entry (gf_dev, &device_list, device_entry) {
 		if (gf_dev->devt == inode->i_rdev) {
@@ -563,13 +573,13 @@ static int gf_open(struct inode *inode, struct file *filp)
 	gf_hw_reset(gf_dev, 10);
 	gf_dev->device_available = 1;
 
-	mutex_unlock(&device_list_lock);
+	mutex_unlock(&gf_spi_lock);
 
 	return status;
 err_irq:
 	gf_cleanup(gf_dev);
 err_parse_dt:
-	mutex_unlock(&device_list_lock);
+	mutex_unlock(&gf_spi_lock);
 	return status;
 }
 
@@ -589,7 +599,7 @@ static int gf_release(struct inode *inode, struct file *filp)
 	struct gf_dev *gf_dev = &gf;
 	int status = 0;
 
-	mutex_lock(&device_list_lock);
+	mutex_lock(&gf_spi_lock);
 	gf_dev = filp->private_data;
 	filp->private_data = NULL;
 
@@ -603,7 +613,7 @@ static int gf_release(struct inode *inode, struct file *filp)
 		gf_dev->device_available = 0;
 		gf_power_off(gf_dev);
 	}
-	mutex_unlock(&device_list_lock);
+	mutex_unlock(&gf_spi_lock);
 	return status;
 }
 
@@ -650,35 +660,6 @@ static int gf_probe(struct platform_device *pdev)
 	gf_dev->device_available = 0;
 	gf_dev->fb_black = 0;
 
-	/*
-         * If we can allocate a minor number, hook up this device.
-	 * Reusing minors is fine so long as udev or mdev is working.
-	 */
-	mutex_lock(&device_list_lock);
-	minor = find_first_zero_bit(minors, N_SPI_MINORS);
-
-	if (minor >= N_SPI_MINORS) {
-		dev_dbg(&gf_dev->spi->dev, "no minor number available!\n");
-		status = -ENODEV;
-		mutex_unlock(&device_list_lock);
-		goto error_hw;
-	}
-
-
-	gf_dev->devt = MKDEV(SPIDEV_MAJOR, minor);
-	dev = device_create(gf_class, &gf_dev->spi->dev, gf_dev->devt,
-			    gf_dev, GF_DEV_NAME);
-	status = IS_ERR(dev) ? PTR_ERR(dev) : 0;
-
-	if (status) {
-		gf_dev->devt = 0;
-		goto error_hw;
-	}
-
-	set_bit(minor, minors);
-	list_add(&gf_dev->device_entry, &device_list);
-	mutex_unlock(&device_list_lock);
-
 	gf_dev->input = input_allocate_device();
 	if (gf_dev->input == NULL) {
 		pr_err("%s, failed to allocate input device\n", __func__);
@@ -709,10 +690,39 @@ static int gf_probe(struct platform_device *pdev)
 
 	fp_wakeup_source = wakeup_source_register(NULL, "fp_wakeup");
 
+	/*
+	 * If we can allocate a minor number, hook up this device.
+	 * Reusing minors is fine so long as udev or mdev is working.
+	 */
+	mutex_lock(&gf_spi_lock);
+	minor = find_first_zero_bit(minors, N_SPI_MINORS);
+	if (minor >= N_SPI_MINORS) {
+		dev_err(&gf_dev->spi->dev, "no minor number available!\n");
+		status = -ENODEV;
+		mutex_unlock(&gf_spi_lock);
+		goto error_hw;
+	}
+
+	gf_dev->devt = MKDEV(SPIDEV_MAJOR, minor);
+	dev = device_create(gf_class, &gf_dev->spi->dev, gf_dev->devt,
+			    gf_dev, GF_DEV_NAME);
+	status = IS_ERR(dev) ? PTR_ERR(dev) : 0;
+	if (status) {
+		dev_err(&gf_dev->spi->dev, "Failed to create device!\n");
+		gf_dev->devt = 0;
+		mutex_unlock(&gf_spi_lock);
+		goto error_hw;
+	}
+
+	set_bit(minor, minors);
+	list_add(&gf_dev->device_entry, &device_list);
+	mutex_unlock(&gf_spi_lock);
+
 	pr_info("version V%d.%d.%02d\n", VER_MAJOR, VER_MINOR, PATCH_LEVEL);
 
 	return status;
 
+error_hw:
 #ifdef AP_CONTROL_CLK
 gfspi_probe_clk_enable_failed:
 	gfspi_ioctl_clk_uninit(gf_dev);
@@ -723,15 +733,6 @@ error_input:
 	if (gf_dev->input != NULL)
 		input_free_device(gf_dev->input);
 error_dev:
-	if (gf_dev->devt != 0) {
-		pr_info("Err: status = %d\n", status);
-		mutex_lock(&device_list_lock);
-		list_del(&gf_dev->device_entry);
-		device_destroy(gf_class, gf_dev->devt);
-		clear_bit(MINOR(gf_dev->devt), minors);
-		mutex_unlock(&device_list_lock);
-	}
-error_hw:
 	gf_dev->device_available = 0;
 
 	return status;
@@ -751,11 +752,11 @@ static int gf_remove(struct platform_device *pdev)
 	input_free_device(gf_dev->input);
 
 	/* prevent new opens */
-	mutex_lock(&device_list_lock);
+	mutex_lock(&gf_spi_lock);
 	list_del(&gf_dev->device_entry);
 	device_destroy(gf_class, gf_dev->devt);
 	clear_bit(MINOR(gf_dev->devt), minors);
-	mutex_unlock(&device_list_lock);
+	mutex_unlock(&gf_spi_lock);
 
 	return 0;
 }
