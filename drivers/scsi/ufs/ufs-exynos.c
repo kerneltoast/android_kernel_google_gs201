@@ -274,7 +274,7 @@ static void exynos_ufs_set_unipro_mclk(struct exynos_ufs *ufs)
 {
 	ufs->mclk_rate = (u32)clk_get_rate(ufs->clk_unipro);
 	if (!ufs->hba->clk_gating.is_suspended)
-		dev_info(ufs->dev, "mclk: %u\n", ufs->mclk_rate);
+		dev_info(ufs->dev, "mclk: %lu\n", ufs->mclk_rate);
 }
 
 static void exynos_ufs_fit_aggr_timeout(struct exynos_ufs *ufs)

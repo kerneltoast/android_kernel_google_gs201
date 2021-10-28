@@ -60,6 +60,7 @@
 #define SYSREG_CPUCL0_BASE (0x20c40000)
 #define CLUSTER0_GENERAL_CTRL_64 (0x1404)
 #define CLKDIVSTEP (0x830)
+#define VDROOP_FLT (0x838)
 #define CPUCL0_CLKDIVSTEP_STAT (0x83c)
 #define CPUCL0_CLKDIVSTEP_CON (0x838)
 #define CPUCL12_CLKDIVSTEP_STAT (0x848)
@@ -1328,6 +1329,21 @@ static ssize_t clk_stats_show(struct bcl_device *bcl_dev, int idx, char *buf)
 	return sysfs_emit(buf, "0x%x\n", reg);
 }
 
+static int google_bcl_init_clk_div(struct bcl_device *bcl_dev, int idx, unsigned int value)
+{
+	void __iomem *addr;
+
+	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
+	if (addr == NULL)
+		return -EINVAL;
+
+	mutex_lock(&bcl_dev->ratio_lock);
+	__raw_writel(value, addr);
+	mutex_unlock(&bcl_dev->ratio_lock);
+
+	return 0;
+}
+
 static ssize_t clk_div_store(struct bcl_device *bcl_dev, int idx,
 			     const char *buf, size_t size)
 {
@@ -1339,18 +1355,23 @@ static ssize_t clk_div_store(struct bcl_device *bcl_dev, int idx,
 	if (ret != 1)
 		return -EINVAL;
 
-	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
-
-	if (addr == NULL) {
-		dev_err(bcl_dev->device, "Address is NULL\n");
-		return -EIO;
-	}
-
 	if (idx == TPU)
 		bcl_dev->tpu_clkdivstep = value;
 	else if (idx == GPU)
 		bcl_dev->gpu_clkdivstep = value;
 	else {
+		if (idx == CPU2)
+			bcl_dev->cpu2_clkdivstep = value;
+		else if (idx == CPU1)
+			bcl_dev->cpu1_clkdivstep = value;
+		else
+			bcl_dev->cpu0_clkdivstep = value;
+
+		addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
+		if (addr == NULL) {
+			dev_err(bcl_dev->device, "IDX %d: Address is NULL\n", idx);
+			return -EIO;
+		}
 		mutex_lock(&bcl_dev->ratio_lock);
 		__raw_writel(value, addr);
 		mutex_unlock(&bcl_dev->ratio_lock);
@@ -1466,6 +1487,137 @@ static struct attribute *clock_div_attrs[] = {
 static const struct attribute_group clock_div_group = {
 	.attrs = clock_div_attrs,
 	.name = "clock_div",
+};
+
+static ssize_t vdroop_flt_show(struct bcl_device *bcl_dev, int idx, char *buf)
+{
+	unsigned int reg;
+	void __iomem *addr;
+
+	if (idx == TPU)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->tpu_vdroop_flt);
+	else if (idx == GPU)
+		return sysfs_emit(buf, "0x%x\n", bcl_dev->gpu_vdroop_flt);
+	else if (idx >= CPU1 && idx <= CPU2)
+		addr = bcl_dev->base_mem[idx] + VDROOP_FLT;
+	else
+		return sysfs_emit(buf, "off\n");
+	reg = __raw_readl(addr);
+
+	return sysfs_emit(buf, "0x%x\n", reg);
+}
+
+static ssize_t vdroop_flt_store(struct bcl_device *bcl_dev, int idx,
+				const char *buf, size_t size)
+{
+	void __iomem *addr;
+	unsigned int value;
+
+	if (sscanf(buf, "0x%x", &value) != 1)
+		return -EINVAL;
+
+	if (idx == TPU)
+		bcl_dev->tpu_vdroop_flt = value;
+	else if (idx == GPU)
+		bcl_dev->gpu_vdroop_flt = value;
+	else if (idx >= CPU1 && idx <= CPU2) {
+		addr = bcl_dev->base_mem[idx] + VDROOP_FLT;
+		mutex_lock(&bcl_dev->ratio_lock);
+		__raw_writel(value, addr);
+		mutex_unlock(&bcl_dev->ratio_lock);
+	} else
+		return -EINVAL;
+
+	return size;
+}
+
+static ssize_t cpu1_vdroop_flt_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return vdroop_flt_show(bcl_dev, CPU1, buf);
+}
+
+static ssize_t cpu1_vdroop_flt_store(struct device *dev, struct device_attribute *attr,
+				     const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return vdroop_flt_store(bcl_dev, CPU1, buf, size);
+}
+
+static DEVICE_ATTR_RW(cpu1_vdroop_flt);
+
+static ssize_t cpu2_vdroop_flt_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return vdroop_flt_show(bcl_dev, CPU2, buf);
+}
+
+static ssize_t cpu2_vdroop_flt_store(struct device *dev, struct device_attribute *attr,
+				  const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return vdroop_flt_store(bcl_dev, CPU2, buf, size);
+}
+
+static DEVICE_ATTR_RW(cpu2_vdroop_flt);
+
+static ssize_t tpu_vdroop_flt_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return vdroop_flt_show(bcl_dev, TPU, buf);
+}
+
+static ssize_t tpu_vdroop_flt_store(struct device *dev, struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return vdroop_flt_store(bcl_dev, TPU, buf, size);
+}
+
+static DEVICE_ATTR_RW(tpu_vdroop_flt);
+
+static ssize_t gpu_vdroop_flt_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return vdroop_flt_show(bcl_dev, GPU, buf);
+}
+
+static ssize_t gpu_vdroop_flt_store(struct device *dev, struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return vdroop_flt_store(bcl_dev, GPU, buf, size);
+}
+
+static DEVICE_ATTR_RW(gpu_vdroop_flt);
+
+static struct attribute *vdroop_flt_attrs[] = {
+	&dev_attr_cpu1_vdroop_flt.attr,
+	&dev_attr_cpu2_vdroop_flt.attr,
+	&dev_attr_tpu_vdroop_flt.attr,
+	&dev_attr_gpu_vdroop_flt.attr,
+	NULL,
+};
+
+static const struct attribute_group vdroop_flt_group = {
+	.attrs = vdroop_flt_attrs,
+	.name = "vdroop_flt",
 };
 
 static ssize_t cpu0_clk_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1589,11 +1741,6 @@ static ssize_t clk_ratio_store(struct bcl_device *bcl_dev, int idx,
 	if (ret != 1)
 		return -EINVAL;
 
-	addr = get_addr_by_rail(bcl_dev, clk_ratio_source[idx]);
-	if (addr == NULL) {
-		dev_err(bcl_dev->device, "Address is NULL\n");
-		return -EIO;
-	}
 	if (idx == TPU_HEAVY)
 		bcl_dev->tpu_con_heavy = value;
 	else if (idx == GPU_HEAVY)
@@ -1603,6 +1750,11 @@ static ssize_t clk_ratio_store(struct bcl_device *bcl_dev, int idx,
 	else if (idx == GPU_LIGHT)
 		bcl_dev->gpu_con_light = value;
 	else {
+		addr = get_addr_by_rail(bcl_dev, clk_ratio_source[idx]);
+		if (addr == NULL) {
+			dev_err(bcl_dev->device, "IDX %d: Address is NULL\n", idx);
+			return -EIO;
+		}
 		mutex_lock(&bcl_dev->ratio_lock);
 		__raw_writel(value, addr);
 		mutex_unlock(&bcl_dev->ratio_lock);
@@ -2520,6 +2672,8 @@ int google_init_tpu_ratio(struct bcl_device *data)
 	__raw_writel(data->tpu_con_light, addr);
 	addr = data->base_mem[TPU] + CLKDIVSTEP;
 	__raw_writel(data->tpu_clkdivstep, addr);
+	addr = data->base_mem[TPU] + VDROOP_FLT;
+	__raw_writel(data->tpu_vdroop_flt, addr);
 	data->tpu_clk_stats = __raw_readl(data->base_mem[TPU] + clk_stats_offset[TPU]);
 	mutex_unlock(&data->ratio_lock);
 
@@ -2547,6 +2701,8 @@ int google_init_gpu_ratio(struct bcl_device *data)
 	__raw_writel(data->gpu_con_light, addr);
 	addr = data->base_mem[GPU] + CLKDIVSTEP;
 	__raw_writel(data->gpu_clkdivstep, addr);
+	addr = data->base_mem[GPU] + VDROOP_FLT;
+	__raw_writel(data->gpu_vdroop_flt, addr);
 	data->gpu_clk_stats = __raw_readl(data->base_mem[GPU] + clk_stats_offset[GPU]);
 	mutex_unlock(&data->ratio_lock);
 
@@ -3090,6 +3246,7 @@ const struct attribute_group *mitigation_groups[] = {
 	&triggered_timestamp_group,
 	&triggered_capacity_group,
 	&triggered_voltage_group,
+	&vdroop_flt_group,
 	NULL,
 };
 
@@ -3226,7 +3383,19 @@ static int google_bcl_probe(struct platform_device *pdev)
 	bcl_dev->gpu_clkdivstep = ret ? 0 : val;
 	ret = of_property_read_u32(np, "tpu_clkdivstep", &val);
 	bcl_dev->tpu_clkdivstep = ret ? 0 : val;
+	ret = of_property_read_u32(np, "cpu2_clkdivstep", &val);
+	bcl_dev->cpu2_clkdivstep = ret ? 0 : val;
+	ret = of_property_read_u32(np, "cpu1_clkdivstep", &val);
+	bcl_dev->cpu1_clkdivstep = ret ? 0 : val;
+	ret = of_property_read_u32(np, "cpu0_clkdivstep", &val);
+	bcl_dev->cpu0_clkdivstep = ret ? 0 : val;
 	bcl_dev->batt_psy_initialized = false;
+	if (google_bcl_init_clk_div(bcl_dev, CPU2, bcl_dev->cpu2_clkdivstep) != 0)
+		dev_err(bcl_dev->device, "CPU2 Address is NULL\n");
+	if (google_bcl_init_clk_div(bcl_dev, CPU1, bcl_dev->cpu1_clkdivstep) != 0)
+		dev_err(bcl_dev->device, "CPU1 Address is NULL\n");
+	if (google_bcl_init_clk_div(bcl_dev, CPU0, bcl_dev->cpu0_clkdivstep) != 0)
+		dev_err(bcl_dev->device, "CPU0 Address is NULL\n");
 
 	ret = google_init_fs(bcl_dev);
 	if (ret < 0)

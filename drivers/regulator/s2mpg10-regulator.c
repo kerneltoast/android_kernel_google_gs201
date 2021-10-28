@@ -598,7 +598,7 @@ static ssize_t s2mpg10_pmic_write_store(struct device *dev,
 	if (!buf)
 		return size;
 
-	ret = sscanf(buf, "%x %x", &reg, &data);
+	ret = sscanf(buf, "%hx %hhx", &reg, &data);
 	if (ret != 2) {
 		pr_err("%s: input error\n", __func__);
 		return size;

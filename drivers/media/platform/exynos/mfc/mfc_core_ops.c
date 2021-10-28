@@ -658,7 +658,7 @@ int mfc_core_instance_open(struct mfc_core *core, struct mfc_ctx *ctx)
 			return -EAGAIN;
 	} else if (ctx->type == MFCINST_ENCODER) {
 		if (__mfc_core_instance_open_enc(ctx, core_ctx))
-			return -EAGAIN;
+			return -ENOMEM;
 	} else {
 		mfc_err("invalid codec type: %d\n", ctx->type);
 		return -EINVAL;

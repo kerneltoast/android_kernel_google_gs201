@@ -97,8 +97,13 @@ struct bcl_device {
 	unsigned int gpu_con_light;
 	unsigned int tpu_clkdivstep;
 	unsigned int gpu_clkdivstep;
+	unsigned int cpu2_clkdivstep;
+	unsigned int cpu1_clkdivstep;
+	unsigned int cpu0_clkdivstep;
 	unsigned int gpu_clk_stats;
 	unsigned int tpu_clk_stats;
+	unsigned int tpu_vdroop_flt;
+	unsigned int gpu_vdroop_flt;
 
 	bool batt_psy_initialized;
 	bool enabled;

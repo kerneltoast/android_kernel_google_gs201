@@ -1094,7 +1094,7 @@ static void gs101_throttle_pause(struct kthread_work *work)
 	case TMU_TYPE_GPU:
 	case TMU_TYPE_ISP:
 	default:
-		pr_warn_ratelimited("%s: %s unsupported type for pause function\n",
+		pr_warn_ratelimited("%s: %u unsupported type for pause function\n",
 				    data->tmu_name, data->tmu_type);
 		goto unlock;
 	}

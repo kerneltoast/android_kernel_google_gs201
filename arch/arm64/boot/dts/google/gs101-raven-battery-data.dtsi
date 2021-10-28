@@ -55,7 +55,7 @@ maxim,config {
 	/* ATL: 1_ATL_011421_RC2, 2021-03-18, b/183051702, characterized INI */
 	maxim,cos-a1-1k {
 		maxim,batt-id-kohm = <1>;
-		maxim,model-version = <3>;
+		maxim,model-version = <4>;
 		maxim,force-reset-model-data;
 		maxim,fg-model = /bits/ 16 <
 
@@ -68,7 +68,7 @@ maxim,config {
 		>;
 		maxim,fg-params = /bits/ 16 <
 			/* 0x0036 */	0xf060	/* IAvgEmpty */
-			/* 0x002a */	0x2038	/* RelaxCFG */
+			/* 0x002a */	0x0839	/* RelaxCFG */
 			/* 0x0028 */	0x260e	/* LearnCFG */
 			/* 0x001D */	0x4217	/* Config */
 			/* 0x00BB */	0x0090	/* Config2 */
@@ -85,7 +85,7 @@ maxim,config {
 			/* 0x0042 */	0x0400	/* QResidual30 */
 			/* 0x0038 */	0x08e0	/* RCOMP0 */
 			/* 0x0039 */	0x0d00	/* TempCo */
-			/* 0x001E */	0x0310	/* ICHGTerm */
+			/* 0x001E */	0x0620	/* ICHGTerm */
 			/* 0x002C */	0xED51	/* TGain */
 			/* 0x002D */	0x1EBA	/* TOff */
 			/* 0x00B9 */	0x0014	/* Curve */
@@ -100,7 +100,7 @@ maxim,config {
 	/* LSN: 3_LSN_050321_RC2_Cell, 2021-05-04, b/187115058, rc2 model */
 	maxim,lsn-a1-3k {
 		maxim,batt-id-kohm = <3>;
-		maxim,model-version = <3>;
+		maxim,model-version = <4>;
 		maxim,force-reset-model-data;
 		maxim,fg-model = /bits/ 16 <
 			0x9cb0 0xb790 0xb900 0xbaf0 0xbc10 0xbd30 0xbeb0 0xc030
@@ -112,7 +112,7 @@ maxim,config {
 		>;
 		maxim,fg-params = /bits/ 16 <
 			/* 0x0036 */	0xf060	/* IAvgEmpty */
-			/* 0x002a */	0x2038	/* RelaxCFG */
+			/* 0x002a */	0x0839	/* RelaxCFG */
 			/* 0x0028 */	0x260e	/* LearnCFG */
 			/* 0x001D */	0x4217	/* Config */
 			/* 0x00BB */	0x0090	/* Config2 */
@@ -129,7 +129,7 @@ maxim,config {
 			/* 0x0042 */	0x0380	/* QResidual30 */
 			/* 0x0038 */	0x0680	/* RCOMP0 */
 			/* 0x0039 */	0x0a02	/* TempCo */
-			/* 0x001E */	0x0310	/* ICHGTerm */
+			/* 0x001E */	0x0620	/* ICHGTerm */
 			/* 0x002C */	0xED51	/* TGain */
 			/* 0x002D */	0x1EBA	/* TOff */
 			/* 0x00B9 */	0x0014	/* Curve */

@@ -389,7 +389,7 @@ static int memlat_cpuhp_up(unsigned int cpu)
 		ret = set_event(&common_evs[i], cpu,
 		  cpu_grp->common_ev_ids[i], attr);
 		if (ret) {
-			pr_err("set event %d on CPU %d fail: %d",
+			pr_err("set event %u on CPU %u fail: %d",
 			  cpu_grp->common_ev_ids[i],
 			  cpu, ret);
 			goto unlock_out;
@@ -406,8 +406,8 @@ static int memlat_cpuhp_up(unsigned int cpu)
 		ret = set_event(&mon->miss_ev[mon_idx], cpu,
 					mon->miss_ev_id, attr);
 		if (ret) {
-			pr_err("set event %d on CPU %d fail: %d",
-			  mon->miss_ev[mon_idx],
+			pr_err("set event %u on CPU %u fail: %d",
+			  mon->miss_ev_id,
 			  cpu, ret);
 			goto unlock_out;
 		}
@@ -801,7 +801,7 @@ static int memlat_mon_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	mutex_lock(&cpu_grp->mons_lock);
+	mutex_lock_nested(&cpu_grp->mons_lock, SINGLE_DEPTH_NESTING);
 	mon = &cpu_grp->mons[cpu_grp->num_inited_mons];
 	mon->is_active = false;
 	mon->requested_update_ms = 0;
@@ -813,7 +813,7 @@ static int memlat_mon_probe(struct platform_device *pdev)
 		if (!cpumask_subset(&mon->cpus, &cpu_grp->cpus)) {
 			dev_err(dev,
 				"Mon CPUs must be a subset of cpu_grp CPUs. mon=%*pbl cpu_grp=%*pbl\n",
-				mon->cpus, cpu_grp->cpus);
+				cpumask_pr_args(&mon->cpus), cpumask_pr_args(&cpu_grp->cpus));
 			ret = -EINVAL;
 			goto unlock_out;
 		}

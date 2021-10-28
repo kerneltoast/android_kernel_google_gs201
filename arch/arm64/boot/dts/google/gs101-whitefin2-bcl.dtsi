@@ -15,17 +15,20 @@
 			google_mitigation: google,mitigation {
 				compatible = "google,google-bcl";
 				#thermal-sensor-cells = <1>;
-				google,power-supply = <&google_battery>;
+				google,power-supply = <&max77759_fg>;
 				google,main-power = <&s2mpg10mfd>;
 				google,sub-power = <&s2mpg11mfd>;
 				ppm_settings = <0>;
 				mpmm_settings = <0x1a>;
 				tpu_con_heavy = <0xf041c3>;
 				tpu_con_light = <0xf041c5>;
-				tpu_clkdivstep = <0x1>;
+				tpu_clkdivstep = <0x201>;
 				gpu_con_heavy = <0xf04385>;
 				gpu_con_light = <0>;
-				gpu_clkdivstep = <0x1>;
+				gpu_clkdivstep = <0x801>;
+				cpu2_clkdivstep = <0x801>;
+				cpu1_clkdivstep = <0x0>;
+				cpu0_clkdivstep = <0x1>;
 			};
 		};
 	};

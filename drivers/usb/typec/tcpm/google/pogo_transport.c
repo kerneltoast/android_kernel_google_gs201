@@ -163,7 +163,7 @@ static int init_pogo_alert_gpio(struct pogo_transport *pogo_transport)
 
 	ret = enable_irq_wake(pogo_transport->pogo_irq);
 	if (ret) {
-		dev_err(pogo_transport->dev, "Enable irq wake failed ret:%d\n");
+		dev_err(pogo_transport->dev, "Enable irq wake failed ret:%d\n", ret);
 		goto free_irq;
 	}
 

@@ -1241,12 +1241,11 @@ static int gps_pinctrl_select(struct bcm_spi_priv *data, bool on)
 
 /* SPI driver operations */
 
-static int bcm_spi_suspend(struct device *dev, pm_message_t state)
+static int bcm_spi_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct bcm_spi_priv *priv = spi_get_drvdata(spi);
 	unsigned long flags;
-
 
 	atomic_set(&priv->suspending, 1);
 
@@ -1546,6 +1545,11 @@ static const struct of_device_id match_table[] = {
 };
 #endif
 
+static const struct dev_pm_ops bcm_spi_pm_ops = {
+	.suspend = bcm_spi_suspend,
+	.resume = bcm_spi_resume,
+};
+
 static struct spi_driver bcm_spi_driver = {
 	.id_table = bcm_spi_id,
 	.probe = bcm_spi_probe,
@@ -1557,8 +1561,7 @@ static struct spi_driver bcm_spi_driver = {
 #ifdef CONFIG_OF
 		.of_match_table = match_table,
 #endif
-		.suspend = bcm_spi_suspend,
-		.resume = bcm_spi_resume,
+		.pm = &bcm_spi_pm_ops,
 	},
 };
 

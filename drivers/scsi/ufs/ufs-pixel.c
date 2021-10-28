@@ -697,7 +697,8 @@ static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
 		copy_from_iter(&cur_wc, 4, &iter);
 		cur_wc = cpu_to_be32(cur_wc);
 		if (cur_wc)
-			pr_info("%s RPMB write counter = %8x\n", __func__, cur_wc);
+			pr_info("%s RPMB write counter = %8x; start time %lu\n",
+				__func__, cur_wc, lrbp->cmd->jiffies_at_alloc);
 		if (cur_wc != ufs->security_out_wc)
 			ufs->security_out_wc = cur_wc;
 		else if (cur_wc) {

@@ -225,7 +225,7 @@ static int s2m_rtc_check_rtc_time(struct s2m_rtc_info *info)
 		ret = s2m_rtc_update(info, S2M_RTC_WRITE_TIME);
 
 		dev_warn(info->dev,
-			 "%s: adjust RTC TIME: sys_time: %llu, rtc_time: %lu\n",
+			 "%s: adjust RTC TIME: sys_time: %llu, rtc_time: %lld\n",
 			 __func__, sys_time.tv_sec, rtc_time);
 
 		dev_info(info->dev,

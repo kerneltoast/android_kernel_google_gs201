@@ -419,7 +419,7 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	u32 tin_ns = chan->tin_ns, tcnt, tcmp, tcon;
 	enum duty_cycle duty_cycle;
 	unsigned long flags;
-	unsigned int ret = 0;
+	int ret = 0;
 
 	/*
 	 * We currently avoid using 64bit arithmetic by using the
@@ -454,8 +454,10 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 		tin_rate = pwm_samsung_calc_tin(our_chip, pwm->hwpwm, period);
 
-		if (!tin_rate)
-			return -EINVAL;
+		if (!tin_rate) {
+			ret = -EINVAL;
+			goto out_err;
+		}
 
 		tin_ns = (unsigned int)(NSEC_PER_SEC / tin_rate);
 	}
@@ -465,8 +467,10 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	tcmp = DIV_ROUND_CLOSEST(duty_ns, tin_ns);
 
 	/* Period is too short. */
-	if (tcnt <= 1)
-		return -ERANGE;
+	if (tcnt <= 1) {
+		ret = -ERANGE;
+		goto out_err;
+	}
 
 	if (tcmp == 0)
 		duty_cycle = DUTY_CYCLE_ZERO;
@@ -475,6 +479,7 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	else
 		duty_cycle = DUTY_CYCLE_PULSE;
 
+	/* Flipped duty cycle count since o/p depends on tcnt decrementing */
 	tcmp = tcnt - tcmp;
 	/* the pwm hw only checks the compare register after a decrement,
 	 * so the pin never toggles if tcmp = tcnt
@@ -485,10 +490,11 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/* PWM counts 1 hidden tick at the end of each period on S3C64XX and
 	 * EXYNOS series, so tcmp and tcnt should be subtracted 1.
 	 */
-	/* Decrement to get tick numbers, instead of tick counts. */
+	/* Decrement to change tick counts (1-based) to tick numbers (0-based) */
 	--tcnt;
-	/* -1UL will give 100% duty. */
-	--tcmp;
+	/* Make tcmp 0-based  */
+	if (tcmp)
+		--tcmp;
 
 	dev_dbg(our_chip->chip.dev,
 				"tin_ns=%u, tcmp=%u/%u\n", tin_ns, tcmp, tcnt);
@@ -523,6 +529,7 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	spin_unlock_irqrestore(&samsung_pwm_lock, flags);
 
+out_err:
 	pwm_samsung_clk_disable(our_chip);
 
 	return ret;

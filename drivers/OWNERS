@@ -91,6 +91,8 @@ per-file pinctrl/samsung/pinctrl-samsung.*=*
 per-file power/reset/debug-reboot.c=*
 per-file power/reset/exynos-reboot.c=*
 
+per-file pwm/pwm-samsung.c=*
+
 per-file regulator/core.c=saravanak@google.com
 per-file regulator/devres.c=saravanak@google.com
 per-file regulator/dummy.c=saravanak@google.com

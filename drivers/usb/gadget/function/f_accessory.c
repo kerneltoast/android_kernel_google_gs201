@@ -230,34 +230,34 @@ static struct usb_endpoint_descriptor acc_fullspeed_out_desc = {
 };
 
 static struct usb_descriptor_header *fs_acc_descs[] = {
-	(struct usb_descriptor_header *)&acc_interface_desc,
-	(struct usb_descriptor_header *)&acc_fullspeed_in_desc,
-	(struct usb_descriptor_header *)&acc_fullspeed_out_desc,
+	(struct usb_descriptor_header *) &acc_interface_desc,
+	(struct usb_descriptor_header *) &acc_fullspeed_in_desc,
+	(struct usb_descriptor_header *) &acc_fullspeed_out_desc,
 	NULL,
 };
 
 static struct usb_descriptor_header *hs_acc_descs[] = {
-	(struct usb_descriptor_header *)&acc_interface_desc,
-	(struct usb_descriptor_header *)&acc_highspeed_in_desc,
-	(struct usb_descriptor_header *)&acc_highspeed_out_desc,
+	(struct usb_descriptor_header *) &acc_interface_desc,
+	(struct usb_descriptor_header *) &acc_highspeed_in_desc,
+	(struct usb_descriptor_header *) &acc_highspeed_out_desc,
 	NULL,
 };
 
 static struct usb_descriptor_header *ss_acc_descs[] = {
-	(struct usb_descriptor_header *)&acc_interface_desc,
-	(struct usb_descriptor_header *)&acc_superspeed_in_desc,
-	(struct usb_descriptor_header *)&acc_superspeed_comp_desc,
-	(struct usb_descriptor_header *)&acc_superspeed_out_desc,
-	(struct usb_descriptor_header *)&acc_superspeed_comp_desc,
+	(struct usb_descriptor_header *) &acc_interface_desc,
+	(struct usb_descriptor_header *) &acc_superspeed_in_desc,
+	(struct usb_descriptor_header *) &acc_superspeed_comp_desc,
+	(struct usb_descriptor_header *) &acc_superspeed_out_desc,
+	(struct usb_descriptor_header *) &acc_superspeed_comp_desc,
 	NULL,
 };
 
 static struct usb_descriptor_header *ssp_acc_descs[] = {
-	(struct usb_descriptor_header *)&acc_interface_desc,
-	(struct usb_descriptor_header *)&acc_superspeedplus_in_desc,
-	(struct usb_descriptor_header *)&acc_superspeedplus_comp_desc,
-	(struct usb_descriptor_header *)&acc_superspeedplus_out_desc,
-	(struct usb_descriptor_header *)&acc_superspeedplus_comp_desc,
+	(struct usb_descriptor_header *) &acc_interface_desc,
+	(struct usb_descriptor_header *) &acc_superspeedplus_in_desc,
+	(struct usb_descriptor_header *) &acc_superspeedplus_comp_desc,
+	(struct usb_descriptor_header *) &acc_superspeedplus_out_desc,
+	(struct usb_descriptor_header *) &acc_superspeedplus_comp_desc,
 	NULL,
 };
 

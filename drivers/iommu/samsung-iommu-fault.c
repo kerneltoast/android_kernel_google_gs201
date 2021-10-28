@@ -559,7 +559,7 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 	char fault_msg[128] = "Unspecified SysMMU fault";
 
 	/* Prevent power down while handling faults */
-	pm_runtime_get(drvdata->dev);
+	pm_runtime_get_sync(drvdata->dev);
 
 	sysmmu_get_interrupt_info(drvdata, &itype, &vid, &addr, is_secure);
 	reason = sysmmu_fault_type[itype];
