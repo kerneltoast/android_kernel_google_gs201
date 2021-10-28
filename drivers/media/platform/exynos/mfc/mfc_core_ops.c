@@ -302,6 +302,14 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 	if (core->num_inst == 0) {
 		mfc_core_run_deinit_hw(core);
 
+#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+		imgloader_shutdown(&core->mfc_imgloader_desc);
+#else
+#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
+		mfc_release_verify_fw(core);
+#endif
+#endif
+
 		if (perf_boost_mode)
 			mfc_core_perf_boost_disable(core);
 
@@ -1208,7 +1216,9 @@ int mfc_imgloader_verify_fw(struct imgloader_desc *desc, phys_addr_t fw_phys_bas
 		return ret;
 	}
 
+#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
 	ret = __mfc_verify_fw(core, desc->fw_id, fw_phys_base, fw_bin_size, fw_mem_size);
+#endif
 	if (ret)
 		mfc_core_pm_power_off(core);
 
@@ -1252,10 +1262,36 @@ int mfc_imgloader_deinit_image(struct imgloader_desc *desc)
 	return 0;
 }
 
+int mfc_imgloader_shutdown(struct imgloader_desc *desc)
+{
+	struct mfc_core *core = (struct mfc_core *)desc->dev->driver_data;
+
+	mfc_core_debug(2, "[F/W] release verify fw\n");
+
+	return 0;
+}
+
 struct imgloader_ops mfc_imgloader_ops = {
 	.mem_setup = mfc_imgloader_mem_setup,
 	.verify_fw = mfc_imgloader_verify_fw,
 	.blk_pwron = mfc_imgloader_blk_pwron,
 	.deinit_image = mfc_imgloader_deinit_image,
+	.shutdown = mfc_imgloader_shutdown,
 };
+
+#else
+#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
+int mfc_release_verify_fw(struct mfc_core *core)
+{
+	struct imgloader_desc *desc;
+
+	/* release the permission for fw region */
+	desc = &core->mfc_imgloader_desc;
+	exynos_release_subsystem_fw_stage2_ap(core->name, desc->fw_id);
+
+	mfc_core_debug(2, "[F/W] release verify fw\n");
+
+	return 0;
+}
+#endif
 #endif

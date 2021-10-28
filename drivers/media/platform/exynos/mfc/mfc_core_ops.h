@@ -23,3 +23,6 @@ void mfc_core_instance_q_flush(struct mfc_core *core, struct mfc_ctx *ctx);
 void mfc_core_instance_finishing(struct mfc_core *core, struct mfc_ctx *ctx);
 int mfc_core_request_work(struct mfc_core *core, enum mfc_request_work work,
 		struct mfc_ctx *ctx);
+#if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+int mfc_release_verify_fw(struct mfc_core *core);
+#endif
