@@ -66,32 +66,32 @@
 		b2_ocp_warn_cnt = <0>;	/* 0 : 2 clock, 1 : 32 clock */
 		/* ocp warn mask when dvs */
 		b2_ocp_warn_dvs_mask = <0>;	/* 0 : not masked, 1 : masked */
-		b2_ocp_warn_lvl = <0x0>;	/* step : -250mA */
+		b2_ocp_warn_lvl = <8>;		/* 12.0A */
 
 		b3_ocp_warn_en = <1>;		/* 1 : enable, 0 : disable */
 		b3_ocp_warn_cnt = <0>;		/* 0 : 2 clock, 1 : 32 clock */
 		b3_ocp_warn_dvs_mask = <0>;	/* 0 : not masked, 1 : masked */
-		b3_ocp_warn_lvl = <0x0>;	/* step : -166mA */
+		b3_ocp_warn_lvl = <13>;		/* 7.0A */
 
 		b10_ocp_warn_en = <1>;		/* 1 : enable, 0 : disable */
 		b10_ocp_warn_cnt = <0>;		/* 0 : 2 clock, 1 : 32 clock */
 		b10_ocp_warn_dvs_mask = <0>;/* 0 : not masked, 1 : masked */
-		b10_ocp_warn_lvl = <0x0>;	/* step : -250mA */
+		b10_ocp_warn_lvl = <13>;	/* 10.5A */
 
 		b2_soft_ocp_warn_en = <1>;		/* 1 : enable, 0 : disable */
 		b2_soft_ocp_warn_cnt = <0>;		/* 0 : 2 clock, 1 : 32 clock */
 		b2_soft_ocp_warn_dvs_mask = <0>;/* 0 : not masked, 1 : masked */
-		b2_soft_ocp_warn_lvl = <0x0>;	/* step : -250mA */
+		b2_soft_ocp_warn_lvl = <20>;		/* 9.0A */
 
 		b3_soft_ocp_warn_en = <1>; 		/* 1 : enable, 0 : disable */
 		b3_soft_ocp_warn_cnt = <0>; 	/* 0 : 2 clock, 1 : 32 clock */
 		b3_soft_ocp_warn_dvs_mask = <0>;/* 0 : not masked, 1 : masked */
-		b3_soft_ocp_warn_lvl = <0x0>; 	/* step : -166mA */
+		b3_soft_ocp_warn_lvl = <13>; 		/* 7.0A */
 
 		b10_soft_ocp_warn_en = <1>;			/* 1 : enable, 0 : disable */
 		b10_soft_ocp_warn_cnt = <0>; 		/* 0 : 2 clock, 1 : 32 clock */
 		b10_soft_ocp_warn_dvs_mask = <0>;	/* 0 : not masked, 1 : masked */
-		b10_soft_ocp_warn_lvl = <0x0>; 		/* step : -250mA */
+		b10_soft_ocp_warn_lvl = <20>; 		/* 8.5A */
 
 		/* RTC: wtsr/smpl */
 		wtsr_en = "enabled"; 		/* enable */
@@ -719,12 +719,12 @@
 		b2_ocp_warn_en = <1>;		/* 1 : enable, 0 : disable */
 		b2_ocp_warn_cnt = <0>;		/* 0 : 2 clock, 1 : 32 clock */
 		b2_ocp_warn_dvs_mask = <0>;	/* 0 : not masked, 1 : masked  */
-		b2_ocp_warn_lvl = <0x0>;	/* step : -250mA */
+		b2_ocp_warn_lvl = <8>;		/* 12.0A */
 
 		b2_soft_ocp_warn_en = <1>; 		/* 1 : enable, 0 : disable */
 		b2_soft_ocp_warn_cnt = <0>; 	/* 0 : 2 clock, 1 : 32 clock */
 		b2_soft_ocp_warn_dvs_mask = <0>;/* 0 : not masked, 1 : masked */
-		b2_soft_ocp_warn_lvl = <0x0>; 	/* step : -250mA */
+		b2_soft_ocp_warn_lvl = <18>; 	/* 12.0A */
 
 		/* PCTRLSEL(VGPIO) 1~11 (CONTROL_SEL#) */
 		sel_vgpio = <0x92 0x92 0x69 0x0A 0x9A 0x12
