@@ -524,7 +524,7 @@ static int __init unapply_text_relocations(void *section, int section_size,
 		u32 *place = (u32 *)(section + rela->r_offset);
 
 		if (rela->r_offset >= section_size) {
-			pr_err("rela->r_offset(%lu) >= section_size(%u)",
+			pr_err("rela->r_offset(%llu) >= section_size(%u)",
 			       rela->r_offset, section_size);
 			return -EINVAL;
 		}
