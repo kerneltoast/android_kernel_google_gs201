@@ -197,6 +197,47 @@ static int s2mpg13_spmic_thermal_set_trips(void *data, int low_temp,
 	return ret;
 }
 
+static int
+s2mpg13_spmic_thermal_set_hot_trip(struct s2mpg13_spmic_thermal_sensor *s, int temp)
+{
+	int ret = 0;
+	struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_thermal = s->chip;
+	u8 raw = s2mpg13_map_temp_volt(temp) >> 4 & 0xFF;
+	struct device *dev = s2mpg13_spmic_thermal->dev;
+
+	if (temp == THERMAL_TEMP_INVALID)
+		return -EINVAL;
+
+	ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->i2c,
+						S2MPG13_METER_NTC_OT_FAULT0 + s->adc_chan, raw);
+	dev_info(dev, "Set sensor %d hot trip(mdegC):%d, ret:%d\n", s->adc_chan, temp, ret);
+
+	return ret;
+}
+
+/*
+ * Set temperature threshold for given tz, only critical threshold will be
+ * programmed as shutdown threshold.
+ */
+static int s2mpg13_spmic_thermal_set_trip_temp(void *data, int trip, int temp)
+{
+	struct s2mpg13_spmic_thermal_sensor *s = data;
+	const struct thermal_trip *trip_points;
+	int ret = 0;
+
+	trip_points = of_thermal_get_trip_points(s->tzd);
+	if (!trip_points)
+		return -EINVAL;
+
+	if (trip_points[trip].type != THERMAL_TRIP_HOT)
+		return ret;
+
+	/* Use THERMAL_TRIP_HOT for HW thermal shutdown */
+	ret = s2mpg13_spmic_thermal_set_hot_trip(s, temp);
+
+	return ret;
+}
+
 /*
  * Set emulation temperture for given tz.
  */
@@ -238,8 +279,31 @@ s2mpg13_spmic_thermal_init(struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_ther
 static struct thermal_zone_of_device_ops s2mpg13_spmic_thermal_ops = {
 	.get_temp = s2mpg13_spmic_thermal_get_temp,
 	.set_trips = s2mpg13_spmic_thermal_set_trips,
+	.set_trip_temp = s2mpg13_spmic_thermal_set_trip_temp,
 	.set_emul_temp = s2mpg13_spmic_thermal_set_emul_temp,
 };
+
+static int s2mpg13_spmic_thermal_get_hot_temp(struct thermal_zone_device *tzd)
+{
+	int ntrips;
+	const struct thermal_trip *trips;
+	int i;
+
+	ntrips = of_thermal_get_ntrips(tzd);
+	if (ntrips <= 0)
+		return THERMAL_TEMP_INVALID;
+
+	trips = of_thermal_get_trip_points(tzd);
+	if (!trips)
+		return THERMAL_TEMP_INVALID;
+
+	for (i = 0; i < ntrips; i++) {
+		if (of_thermal_is_trip_valid(tzd, i) && trips[i].type == THERMAL_TRIP_HOT)
+			return trips[i].temperature;
+	}
+
+	return THERMAL_TEMP_INVALID;
+}
 
 /*
  * Register thermal zones.
@@ -251,6 +315,7 @@ s2mpg13_spmic_thermal_register_tzd(struct s2mpg13_spmic_thermal_chip *s2mpg13_sp
 	struct thermal_zone_device *tzd;
 	struct device *dev = s2mpg13_spmic_thermal->dev;
 	u8 mask = 0x1;
+	int temp;
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
 		dev_info(dev, "Registering %d sensor\n", i);
@@ -269,6 +334,9 @@ s2mpg13_spmic_thermal_register_tzd(struct s2mpg13_spmic_thermal_chip *s2mpg13_sp
 			thermal_zone_device_enable(tzd);
 		else
 			thermal_zone_device_disable(tzd);
+
+		temp = s2mpg13_spmic_thermal_get_hot_temp(tzd);
+		s2mpg13_spmic_thermal_set_hot_trip(&s2mpg13_spmic_thermal->sensor[i], temp);
 	}
 	return 0;
 }
