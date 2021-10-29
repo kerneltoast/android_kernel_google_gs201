@@ -16,6 +16,7 @@ ext_modules += display/samsung
 ext_modules += edgetpu/janeiro/drivers/edgetpu
 ext_modules += gpu/mali_kbase
 ext_modules += gpu/mali_pixel
+ext_modules += gxp/gs201
 ext_modules += lwis
 ext_modules += nfc
 ext_modules += power/reset
