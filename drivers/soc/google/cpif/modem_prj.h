@@ -623,8 +623,10 @@ struct modem_ctl {
 	/* for checking aliveness of CP */
 	unsigned int irq_phone_active;
 
+#if IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 	/* for broadcasting AP LCD state */
 	unsigned int int_lcd_status;
+#endif
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM)
 	unsigned int mbx_pda_active;
@@ -656,8 +658,10 @@ struct modem_ctl {
 	unsigned int sbi_uart_noti_mask;
 	unsigned int sbi_uart_noti_pos;
 
+#if IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 	unsigned int sbi_lcd_status_mask;
 	unsigned int sbi_lcd_status_pos;
+#endif
 
 	unsigned int ap2cp_cfg_addr;
 	void __iomem *ap2cp_cfg_ioaddr;
@@ -735,7 +739,9 @@ struct modem_ctl {
 
 	void (*modem_complete)(struct modem_ctl *mc);
 
+#if IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 	struct notifier_block lcd_notifier;
+#endif
 
 	struct cp_power_stats cp_power_stats;
 	spinlock_t power_stats_lock;

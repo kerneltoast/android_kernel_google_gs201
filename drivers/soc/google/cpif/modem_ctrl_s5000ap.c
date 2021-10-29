@@ -868,9 +868,11 @@ static void s5000ap_get_pdata(struct modem_ctl *mc, struct modem_data *modem)
 	mc->sbi_ds_det_mask = modem->sbi_ds_det_mask;
 	mc->sbi_ds_det_pos = modem->sbi_ds_det_pos;
 
+#if IS_ENABLED(CONFIG_CP_LCD_NOTIFIER)
 	mc->sbi_lcd_status_mask = modem->sbi_lcd_status_mask;
 	mc->sbi_lcd_status_pos = modem->sbi_lcd_status_pos;
 	mc->int_lcd_status = mbx->int_ap2cp_lcd_status;
+#endif
 }
 
 static int send_panic_to_cp_notifier(struct notifier_block *nb,
