@@ -181,9 +181,8 @@
 
 				/* TPMON: CP throughput monitor */
 				cpif_tpmon {
-					trigger_mbps = <30>;
-					trigger_msec_min = <100>;
-					trigger_msec_max = <300>;
+					trigger_msec_min = <500>;
+					trigger_msec_max = <1500>;
 
 					monitor_interval_msec = <1000>;
 					monitor_hold_msec = <3000>;
