@@ -101,11 +101,11 @@
 		b10_soft_ocp_warn_lvl = <20>; /* 8.5A */
 
 		/* BUCK OCP Detection */
-		buck_ocp_ctrl1 = <0xB0>;
+		buck_ocp_ctrl1 = <0xBB>;
 		buck_ocp_ctrl2 = <0xBB>;
-		buck_ocp_ctrl3 = <0x0>;
-		buck_ocp_ctrl4 = <0x0>;
-		buck_ocp_ctrl5 = <0xB0>;
+		buck_ocp_ctrl3 = <0xBB>;
+		buck_ocp_ctrl4 = <0xBB>;
+		buck_ocp_ctrl5 = <0xBB>;
 
 		/* RTC: wtsr/smpl */
 		wtsr_en = "enabled"; /* enable */
@@ -735,7 +735,13 @@
 		b2_soft_ocp_warn_lvl = <8>; /* 12.0A */
 
 		/* BUCK OCP Detection */
-		buck_ocp_ctrl1 = <0xB0>;
+		buck_ocp_ctrl1 = <0xBB>;
+		buck_ocp_ctrl2 = <0xBB>;
+		buck_ocp_ctrl3 = <0xBB>;
+		buck_ocp_ctrl4 = <0xBB>;
+		buck_ocp_ctrl5 = <0xBB>;
+		buck_ocp_ctrl6 = <0xBB>;
+		buck_ocp_ctrl7 = <0x0B>;
 
 		regulators {
 			s_buck1_reg: BUCK1S {
