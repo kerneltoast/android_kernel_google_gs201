@@ -34,7 +34,8 @@ void *cpif_page_alloc(struct cpif_page_pool *pool, u64 alloc_size, bool *used_tm
 #else
 static inline void cpif_page_pool_delete(struct cpif_page_pool *pool) { return; }
 static inline void cpif_page_init_tmp_page(struct cpif_page_pool *pool) { return; }
-static inline struct cpif_page_pool *cpif_page_pool_create(u64 num_page) { return NULL; }
+static inline struct cpif_page_pool *cpif_page_pool_create(u64 num_page,
+					u64 page_size) { return NULL; }
 static inline void *cpif_cur_page_base(struct cpif_page_pool *pool,
 				       bool used_tmp_alloc) { return NULL; }
 static inline void *cpif_page_alloc(struct cpif_page_pool *pool, u64 alloc_size,
