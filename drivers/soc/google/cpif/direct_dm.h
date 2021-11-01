@@ -86,6 +86,9 @@ struct direct_dm_ctrl {
 	struct device *dev;
 
 	u32 curr_desc_pos;
+	u32 curr_done_pos;
+
+	bool usb_req_failed;
 
 	spinlock_t rx_lock;
 	struct tasklet_struct rx_task;

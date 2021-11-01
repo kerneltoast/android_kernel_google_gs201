@@ -15,7 +15,7 @@
 
 static struct direct_dm_ctrl *_dc;
 
-static void direct_dm_rx_task(unsigned long arg);
+static void direct_dm_rx_func(unsigned long arg);
 
 /* RX timer */
 static inline void direct_dm_start_rx_timer(struct direct_dm_ctrl *dc,
@@ -45,18 +45,20 @@ static inline void direct_dm_start_rx_timer(struct direct_dm_ctrl *dc,
 
 static enum hrtimer_restart direct_dm_rx_timer(struct hrtimer *timer)
 {
+	mif_info("run rx func by timer\n");
+
 	_dc->stat.rx_timer_expire++;
 
 	if (_dc->use_rx_task)
 		tasklet_hi_schedule(&_dc->rx_task);
 	else
-		direct_dm_rx_task((unsigned long)_dc);
+		direct_dm_rx_func((unsigned long)_dc);
 
 	return HRTIMER_NORESTART;
 }
 
-/* RX task */
-static void direct_dm_rx_task(unsigned long arg)
+/* RX func */
+static void direct_dm_rx_func(unsigned long arg)
 {
 	struct direct_dm_ctrl *dc = (struct direct_dm_ctrl *)arg;
 	unsigned long paddr;
@@ -75,6 +77,11 @@ static void direct_dm_rx_task(unsigned long arg)
 	spin_lock_irqsave(&dc->rx_lock, flags);
 
 	upper_layer_req = dc->info_rgn->silent_log;
+	if (!upper_layer_req && !dc->usb_active) {
+		mif_info_limited("usb is not activated\n");
+		spin_unlock_irqrestore(&dc->rx_lock, flags);
+		return;
+	}
 
 	for (i = 0; i < dc->num_desc; i++) {
 		struct direct_dm_desc curr_desc = dc->desc_rgn[dc->curr_desc_pos];
@@ -117,7 +124,7 @@ static void direct_dm_rx_task(unsigned long arg)
 				dc->curr_desc_pos, curr_desc.length,
 				addr, paddr, curr_desc.cp_buff_paddr, upper_layer_req);
 
-		if (upper_layer_req) {
+		if (unlikely(upper_layer_req)) {
 			struct sk_buff *skb = NULL;
 			struct mem_link_device *mld;
 			int ch_id = 0;
@@ -155,18 +162,16 @@ static void direct_dm_rx_task(unsigned long arg)
 			mld->pass_skb_to_demux(mld, skb);
 
 			dc->desc_rgn[dc->curr_desc_pos].status &= ~BIT(DDM_DESC_S_DONE);
+			dc->curr_done_pos = circ_new_ptr(dc->num_desc,
+				dc->curr_done_pos, 1);
 		} else {
-			if (!dc->usb_active) {
-				mif_info_limited("usb is not activated\n");
-				break;
-			}
-
 			dc->stat.usb_req_cnt++;
 			ret = usb_dm_request(addr, curr_desc.length);
 			if (ret) {
 				mif_info_limited("usb_dm_request() ret:%d pos:%d\n",
 					ret, dc->curr_desc_pos);
 
+				dc->usb_req_failed = true;
 				dc->stat.err_usb_req++;
 				if (dc->use_rx_timer) {
 					if (unlikely(dc->enable_debug))
@@ -177,6 +182,7 @@ static void direct_dm_rx_task(unsigned long arg)
 
 				break;
 			}
+			dc->usb_req_failed = false;
 		}
 
 		dc->curr_desc_pos = circ_new_ptr(dc->num_desc,
@@ -191,6 +197,22 @@ exit:
 	spin_unlock_irqrestore(&dc->rx_lock, flags);
 }
 
+static void direct_dm_run_rx_func(struct direct_dm_ctrl *dc)
+{
+	if (!dc) {
+		mif_err_limited("dc is null\n");
+		return;
+	}
+
+	if (dc->use_rx_timer && hrtimer_active(&dc->rx_timer))
+		hrtimer_cancel(&dc->rx_timer);
+
+	if (dc->use_rx_task)
+		tasklet_hi_schedule(&dc->rx_task);
+	else
+		direct_dm_rx_func((unsigned long)dc);
+}
+
 /* IRQ handler */
 static irqreturn_t direct_dm_irq_handler(int irq, void *arg)
 {
@@ -201,10 +223,7 @@ static irqreturn_t direct_dm_irq_handler(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 
-	if (dc->use_rx_task)
-		tasklet_hi_schedule(&dc->rx_task);
-	else
-		direct_dm_rx_task((unsigned long)dc);
+	direct_dm_run_rx_func(dc);
 
 	return IRQ_HANDLED;
 }
@@ -227,10 +246,10 @@ static void direct_dm_usb_active_noti(void *arg)
 
 	spin_unlock_irqrestore(&dc->rx_lock, flags);
 
-	if (dc->use_rx_task)
-		tasklet_hi_schedule(&dc->rx_task);
-	else
-		direct_dm_rx_task((unsigned long)dc);
+	if (dc->usb_req_failed) {
+		mif_info("run rx func\n");
+		direct_dm_run_rx_func(dc);
+	}
 }
 
 static void direct_dm_usb_disable_noti(void *arg)
@@ -249,6 +268,11 @@ static void direct_dm_usb_disable_noti(void *arg)
 	dc->usb_active = false;
 
 	spin_unlock_irqrestore(&dc->rx_lock, flags);
+
+	if (dc->use_rx_timer && hrtimer_active(&dc->rx_timer)) {
+		mif_info("cancel rx timer\n");
+		hrtimer_cancel(&dc->rx_timer);
+	}
 }
 
 static void direct_dm_usb_completion_noti(void *addr, int length, void *arg)
@@ -266,8 +290,9 @@ static void direct_dm_usb_completion_noti(void *addr, int length, void *arg)
 	dc->stat.usb_complete_cnt++;
 
 	paddr = virt_to_phys(addr);
-	if (paddr < dc->buff_pbase) {
-		mif_err_limited("addr error:0x%lx 0x%lx 0x%lx 0x%x\n",
+	if ((paddr < dc->buff_pbase) ||
+		(paddr >= (dc->buff_pbase + dc->buff_rgn_size))) {
+		mif_err("addr error:0x%lx 0x%lx 0x%lx 0x%x\n",
 			addr, paddr, dc->buff_pbase, dc->buff_rgn_offset);
 		dc->stat.err_usb_complete++;
 		return;
@@ -280,11 +305,24 @@ static void direct_dm_usb_completion_noti(void *addr, int length, void *arg)
 	spin_lock_irqsave(&dc->rx_lock, flags);
 	pos = (paddr - dc->buff_pbase) / dc->max_packet_size;
 	dc->desc_rgn[pos].status &= ~BIT(DDM_DESC_S_DONE);
-	spin_unlock_irqrestore(&dc->rx_lock, flags);
+
+	if (dc->curr_done_pos != pos)
+		mif_err("pos error! pos:%d done:%d len:%d a:0x%lx/0x%lx\n",
+			pos, dc->curr_done_pos, length, addr, paddr);
+
+	if ((length <= 0) || (length > dc->max_packet_size)) {
+		mif_err_limited("length error:%d\n", length);
+		dc->usb_req_failed = true;
+	}
 
 	if (unlikely(dc->enable_debug))
-		mif_info("pos:%d len:%d a:0x%lx/0x%lx\n",
-			pos, length, addr, paddr);
+		mif_info("pos:%d done:%d len:%d a:0x%lx/0x%lx\n",
+			pos, dc->curr_done_pos, length, addr, paddr);
+
+	dc->curr_done_pos = circ_new_ptr(dc->num_desc,
+		dc->curr_done_pos, 1);
+
+	spin_unlock_irqrestore(&dc->rx_lock, flags);
 }
 
 /* sysfs */
@@ -322,6 +360,8 @@ static ssize_t ctrl_status_show(struct device *dev,
 	count += scnprintf(&buf[count], PAGE_SIZE - count,
 		"curr_desc_pos:%d\n", dc->curr_desc_pos);
 	count += scnprintf(&buf[count], PAGE_SIZE - count,
+		"curr_done_pos:%d\n", dc->curr_done_pos);
+	count += scnprintf(&buf[count], PAGE_SIZE - count,
 		"use_rx_task:%d\n", dc->use_rx_task);
 	count += scnprintf(&buf[count], PAGE_SIZE - count,
 		"use_rx_timer:%d\n", dc->use_rx_timer);
@@ -329,6 +369,8 @@ static ssize_t ctrl_status_show(struct device *dev,
 		"rx_timer_period_msec:%d\n", dc->rx_timer_period_msec);
 	count += scnprintf(&buf[count], PAGE_SIZE - count,
 		"enable_debug:%d\n", dc->enable_debug);
+	count += scnprintf(&buf[count], PAGE_SIZE - count,
+		"usb_req_failed:%d\n", dc->usb_req_failed);
 
 	return count;
 }
@@ -412,6 +454,8 @@ static ssize_t desc_rgn_show(struct device *dev,
 
 	count += scnprintf(&buf[count], PAGE_SIZE - count,
 		"curr_desc_pos:%d\n", dc->curr_desc_pos);
+	count += scnprintf(&buf[count], PAGE_SIZE - count,
+		"curr_done_pos:%d\n", dc->curr_done_pos);
 
 	for (i = 0; i < dc->num_desc; i++) {
 		count += scnprintf(&buf[count], PAGE_SIZE - count,
@@ -757,7 +801,10 @@ int direct_dm_init(struct link_device *ld)
 	memset(dc->buff_vbase, 0, dc->buff_rgn_size);
 
 	dc->curr_desc_pos = 0;
+	dc->curr_done_pos = 0;
 	_test_dm_desc_pos = 0;
+
+	dc->usb_req_failed = false;
 
 	memset(&dc->stat, 0, sizeof(dc->stat));
 
@@ -968,7 +1015,7 @@ int direct_dm_create(struct platform_device *pdev)
 
 	spin_lock_init(&dc->rx_lock);
 
-	tasklet_init(&dc->rx_task, direct_dm_rx_task, (unsigned long)dc);
+	tasklet_init(&dc->rx_task, direct_dm_rx_func, (unsigned long)dc);
 
 	spin_lock_init(&dc->rx_timer_lock);
 	hrtimer_init(&dc->rx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
