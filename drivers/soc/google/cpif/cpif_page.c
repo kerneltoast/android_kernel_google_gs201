@@ -76,7 +76,7 @@ struct cpif_page_pool *cpif_page_pool_create(u64 num_page, u64 page_size)
 	pool->page_size = page_size;
 	pool->page_order = get_order(page_size);
 
-	mif_info("num_page: %d page_size: %d page_order: %d\n",
+	mif_info("num_page: %llu page_size: %llu page_order: %llu\n",
 			num_page, page_size, pool->page_order);
 
 	for (i = 0; i < num_page; i++) {
@@ -212,7 +212,7 @@ void *cpif_page_alloc(struct cpif_page_pool *pool, u64 alloc_size, bool *used_tm
 	void *ret;
 
 	if (alloc_size > pool->page_size) {
-		mif_err_limited("requested size exceeds page size. r_size: %d p_size: %d\n",
+		mif_err_limited("requested size exceeds page size. r_size: %llu p_size: %llu\n",
 				alloc_size, pool->page_size);
 		return NULL;
 	}
@@ -225,7 +225,7 @@ void *cpif_page_alloc(struct cpif_page_pool *pool, u64 alloc_size, bool *used_tm
 		}
 	}
 
-	mif_err_limited("cannot recycle page, alloc new one with size: %d\n", pool->page_size);
+	mif_err_limited("cannot recycle page, alloc new one with size: %llu\n", pool->page_size);
 	ret = cpif_alloc_tmp_page(pool, alloc_size);
 	if (!ret) {
 		mif_err_limited("failed to tmp page alloc: return\n");

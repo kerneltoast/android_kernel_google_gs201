@@ -847,7 +847,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		bool nomem = false;
 
 		if (!csum)
-			mif_info("CSUM error on LRO: 0x%lX\n", desc_done_ptr.status);
+			mif_info("CSUM error on LRO: 0x%X\n", desc_done_ptr.status);
 
 		skb = cpif_build_skb_gro(q, src, len, &buffer_count, &nomem);
 		if (unlikely(!skb)) {
@@ -1724,7 +1724,7 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 	ppa->true_packet_size += ppa->skb_padding_size;
 	ppa->true_packet_size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-	mif_info("adjusted iommu required:%u true_packet_size:%u\n",
+	mif_info("adjusted iommu required:%u true_packet_size:%lu\n",
 		 ppa->true_packet_size, roundup_pow_of_two(ppa->true_packet_size));
 	ppa->true_packet_size = roundup_pow_of_two(ppa->true_packet_size);
 #endif
