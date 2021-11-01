@@ -71,6 +71,7 @@
 				legacy_raw_buffer_offset = <0x3000>;
 				legacy_raw_txq_size = <0x1FD000>;
 				legacy_raw_rxq_size = <0x200000>;
+				legacy_raw_rx_buffer_cached = <0>;
 
 				offset_srinfo_offset = <0x64>;
 				offset_capability_offset = <0x70>;
