@@ -434,7 +434,7 @@ int __mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx)
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 		ret = __mfc_core_prot_firmware(core, ctx);
 		if (ret)
-			goto err_fw_load;
+			goto err_fw_prot;
 #endif
 
 #if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
@@ -449,7 +449,7 @@ int __mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx)
 		ret = __mfc_verify_fw(core, 0, core->fw_buf.paddr,
 				core->fw.fw_size, core->fw_buf.size);
 		if (ret < 0)
-			goto err_init_core;
+			goto err_verify_fw;
 #endif
 #endif
 
@@ -472,14 +472,24 @@ int __mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx)
 
 err_init_core:
 #if !IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+#if IS_ENABLED(CONFIG_EXYNOS_S2MPU)
+	mfc_release_verify_fw(core);
+
+err_verify_fw:
+#endif
 	mfc_core_pm_power_off(core);
 
 err_power_on:
 #endif
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	__mfc_core_unprot_firmware(core, ctx);
-#endif
 
+err_fw_prot:
+#if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
+	imgloader_shutdown(&core->mfc_imgloader_desc);
+	mfc_core_pm_power_off(core);
+#endif
+#endif
 err_fw_load:
 	core->core_ctx[ctx->num] = 0;
 	kfree(core->core_ctx[ctx->num]);
