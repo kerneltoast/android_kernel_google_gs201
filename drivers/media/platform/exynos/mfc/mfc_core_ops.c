@@ -181,12 +181,6 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 	atomic_set(&core->hw_run_cnt, 0);
 	mfc_core_change_idle_mode(core, MFC_IDLE_MODE_NONE);
 
-	ret = mfc_alloc_common_context(core);
-	if (ret < 0) {
-		mfc_core_err("Failed to alloc common context\n");
-		goto err_common_ctx;
-	}
-
 	if (dbg_enable)
 		mfc_alloc_dbg_info_buffer(core);
 
@@ -215,9 +209,6 @@ static int __mfc_core_init(struct mfc_core *core, struct mfc_ctx *ctx)
 	return ret;
 
 err_hw_init:
-	mfc_release_common_context(core);
-
-err_common_ctx:
 	del_timer(&core->meerkat_timer);
 	del_timer(&core->mfc_idle_timer);
 
@@ -335,8 +326,6 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 
 		if (dbg_enable)
 			mfc_release_dbg_info_buffer(core);
-
-		mfc_release_common_context(core);
 
 		if (core->nal_q_handle)
 			mfc_core_nal_q_destroy(core, core->nal_q_handle);

@@ -87,8 +87,11 @@ int mfc_alloc_common_context(struct mfc_core *core)
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	ret = __mfc_alloc_common_context(core, MFCBUF_DRM);
-	if (ret)
+	if (ret) {
+		mfc_core_change_fw_state(core, 0, MFC_CTX_ALLOC, 0);
 		return ret;
+	}
+
 	mfc_core_change_fw_state(core, 1, MFC_CTX_ALLOC, 1);
 #endif
 

@@ -959,6 +959,12 @@ int mfc_rm_instance_init(struct mfc_dev *dev, struct mfc_ctx *ctx)
 			if (ret)
 				goto err_inst_init;
 		}
+
+		if (!(core->fw.status & MFC_CTX_ALLOC)) {
+			ret = mfc_alloc_common_context(core);
+			if (ret)
+				goto err_inst_init;
+		}
 	}
 
 	mfc_change_op_mode(ctx, MFC_OP_SINGLE);
