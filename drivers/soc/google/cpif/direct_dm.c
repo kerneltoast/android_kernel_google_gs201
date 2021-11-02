@@ -58,6 +58,95 @@ static enum hrtimer_restart direct_dm_rx_timer(struct hrtimer *timer)
 }
 
 /* RX func */
+static int direct_dm_send_to_upper_layer(struct direct_dm_ctrl *dc,
+	struct direct_dm_desc *curr_desc, void *addr)
+{
+	struct sk_buff *skb = NULL;
+	struct mem_link_device *mld;
+	int ch_id = 0;
+
+	if (!dc || !curr_desc || !addr) {
+		mif_err_limited("null addr\n");
+		return -ENOMEM;
+	}
+
+	dc->stat.upper_layer_req_cnt++;
+	skb = dev_alloc_skb(curr_desc->length);
+	if (unlikely(!skb)) {
+		mif_err_limited("mem_alloc_skb() error pos:%d\n",
+			dc->curr_desc_pos);
+		dc->stat.err_upper_layer_req++;
+		return -ENOMEM;
+	}
+	skb_put(skb, curr_desc->length);
+	skb_copy_to_linear_data(skb, addr, curr_desc->length);
+
+	switch (dc->ld->protocol) {
+	case PROTOCOL_SIPC:
+		ch_id = SIPC_CH_ID_CPLOG1;
+		break;
+	case PROTOCOL_SIT:
+		ch_id = EXYNOS_CH_ID_CPLOG;
+		break;
+	default:
+		mif_err_limited("protocol error:%d\n", dc->ld->protocol);
+		return -EINVAL;
+	}
+
+	skbpriv(skb)->lnk_hdr = 0;
+	skbpriv(skb)->sipc_ch = ch_id;
+	skbpriv(skb)->iod = link_get_iod_with_channel(dc->ld, ch_id);
+	skbpriv(skb)->ld = dc->ld;
+	skbpriv(skb)->napi = NULL;
+
+	mld = to_mem_link_device(dc->ld);
+	mld->pass_skb_to_demux(mld, skb);
+
+	dc->desc_rgn[dc->curr_desc_pos].status &= ~BIT(DDM_DESC_S_DONE);
+
+	dc->curr_desc_pos = circ_new_ptr(dc->num_desc,
+		dc->curr_desc_pos, 1);
+	dc->curr_done_pos = circ_new_ptr(dc->num_desc,
+		dc->curr_done_pos, 1);
+
+	return 0;
+}
+
+static int direct_dm_send_to_usb(struct direct_dm_ctrl *dc,
+	struct direct_dm_desc *curr_desc, void *addr)
+{
+	int ret = 0;
+
+	if (!dc || !curr_desc || !addr) {
+		mif_err_limited("null addr\n");
+		return -ENOMEM;
+	}
+
+	dc->stat.usb_req_cnt++;
+	ret = usb_dm_request(addr, curr_desc->length);
+	if (ret) {
+		mif_info_limited("usb_dm_request() ret:%d pos:%d\n",
+			ret, dc->curr_desc_pos);
+
+		dc->usb_req_failed = true;
+		dc->stat.err_usb_req++;
+		if (dc->use_rx_timer) {
+			if (unlikely(dc->enable_debug))
+				mif_info("start timer\n");
+
+			direct_dm_start_rx_timer(dc, &dc->rx_timer);
+		}
+
+		return ret;
+	}
+	dc->usb_req_failed = false;
+
+	dc->curr_desc_pos = circ_new_ptr(dc->num_desc,
+		dc->curr_desc_pos, 1);
+
+	return 0;
+}
+
 static void direct_dm_rx_func(unsigned long arg)
 {
 	struct direct_dm_ctrl *dc = (struct direct_dm_ctrl *)arg;
@@ -125,72 +214,18 @@ static void direct_dm_rx_func(unsigned long arg)
 				addr, paddr, curr_desc.cp_buff_paddr, upper_layer_req);
 
 		if (unlikely(upper_layer_req)) {
-			struct sk_buff *skb = NULL;
-			struct mem_link_device *mld;
-			int ch_id = 0;
-
-			dc->stat.upper_layer_req_cnt++;
-			skb = dev_alloc_skb(curr_desc.length);
-			if (unlikely(!skb)) {
-				mif_err_limited("mem_alloc_skb() error pos:%d\n",
-					dc->curr_desc_pos);
-				dc->stat.err_upper_layer_req++;
+			ret = direct_dm_send_to_upper_layer(dc, &curr_desc, addr);
+			if (ret)
 				break;
-			}
-			skb_put(skb, curr_desc.length);
-			skb_copy_to_linear_data(skb, addr, curr_desc.length);
-
-			switch (dc->ld->protocol) {
-			case PROTOCOL_SIPC:
-				ch_id = SIPC_CH_ID_CPLOG1;
-				break;
-			case PROTOCOL_SIT:
-				ch_id = EXYNOS_CH_ID_CPLOG;
-				break;
-			default:
-				mif_err_limited("protocol error:%d\n", dc->ld->protocol);
-				goto exit;
-			}
-
-			skbpriv(skb)->lnk_hdr = 0;
-			skbpriv(skb)->sipc_ch = ch_id;
-			skbpriv(skb)->iod = link_get_iod_with_channel(dc->ld, ch_id);
-			skbpriv(skb)->ld = dc->ld;
-			skbpriv(skb)->napi = NULL;
-
-			mld = to_mem_link_device(dc->ld);
-			mld->pass_skb_to_demux(mld, skb);
-
-			dc->desc_rgn[dc->curr_desc_pos].status &= ~BIT(DDM_DESC_S_DONE);
-			dc->curr_done_pos = circ_new_ptr(dc->num_desc,
-				dc->curr_done_pos, 1);
 		} else {
-			dc->stat.usb_req_cnt++;
-			ret = usb_dm_request(addr, curr_desc.length);
-			if (ret) {
-				mif_info_limited("usb_dm_request() ret:%d pos:%d\n",
-					ret, dc->curr_desc_pos);
-
-				dc->usb_req_failed = true;
-				dc->stat.err_usb_req++;
-				if (dc->use_rx_timer) {
-					if (unlikely(dc->enable_debug))
-						mif_info("start timer\n");
-
-					direct_dm_start_rx_timer(dc, &dc->rx_timer);
-				}
-
+			ret = direct_dm_send_to_usb(dc, &curr_desc, addr);
+			if (ret)
 				break;
-			}
-			dc->usb_req_failed = false;
 		}
 
-		dc->curr_desc_pos = circ_new_ptr(dc->num_desc,
-			dc->curr_desc_pos, 1);
 		rcvd++;
 	}
 
-exit:
 	if (unlikely(dc->enable_debug))
 		mif_info("rcvd:%d\n", rcvd);
 
