@@ -64,10 +64,22 @@ dtbo-$(CONFIG_BOARD_CLOUDRIPPER) += \
         gs201-ravenclaw-dev1_1.dtbo \
         gs201-cheetah-proto1.dtbo \
         gs201-cheetah-proto1_1.dtbo \
-	gs201-cheetah-proto1_1-wingboard.dtbo \
+        gs201-cheetah-proto1_1-wingboard.dtbo \
+        gs201-cheetah-evt1.dtbo \
+        gs201-cheetah-evt1-wingboard.dtbo \
+        gs201-cheetah-evt1_1.dtbo \
+        gs201-cheetah-dvt1.dtbo \
+        gs201-cheetah-pvt1.dtbo \
+        gs201-cheetah-mp.dtbo \
         gs201-panther-proto1.dtbo \
         gs201-panther-proto1_1.dtbo \
-        gs201-panther-proto1_1-wingboard.dtbo
+        gs201-panther-proto1_1-wingboard.dtbo \
+        gs201-panther-evt1.dtbo \
+        gs201-panther-evt1-wingboard.dtbo \
+        gs201-panther-evt1_1.dtbo \
+        gs201-panther-dvt1.dtbo \
+        gs201-panther-pvt1.dtbo \
+        gs201-panther-mp.dtbo
 
 dtbo-$(CONFIG_BOARD_GS201_EMULATOR) += \
         gs201-emulator.dtbo
@@ -81,9 +93,21 @@ gs201-ravenclaw-dev1_1.dtbo-base := gs201-a0.dtb
 gs201-cheetah-proto1.dtbo-base := gs201-a0.dtb
 gs201-cheetah-proto1_1.dtbo-base := gs201-a0.dtb
 gs201-cheetah-proto1_1-wingboard.dtbo-base := gs201-a0.dtb
+gs201-cheetah-evt1.dtbo-base := gs201-a0.dtb
+gs201-cheetah-evt1-wingboard.dtbo-base := gs201-a0.dtb
+gs201-cheetah-evt1_1.dtbo-base := gs201-a0.dtb
+gs201-cheetah-dvt1.dtbo-base := gs201-a0.dtb
+gs201-cheetah-pvt1.dtbo-base := gs201-a0.dtb
+gs201-cheetah-mp.dtbo-base := gs201-a0.dtb
 gs201-panther-proto1.dtbo-base := gs201-a0.dtb
 gs201-panther-proto1_1.dtbo-base := gs201-a0.dtb
 gs201-panther-proto1_1-wingboard.dtbo-base := gs201-a0.dtb
+gs201-panther-evt1.dtbo-base := gs201-a0.dtb
+gs201-panther-evt1-wingboard.dtbo-base := gs201-a0.dtb
+gs201-panther-evt1_1.dtbo-base := gs201-a0.dtb
+gs201-panther-dvt1.dtbo-base := gs201-a0.dtb
+gs201-panther-pvt1.dtbo-base := gs201-a0.dtb
+gs201-panther-mp.dtbo-base := gs201-a0.dtb
 gs201-emulator.dtbo-base := gs201-a0.dtb
 gs201-hybrid.dtbo-base := gs201-a0.dtb
 
