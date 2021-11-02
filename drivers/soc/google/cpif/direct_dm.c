@@ -209,21 +209,31 @@ static void direct_dm_rx_func(unsigned long arg)
 				dc->max_packet_size, DMA_FROM_DEVICE);
 
 		if (unlikely(dc->enable_debug))
-			mif_info("pos:%d len:%d a:0x%lx/0x%lx/0x%lx upper_layer_req:%d\n",
+			mif_info("pos:%d len:%d a:0x%lx/0x%lx/0x%lx upper:%d done:%d\n",
 				dc->curr_desc_pos, curr_desc.length,
-				addr, paddr, curr_desc.cp_buff_paddr, upper_layer_req);
+				addr, paddr, curr_desc.cp_buff_paddr,
+				upper_layer_req, dc->desc_rgn[dc->curr_desc_pos].status);
 
 		if (unlikely(upper_layer_req)) {
 			ret = direct_dm_send_to_upper_layer(dc, &curr_desc, addr);
 			if (ret)
 				break;
+
+			rcvd++;
 		} else {
 			ret = direct_dm_send_to_usb(dc, &curr_desc, addr);
 			if (ret)
 				break;
-		}
 
-		rcvd++;
+			rcvd++;
+
+			if (dc->curr_desc_pos == dc->curr_done_pos) {
+				if (unlikely(dc->enable_debug))
+					mif_info("prev desc is enqueued:%d\n",
+						dc->curr_done_pos);
+				break;
+			}
+		}
 	}
 
 	if (unlikely(dc->enable_debug))
