@@ -28,4 +28,17 @@
 	};
 };
 
+&dsim_modes {
+	dsim-modes {
+		1080x2400 {
+			mode-name = "1080x2400";
+			pmsk = <
+				0x2 0xB3 0x2 0x5CAB /* p m s k */
+				>;
+			hs-clk = <1102>;
+			esc-clk = <20>;
+		};
+	};
+};
+
 
