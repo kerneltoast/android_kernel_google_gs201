@@ -880,39 +880,46 @@ static int power_reset_cp(struct modem_ctl *mc)
 	return 0;
 }
 
-static int check_cp_status(struct modem_ctl *mc, unsigned int count)
+static int check_cp_status(struct modem_ctl *mc, unsigned int count, bool check_msi)
 {
-	int ret = 0;
+#define STATUS_NAME(msi) (msi ? "boot_stage" : "CP2AP_WAKEUP")
+
+	struct link_device *ld = get_current_link(mc->bootd);
+	struct mem_link_device *mld = to_mem_link_device(ld);
+	bool check_done = false;
 	int cnt = 0;
 	int val;
 
-	while (1) {
-		val = mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_WAKEUP], false);
-		mif_info_limited("CP2AP_WAKEUP == %d (cnt %d)\n", val, cnt);
-
-		if (val != 0) {
-			ret = 0;
-			break;
+	do {
+		if (check_msi) {
+			val = (int)ioread32(mld->msi_reg_base +
+				offsetof(struct msi_reg_type, boot_stage));
+			if (val == BOOT_STAGE_DONE_MASK) {
+				check_done = true;
+				break;
+			}
+		} else {
+			val = mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_WAKEUP], false);
+			if (val == 1) {
+				check_done = true;
+				break;
+			}
 		}
 
-		if (++cnt >= count) {
-			mif_err("ERR! CP2AP_WAKEUP == 0 (cnt %d)\n", cnt);
-			ret = -EFAULT;
-			break;
-		}
-
+		mif_info_limited("%s == 0x%X (cnt %d)\n", STATUS_NAME(check_msi), val, cnt);
 		msleep(20);
+	} while (++cnt < count);
+
+	if (!check_done) {
+		mif_err("ERR! %s == 0x%X (cnt %d)\n", STATUS_NAME(check_msi), val, cnt);
+		return -EFAULT;
 	}
 
-	if (ret == 0)
-		mif_info("CP2AP_WAKEUP == 1 cnt: %d\n", cnt);
-	else
-		mif_err("ERR: Checking count after sending bootloader: %d\n", cnt);
-
+	mif_info("%s == 0x%X (cnt %d)\n", STATUS_NAME(check_msi), val, cnt);
 	if (cnt == 0)
 		msleep(20);
 
-	return ret;
+	return 0;
 }
 
 static int set_cp_rom_boot_img(struct mem_link_device *mld)
@@ -1020,20 +1027,36 @@ static int start_normal_boot(struct modem_ctl *mc)
 		register_pcie(ld);
 		if (mc->s51xx_pdev && mc->pcie_registered)
 			set_cp_rom_boot_img(mld);
+
+		ret = check_cp_status(mc, 200, true);
+		if (ret < 0)
+			goto status_error;
+
+		s5100_poweroff_pcie(mc, false);
+
+		ret = check_cp_status(mc, 200, false);
+		if (ret < 0)
+			goto status_error;
+
+		s5100_poweron_pcie(mc, false);
+	} else {
+		ret = check_cp_status(mc, 200, false);
+		if (ret < 0)
+			goto status_error;
+
+		register_pcie(ld);
 	}
 
-	ret = check_cp_status(mc, 200);
+status_error:
 	if (ret < 0) {
 		mif_err("ERR! check_cp_status fail (err %d)\n", ret);
 		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)
 			debug_cp_rom_boot_img(mld);
 		if (cpif_wake_lock_active(mc->ws))
 			cpif_wake_unlock(mc->ws);
+
 		return ret;
 	}
-
-	if (!(mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE))
-		register_pcie(ld);
 
 	mif_info("---\n");
 	return 0;
@@ -1211,27 +1234,41 @@ static int start_dump_boot(struct modem_ctl *mc)
 	if (err)
 		return err;
 
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE], 1, 0);
+	/* do not handle cp2ap_wakeup irq during dump process */
+	mif_disable_irq(&mc->cp_gpio_irq[CP_GPIO_IRQ_CP2AP_WAKEUP]);
+
 	if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE) {
 		register_pcie(ld);
 		if (mc->s51xx_pdev && mc->pcie_registered)
 			set_cp_rom_boot_img(mld);
+
+		err = check_cp_status(mc, 200, true);
+		if (err < 0)
+			goto status_error;
+
+		s5100_poweroff_pcie(mc, false);
+
+		err = check_cp_status(mc, 200, false);
+		if (err < 0)
+			goto status_error;
+
+		s5100_poweron_pcie(mc, false);
+	} else {
+		err = check_cp_status(mc, 200, false);
+		if (err < 0)
+			goto status_error;
+
+		register_pcie(ld);
 	}
 
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE], 1, 0);
-
-	err = check_cp_status(mc, 200);
+status_error:
 	if (err < 0) {
 		mif_err("ERR! check_cp_status fail (err %d)\n", err);
 		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)
 			debug_cp_rom_boot_img(mld);
 		return err;
 	}
-
-	/* do not handle cp2ap_wakeup irq during dump process */
-	mif_disable_irq(&mc->cp_gpio_irq[CP_GPIO_IRQ_CP2AP_WAKEUP]);
-
-	if (!(mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE))
-		register_pcie(ld);
 
 	mif_err("---\n");
 	return err;
@@ -1375,7 +1412,8 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 	if (!cpif_wake_lock_active(mc->ws))
 		cpif_wake_lock(mc->ws);
 
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_WAKEUP], 1, 5);
+	if (!boot_on)
+		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_WAKEUP], 1, 5);
 	print_mc_state(mc);
 
 	spin_lock_irqsave(&mc->pcie_tx_lock, flags);

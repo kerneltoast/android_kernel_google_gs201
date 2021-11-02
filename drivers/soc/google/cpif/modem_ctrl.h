@@ -20,6 +20,27 @@ struct msi_reg_type {
 	u32 img_addr_hi;
 	u32 img_size;
 };
+
+enum boot_stage_bit {
+	BOOT_STAGE_ROM_BIT,
+	BOOT_STAGE_PCI_LINKUP_START_BIT,
+	BOOT_STAGE_PCI_PHY_INIT_DONE_BIT,
+	BOOT_STAGE_PCI_DBI_DONE_BIT,
+	BOOT_STAGE_PCI_LTSSM_DISABLE_BIT,
+	BOOT_STAGE_PCI_LTSSM_ENABLE_BIT,
+	BOOT_STAGE_PCI_MSI_START_BIT,
+	BOOT_STAGE_PCI_WAIT_DOORBELL_BIT,
+	BOOT_STAGE_DOWNLOAD_PBL_BIT,
+	BOOT_STAGE_DOWNLOAD_PBL_DONE_BIT,
+	BOOT_STAGE_SECURITY_START_BIT,
+	BOOT_STAGE_CHECK_BL1_ID_BIT,
+	BOOT_STAGE_JUMP_BL1_BIT,
+	/* Not documented but the it is the last stage */
+	BOOT_STAGE_DONE_BIT,
+};
+
+/* Every bits of boot_stage_bit are filled */
+#define BOOT_STAGE_DONE_MASK	(BIT(BOOT_STAGE_DONE_BIT + 1) - 1)
 #endif
 
 void modem_ctrl_set_kerneltime(struct modem_ctl *mc);
