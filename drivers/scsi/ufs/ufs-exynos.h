@@ -172,6 +172,9 @@ struct exynos_ufs {
 
 	/* security_out write counter */
 	u32 security_out_wc;
+
+	/* Used to enable WB on all write requests */
+	bool always_use_wb;
 };
 
 static inline struct exynos_ufs *to_exynos_ufs(struct ufs_hba *hba)
