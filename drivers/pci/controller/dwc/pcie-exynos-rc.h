@@ -357,7 +357,7 @@ static int __maybe_unused pcie_iommu_map(unsigned long iova, phys_addr_t paddr,
 	return -ENODEV;
 }
 
-static void __maybe_unused pcie_iommu_unmap(unsigned long iova, size_t size,
+static size_t __maybe_unused pcie_iommu_unmap(unsigned long iova, size_t size,
 					    int hsi_block_num)
 {
 	pr_err("PCIe SysMMU is NOT Enabled!!!\n");

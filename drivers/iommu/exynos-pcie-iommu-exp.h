@@ -12,7 +12,7 @@
 
 int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 		   int prot, int hsi_block_num);
-void pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num);
+size_t pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num);
 
 void pcie_sysmmu_set_use_iocc(int hsi_block_num);
 void pcie_sysmmu_enable(int hsi_block_num);

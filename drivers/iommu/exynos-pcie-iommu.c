@@ -983,7 +983,7 @@ int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 }
 EXPORT_SYMBOL_GPL(pcie_iommu_map);
 
-void pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num)
+size_t pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num)
 {
 	struct exynos_iommu_domain *domain =
 				g_sysmmu_drvdata[hsi_block_num]->domain;
@@ -1019,7 +1019,7 @@ void pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num)
 	if (!IS_ALIGNED(iova | size, min_pagesz)) {
 		pr_err("unaligned: iova 0x%lx size 0x%zx min_pagesz 0x%x\n",
 		       iova, size, min_pagesz);
-		return;
+		return -EINVAL;
 	}
 
 	pr_debug("unmap this: iova 0x%lx size 0x%zx\n", iova, size);
@@ -1060,6 +1060,8 @@ void pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num)
 
 	pr_debug("UNMAPPED : req 0x%lx(0x%lx) size 0x%zx(0x%zx)\n",
 		 changed_iova, orig_iova, size, orig_size);
+
+	return unmapped;
 }
 EXPORT_SYMBOL_GPL(pcie_iommu_unmap);
 
