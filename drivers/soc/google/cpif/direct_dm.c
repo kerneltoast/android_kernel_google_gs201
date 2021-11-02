@@ -311,6 +311,7 @@ static void direct_dm_usb_disable_noti(void *arg)
 
 	mif_info("usb is deactivated\n");
 	dc->usb_active = false;
+	dc->usb_req_failed = true;
 
 	spin_unlock_irqrestore(&dc->rx_lock, flags);
 
