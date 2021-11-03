@@ -170,8 +170,8 @@ static int s2mpg13_spmic_thermal_set_trips(void *data, int low_temp,
 	struct s2mpg13_spmic_thermal_sensor *s = data;
 	struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_thermal = s->chip;
 	struct device *dev = s2mpg13_spmic_thermal->dev;
-	int emul_temp, low_volt, ret = 0;
-	u8 raw;
+	int emul_temp, low_volt, high_volt, ret = 0;
+	u8 low_raw, high_raw;
 
 	/* Set threshold to extreme value when emul_temp set */
 	emul_temp = s->emul_temperature;
@@ -180,21 +180,25 @@ static int s2mpg13_spmic_thermal_set_trips(void *data, int low_temp,
 		low_temp = INT_MIN;
 	}
 
-	/*
-	 * Ignore low_temp, and assuming trips are
-	 * configured with passive for polling
-	 */
-	low_volt = s2mpg13_map_temp_volt(high_temp);
-
-	raw = low_volt >> 4 & 0xFF;
+	low_volt = s2mpg13_map_temp_volt(low_temp);
+	low_raw = low_volt >> 4 & 0xFF;
 	ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->i2c,
-				S2MPG13_METER_NTC_OT_WARN0 + s->adc_chan, raw);
+				S2MPG13_METER_NTC_UT_WARN0 + s->adc_chan, low_raw);
+	if (ret)
+		return ret;
+
+	high_volt = s2mpg13_map_temp_volt(high_temp);
+	high_raw = high_volt >> 4 & 0xFF;
+	ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->i2c,
+				S2MPG13_METER_NTC_OT_WARN0 + s->adc_chan, high_raw);
+	if (ret)
+		return ret;
 
 	dev_dbg_ratelimited(dev,
-			    "low_temp(mdegC):%d, high_temp(mdegC):%d adc:%d ret:%d\n",
-			    low_temp, high_temp, raw, ret);
+		"low_temp(mdegC):%d, high_temp(mdegC):%d low_adc:%d high_adc:%d\n",
+		low_temp, high_temp, low_raw, high_raw);
 
-	return ret;
+	return 0;
 }
 
 static int
