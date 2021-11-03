@@ -25,30 +25,18 @@
 #include "mfc_mem.h"
 
 /* Initialize hardware */
-static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type)
+int mfc_core_run_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type)
 {
 	int fw_ver;
 	int ret = 0;
-	int curr_ctx_is_drm_backup;
 
-	mfc_core_debug_enter();
-
-	curr_ctx_is_drm_backup = core->curr_core_ctx_is_drm;
-
-	if (!core->fw_buf.sgt)
-		return -EINVAL;
-
-	/* At init time, do not call secure API */
-	if (buf_type == MFCBUF_NORMAL)
-		core->curr_core_ctx_is_drm = 0;
-	else if (buf_type == MFCBUF_DRM)
-		core->curr_core_ctx_is_drm = 1;
+	mfc_core_debug(2, "%s F/W initialize start\n",
+			buf_type == MFCBUF_DRM ? "secure" : "normal");
 
 	/* 0. MFC reset */
 	ret = mfc_core_pm_clock_on(core);
 	if (ret) {
 		mfc_core_err("Failed to enable clock before reset(%d)\n", ret);
-		core->curr_core_ctx_is_drm = curr_ctx_is_drm_backup;
 		return ret;
 	}
 	mfc_core_reg_clear(core);
@@ -100,12 +88,13 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 	if (core->fw.fimv_info != 'D' && core->fw.fimv_info != 'E')
 		core->fw.fimv_info = 'N';
 
-	mfc_core_info("[F/W] MFC v%x, %02xyy %02xmm %02xdd (%c)\n",
-		 core->core_pdata->ip_ver,
-		 mfc_core_get_fw_ver_year(),
-		 mfc_core_get_fw_ver_month(),
-		 mfc_core_get_fw_ver_date(),
-		 core->fw.fimv_info);
+	mfc_core_info("[F/W] MFC %s v%x, %02xyy %02xmm %02xdd (%c)\n",
+			buf_type == MFCBUF_DRM ? "secure" : "normal",
+			core->core_pdata->ip_ver,
+			mfc_core_get_fw_ver_year(),
+			mfc_core_get_fw_ver_month(),
+			mfc_core_get_fw_ver_date(),
+			core->fw.fimv_info);
 
 	core->fw.date = mfc_core_get_fw_ver_all();
 	/* Check MFC version and F/W version */
@@ -117,42 +106,14 @@ static int __mfc_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 		goto err_init_hw;
 	}
 
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	mfc_core_cmd_cache_flush(core);
-	if (mfc_wait_for_done_core(core, MFC_REG_R2H_CMD_CACHE_FLUSH_RET)) {
-		mfc_core_err("Failed to CACHE_FLUSH\n");
-		mfc_core_clean_dev_int_flags(core);
-		ret = -EIO;
-		goto err_init_hw;
-	}
-
-	if (buf_type == MFCBUF_DRM && !curr_ctx_is_drm_backup) {
-		core->curr_core_ctx_is_drm = curr_ctx_is_drm_backup;
-		mfc_core_protection_off(core);
-	}
-#endif
+	if (buf_type == MFCBUF_DRM)
+		mfc_core_change_fw_state(core, 1, MFC_FW_INITIALIZED, 1);
+	else
+		mfc_core_change_fw_state(core, 0, MFC_FW_INITIALIZED, 1);
 
 err_init_hw:
 	mfc_core_pm_clock_off(core);
-	core->curr_core_ctx_is_drm = curr_ctx_is_drm_backup;
 	mfc_core_debug_leave();
-
-	return ret;
-}
-
-/* Wrapper : Initialize hardware */
-int mfc_core_run_init_hw(struct mfc_core *core)
-{
-	int ret;
-
-	ret = __mfc_init_hw(core, MFCBUF_NORMAL);
-	if (ret)
-		return ret;
-
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	if (core->fw.drm_status)
-		ret = __mfc_init_hw(core, MFCBUF_DRM);
-#endif
 
 	return ret;
 }
@@ -173,9 +134,6 @@ void mfc_core_run_deinit_hw(struct mfc_core *core)
 	mfc_core_mfc_off(core);
 
 	mfc_core_pm_clock_off(core);
-
-	if (core->curr_core_ctx_is_drm)
-		mfc_core_protection_off(core);
 
 	mfc_core_debug(2, "mfc deinit completed\n");
 }

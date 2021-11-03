@@ -536,6 +536,7 @@ enum mfc_fw_status {
 	MFC_CTX_ALLOC		= (1 << 1),	// 0x2
 	MFC_FW_LOADED		= (1 << 2),	// 0x4
 	MFC_FW_VERIFIED		= (1 << 3),	// 0x8
+	MFC_FW_INITIALIZED	= (1 << 4),	// 0x10
 };
 
 struct mfc_fw {
