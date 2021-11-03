@@ -93,6 +93,13 @@
 		b10_soft_ocp_warn_dvs_mask = <0>;	/* 0 : not masked, 1 : masked */
 		b10_soft_ocp_warn_lvl = <20>; 		/* 8.5A */
 
+		/* BUCK OCP Detection */
+		buck_ocp_ctrl1 = <0xBB>;
+		buck_ocp_ctrl2 = <0xBB>;
+		buck_ocp_ctrl3 = <0xBB>;
+		buck_ocp_ctrl4 = <0xBB>;
+		buck_ocp_ctrl5 = <0xBB>;
+
 		/* RTC: wtsr/smpl */
 		wtsr_en = "enabled"; 		/* enable */
 		coldrst_en = "disabled";
@@ -725,6 +732,15 @@
 		b2_soft_ocp_warn_cnt = <0>; 	/* 0 : 2 clock, 1 : 32 clock */
 		b2_soft_ocp_warn_dvs_mask = <0>;/* 0 : not masked, 1 : masked */
 		b2_soft_ocp_warn_lvl = <18>; 	/* 12.0A */
+
+		/* BUCK OCP Detection */
+		buck_ocp_ctrl1 = <0xBB>;
+		buck_ocp_ctrl2 = <0xBB>;
+		buck_ocp_ctrl3 = <0xBB>;
+		buck_ocp_ctrl4 = <0xBB>;
+		buck_ocp_ctrl5 = <0xBB>;
+		buck_ocp_ctrl6 = <0xBB>;
+		buck_ocp_ctrl7 = <0x0B>;
 
 		/* PCTRLSEL(VGPIO) 1~11 (CONTROL_SEL#) */
 		sel_vgpio = <0x92 0x92 0x69 0x0A 0x9A 0x12
