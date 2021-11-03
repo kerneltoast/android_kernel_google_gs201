@@ -354,6 +354,21 @@ static int s2mpg13_pmic_dt_parse_pdata(struct s2mpg13_dev *iodev,
 		rdata++;
 	}
 
+	/* parse BUCK OCP Detection information */
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl1", &pdata->buck_ocp_ctrl1);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl2", &pdata->buck_ocp_ctrl2);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl3", &pdata->buck_ocp_ctrl3);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl4", &pdata->buck_ocp_ctrl4);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl5", &pdata->buck_ocp_ctrl5);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl6", &pdata->buck_ocp_ctrl6);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl7", &pdata->buck_ocp_ctrl7);
+
 	/* parse OCP_WARN information */
 	pdata->b2_ocp_warn_pin = of_get_gpio(pmic_np, 0);
 	if (pdata->b2_ocp_warn_pin < 0)
@@ -588,6 +603,47 @@ int create_s2mpg13_pmic_sysfs(struct s2mpg13_pmic *s2mpg13)
 }
 #endif
 
+void s2mpg13_ocp_detection_config(struct s2mpg13_pmic *s2mpg13,
+				  struct s2mpg13_platform_data *pdata)
+{
+	int ret;
+
+	dev_info(s2mpg13->dev, "OCP_CTRL1: 0x%x\n", pdata->buck_ocp_ctrl1);
+	ret = s2mpg13_write_reg(s2mpg13->i2c, S2MPG13_PM_OCP_CTRL1, pdata->buck_ocp_ctrl1);
+	if (ret)
+		dev_err(s2mpg13->dev, "i2c write error setting BUCK_OCP_CTRL1: %d\n", ret);
+
+	dev_info(s2mpg13->dev, "OCP_CTRL2: 0x%x\n", pdata->buck_ocp_ctrl2);
+	ret = s2mpg13_write_reg(s2mpg13->i2c, S2MPG13_PM_OCP_CTRL2, pdata->buck_ocp_ctrl2);
+	if (ret)
+		dev_err(s2mpg13->dev, "i2c write error setting BUCK_OCP_CTRL2: %d\n", ret);
+
+	dev_info(s2mpg13->dev, "OCP_CTRL3: 0x%x\n", pdata->buck_ocp_ctrl3);
+	ret = s2mpg13_write_reg(s2mpg13->i2c, S2MPG13_PM_OCP_CTRL3, pdata->buck_ocp_ctrl3);
+	if (ret)
+		dev_err(s2mpg13->dev, "i2c write error setting BUCK_OCP_CTRL3: %d\n", ret);
+
+	dev_info(s2mpg13->dev, "OCP_CTRL4: 0x%x\n", pdata->buck_ocp_ctrl4);
+	ret = s2mpg13_write_reg(s2mpg13->i2c, S2MPG13_PM_OCP_CTRL4, pdata->buck_ocp_ctrl4);
+	if (ret)
+		dev_err(s2mpg13->dev, "i2c write error setting BUCK_OCP_CTRL4: %d\n", ret);
+
+	dev_info(s2mpg13->dev, "OCP_CTRL5: 0x%x\n", pdata->buck_ocp_ctrl5);
+	ret = s2mpg13_write_reg(s2mpg13->i2c, S2MPG13_PM_OCP_CTRL5, pdata->buck_ocp_ctrl5);
+	if (ret)
+		dev_err(s2mpg13->dev, "i2c write error setting BUCK_OCP_CTRL5: %d\n", ret);
+
+	dev_info(s2mpg13->dev, "OCP_CTRL6: 0x%x\n", pdata->buck_ocp_ctrl6);
+	ret = s2mpg13_write_reg(s2mpg13->i2c, S2MPG13_PM_OCP_CTRL6, pdata->buck_ocp_ctrl6);
+	if (ret)
+		dev_err(s2mpg13->dev, "i2c write error setting BUCK_OCP_CTRL6: %d\n", ret);
+
+	dev_info(s2mpg13->dev, "OCP_CTRL7: 0x%x\n", pdata->buck_ocp_ctrl7);
+	ret = s2mpg13_write_reg(s2mpg13->i2c, S2MPG13_PM_OCP_CTRL7, pdata->buck_ocp_ctrl7);
+	if (ret)
+		dev_err(s2mpg13->dev, "i2c write error setting BUCK_OCP_CTRL7: %d\n", ret);
+}
+
 int s2mpg13_ocp_warn(struct s2mpg13_pmic *s2mpg13,
 		     struct s2mpg13_platform_data *pdata)
 {
@@ -733,6 +789,7 @@ static int s2mpg13_pmic_probe(struct platform_device *pdev)
 
 	s2mpg13->num_regulators = pdata->num_regulators;
 
+	s2mpg13_ocp_detection_config(s2mpg13, pdata);
 	ret = s2mpg13_ocp_warn(s2mpg13, pdata);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "s2mpg13_ocp_warn fail\n");

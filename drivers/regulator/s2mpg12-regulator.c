@@ -369,6 +369,17 @@ static int s2mpg12_pmic_dt_parse_pdata(struct s2mpg12_dev *iodev,
 		return -EINVAL;
 	}
 
+	/* parse BUCK OCP Detection information */
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl1", &pdata->buck_ocp_ctrl1);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl2", &pdata->buck_ocp_ctrl2);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl3", &pdata->buck_ocp_ctrl3);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl4", &pdata->buck_ocp_ctrl4);
+
+	of_property_read_u32(pmic_np, "buck_ocp_ctrl5", &pdata->buck_ocp_ctrl5);
+
 	/* parse SMPL_WARN information */
 	pdata->smpl_warn_pin = of_get_gpio(pmic_np, 0);
 	if (pdata->smpl_warn_pin < 0)
@@ -712,6 +723,38 @@ static irqreturn_t s2mpg12_buck_ocp_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+void s2mpg12_ocp_detection_config(struct s2mpg12_pmic *s2mpg12,
+				  struct s2mpg12_platform_data *pdata)
+{
+	int ret;
+
+	dev_info(s2mpg12->dev, "BUCK_OCP_CTRL1: 0x%x\n", pdata->buck_ocp_ctrl1);
+	ret = s2mpg12_write_reg(s2mpg12->i2c, S2MPG12_PM_BUCK_OCP_CTRL1, pdata->buck_ocp_ctrl1);
+	if (ret)
+		dev_err(s2mpg12->dev, "i2c write error setting BUCK_OCP_CTRL1: %d\n", ret);
+
+	dev_info(s2mpg12->dev, "BUCK_OCP_CTRL2: 0x%x\n", pdata->buck_ocp_ctrl2);
+	ret = s2mpg12_write_reg(s2mpg12->i2c, S2MPG12_PM_BUCK_OCP_CTRL2, pdata->buck_ocp_ctrl2);
+	if (ret)
+		dev_err(s2mpg12->dev, "i2c write error setting BUCK_OCP_CTRL2: %d\n", ret);
+
+	dev_info(s2mpg12->dev, "BUCK_OCP_CTRL3: 0x%x\n", pdata->buck_ocp_ctrl3);
+	ret = s2mpg12_write_reg(s2mpg12->i2c, S2MPG12_PM_BUCK_OCP_CTRL3, pdata->buck_ocp_ctrl3);
+	if (ret)
+		dev_err(s2mpg12->dev, "i2c write error setting BUCK_OCP_CTRL3: %d\n", ret);
+
+	dev_info(s2mpg12->dev, "BUCK_OCP_CTRL4: 0x%x\n", pdata->buck_ocp_ctrl4);
+	ret = s2mpg12_write_reg(s2mpg12->i2c, S2MPG12_PM_BUCK_OCP_CTRL4, pdata->buck_ocp_ctrl4);
+	if (ret)
+		dev_err(s2mpg12->dev, "i2c write error setting BUCK_OCP_CTRL4: %d\n", ret);
+
+	dev_info(s2mpg12->dev, "BUCK_OCP_CTRL5: 0x%x\n", pdata->buck_ocp_ctrl5);
+	ret = s2mpg12_write_reg(s2mpg12->i2c, S2MPG12_PM_BUCK_OCP_CTRL5, pdata->buck_ocp_ctrl5);
+	if (ret)
+		dev_err(s2mpg12->dev, "i2c write error setting BUCK_OCP_CTRL5: %d\n", ret);
+
+}
+
 int s2mpg12_smpl_warn(struct s2mpg12_pmic *s2mpg12,
 		      struct s2mpg12_platform_data *pdata)
 {
@@ -941,6 +984,7 @@ static int s2mpg12_pmic_probe(struct platform_device *pdev)
 		}
 	}
 
+	s2mpg12_ocp_detection_config(s2mpg12, pdata);
 	ret = s2mpg12_smpl_warn(s2mpg12, pdata);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "s2mpg12_smpl_warn fail\n");
