@@ -186,7 +186,7 @@ static void shmem_handle_cp_crash(struct mem_link_device *mld,
 	tpmon_stop();
 #endif
 
-	stop_net_ifaces(ld);
+	stop_net_ifaces(ld, 0);
 	purge_txq(mld);
 
 	if (cp_online(mc)) {
@@ -297,7 +297,7 @@ static void link_trigger_cp_crash(struct mem_link_device *mld, u32 crash_type,
 set_type:
 	ld->crash_reason.type = crash_type;
 
-	stop_net_ifaces(ld);
+	stop_net_ifaces(ld, 0);
 
 	if (mld->debug_info)
 		mld->debug_info();
@@ -667,6 +667,7 @@ static void cmd_phone_start_handler(struct mem_link_device *mld)
 	}
 
 	atomic_set(&ld->netif_stopped, 0);
+	ld->tx_flowctrl_mask = 0;
 
 	if (rild_ready(ld)) {
 		mif_info("%s: INIT_END -> %s\n", ld->name, mc->name);
@@ -2582,7 +2583,7 @@ static void shmem_close_tx(struct link_device *ld)
 	if (timer_pending(&mld->crash_ack_timer))
 		del_timer(&mld->crash_ack_timer);
 
-	stop_net_ifaces(ld);
+	stop_net_ifaces(ld, 0);
 	purge_txq(mld);
 }
 

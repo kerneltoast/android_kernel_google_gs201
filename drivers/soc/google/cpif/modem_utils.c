@@ -201,6 +201,11 @@ void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop)
 {
 	struct io_device *iod;
 
+	if (!msd) {
+		mif_err_limited("modem shared data does not exist\n");
+		return;
+	}
+
 	spin_lock(&msd->active_list_lock);
 	list_for_each_entry(iod, &msd->activated_ndev_list, node_ndev) {
 		if (tx_stop) {
@@ -222,36 +227,36 @@ void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop)
 	spin_unlock(&msd->active_list_lock);
 }
 
-void stop_net_ifaces(struct link_device *ld)
+bool stop_net_ifaces(struct link_device *ld, unsigned long set_mask)
 {
-	unsigned long flags;
+	bool ret = false;
 
-	spin_lock_irqsave(&ld->netif_lock, flags);
+	if (set_mask > 0)
+		cpif_set_bit(ld->tx_flowctrl_mask, set_mask);
 
 	if (!atomic_read(&ld->netif_stopped)) {
-		if (ld->msd)
-			netif_tx_flowctl(ld->msd, true);
+		mif_info("Normal netif tx queue stopped: tx_flowctrl=0x%04lx(set_bit:%lu)\n",
+			 ld->tx_flowctrl_mask, set_mask);
 
+		netif_tx_flowctl(ld->msd, true);
 		atomic_set(&ld->netif_stopped, 1);
+		ret = true;
 	}
 
-	spin_unlock_irqrestore(&ld->netif_lock, flags);
+	return ret;
 }
 
-void resume_net_ifaces(struct link_device *ld)
+void resume_net_ifaces(struct link_device *ld, unsigned long clear_mask)
 {
-	unsigned long flags;
+	cpif_clear_bit(ld->tx_flowctrl_mask, clear_mask);
 
-	spin_lock_irqsave(&ld->netif_lock, flags);
+	if (!ld->tx_flowctrl_mask && atomic_read(&ld->netif_stopped)) {
+		mif_info("Normal netif tx queue resumed: tx_flowctrl=0x%04lx(clear_bit:%lu)\n",
+			 ld->tx_flowctrl_mask, clear_mask);
 
-	if (atomic_read(&ld->netif_stopped) != 0) {
-		if (ld->msd)
-			netif_tx_flowctl(ld->msd, false);
-
+		netif_tx_flowctl(ld->msd, false);
 		atomic_set(&ld->netif_stopped, 0);
 	}
-
-	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
 /*

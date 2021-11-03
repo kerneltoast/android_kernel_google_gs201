@@ -23,53 +23,30 @@
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 void pktproc_ul_q_stop(struct pktproc_queue_ul *q)
 {
-	if (atomic_read(&q->busy) == 0) {
-		struct link_device *ld = &(q->mld->link_dev);
+	struct link_device *ld = &q->mld->link_dev;
+	unsigned long flags;
 
-		if (!test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
-			unsigned long flags;
+	mif_info("Requested stop on PKTPROC UL QUEUE %d\n", q->q_idx);
 
-			spin_lock_irqsave(&q->lock, flags);
-
-			atomic_set(&q->busy, 1);
-			set_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
-			stop_net_ifaces(ld);
-
-			spin_unlock_irqrestore(&q->lock, flags);
-
-			/* Currently,
-			 * CP is not doing anything when CP receive req_ack
-			 * command from AP. So, we'll skip this scheme.
-			 */
-			/* send_req_ack(mld, dev); */
-			mif_info_limited("PKTPROC UL QUEUE %d tx_flowctrl=0x%04lx\n",
-				q->q_idx, ld->tx_flowctrl_mask);
-		}
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	if (!atomic_read(&q->busy)) {
+		atomic_set(&q->busy, 1);
+		stop_net_ifaces(ld, TXQ_STOP_MASK);
 	}
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
 void pktproc_ul_q_start(struct pktproc_queue_ul *q)
 {
-	if (atomic_read(&q->busy) > 0) {
-		struct link_device *ld = &q->mld->link_dev;
+	struct link_device *ld = &q->mld->link_dev;
+	unsigned long flags;
 
-		if (test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
-			unsigned long flags;
+	mif_info("Requested start on PKTPROC UL QUEUE %d\n", q->q_idx);
 
-			spin_lock_irqsave(&q->lock, flags);
-
-			atomic_set(&q->busy, 0);
-			clear_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
-
-			if (ld->tx_flowctrl_mask == 0) {
-				resume_net_ifaces(ld);
-				mif_info_limited("PKTPROC UL QUEUE %d tx_flowctrl=0x%04lx\n",
-						 q->q_idx, ld->tx_flowctrl_mask);
-			}
-
-			spin_unlock_irqrestore(&q->lock, flags);
-		}
-	}
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	atomic_set(&q->busy, 0);
+	resume_net_ifaces(ld, TXQ_STOP_MASK);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
 int pktproc_under_ul_flow_ctrl(struct pktproc_queue_ul *q)
@@ -110,53 +87,36 @@ int pktproc_check_ul_flow_ctrl(struct pktproc_queue_ul *q)
 
 void sbd_txq_stop(struct sbd_ring_buffer *rb)
 {
-	if (rb->ld->is_ps_ch(rb->ch) && atomic_read(&rb->busy) == 0) {
-		struct link_device *ld = rb->ld;
+	struct link_device *ld = rb->ld;
+	unsigned long flags;
 
-		if (!test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
-			unsigned long flags;
+	if (!ld->is_ps_ch(rb->ch))
+		return;
 
-			spin_lock_irqsave(&rb->lock, flags);
+	mif_info("Requested stop on rb ch: %d name: %s\n", rb->ch, rb->iod->name);
 
-			atomic_set(&rb->busy, 1);
-			set_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
-			stop_net_ifaces(ld);
-
-			spin_unlock_irqrestore(&rb->lock, flags);
-
-			/* Currently,
-			 * CP is not doing anything when CP receive req_ack
-			 * command from AP. So, we'll skip this scheme.
-			 */
-			/* send_req_ack(mld, dev); */
-			mif_info_limited("%s, tx_flowctrl=0x%04lx\n",
-				rb->iod->name, ld->tx_flowctrl_mask);
-		}
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	if (!atomic_read(&rb->busy)) {
+		atomic_set(&rb->busy, 1);
+		stop_net_ifaces(ld, TXQ_STOP_MASK);
 	}
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
 void sbd_txq_start(struct sbd_ring_buffer *rb)
 {
-	if (rb->ld->is_ps_ch(rb->ch) && atomic_read(&rb->busy) > 0) {
-		struct link_device *ld = rb->ld;
+	struct link_device *ld = rb->ld;
+	unsigned long flags;
 
-		if (test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
-			unsigned long flags;
+	if (!ld->is_ps_ch(rb->ch))
+		return;
 
-			spin_lock_irqsave(&rb->lock, flags);
+	mif_info("Requested start on rb ch: %d name: %s\n", rb->ch, rb->iod->name);
 
-			atomic_set(&rb->busy, 0);
-			clear_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
-
-			if (ld->tx_flowctrl_mask == 0) {
-				resume_net_ifaces(ld);
-				mif_info_limited("%s, tx_flowctrl=0x%04lx\n",
-					rb->iod->name, ld->tx_flowctrl_mask);
-			}
-
-			spin_unlock_irqrestore(&rb->lock, flags);
-		}
-	}
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	atomic_set(&rb->busy, 0);
+	resume_net_ifaces(ld, TXQ_STOP_MASK);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
 int sbd_under_tx_flow_ctrl(struct sbd_ring_buffer *rb)
@@ -198,92 +158,61 @@ int sbd_check_tx_flow_ctrl(struct sbd_ring_buffer *rb)
 void txq_stop(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 {
 	struct link_device *ld = &mld->link_dev;
+	unsigned long flags;
+	bool ret = false;
 
-	if (dev->id != IPC_MAP_NORM_RAW || atomic_read(&dev->txq.busy) != 0)
+	if (dev->id == IPC_MAP_FMT)
 		return;
 
-	if (!test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
-		unsigned long flags;
+	mif_info("Requested stop on dev: %s\n", dev->name);
 
-		spin_lock_irqsave(&dev->txq.lock, flags);
-
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	if (!atomic_read(&dev->txq.busy)) {
 		atomic_set(&dev->txq.busy, 1);
-		set_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
-		stop_net_ifaces(&mld->link_dev);
+		ret = stop_net_ifaces(ld, TXQ_STOP_MASK);
+	}
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
 
-		spin_unlock_irqrestore(&dev->txq.lock, flags);
-
+	if (ret) {
+		/* notify cp that legacy buffer is stuck. required for legacy only */
 		send_req_ack(mld, dev);
-		mif_info_limited("%s: %s TXQ BUSY, tx_flowctrl_mask=0x%04lx\n",
-				 ld->name, dev->name, ld->tx_flowctrl_mask);
 	}
 }
 
 void tx_flowctrl_suspend(struct mem_link_device *mld)
 {
 	struct link_device *ld = &mld->link_dev;
+	unsigned long flags;
 
-	if (!test_bit(TX_SUSPEND_MASK, &ld->tx_flowctrl_mask)) {
-		unsigned long flags;
-		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[IPC_MAP_NORM_RAW];
-
-		spin_lock_irqsave(&dev->txq.lock, flags);
-
-		set_bit(TX_SUSPEND_MASK, &ld->tx_flowctrl_mask);
-		stop_net_ifaces(&mld->link_dev);
-
-		spin_unlock_irqrestore(&dev->txq.lock, flags);
-
-		mif_info_limited("%s: %s TX suspended, tx_flowctrl_mask=0x%04lx\n",
-			ld->name, dev->name, ld->tx_flowctrl_mask);
-	}
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	stop_net_ifaces(ld, TX_SUSPEND_MASK);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
 void txq_start(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 {
 	struct link_device *ld = &mld->link_dev;
+	unsigned long flags;
 
-	if (dev->id != IPC_MAP_NORM_RAW || atomic_read(&dev->txq.busy) == 0)
+	if (dev->id == IPC_MAP_FMT)
 		return;
 
-	if (test_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask)) {
-		unsigned long flags;
+	mif_info("Requested stop on dev: %s\n", dev->name);
 
-		spin_lock_irqsave(&dev->txq.lock, flags);
-
-		atomic_set(&dev->txq.busy, 0);
-		clear_bit(TXQ_STOP_MASK, &ld->tx_flowctrl_mask);
-
-		if (ld->tx_flowctrl_mask == 0) {
-			resume_net_ifaces(&mld->link_dev);
-			mif_info_limited("%s:%s TXQ restart, tx_flowctrl_mask=0x%04lx\n",
-					 ld->name, dev->name, ld->tx_flowctrl_mask);
-		}
-
-		spin_unlock_irqrestore(&dev->txq.lock, flags);
-	}
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	atomic_set(&dev->txq.busy, 0);
+	resume_net_ifaces(ld, TXQ_STOP_MASK);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
 void tx_flowctrl_resume(struct mem_link_device *mld)
 {
 	struct link_device *ld = &mld->link_dev;
+	unsigned long flags;
 
-	if (test_bit(TX_SUSPEND_MASK, &ld->tx_flowctrl_mask)) {
-		unsigned long flags;
-		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[IPC_MAP_NORM_RAW];
-
-		spin_lock_irqsave(&dev->txq.lock, flags);
-
-		clear_bit(TX_SUSPEND_MASK, &ld->tx_flowctrl_mask);
-
-		if (ld->tx_flowctrl_mask == 0) {
-			resume_net_ifaces(&mld->link_dev);
-			mif_info_limited("%s:%s TX resumed, tx_flowctrl_mask=0x%04lx\n",
-				ld->name, dev->name, ld->tx_flowctrl_mask);
-		}
-
-		spin_unlock_irqrestore(&dev->txq.lock, flags);
-	}
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	resume_net_ifaces(ld, TX_SUSPEND_MASK);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
 int under_tx_flow_ctrl(struct mem_link_device *mld, struct legacy_ipc_device *dev)

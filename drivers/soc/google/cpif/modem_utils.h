@@ -380,9 +380,9 @@ static inline void pr_skb(const char *tag, struct sk_buff *skb, struct link_devi
 	pr_buffer(tag, (char *)((skb)->data), (size_t)((skb)->len), length);
 }
 
-/* Stop/wake all TX queues in network interfaces */
-void stop_net_ifaces(struct link_device *ld);
-void resume_net_ifaces(struct link_device *ld);
+/* Stop/wake all normal priority TX queues in network interfaces */
+bool stop_net_ifaces(struct link_device *ld, unsigned long set_mask);
+void resume_net_ifaces(struct link_device *ld, unsigned long clear_mask);
 
 /* Get an IO device */
 struct io_device *get_iod_with_format(struct modem_shared *msd,
