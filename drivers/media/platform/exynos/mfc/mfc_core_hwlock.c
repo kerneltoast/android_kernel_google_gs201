@@ -613,13 +613,24 @@ void mfc_core_cleanup_work_bit_and_try_run(struct mfc_core_ctx *core_ctx)
 void mfc_core_cache_flush(struct mfc_core *core, int is_drm,
 		enum mfc_do_cache_flush do_cache_flush, int drm_switch)
 {
-	if (do_cache_flush == MFC_CACHEFLUSH) {
+	enum mfc_fw_status fw_status;
+
+	/*
+	 * There is no need to cache flush
+	 * after the F/W before the attribute change is un-loaded.
+	 */
+	if (is_drm)
+		fw_status = core->fw.status;
+	else
+		fw_status = core->fw.drm_status;
+
+	if (!(fw_status & MFC_FW_LOADED)) {
+		mfc_core_debug(2, "F/W has already un-loaded\n");
+	} else if (do_cache_flush == MFC_CACHEFLUSH) {
 		mfc_core_cmd_cache_flush(core);
-		if (mfc_wait_for_done_core(core,
-				MFC_REG_R2H_CMD_CACHE_FLUSH_RET)) {
+		if (mfc_wait_for_done_core(core, MFC_REG_R2H_CMD_CACHE_FLUSH_RET)) {
 			mfc_core_err("Failed to CACHE_FLUSH\n");
-			core->logging_data->cause |=
-				(1 << MFC_CAUSE_FAIL_CACHE_FLUSH);
+			core->logging_data->cause |= (1 << MFC_CAUSE_FAIL_CACHE_FLUSH);
 			call_dop(core, dump_and_stop_always, core);
 		}
 	} else if (do_cache_flush == MFC_NO_CACHEFLUSH) {
@@ -638,7 +649,7 @@ void mfc_core_cache_flush(struct mfc_core *core, int is_drm,
 		mfc_core_protection_on(core);
 	} else {
 		MFC_TRACE_CORE("DRM -> Normal\n");
-		mfc_core_debug(2, "Normal -> DRM\n");
+		mfc_core_debug(2, "DRM -> Normal need un-protection\n");
 		mfc_core_protection_off(core);
 	}
 }

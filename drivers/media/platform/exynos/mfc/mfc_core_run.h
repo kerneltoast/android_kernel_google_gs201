@@ -15,7 +15,7 @@
 
 #include "mfc_common.h"
 
-int mfc_core_run_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type);
+int mfc_core_run_init_hw(struct mfc_core *core, int is_drm);
 void mfc_core_run_deinit_hw(struct mfc_core *core);
 
 int mfc_core_run_sleep(struct mfc_core *core);

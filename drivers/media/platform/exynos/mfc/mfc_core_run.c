@@ -25,13 +25,18 @@
 #include "mfc_mem.h"
 
 /* Initialize hardware */
-int mfc_core_run_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type)
+int mfc_core_run_init_hw(struct mfc_core *core, int is_drm)
 {
+	enum mfc_buf_usage_type buf_type;
 	int fw_ver;
 	int ret = 0;
 
-	mfc_core_debug(2, "%s F/W initialize start\n",
-			buf_type == MFCBUF_DRM ? "secure" : "normal");
+	if (is_drm)
+		buf_type = MFCBUF_DRM;
+	else
+		buf_type = MFCBUF_NORMAL;
+
+	mfc_core_debug(2, "%s F/W initialize start\n", is_drm ? "secure" : "normal");
 
 	/* 0. MFC reset */
 	ret = mfc_core_pm_clock_on(core);
@@ -39,11 +44,29 @@ int mfc_core_run_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 		mfc_core_err("Failed to enable clock before reset(%d)\n", ret);
 		return ret;
 	}
-	mfc_core_reg_clear(core);
-	mfc_core_debug(2, "Done register clear\n");
 
-	if (core->curr_core_ctx_is_drm)
-		mfc_core_protection_on(core);
+	/* cache flush for previous FW */
+	if (core->curr_core_ctx_is_drm != is_drm) {
+		mfc_core_cache_flush(core, is_drm, MFC_CACHEFLUSH, 0);
+
+		mfc_core_reg_clear(core);
+		mfc_core_debug(2, "Done register clear\n");
+
+		if (is_drm) {
+			MFC_TRACE_CORE("Normal -> DRM\n");
+			mfc_core_debug(2, "Normal -> DRM need protection\n");
+			mfc_core_protection_on(core);
+		} else {
+			MFC_TRACE_CORE("DRM -> Normal\n");
+			mfc_core_debug(2, "DRM -> Normal need un-protection\n");
+			mfc_core_protection_off(core);
+		}
+	} else {
+		mfc_core_reg_clear(core);
+		mfc_core_debug(2, "Done register clear\n");
+	}
+
+	core->curr_core_ctx_is_drm = is_drm;
 
 	mfc_core_reset_mfc(core, buf_type);
 	mfc_core_debug(2, "Done MFC reset\n");
@@ -52,7 +75,7 @@ int mfc_core_run_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 	mfc_core_set_risc_base_addr(core, buf_type);
 
 	/* 2. Release reset signal to the RISC */
-	if (!(core->dev->pdata->security_ctrl && (buf_type == MFCBUF_DRM))) {
+	if (!(core->dev->pdata->security_ctrl && is_drm)) {
 		mfc_core_risc_on(core);
 
 		mfc_core_debug(2, "Will now wait for completion of firmware transfer\n");
@@ -89,7 +112,7 @@ int mfc_core_run_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 		core->fw.fimv_info = 'N';
 
 	mfc_core_info("[F/W] MFC %s v%x, %02xyy %02xmm %02xdd (%c)\n",
-			buf_type == MFCBUF_DRM ? "secure" : "normal",
+			is_drm ? "secure" : "normal",
 			core->core_pdata->ip_ver,
 			mfc_core_get_fw_ver_year(),
 			mfc_core_get_fw_ver_month(),
@@ -106,7 +129,7 @@ int mfc_core_run_init_hw(struct mfc_core *core, enum mfc_buf_usage_type buf_type
 		goto err_init_hw;
 	}
 
-	if (buf_type == MFCBUF_DRM)
+	if (is_drm)
 		mfc_core_change_fw_state(core, 1, MFC_FW_INITIALIZED, 1);
 	else
 		mfc_core_change_fw_state(core, 0, MFC_FW_INITIALIZED, 1);

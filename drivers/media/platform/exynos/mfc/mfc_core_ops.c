@@ -276,7 +276,16 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 	core->num_inst--;
 
 	/* Last normal instance */
-	if (!ctx->is_drm && (core->num_inst - core->num_drm_inst) == 0) {
+	if (!ctx->is_drm && ((core->num_inst - core->num_drm_inst) == 0)) {
+		/*
+		 * When if open and close directly without HW operation,
+		 * curr_core_ctx_is_drm can be true by other DRM instance.
+		 * At that time, do not cache flush about DRM firmware.
+		 * This is to cache flush the normal FW that will disappear(un-load)
+		 * for the next DRM operation after normal FW + HW operation.
+		 */
+		if (!core->curr_core_ctx_is_drm)
+			mfc_core_cache_flush(core, ctx->is_drm, MFC_CACHEFLUSH, 0);
 		mfc_core_change_fw_state(core, 0, MFC_FW_INITIALIZED, 0);
 #if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
 		imgloader_shutdown(&core->mfc_imgloader_desc);
@@ -290,12 +299,21 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 
 	/* Last DRM instance */
 	if (ctx->is_drm && (core->num_drm_inst == 0)) {
+		/*
+		 * When if open and close directly without HW operation,
+		 * curr_core_ctx_is_drm can be true by other normal instance.
+		 * At that time, do not cache flush about normal firmware.
+		 * This is to cache flush the DRM FW that will disappear(un-load)
+		 * for the next normal operation after DRM FW + HW operation.
+		 */
+		if (core->curr_core_ctx_is_drm)
+			mfc_core_cache_flush(core, ctx->is_drm, MFC_CACHEFLUSH, 0);
 		mfc_core_change_fw_state(core, 1, MFC_FW_INITIALIZED, 0);
 		mfc_core_protection_off(core);
-
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 		__mfc_core_unprot_firmware(core, ctx);
 #endif
+		core->curr_core_ctx_is_drm = 0;
 		mfc_core_change_fw_state(core, 1, MFC_FW_LOADED, 0);
 	}
 
@@ -463,7 +481,7 @@ int __mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx)
 		core->curr_core_ctx = ctx->num;
 		core->preempt_core_ctx = MFC_NO_INSTANCE_SET;
 
-		ret = mfc_core_run_init_hw(core, ctx->is_drm ? MFCBUF_DRM : MFCBUF_NORMAL);
+		ret = mfc_core_run_init_hw(core, ctx->is_drm);
 		if (ret)
 			goto err_init_hw;
 	}
