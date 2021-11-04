@@ -1696,72 +1696,57 @@ phy_exynos_usbdp_g2_v4_pma_check_offset_cal_code(struct exynos_usbphy_info
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03CA);
 		code =
 		USBDP_TRSV_REG03CA_LN0_MON_RX_OC_DFE_ADDER_EVEN_GET(reg);
-		pr_info("[OC] adder e       = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03CB);
 		code =
 		USBDP_TRSV_REG03CB_LN0_MON_RX_OC_DFE_ADDER_ODD_GET(reg);
-		pr_info("[OC] adder o       = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03CC);
 		code =
 		USBDP_TRSV_REG03CC_LN0_MON_RX_OC_DFE_DAC_ADDER_EVEN_GET(reg);
-		pr_info("[OC] dac_adder e/o = %02X", code);
 		code =
 		USBDP_TRSV_REG03CC_LN0_MON_RX_OC_DFE_DAC_ADDER_ODD_GET(reg);
-		pr_info("/%02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03CD);
 		code =
 		USBDP_TRSV_REG03CD_LN0_MON_RX_OC_DFE_SA_EDGE_EVEN_GET(reg);
-		pr_info("[OC] sa_edge e     = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03CE);
 		code =
 		USBDP_TRSV_REG03CE_LN0_MON_RX_OC_DFE_SA_EDGE_ODD_GET(reg);
-		pr_info("[OC] sa_edge o     = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03CF);
 		code =
 		USBDP_TRSV_REG03CF_LN0_MON_RX_OC_DFE_DAC_EDGE_ODD_GET(reg);
-		pr_info("[OC] dac_edge o/e  = %02X", code);
 		code =
 		USBDP_TRSV_REG03CF_LN0_MON_RX_OC_DFE_DAC_EDGE_EVEN_GET(reg);
-		pr_info("/%02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03D0);
 		code =
 		USBDP_TRSV_REG03D0_LN0_MON_RX_OC_DFE_SA_ERR_EVEN_GET(reg);
-		pr_info("[OC] sa_err e      = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03D1);
 		code =
 		USBDP_TRSV_REG03D1_LN0_MON_RX_OC_DFE_SA_ERR_ODD_GET(reg);
-		pr_info("[OC] sa_err o      = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03D2);
 		code =
 		USBDP_TRSV_REG03D2_LN0_MON_RX_OC_DFE_DAC_ERR_EVEN_GET(reg);
-		pr_info("[OC] dac_err e/o   = %02X", code);
 		code =
 		USBDP_TRSV_REG03D2_LN0_MON_RX_OC_DFE_DAC_ERR_ODD_GET(reg);
-		pr_info("/%02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03D3);
 		code =
 		USBDP_TRSV_REG03D3_LN0_MON_RX_OC_CTLE_GET(reg);
-		pr_info("[OC] ctle          = %02X\n", code);
 
 		/* 0x0F5C  ln0_mon_rx_oc_fail__7_0 */
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG03D7);
 		code =
 		USBDP_TRSV_REG03D7_LN0_MON_RX_OC_FAIL__7_0_GET(reg);
-		pr_info("[OC] oc_fail       = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01CB);
 		code =
 		USBDP_CMN_REG01CB_LN0_MON_RX_OC_INIT_VGA_CODE_GET(reg);
-		pr_info("[OC] oc_vga        = %02X\n", code);
 
 	} else {
 		/*
@@ -1784,72 +1769,57 @@ phy_exynos_usbdp_g2_v4_pma_check_offset_cal_code(struct exynos_usbphy_info
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07CA);
 		code =
 		USBDP_TRSV_REG07CA_LN2_MON_RX_OC_DFE_ADDER_EVEN_GET(reg);
-		pr_info("[OC] adder e       = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07CB);
 		code =
 		USBDP_TRSV_REG07CB_LN2_MON_RX_OC_DFE_ADDER_ODD_GET(reg);
-		pr_info("[OC] adder o       = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07CC);
 		code =
 		USBDP_TRSV_REG07CC_LN2_MON_RX_OC_DFE_DAC_ADDER_EVEN_GET(reg);
-		pr_info("[OC] dac_adder e/o = %02X", code);
 		code =
 		USBDP_TRSV_REG07CC_LN2_MON_RX_OC_DFE_DAC_ADDER_ODD_GET(reg);
-		pr_info("/%02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07CD);
 		code =
 		USBDP_TRSV_REG07CD_LN2_MON_RX_OC_DFE_SA_EDGE_EVEN_GET(reg);
-		pr_info("[OC] sa_edge e     = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07CE);
 		code =
 		USBDP_TRSV_REG07CE_LN2_MON_RX_OC_DFE_SA_EDGE_ODD_GET(reg);
-		pr_info("[OC] sa_edge o     = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07CF);
 		code =
 		USBDP_TRSV_REG07CF_LN2_MON_RX_OC_DFE_DAC_EDGE_ODD_GET(reg);
-		pr_info("[OC] dac_edge o/e  = %02X", code);
 		code =
 		USBDP_TRSV_REG07CF_LN2_MON_RX_OC_DFE_DAC_EDGE_EVEN_GET(reg);
-		pr_info("/%02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07D0);
 		code =
 		USBDP_TRSV_REG07D0_LN2_MON_RX_OC_DFE_SA_ERR_EVEN_GET(reg);
-		pr_info("[OC] sa_err e      = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07D1);
 		code =
 		USBDP_TRSV_REG07D1_LN2_MON_RX_OC_DFE_SA_ERR_ODD_GET(reg);
-		pr_info("[OC] sa_err o      = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07D2);
 		code =
 		USBDP_TRSV_REG07D2_LN2_MON_RX_OC_DFE_DAC_ERR_EVEN_GET(reg);
-		pr_info("[OC] dac_err e/o   = %02X", code);
 		code =
 		USBDP_TRSV_REG07D2_LN2_MON_RX_OC_DFE_DAC_ERR_ODD_GET(reg);
-		pr_info("/%02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07D3);
 		code =
 		USBDP_TRSV_REG07D3_LN2_MON_RX_OC_CTLE_GET(reg);
-		pr_info("[OC] ctle          = %02X\n", code);
 
 		/* 0x1F5C  ln2_mon_rx_oc_fail__7_0 */
 		reg = readl(regs_base + EXYNOS_USBDP_TRSV_REG07D7);
 		code =
 		USBDP_TRSV_REG07D7_LN2_MON_RX_OC_FAIL__7_0_GET(reg);
-		pr_info("[OC] oc_fail       = %02X\n", code);
 
 		reg = readl(regs_base + EXYNOS_USBDP_CMN_REG01D2);
 		code =
 		USBDP_CMN_REG01D2_LN2_MON_RX_OC_INIT_VGA_CODE_GET(reg);
-		pr_info("[OC] oc_vga        = %02X\n", code);
 	}
 
 	if (code)
@@ -3258,7 +3228,7 @@ int phy_exynos_usbdp_g2_v4_enable(struct exynos_usbphy_info *info)
 	phy_exynos_usbdp_g2_v4_tune_late(info);
 	phy_exynos_usbdp_g2_v4_pma_check_offset_cal_code(info);
 
-	pr_info("reg000:%p, reg0001:%p\n",
+	pr_info("%s: reg000:%p, reg0001:%p\n", __func__,
 		&reg_base->reg0000, &reg_base->reg0001);
 
 	return 0;

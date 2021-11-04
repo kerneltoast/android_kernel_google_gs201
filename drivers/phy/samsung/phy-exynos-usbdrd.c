@@ -610,7 +610,6 @@ static unsigned int exynos_rate_to_clk(struct exynos_usbdrd_phy *phy_drd)
 
 	clk = clk_get_rate(phy_drd->ref_clk);
 	pr_info("%s, ref_clk = %d\n", __func__, clk);
-	pr_info("%s, Whart's this\n", __func__);
 
 	/* EXYNOS_FSEL_MASK */
 	switch (clk) {
@@ -1617,6 +1616,7 @@ static void exynos_usbdrd_utmi_init(struct exynos_usbdrd_phy *phy_drd)
 	u8 otp_index;
 	u8 i;
 #endif
+
 	pr_info("%s: +++\n", __func__);
 
 	//phy reset
@@ -1660,10 +1660,6 @@ static void exynos_usbdrd_utmi_init(struct exynos_usbdrd_phy *phy_drd)
 							  otp_data[i].value);
 	}
 #endif
-	/*phy_drd->idle_ip_idx = get_idle_ip_index();*/
-	//if (phy_drd->idle_ip_idx < 0)
-	//	dev_err(phy_drd->dev, "Failed to get idle ip index\n");
-	//pr_info("%s, idle ip = %d\n", __func__, phy_drd->idle_ip_idx);
 
 	pr_info("%s: ---\n", __func__);
 }
@@ -1771,8 +1767,6 @@ static void exynos_usbdrd_pipe3_tune(struct exynos_usbdrd_phy *phy_drd,
 	struct exynos_usb_tune_param *ss_tune_param = phy_drd->usbphy_sub_info.tune_param;
 	int i;
 
-	dev_info(phy_drd->dev, "%s\n", __func__);
-
 	if (phy_state >= OTG_STATE_A_IDLE) {
 		/* for host mode */
 		for (i = 0; ss_tune_param[i].value != EXYNOS_USB_TUNE_LAST; i++) {
@@ -1800,8 +1794,6 @@ static void exynos_usbdrd_utmi_tune(struct exynos_usbdrd_phy *phy_drd,
 {
 	struct exynos_usb_tune_param *hs_tune_param = phy_drd->usbphy_info.tune_param;
 	int i;
-
-	dev_info(phy_drd->dev, "%s\n", __func__);
 
 	if (phy_state >= OTG_STATE_A_IDLE) {
 		/* for host mode */
@@ -1843,8 +1835,6 @@ void exynos_usbdrd_ldo_control(struct exynos_usbdrd_phy *phy_drd, int on)
 			__func__);
 		return;
 	}
-
-	dev_info(phy_drd->dev, "Turn %s LDOs\n", on ? "on" : "off");
 
 	if (on) {
 		ret1 = regulator_enable(phy_drd->vdd085);
@@ -1890,8 +1880,6 @@ void exynos_usbdrd_l7m_control(struct exynos_usbdrd_phy *phy_drd, int on)
 		dev_err(phy_drd->dev, "%s: not defined regulator L7M\n", __func__);
 		return;
 	}
-
-	dev_info(phy_drd->dev, "Turn %s L7M_VDD_HSI\n", on ? "on" : "off");
 
 	if (on) {
 		ret = regulator_enable(phy_drd->vdd_hsi);
@@ -2041,9 +2029,6 @@ static struct exynos_usbdrd_phy *exynos_usbdrd_get_struct(void)
 		dev = &pdev->dev;
 		of_node_put(np);
 		if (pdev) {
-			pr_info("%s: get the %s platform_device\n",
-				__func__, pdev->name);
-
 			phy_drd = dev->driver_data;
 			return phy_drd;
 		}

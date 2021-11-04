@@ -191,3 +191,12 @@ config SCSI_UFS_HPB
 	  L2P (logical to physical) map of UFS to host DRAM. The driver uses HPB
 	  read command by piggybacking physical page number for bypassing FTL (flash
 	  translation layer)'s L2P address translation.
+
+config SCSI_UFS_PIXEL_FIPS140
+	tristate "Enable FIPS 140 CMVP Module"
+	depends on m && SCSI_UFS_EXYNOS && SCSI_UFS_CRYPTO
+	help
+	  Build a module capable of executing FIPS140-2 compliant self tests of
+	  the UFS crypto engine. The module is used to execute power on self
+	  test for cases where the hardware component does not support
+	  the functionality natively.
