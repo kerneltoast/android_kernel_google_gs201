@@ -170,9 +170,7 @@
 				/* Power supplies */
 				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
 				ldo1-supply = <&slg51002_ldo1>;
-				ldo4-supply = <&slg51002_ldo4>;
 				ldo8-supply = <&slg51002_ldo8>;
-				gpio1-supply = <&slg51002_gpio1>;
 				gpio3-supply = <&slg51002_gpio3>;
 
 				clocks =
@@ -192,17 +190,13 @@
 
 				/* Power up sequence */
 				power-up-seqs =
+					"s2mpg13_ldo12",
 					"gpio3",
 					"ldo8",
 					"ldo1",
-					"gpio1",
-					"ldo4",
-					"s2mpg13_ldo12",
 					"reset",
 					"mclk_on";
 				power-up-seq-types =
-					"regulator",
-					"regulator",
 					"regulator",
 					"regulator",
 					"regulator",
@@ -212,8 +206,6 @@
 				power-up-seq-delays-us =
 					<1000
 					 0
-					 1000
-					 1000
 					 0
 					 0
 					 1000
@@ -223,17 +215,13 @@
 				power-down-seqs =
 					"mclk_off",
 					"reset",
-					"s2mpg13_ldo12",
-					"ldo4",
-					"gpio1",
 					"ldo1",
 					"ldo8",
-					"gpio3";
+					"gpio3",
+					"s2mpg13_ldo12";
 				power-down-seq-types =
 					"pinctrl",
 					"gpio",
-					"regulator",
-					"regulator",
 					"regulator",
 					"regulator",
 					"regulator",
@@ -244,9 +232,7 @@
 					 0
 					 0
 					 1000
-					 1000
-					 0
-					 1000>;
+					 0>;
 			};
 
 			/* FRONT CAMERA 3J1 */
@@ -289,9 +275,9 @@
 
 				/* Power up sequence */
 				power-up-seqs =
+					"s2mpg13_ldo12",
 					"ldo8",
 					"gpio4",
-					"s2mpg13_ldo12",
 					"mclk_on",
 					"reset";
 				power-up-seq-types =
@@ -301,7 +287,7 @@
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
-					<0
+					<1000
 					 1000
 					 1000
 					 1000
@@ -311,9 +297,9 @@
 				power-down-seqs =
 					"reset",
 					"mclk_off",
-					"s2mpg13_ldo12",
 					"gpio4",
-					"ldo8";
+					"ldo8",
+					"s2mpg13_ldo12";
 				power-down-seq-types =
 					"gpio",
 					"pinctrl",
@@ -512,12 +498,12 @@
 
 				/* Power up sequence */
 				power-up-seqs =
+					"s2mpg13_ldo12",
 					"gpio3",
 					"ldo8",
 					"ldo1",
 					"gpio1",
-					"ldo4",
-					"s2mpg13_ldo12";
+					"ldo4";
 				power-up-seq-types =
 					"regulator",
 					"regulator",
@@ -535,12 +521,12 @@
 
 				/* Power down sequence */
 				power-down-seqs =
-					"s2mpg13_ldo12",
 					"ldo4",
 					"gpio1",
 					"ldo1",
 					"ldo8",
-					"gpio3";
+					"gpio3",
+					"s2mpg13_ldo12";
 				power-down-seq-types =
 					"regulator",
 					"regulator",
