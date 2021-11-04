@@ -76,6 +76,19 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
+
+	sensor_mclk1_out: sensor-mclk1-out {
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+	sensor_mclk1_fn: sensor-mclk1-fn {
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+	sensor_mclk4_out: sensor-mclk4-out {
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
+	sensor_mclk4_fn: sensor-mclk4-fn {
+		samsung,pin-drv = <GS101_PIN_DRV_5_MA>;
+	};
 };
 
 &hsi2c_1 {
