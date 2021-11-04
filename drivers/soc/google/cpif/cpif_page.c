@@ -205,6 +205,8 @@ static void *cpif_alloc_tmp_page(struct cpif_page_pool *pool, u64 alloc_size)
 			page_order = 0;
 		}
 
+		if (tmp->page) /* unref, or possibly free the page */
+			__free_pages(tmp->page, get_order(pool->tmp_page_size));
 		tmp->page = new_pg;
 		pool->tmp_page_size = 4096 * (1 << page_order);
 		pool->using_tmp_alloc = true;
@@ -218,7 +220,6 @@ static void *cpif_alloc_tmp_page(struct cpif_page_pool *pool, u64 alloc_size)
 	if (tmp->offset < 0) { /* drained page, let pool try recycle page next time */
 		pool->using_tmp_alloc = false;
 		tmp->usable = false;
-		page_ref_dec(tmp->page);
 	}
 
 	return page_to_virt(tmp->page) + ret;
