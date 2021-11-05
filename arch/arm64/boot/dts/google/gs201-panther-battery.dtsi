@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to panther
+ *
+ * Copyright 2021 Google,LLC
+ *
+ */
+
+&google_battery {
+	google,chg-battery-capacity = <4277>;
+};
+
