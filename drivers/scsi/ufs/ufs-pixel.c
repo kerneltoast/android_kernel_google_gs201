@@ -707,7 +707,7 @@ static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
 		}
 	}
 
-	if (!(rq->cmd_flags & REQ_META) && !ufs->always_use_wb)
+	if (!(rq->cmd_flags & (REQ_META | REQ_IDLE)) && !ufs->always_use_wb)
 		return;
 
 	if (hba->dev_info.wspecversion <= 0x300)
