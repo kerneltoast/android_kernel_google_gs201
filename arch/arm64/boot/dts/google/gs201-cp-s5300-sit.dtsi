@@ -451,7 +451,11 @@
 			cp_shmem {
 				compatible = "samsung,exynos-cp-shmem";
 
-				memory-region = <&cp_rmem>, <&cp_msi_rmem>, <&cp_rmem_1>;
+				memory-region =
+					<&cp_rmem>,
+					<&cp_msi_rmem>,
+					<&cp_rmem_1>,
+					<&cp_aoc_rmem>;
 
 				cp_num = <0>;
 				use_mem_map_on_cp = <0>;
@@ -488,6 +492,14 @@
 						region,offset = <0x01C00000>;
 						region,size = <0x00400000>;
 						/* Cached info is defined by pktproc_ul itself */
+					};
+					vss_aoc {
+						region,name = "VSS_AOC";
+						region,index = <SHMEM_VSS>;
+						region,rmem = <3>;
+						region,offset = <0x00000000>;
+						region,size = <0x00003000>;
+						region,cached = <0>;
 					};
 				};
 			};
