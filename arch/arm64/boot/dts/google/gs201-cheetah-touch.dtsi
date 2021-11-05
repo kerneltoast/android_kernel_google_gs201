@@ -9,6 +9,14 @@
 #include <dt-bindings/pinctrl/samsung.h>
 #include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
 
+&m_ldo25_reg {
+	/delete-property/ regulator-always-on;
+};
+
+&m_ldo26_reg {
+	/delete-property/ regulator-always-on;
+};
+
 &spitouch {
 	status = "ok";
 
