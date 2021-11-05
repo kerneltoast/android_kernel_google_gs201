@@ -19,7 +19,7 @@
 				<&log_arrdumpreset>, <&log_arrdumppanic>,
 				<&log_slcdump>, <&log_preslcdump>,
 				<&log_itmon>;
-		panic-action = <GO_DEFAULT_ID>;
+		panic-action = <GO_S2D_ID>;
 	};
 
 	hardlockup-debugger {
