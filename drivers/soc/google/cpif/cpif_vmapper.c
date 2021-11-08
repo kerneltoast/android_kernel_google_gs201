@@ -89,7 +89,6 @@ u64 cpif_vmap_map_area(struct cpif_va_mapper *vmap, u64 item_paddr, u64 item_siz
 			u64 instance_paddr)
 {
 	int err;
-	u64 ret;
 	struct cpif_vmap_item *temp;
 
 	if (vmap->va_size == vmap->instance_size) { /* when va and pa is mapped at once */
@@ -130,19 +129,11 @@ u64 cpif_vmap_map_area(struct cpif_va_mapper *vmap, u64 item_paddr, u64 item_siz
 		temp->item_size = item_size;
 		atomic_set(&temp->ref, 1);
 		vmap->in = temp;
-
-		mif_info("first map: CP addr: 0x%lX AP addr: 0x%lX size: 0x%lX\n",
-				vmap->in->vaddr_base, vmap->in->paddr_base,
-				vmap->in->item_size);
-
-		return vmap->in->vaddr_base + vmap->in->item_size - vmap->instance_size;
-	}
-
-	/* normal case
-	 * if in's vmap item is fully mapped, enqueue that item to sequential_table,
-	 *  and create new item
-	 */
-	if (vmap->in->paddr_base != item_paddr) {
+	} else if (vmap->in->paddr_base != item_paddr) {
+		/* normal case
+		 * if in's vmap item is fully mapped, enqueue that item to
+		 * item_list and create new item
+		 */
 		u64 next_vaddr_base = vmap->in->vaddr_base + vmap->in->item_size;
 
 		if ((next_vaddr_base + item_size) >= vmap->va_end) /* back to va start */
@@ -165,14 +156,10 @@ u64 cpif_vmap_map_area(struct cpif_va_mapper *vmap, u64 item_paddr, u64 item_siz
 
 		list_add_tail(&vmap->in->item, &vmap->item_list);
 		vmap->in = temp;
-
-		ret = vmap->in->vaddr_base + vmap->in->item_size - vmap->instance_size;
-	} else { /* item "in" still has room to use, no need to iommu this time */
+	} else /* item "in" still has room to use, no need to iommu this time */
 		atomic_inc(&vmap->in->ref);
-		ret = vmap->in->vaddr_base + (instance_paddr - item_paddr);
-	}
 
-	return ret;
+	return vmap->in->vaddr_base + (instance_paddr - item_paddr);
 }
 EXPORT_SYMBOL(cpif_vmap_map_area);
 

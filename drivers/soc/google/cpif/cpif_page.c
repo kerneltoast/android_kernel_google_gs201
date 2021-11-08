@@ -46,8 +46,10 @@ void cpif_page_init_tmp_page(struct cpif_page_pool *pool)
 	if (pool->tmp_page) {
 		pool->tmp_page->usable = false;
 		pool->tmp_page->offset = 0;
-		if (pool->tmp_page->page)
+		if (pool->tmp_page->page) {
 			__free_pages(pool->tmp_page->page, get_order(pool->tmp_page_size));
+			pool->tmp_page->page = NULL;
+		}
 	}
 }
 EXPORT_SYMBOL(cpif_page_init_tmp_page);
