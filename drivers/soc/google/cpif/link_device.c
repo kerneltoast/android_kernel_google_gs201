@@ -239,11 +239,10 @@ static void handle_no_cp_crash_ack(struct timer_list *t)
 }
 
 static void link_trigger_cp_crash(struct mem_link_device *mld, u32 crash_type,
-		char *crash_reason_string)
+		char *reason)
 {
 	struct link_device *ld = &mld->link_dev;
 	struct modem_ctl *mc = ld->mc;
-	char string[CP_CRASH_INFO_SIZE];
 
 	if (!cp_online(mc) && !cp_booting(mc)) {
 		mif_err("%s: %s.state %s != ONLINE <%ps>\n",
@@ -262,56 +261,41 @@ static void link_trigger_cp_crash(struct mem_link_device *mld, u32 crash_type,
 
 	mif_stop_logging();
 
-	memset(string, 0, CP_CRASH_INFO_SIZE);
-	if (crash_reason_string)
-		strcpy(string, crash_reason_string);
 	memset(ld->crash_reason.string, 0, CP_CRASH_INFO_SIZE);
-
-	if (ld->crash_reason.type != crash_type)
-		ld->crash_reason.type = crash_type;
 
 	switch (ld->protocol) {
 	case PROTOCOL_SIPC:
-		switch (crash_type) {
-		case CRASH_REASON_USER:
-		case CRASH_REASON_MIF_TX_ERR:
-		case CRASH_REASON_MIF_RIL_BAD_CH:
-		case CRASH_REASON_MIF_RX_BAD_DATA:
-		case CRASH_REASON_MIF_FORCED:
-		case CRASH_REASON_CLD:
-			if (strlen(string))
-				strlcat(ld->crash_reason.string, string,
-						CP_CRASH_INFO_SIZE);
-			break;
-
-		default:
-			break;
-		}
-		break;
-
 	case PROTOCOL_SIT:
-		switch (crash_type) {
-		case CRASH_REASON_MIF_TX_ERR:
-		case CRASH_REASON_MIF_RIL_BAD_CH:
-		case CRASH_REASON_MIF_RX_BAD_DATA:
-		case CRASH_REASON_MIF_FORCED:
-		case CRASH_REASON_RIL_TRIGGER_CP_CRASH:
-			if (strlen(string))
-				strlcat(ld->crash_reason.string, string,
-						CP_CRASH_INFO_SIZE);
-			break;
-
-		default:
-			break;
-		}
 		break;
-
 	default:
 		mif_err("ERR - unknown protocol\n");
-		break;
+		goto set_type;
 	}
-	mif_info("CP Crash type:%d string:%s\n", crash_type,
-			ld->crash_reason.string);
+
+	switch (crash_type) {
+	case CRASH_REASON_MIF_TX_ERR:
+	case CRASH_REASON_MIF_RIL_BAD_CH:
+	case CRASH_REASON_MIF_RX_BAD_DATA:
+	case CRASH_REASON_MIF_FORCED:
+		break;
+	case CRASH_REASON_USER:
+	case CRASH_REASON_CLD:
+		if (ld->protocol != PROTOCOL_SIPC)
+			goto set_type;
+		break;
+	case CRASH_REASON_RIL_TRIGGER_CP_CRASH:
+		if (ld->protocol != PROTOCOL_SIT)
+			goto set_type;
+		break;
+	default:
+		goto set_type;
+	}
+
+	if (reason && reason[0] != '\0')
+		strlcpy(ld->crash_reason.string, reason, CP_CRASH_INFO_SIZE);
+
+set_type:
+	ld->crash_reason.type = crash_type;
 
 	stop_net_ifaces(ld);
 
