@@ -27,3 +27,4 @@
 #include "gs201-panther-touch.dtsi"
 #include "gs201-panther-thermal.dtsi"
 #include "gs201-panther-audio.dtsi"
+#include "gs101-faceauth-dma-heap.dtsi"
