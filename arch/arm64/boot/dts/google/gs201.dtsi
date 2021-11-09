@@ -1633,6 +1633,12 @@
 					type = "hot";
 				};
 			};
+			cooling-maps {
+				map0 {
+					trip = <&tpu_control_temp>;
+					cooling-device = <&tpu_cooling 0 0>;
+				};
+			};
 		};
 	};
 
