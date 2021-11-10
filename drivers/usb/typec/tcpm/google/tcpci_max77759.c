@@ -1919,11 +1919,14 @@ static int max77759_probe(struct i2c_client *client,
 	chip->in_switch_gpio = -EINVAL;
 	if (of_property_read_bool(dn, "ovp-present")) {
 		chip->in_switch_gpio = of_get_named_gpio_flags(dn, "in-switch-gpio", 0, &flags);
-		if (chip->in_switch_gpio < 0) {
-			dev_err(&client->dev, "in-switch-gpio not found\n");
-			return -EPROBE_DEFER;
-		}
+		if (chip->in_switch_gpio < 0)
+			return dev_err_probe(&client->dev, -EPROBE_DEFER,
+					     "in-switch-gpio not found\n");
 		chip->in_switch_gpio_active_high = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+		ret = gpio_direction_output(chip->in_switch_gpio, 0);
+		if (ret < 0)
+			return dev_err_probe(&client->dev, -EPROBE_DEFER,
+					     "failed to set in-switch-gpio direction output\n");
 	} else if (!of_property_read_u32(dn, "max20339,ovp", &ovp_handle)) {
 		ovp_dn = of_find_node_by_phandle(ovp_handle);
 		if (!IS_ERR_OR_NULL(ovp_dn) &&
@@ -1931,10 +1934,9 @@ static int max77759_probe(struct i2c_client *client,
 		    strncmp(ovp_status, "disabled", strlen("disabled"))) {
 			chip->in_switch_gpio = of_get_named_gpio_flags(dn, "in-switch-gpio", 0,
 								       &flags);
-			if (chip->in_switch_gpio < 0) {
-				dev_err(&client->dev, "in-switch-gpio not found\n");
-				return -EPROBE_DEFER;
-			}
+			if (chip->in_switch_gpio < 0)
+				return dev_err_probe(&client->dev, -EPROBE_DEFER,
+						     "in-switch-gpio not found\n");
 			chip->in_switch_gpio_active_high = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
 		}
 	}
