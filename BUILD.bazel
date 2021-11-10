@@ -30,6 +30,7 @@ kernel_build(
         ["**"],
         exclude = [
             ".*",
+            ".*/**",
             "BUILD.bazel",
             "**/*.bzl",
         ],
