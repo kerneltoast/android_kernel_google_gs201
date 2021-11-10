@@ -177,22 +177,22 @@ static void direct_dm_rx_func(unsigned long arg)
 
 		if (!(curr_desc.status & BIT(DDM_DESC_S_DONE))) {
 			if (unlikely(dc->enable_debug))
-				mif_info("DDM_DESC_S_DONE is not set %d 0x%lx\n",
-					dc->curr_desc_pos, curr_desc.cp_buff_paddr);
+				mif_info("DDM_DESC_S_DONE is not set %d 0x%llx\n",
+					 dc->curr_desc_pos, curr_desc.cp_buff_paddr);
 
 			break;
 		}
 
 		if (curr_desc.status & BIT(DDM_DESC_S_TOUT)) {
-			mif_err_limited("DDM_DESC_S_TOUT is set %d 0x%lx\n",
-				dc->curr_desc_pos, curr_desc.cp_buff_paddr);
+			mif_err_limited("DDM_DESC_S_TOUT is set %d 0x%llx\n",
+					dc->curr_desc_pos, curr_desc.cp_buff_paddr);
 			dc->stat.err_desc_tout++;
 		}
 
 		/* TODO: support compressed log of DM log mover H/W */
 		if (curr_desc.status & BIT(DDM_DESC_S_COMPRESSED))
-			mif_err_limited("DDM_DESC_S_COMPRESSED is set %d 0x%lx\n",
-				dc->curr_desc_pos, curr_desc.cp_buff_paddr);
+			mif_err_limited("DDM_DESC_S_COMPRESSED is set %d 0x%llx\n",
+					dc->curr_desc_pos, curr_desc.cp_buff_paddr);
 
 		if (!curr_desc.length || (curr_desc.length > dc->max_packet_size)) {
 			mif_err_limited("length error:%d\n", curr_desc.length);
@@ -209,10 +209,10 @@ static void direct_dm_rx_func(unsigned long arg)
 				dc->max_packet_size, DMA_FROM_DEVICE);
 
 		if (unlikely(dc->enable_debug))
-			mif_info("pos:%d len:%d a:0x%lx/0x%lx/0x%lx upper:%d done:%d\n",
-				dc->curr_desc_pos, curr_desc.length,
-				addr, paddr, curr_desc.cp_buff_paddr,
-				upper_layer_req, dc->desc_rgn[dc->curr_desc_pos].status);
+			mif_info("pos:%d len:%d a:%pK/0x%lx/0x%llx upper:%d done:%d\n",
+				 dc->curr_desc_pos, curr_desc.length,
+				 addr, paddr, curr_desc.cp_buff_paddr,
+				 upper_layer_req, dc->desc_rgn[dc->curr_desc_pos].status);
 
 		if (unlikely(upper_layer_req)) {
 			ret = direct_dm_send_to_upper_layer(dc, &curr_desc, addr);
@@ -338,7 +338,7 @@ static void direct_dm_usb_completion_noti(void *addr, int length, void *arg)
 	paddr = virt_to_phys(addr);
 	if ((paddr < dc->buff_pbase) ||
 		(paddr >= (dc->buff_pbase + dc->buff_rgn_size))) {
-		mif_err("addr error:0x%lx 0x%lx 0x%lx 0x%x\n",
+		mif_err("addr error:%pK 0x%lx 0x%lx 0x%x\n",
 			addr, paddr, dc->buff_pbase, dc->buff_rgn_offset);
 		dc->stat.err_usb_complete++;
 		return;
@@ -353,7 +353,7 @@ static void direct_dm_usb_completion_noti(void *addr, int length, void *arg)
 	dc->desc_rgn[pos].status &= ~BIT(DDM_DESC_S_DONE);
 
 	if (dc->curr_done_pos != pos)
-		mif_err("pos error! pos:%d done:%d len:%d a:0x%lx/0x%lx\n",
+		mif_err("pos error! pos:%d done:%d len:%d a:%pK/0x%lx\n",
 			pos, dc->curr_done_pos, length, addr, paddr);
 
 	if ((length <= 0) || (length > dc->max_packet_size)) {
@@ -362,8 +362,8 @@ static void direct_dm_usb_completion_noti(void *addr, int length, void *arg)
 	}
 
 	if (unlikely(dc->enable_debug))
-		mif_info("pos:%d done:%d len:%d a:0x%lx/0x%lx\n",
-			pos, dc->curr_done_pos, length, addr, paddr);
+		mif_info("pos:%d done:%d len:%d a:%pK/0x%lx\n",
+			 pos, dc->curr_done_pos, length, addr, paddr);
 
 	dc->curr_done_pos = circ_new_ptr(dc->num_desc,
 		dc->curr_done_pos, 1);
@@ -480,7 +480,7 @@ static ssize_t info_rgn_show(struct device *dev,
 		"silent_log:%d\n",
 		dc->info_rgn->silent_log);
 	count += scnprintf(&buf[count], PAGE_SIZE - count,
-		"cp_desc_pbase:0x%x cp_buff_pbase:0x%x\n",
+		"cp_desc_pbase:0x%llx cp_buff_pbase:0x%llx\n",
 		dc->info_rgn->cp_desc_pbase, dc->info_rgn->cp_buff_pbase);
 
 	return count;
@@ -505,7 +505,7 @@ static ssize_t desc_rgn_show(struct device *dev,
 
 	for (i = 0; i < dc->num_desc; i++) {
 		count += scnprintf(&buf[count], PAGE_SIZE - count,
-			"%d 0x%lx 0x%x 0x%x %d\n",
+			"%d 0x%llx 0x%x 0x%x %d\n",
 			i, dc->desc_rgn[i].cp_buff_paddr, dc->desc_rgn[i].control,
 			dc->desc_rgn[i].status, dc->desc_rgn[i].length);
 	}
@@ -528,7 +528,7 @@ static ssize_t enable_debug_store(struct device *dev,
 
 	ret = kstrtoint(buf, 0, &val);
 	if (ret) {
-		mif_err("kstrtoint() error:%d\n");
+		mif_err("kstrtoint() error:%d\n", ret);
 		return ret;
 	}
 
@@ -571,7 +571,7 @@ static ssize_t use_rx_task_store(struct device *dev,
 
 	ret = kstrtoint(buf, 0, &val);
 	if (ret) {
-		mif_err("kstrtoint() error:%d\n");
+		mif_err("kstrtoint() error:%d\n", ret);
 		return ret;
 	}
 
@@ -614,7 +614,7 @@ static ssize_t use_rx_timer_store(struct device *dev,
 
 	ret = kstrtoint(buf, 0, &val);
 	if (ret) {
-		mif_err("kstrtoint() error:%d\n");
+		mif_err("kstrtoint() error:%d\n", ret);
 		return ret;
 	}
 
@@ -662,7 +662,7 @@ static ssize_t rx_timer_period_msec_store(struct device *dev,
 
 	ret = kstrtoint(buf, 0, &val);
 	if (ret) {
-		mif_err("kstrtoint() error:%d\n");
+		mif_err("kstrtoint() error:%d\n", ret);
 		return ret;
 	}
 
@@ -713,7 +713,7 @@ static ssize_t test_dm_store(struct device *dev,
 
 	ret = kstrtoint(buf, 0, &val);
 	if (ret) {
-		mif_err("kstrtoint() error:%d\n");
+		mif_err("kstrtoint() error:%d\n", ret);
 		return ret;
 	}
 
@@ -726,9 +726,9 @@ static ssize_t test_dm_store(struct device *dev,
 		addr = dc->desc_rgn[_test_dm_desc_pos].cp_buff_paddr -
 			dc->buff_rgn_offset - dc->cp_ddm_pbase + dc->buff_vbase;
 
-		mif_info("pos:%d a:0x%lx/0x%lx\n",
-			_test_dm_desc_pos, addr,
-			dc->desc_rgn[_test_dm_desc_pos].cp_buff_paddr);
+		mif_info("pos:%d a:%pK/0x%llx\n",
+			 _test_dm_desc_pos, addr,
+			 dc->desc_rgn[_test_dm_desc_pos].cp_buff_paddr);
 
 		if (dc->desc_rgn[_test_dm_desc_pos].status & BIT(DDM_DESC_S_DONE)) {
 			mif_err("DDM_DESC_S_DONE is already set. pos:%d\n",
@@ -766,7 +766,7 @@ static ssize_t test_silent_log_store(struct device *dev,
 
 	ret = kstrtoint(buf, 0, &val);
 	if (ret) {
-		mif_err("kstrtoint() error:%d\n");
+		mif_err("kstrtoint() error:%d\n", ret);
 		return ret;
 	}
 
@@ -821,9 +821,9 @@ int direct_dm_init(struct link_device *ld)
 	dc->info_rgn->cp_desc_pbase = dc->cp_ddm_pbase + dc->desc_rgn_offset;
 	dc->info_rgn->cp_buff_pbase = dc->cp_ddm_pbase + dc->buff_rgn_offset;
 	mif_info("version:%d max_packet_size:%d\n",
-		dc->info_rgn->version, dc->info_rgn->max_packet_size);
-	mif_info("cp_desc_pbase:0x%x cp_buff_pbase:0x%x\n",
-		dc->info_rgn->cp_desc_pbase, dc->info_rgn->cp_buff_pbase);
+		 dc->info_rgn->version, dc->info_rgn->max_packet_size);
+	mif_info("cp_desc_pbase:0x%llx cp_buff_pbase:0x%llx\n",
+		 dc->info_rgn->cp_desc_pbase, dc->info_rgn->cp_buff_pbase);
 
 	memset(dc->desc_vbase, 0, dc->desc_rgn_size);
 	for (i = 0; i < dc->num_desc; i++) {
@@ -838,9 +838,9 @@ int direct_dm_init(struct link_device *ld)
 
 	if (unlikely(dc->enable_debug)) {
 		for (i = 0; i < dc->num_desc; i++) {
-			mif_info("%d a:0x%lx c:0x%x s:0x%x l:%d\n",
-				i, dc->desc_rgn[i].cp_buff_paddr, dc->desc_rgn[i].control,
-				dc->desc_rgn[i].status, dc->desc_rgn[i].length);
+			mif_info("%d a:0x%llx c:0x%x s:0x%x l:%d\n",
+				 i, dc->desc_rgn[i].cp_buff_paddr, dc->desc_rgn[i].control,
+				 dc->desc_rgn[i].status, dc->desc_rgn[i].length);
 		}
 	}
 

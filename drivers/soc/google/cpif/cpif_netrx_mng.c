@@ -27,9 +27,9 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	if (desc_cp_pbase == 0 || desc_ap_pbase == 0 || desc_size == 0 ||
 			databuf_cp_pbase == 0 || max_packet_size == 0 ||
 			num_packet == 0) {
-		mif_err("parameter ERR! 1: 0x%lX 2: 0x%lX 3: %d 4: 0x%lX 5: %d 6: %d\n",
-				desc_cp_pbase, desc_ap_pbase, desc_size,
-				databuf_cp_pbase, max_packet_size, num_packet);
+		mif_err("parameter ERR! 1: 0x%llX 2: 0x%llX 3: %llu 4: 0x%llX 5: %llu 6: %llu\n",
+			desc_cp_pbase, desc_ap_pbase, desc_size,
+			databuf_cp_pbase, max_packet_size, num_packet);
 		return NULL;
 	}
 
@@ -73,12 +73,12 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	/* initialize data address list */
 	INIT_LIST_HEAD(&cm->data_addr_list);
 
-	mif_info("netrx mng: num_packet: %d max_packet_size: %d total_buf_size: %d\n",
-			cm->num_packet, cm->max_packet_size, cm->total_buf_size);
-	mif_info("desc vmap: va_start: 0x%lX va_end: 0x%lX va_size: %d\n",
-		cm->desc_map->va_start, cm->desc_map->va_end, cm->desc_map->va_size);
-	mif_info("data vmap: va_start: 0x%lX va_end: 0x%lX va_size: %d\n",
-		cm->data_map->va_start, cm->data_map->va_end, cm->data_map->va_size);
+	mif_info("netrx mng: num_packet: %llu max_packet_size: %llu total_buf_size: %llu\n",
+		 cm->num_packet, cm->max_packet_size, cm->total_buf_size);
+	mif_info("desc vmap: va_start: 0x%llX va_end: 0x%llX va_size: %llu\n",
+		 cm->desc_map->va_start, cm->desc_map->va_end, cm->desc_map->va_size);
+	mif_info("data vmap: va_start: 0x%llX va_end: 0x%llX va_size: %llu\n",
+		 cm->data_map->va_start, cm->data_map->va_end, cm->data_map->va_size);
 	mif_info("data_pool: num_pages: %d\n", cm->data_pool->rpage_arr_len);
 
 	return cm;

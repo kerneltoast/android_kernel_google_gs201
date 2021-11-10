@@ -701,7 +701,8 @@ static int cpif_cdev_create_device(struct io_device *iod, const struct file_oper
 	}
 	idx++;
 
-	iod->cdevice = device_create(iod->msd->cdev_class, NULL, iod->cdev.dev, iod, iod->name);
+	iod->cdevice = device_create(iod->msd->cdev_class, NULL, iod->cdev.dev, iod,
+				     "%s", iod->name);
 	if (IS_ERR_OR_NULL(iod->cdevice)) {
 		mif_err("device_create() for %s failed\n", iod->name);
 		ret = -ENOMEM;

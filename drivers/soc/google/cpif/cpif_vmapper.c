@@ -198,9 +198,9 @@ u64 cpif_vmap_unmap_area(struct cpif_va_mapper *vmap, u64 vaddr)
 
 	if (unlikely(vaddr < target->vaddr_base || vaddr > target->vaddr_base +
 				target->item_size)) {
-		mif_err("invalid vaddr 0x%lX vbase: 0x%lX vend: 0x%lX\n",
-				vaddr, target->vaddr_base,
-				target->vaddr_base + target->item_size);
+		mif_err("invalid vaddr 0x%llX vbase: 0x%llX vend: 0x%llX\n",
+			vaddr, target->vaddr_base,
+			target->vaddr_base + target->item_size);
 		return 0;
 	}
 

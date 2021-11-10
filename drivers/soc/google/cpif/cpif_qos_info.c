@@ -101,9 +101,9 @@ static ssize_t hiprio_uid_store(struct kobject *kobj,
 			mif_err("-- failed to parse uid\n");
 			return -EINVAL;
 		}
-		mif_info("-- user requires addition of uid: %d\n", uid);
+		mif_info("-- user requires addition of uid: %ld\n", uid);
 		if (!cpif_qos_add_uid((u32)uid)) {
-			mif_err("-- Adding uid %d to hiprio list failed\n", uid);
+			mif_err("-- Adding uid %ld to hiprio list failed\n", uid);
 			return -EINVAL;
 		}
 	} else if (strstr(buf, "rm")) {
@@ -111,9 +111,9 @@ static ssize_t hiprio_uid_store(struct kobject *kobj,
 			mif_err("-- failed to parse uid\n");
 			return -EINVAL;
 		}
-		mif_info("-- user requires removal of uid: %d\n", uid);
+		mif_info("-- user requires removal of uid: %ld\n", uid);
 		if (!cpif_qos_remove_uid((u32)uid)) {
-			mif_err("-- Removing uid %d from hiprio list failed\n", uid);
+			mif_err("-- Removing uid %ld from hiprio list failed\n", uid);
 			return -EINVAL;
 		}
 	} else {
