@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile of cpif
 
+ccflags-y += -Wformat
+ccflags-y += -Wformat-zero-length
 ccflags-y += -DCONFIG_OPTION_REGION=\"$(PROJECT_REGION)\"
 subdir-ccflags-y += -I$(srctree)/$(src)
 

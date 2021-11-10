@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile of dit
 
+ccflags-y += -Wformat
+ccflags-y += -Wformat-zero-length
+
 obj-$(CONFIG_EXYNOS_DIT) += exynos_dit.o
 exynos_dit-y += dit.o dit_net.o dit_hal.o
 
