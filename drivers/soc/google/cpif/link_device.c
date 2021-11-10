@@ -1089,39 +1089,6 @@ exit:
 	spin_unlock_irqrestore(&mc->lock, flags);
 }
 
-static inline void __cancel_datalloc_timer(struct mem_link_device *mld,
-				   struct hrtimer *timer)
-{
-	struct link_device *ld = &mld->link_dev;
-	struct modem_ctl *mc = ld->mc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mc->lock, flags);
-
-	if (hrtimer_active(timer))
-		hrtimer_cancel(timer);
-
-	spin_unlock_irqrestore(&mc->lock, flags);
-}
-
-static inline void cancel_datalloc_timer(struct mem_link_device *mld)
-{
-	struct sbd_link_device *sl = &mld->sbd_link_dev;
-	struct sbd_ipc_device *ipc_dev = sl->ipc_dev;
-	int i;
-
-	for (i = 0; i < sl->num_channels; i++) {
-		struct sbd_ring_buffer *rb = &ipc_dev[i].rb[DL];
-
-		if (rb->zerocopy) {
-			struct zerocopy_adaptor *zdptr = rb->zdptr;
-
-			__cancel_datalloc_timer(mld, &zdptr->datalloc_timer);
-		}
-	}
-
-}
-
 static int tx_frames_to_rb(struct sbd_ring_buffer *rb)
 {
 	struct sk_buff_head *skb_txq = &rb->skb_q;
@@ -2111,7 +2078,6 @@ static void link_prepare_normal_boot(struct link_device *ld, struct io_device *i
 		sbd_deactivate(&mld->sbd_link_dev);
 #endif
 		cancel_tx_timer(mld, &mld->sbd_tx_timer);
-		cancel_datalloc_timer(mld);
 	}
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
@@ -3681,7 +3647,6 @@ static int set_ld_attr(struct platform_device *pdev,
 	ld->init_comm = shmem_init_comm;
 	ld->terminate_comm = NULL;
 	ld->send = shmem_send;
-	ld->reset_zerocopy = NULL;
 
 	ld->link_prepare_normal_boot = link_prepare_normal_boot;
 	ld->link_trigger_cp_crash = link_trigger_cp_crash;

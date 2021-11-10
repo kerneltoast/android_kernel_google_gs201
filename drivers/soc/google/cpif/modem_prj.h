@@ -502,9 +502,6 @@ struct link_device {
 	int (*get_cp_crash_reason)(struct link_device *ld, struct io_device *iod,
 			unsigned long arg);
 
-	/* Reset buffer & dma_addr for zerocopy */
-	void (*reset_zerocopy)(struct link_device *ld);
-
 	int (*enable_rx_int)(struct link_device *ld);
 	int (*disable_rx_int)(struct link_device *ld);
 

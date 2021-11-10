@@ -118,19 +118,11 @@ static ssize_t status_show(struct device *dev,
 			"TX ch:%d len:%d buff_size:%d rp:%d wp:%d space:%d usage:%d\n",
 			rb_tx->ch, rb_tx->len, rb_rx->buff_size,
 			*rb_tx->rp, *rb_tx->wp, rb_space(rb_tx) + 1, rb_usage(rb_tx));
-
-		if (rb_rx->zerocopy)
-			count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"RX ch:%d len:%d buff_size:%d rp:%d pre_rp:%d wp:%d, space:%d usage:%d\n",
-				rb_rx->ch, rb_rx->len, rb_rx->buff_size,
-				*rb_rx->rp, rb_rx->zdptr->pre_rp,
-				*rb_rx->wp, rb_space(rb_rx) + 1, rb_usage(rb_rx));
-		else
-			count += scnprintf(&buf[count], PAGE_SIZE - count,
-				"RX ch:%d len:%d buff_size:%d rp:%d wp:%d, space:%d usage:%d\n",
-				rb_rx->ch, rb_rx->len, rb_rx->buff_size,
-				*rb_rx->rp, *rb_rx->wp,
-				rb_space(rb_rx) + 1, rb_usage(rb_rx));
+		count += scnprintf(&buf[count], PAGE_SIZE - count,
+			"RX ch:%d len:%d buff_size:%d rp:%d wp:%d, space:%d usage:%d\n",
+			rb_rx->ch, rb_rx->len, rb_rx->buff_size,
+			*rb_rx->rp, *rb_rx->wp,
+			rb_space(rb_rx) + 1, rb_usage(rb_rx));
 	}
 
 	return count;
@@ -250,7 +242,6 @@ int init_sbd_link(struct sbd_link_device *sl)
 
 		ipc_dev->id = link_attr->id;
 		ipc_dev->ch = link_attr->ch;
-		ipc_dev->zerocopy = link_attr->zerocopy;
 
 		for (dir = 0; dir < ULDL; dir++) {
 			/*
@@ -260,7 +251,6 @@ int init_sbd_link(struct sbd_link_device *sl)
 
 			rb->sl = sl;
 			rb->lnk_hdr = link_attr->lnk_hdr;
-			rb->zerocopy = link_attr->zerocopy;
 			rb->more = false;
 			rb->total = 0;
 			rb->rcvd = 0;
@@ -423,7 +413,6 @@ int create_sbd_link_device(struct link_device *ld, struct sbd_link_device *sl,
 	sl->zmb_offset = shmem_size;
 
 	sl->num_channels = init_ctrl_tables(sl);
-	sl->reset_zerocopy_done = 1;
 
 	ret = create_sbd_mem_map(sl);
 	if (ret < 0) {

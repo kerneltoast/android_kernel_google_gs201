@@ -155,6 +155,7 @@
 #define IO_ATTR_NO_CHECK_MAXQ		(0x1 << 9) /* no need to check rxq overflow condition */
 #define IO_ATTR_DUALSIM			(0x1 << 10) /* support Dual SIM */
 #define IO_ATTR_OPTION_REGION		(0x1 << 11) /* region & operator info */
+/* Deprecated */
 #define IO_ATTR_ZEROCOPY		(0x1 << 12) /* support SW zerocopy on SBD */
 #define IO_ATTR_MULTI_CH		(0x1 << 13) /* Multi channel IO device */
 
