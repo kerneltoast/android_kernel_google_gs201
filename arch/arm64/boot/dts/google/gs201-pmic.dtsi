@@ -325,8 +325,8 @@
 
 			m_ldo5_reg: LDO5M {
 				regulator-name = "S2MPG12_LDO5";
-				regulator-min-microvolt = <450000>;
-				regulator-max-microvolt = <950000>;
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x25>;
