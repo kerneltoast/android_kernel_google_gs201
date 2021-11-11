@@ -340,8 +340,9 @@ static void exynos_pcie_vreg_control(struct exynos_pcie *exynos_pcie, bool on)
 
 		dev_dbg(dev, "[%s] regulator_enable()\n", __func__);
 	} else {
-		ret1 = regulator_disable(r_vreg1);
 		ret2 = regulator_disable(r_vreg2);
+		ret1 = regulator_disable(r_vreg1);
+
 		if (ret1 || ret2)
 			dev_err(dev, "[%s]Fail to disable PHY VREG: %d %d\n", __func__, ret1, ret2);
 		else
@@ -2201,7 +2202,9 @@ void exynos_pcie_rc_resumed_phydown(struct pcie_port *pp)
 	dev_dbg(dev, "pcie clk enable, ret value = %d\n", ret);
 
 	exynos_pcie_rc_enable_interrupts(pp, 0);
-	exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
+	if (!exynos_pcie->vreg_enable)
+		exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
+
 	exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
 
 	exynos_pcie_rc_assert_phy_reset(pp);
@@ -2636,6 +2639,8 @@ retry:
 			goto retry;
 		} else {
 			//exynos_pcie_host_v1_print_link_history(pp);
+			exynos_pcie_rc_print_link_history(pp);
+			exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
 			if (exynos_pcie->ip_ver >= 0x889000 &&
 			    exynos_pcie->ep_device_type == EP_BCM_WIFI) {
 				return -EPIPE;
@@ -2768,10 +2773,8 @@ int exynos_pcie_rc_poweron(int ch_num)
 		pinctrl_select_state(exynos_pcie->pcie_pinctrl,
 				     exynos_pcie->pin_state[PCIE_PIN_ACTIVE]);
 
-		if (!exynos_pcie->vreg_enable) {
+		if (!exynos_pcie->vreg_enable)
 			exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_ON);
-			exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
-		}
 
 		/* phy all power down clear */
 		if (exynos_pcie->phy_ops.phy_all_pwrdn_clear)
@@ -4222,8 +4225,11 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		dev_dbg(dev, "PCIe PMU ISOLATION\n");
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
-		dev_dbg(dev, "VREG OFF\n");
-		exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_OFF);
+
+		/* Turning off vreg seems to cause pcie link up failures on certain devices.
+		 * So until we root cause the issue, let's skip turning VREG off during suspend.
+		 */
+		/* exynos_pcie_vreg_control(exynos_pcie, PHY_VREG_OFF); */
 	}
 
 	return 0;
