@@ -50,11 +50,12 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	cm->total_buf_size =  (num_packet + 100) * PAGE_SIZE;
 
 	cm->desc_map = cpif_vmap_create(desc_cp_pbase, desc_size, desc_size);
+	if (!cm->desc_map)
+		goto fail_vmap;
 	cm->data_map = cpif_vmap_create(databuf_cp_pbase, cm->total_buf_size,
 					max_packet_size);
-	if (!cm->desc_map || !cm->data_map) {
-		if (cm->desc_map)
-			cpif_vmap_free(cm->desc_map);
+	if (!cm->data_map) {
+		cpif_vmap_free(cm->desc_map);
 		goto fail_vmap;
 	}
 

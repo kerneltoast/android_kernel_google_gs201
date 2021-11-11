@@ -65,7 +65,7 @@ void cpif_vmap_free(struct cpif_va_mapper *vmap)
 	}
 
 	if (vmap->out) {
-		err = cpif_iommu_unmap(vmap->out->vaddr_base, vmap->in->item_size);
+		err = cpif_iommu_unmap(vmap->out->vaddr_base, vmap->out->item_size);
 		if (err == 0)
 			mif_err("failed to unmap\n");
 		kfree(vmap->out);
