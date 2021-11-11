@@ -1364,10 +1364,6 @@ static int xmit_ipc_to_pktproc(struct mem_link_device *mld, struct sk_buff *skb)
 		goto exit;
 	}
 
-#ifdef DEBUG_MODEM_IF_LINK_TX
-	mif_pkt(skbpriv(skb)->sipc_ch, "LNK-TX", skb);
-#endif
-
 	if (!dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx))
 		dev_consume_skb_any(skb);
 
