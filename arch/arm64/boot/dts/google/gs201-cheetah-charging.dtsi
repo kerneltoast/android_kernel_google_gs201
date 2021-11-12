@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to cheetah
+ *
+ * Copyright 2021 Google,LLC
+ *
+ */
+
+
+&pca9468_dc {
+	pca9468,input-current-limit = <2500000>; /* 5A max */
+};

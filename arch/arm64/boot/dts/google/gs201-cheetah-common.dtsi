@@ -32,3 +32,4 @@
 #include "gs201-cheetah-audio.dtsi"
 #include "gs201-cheetah-battery.dtsi"
 #include "gs101-faceauth-dma-heap.dtsi"
+#include "gs201-cheetah-charging.dtsi"
