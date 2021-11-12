@@ -21,15 +21,8 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	u64 num_packet_per_page;
 	u64 total_page_count;
 
-	u64 desc_cp_pbase = desc_addr_pair->cp_addr;
-	u64 desc_ap_pbase = virt_to_phys(desc_addr_pair->ap_addr);
-
-	if (desc_cp_pbase == 0 || desc_ap_pbase == 0 || desc_size == 0 ||
-			databuf_cp_pbase == 0 || max_packet_size == 0 ||
-			num_packet == 0) {
-		mif_err("parameter ERR! 1: 0x%llX 2: 0x%llX 3: %llu 4: 0x%llX 5: %llu 6: %llu\n",
-			desc_cp_pbase, desc_ap_pbase, desc_size,
-			databuf_cp_pbase, max_packet_size, num_packet);
+	if (!desc_addr_pair) {
+		mif_err("desc addr pair not given\n");
 		return NULL;
 	}
 
@@ -49,19 +42,18 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	 */
 	cm->total_buf_size =  (num_packet + 100) * PAGE_SIZE;
 
-	cm->desc_map = cpif_vmap_create(desc_cp_pbase, desc_size, desc_size);
+	cm->desc_map = cpif_vmap_create(desc_addr_pair->cp_addr, desc_size, desc_size);
 	if (!cm->desc_map)
 		goto fail_vmap;
-	cm->data_map = cpif_vmap_create(databuf_cp_pbase, cm->total_buf_size,
-					max_packet_size);
+	cm->data_map = cpif_vmap_create(databuf_cp_pbase, cm->total_buf_size, max_packet_size);
 	if (!cm->data_map) {
 		cpif_vmap_free(cm->desc_map);
 		goto fail_vmap;
 	}
 
 	/* map descriptor region in advance */
-	temp = cpif_vmap_map_area(cm->desc_map, 0, 0, desc_ap_pbase);
-	if (temp != desc_cp_pbase)
+	temp = cpif_vmap_map_area(cm->desc_map, 0, 0, virt_to_phys(desc_addr_pair->ap_addr));
+	if (temp != desc_addr_pair->cp_addr)
 		goto fail;
 
 	/* create recycling page array */
@@ -103,6 +95,7 @@ void cpif_exit_netrx_mng(struct cpif_netrx_mng *cm)
 
 		if (cm->data_pool)
 			cpif_page_pool_delete(cm->data_pool);
+
 		cpif_vmap_free(cm->desc_map);
 		cpif_vmap_free(cm->data_map);
 		list_for_each_entry_safe(temp, temp2, &cm->data_addr_list, addr_item) {
@@ -125,6 +118,8 @@ void cpif_init_netrx_mng(struct cpif_netrx_mng *cm)
 		cpif_page_init_tmp_page(cm->data_pool);
 	}
 }
+EXPORT_SYMBOL(cpif_init_netrx_mng);
+
 struct cpif_addr_pair *cpif_map_rx_buf(struct cpif_netrx_mng *cm)
 {
 	struct page *page;
@@ -147,6 +142,7 @@ struct cpif_addr_pair *cpif_map_rx_buf(struct cpif_netrx_mng *cm)
 		mif_err_limited("failed to page alloc: return\n");
 		goto done;
 	}
+
 	page = cpif_get_cur_page(cm->data_pool, used_tmp_alloc);
 	page_size = cpif_cur_page_size(cm->data_pool, used_tmp_alloc);
 
@@ -197,20 +193,26 @@ void *cpif_unmap_rx_buf(struct cpif_netrx_mng *cm, u64 cp_addr, bool free)
 			return NULL;
 		}
 		ap_addr = phys_to_virt(ap_paddr);
+	} else {
+		spin_unlock_irqrestore(&cm->lock, flags);
+		mif_err_limited("data map does not exist\n");
+		return NULL;
 	}
 
-	apair = list_first_entry_or_null(&cm->data_addr_list, struct cpif_addr_pair,
-						addr_item);
-	if (unlikely(!apair))
-		mif_err_limited("failed to get addr pair from data addr list\n");
-	else {
-		if (ap_addr && free) {
-			__free_pages(apair->page, apair->page_order);
-			ap_addr = NULL;
-		}
-		list_del(&apair->addr_item);
-		kfree(apair);
+	apair = list_first_entry_or_null(&cm->data_addr_list, struct cpif_addr_pair, addr_item);
+	if (unlikely(!apair) || ap_addr != apair->ap_addr) {
+		spin_unlock_irqrestore(&cm->lock, flags);
+		mif_err_limited("ERR! ap_addr: %pK apair->ap_addr:%pK\n", ap_addr,
+				apair ? apair->ap_addr : 0);
+		return NULL;
 	}
+
+	if (ap_addr && free) {
+		__free_pages(apair->page, apair->page_order);
+		ap_addr = NULL;
+	}
+	list_del(&apair->addr_item);
+	kfree(apair);
 
 	spin_unlock_irqrestore(&cm->lock, flags);
 
