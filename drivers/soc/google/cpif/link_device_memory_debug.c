@@ -33,7 +33,7 @@ void print_req_ack(struct mem_link_device *mld, struct mem_snapshot *mst,
 	unsigned int usage = circ_get_usage(qsize, in, out);
 	unsigned int space = circ_get_space(qsize, in, out);
 
-	mif_err("REQ_ACK: %s%s%s: %s_%s.%d {in:%u out:%u usage:%u space:%u}\n",
+	mif_info("REQ_ACK: %s%s%s: %s_%s.%d {in:%u out:%u usage:%u space:%u}\n",
 		ld->name, arrow(dir), mc->name, dev->name, q_dir(dir),
 		dev->req_ack_cnt[dir], in, out, usage, space);
 #endif
@@ -53,7 +53,7 @@ void print_res_ack(struct mem_link_device *mld, struct mem_snapshot *mst,
 	unsigned int usage = circ_get_usage(qsize, in, out);
 	unsigned int space = circ_get_space(qsize, in, out);
 
-	mif_err("RES_ACK: %s%s%s: %s_%s.%d {in:%u out:%u usage:%u space:%u}\n",
+	mif_info("RES_ACK: %s%s%s: %s_%s.%d {in:%u out:%u usage:%u space:%u}\n",
 		ld->name, arrow(dir), mc->name, dev->name, q_dir(opp_dir),
 		dev->req_ack_cnt[opp_dir], in, out, usage, space);
 #endif
@@ -63,7 +63,7 @@ void print_mem_snapshot(struct mem_link_device *mld, struct mem_snapshot *mst)
 {
 	struct link_device *ld = &mld->link_dev;
 
-	mif_err("%s: [%s] ACC{%X %d} FMT{TI:%u TO:%u RI:%u RO:%u} RAW{TI:%u TO:%u RI:%u RO:%u} INTR{RX:0x%X TX:0x%X}\n",
+	mif_info("%s: [%s] ACC{%X %d} FMT{TI:%u TO:%u RI:%u RO:%u} RAW{TI:%u TO:%u RI:%u RO:%u} INTR{RX:0x%X TX:0x%X}\n",
 		ld->name, ipc_dir(mst->dir), mst->magic, mst->access,
 		mst->head[IPC_MAP_FMT][TX], mst->tail[IPC_MAP_FMT][TX],
 		mst->head[IPC_MAP_FMT][RX], mst->tail[IPC_MAP_FMT][RX],
@@ -81,7 +81,7 @@ void print_dev_snapshot(struct mem_link_device *mld, struct mem_snapshot *mst,
 	if (id >= IPC_MAP_MAX)
 		return;
 
-	mif_err("%s: [%s] %s | TXQ{in:%u out:%u} RXQ{in:%u out:%u} | INTR{0x%02X}\n",
+	mif_info("%s: [%s] %s | TXQ{in:%u out:%u} RXQ{in:%u out:%u} | INTR{0x%02X}\n",
 		ld->name, ipc_dir(mst->dir), dev->name,
 		mst->head[id][TX], mst->tail[id][TX],
 		mst->head[id][RX], mst->tail[id][RX],

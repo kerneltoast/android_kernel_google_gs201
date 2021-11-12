@@ -62,7 +62,7 @@ static ssize_t waketime_store(struct device *dev,
 	}
 
 	iod->waketime = msecs_to_jiffies(msec);
-	mif_err("%s: waketime = %lu ms\n", iod->name, msec);
+	mif_info("%s: waketime = %lu ms\n", iod->name, msec);
 
 	if (iod->format == IPC_MULTI_RAW) {
 		struct modem_shared *msd = iod->msd;
@@ -276,7 +276,7 @@ static int gather_multi_frame_sit(struct exynos_link_header *hdr, struct sk_buff
 	}
 
 	/* It is the last frame because the "more" bit is 0. */
-	mif_err("%s<-%s: end multi-frame (CH_ID:0x%02x rcvd:%d)\n",
+	mif_info("%s<-%s: end multi-frame (CH_ID:0x%02x rcvd:%d)\n",
 		iod->name, mc->name, hdr->ch_id, skb->len);
 
 	/* check totoal multi packet size */
@@ -415,7 +415,7 @@ static int rx_multi_pdp(struct sk_buff *skb)
 
 	skb->dev = (skbpriv(skb)->rx_clat ? iod->clat_ndev : iod->ndev);
 	if (!skb->dev || !iod->ndev) {
-		mif_info("%s: ERR! no iod->ndev\n", iod->name);
+		mif_err("%s: ERR! no iod->ndev\n", iod->name);
 		return -ENODEV;
 	}
 

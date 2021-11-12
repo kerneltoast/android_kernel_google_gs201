@@ -115,7 +115,7 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 	u32 i;
 
 	if (cpif_check_bit(dump_bits, DIT_DUMP_SNAPSHOT_BIT)) {
-		mif_err("---- SNAPSHOT[dir:%d] ----\n", dir);
+		pr_info("---- SNAPSHOT[dir:%d] ----\n", dir);
 		for (ring_num = 0; ring_num < DIT_DESC_RING_MAX; ring_num++) {
 			pr_info("%s head:%d,tail:%d\n", snapshot[dir][ring_num].name,
 				snapshot[dir][ring_num].head, snapshot[dir][ring_num].tail);
@@ -128,7 +128,7 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 		struct dit_dst_desc *dst_desc = NULL;
 
 		src_desc = desc_info->src_desc_ring;
-		mif_err("---- SRC RING[dir:%d] wp:%u,rp:%u ----\n", dir,
+		pr_info("---- SRC RING[dir:%d] wp:%u,rp:%u ----\n", dir,
 			desc_info->src_wp, desc_info->src_rp);
 		for (i = 0; i < desc_info->src_desc_ring_len; i++) {
 			if (!(src_desc[i].control & DIT_SRC_KICK_CONTROL_MASK))
@@ -139,7 +139,7 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 
 		for (ring_num = DIT_DST_DESC_RING_0; ring_num < DIT_DST_DESC_RING_MAX; ring_num++) {
 			dst_desc = desc_info->dst_desc_ring[ring_num];
-			mif_err("---- DST RING%d[dir:%d] wp:%u,rp:%u ----\n", ring_num, dir,
+			pr_info("---- DST RING%d[dir:%d] wp:%u,rp:%u ----\n", ring_num, dir,
 				desc_info->dst_wp[ring_num], desc_info->dst_rp[ring_num]);
 			for (i = 0; i < desc_info->dst_desc_ring_len; i++) {
 				if (!dst_desc[i].control && !dst_desc[i].status)
@@ -156,7 +156,7 @@ static void dit_print_dump(enum dit_direction dir, u32 dump_bits)
 		u16 reply_port_dst, reply_port_dst_h, reply_port_dst_l;
 		u16 origin_port_src;
 
-		mif_err("---- PORT TABLE[dir:%d] ----\n", dir);
+		pr_info("---- PORT TABLE[dir:%d] ----\n", dir);
 		for (i = 0; i < DIT_REG_NAT_LOCAL_PORT_MAX; i++) {
 			local_port.hw_val = READ_REG_VALUE(dc, DIT_REG_NAT_RX_PORT_TABLE_SLOT +
 					(i * DIT_REG_NAT_LOCAL_INTERVAL));
@@ -275,7 +275,7 @@ static void dit_debug_out_of_order(enum dit_direction dir, enum dit_desc_ring ri
 	seq = ntohl(*seq_p);
 
 	if (seq < last_seq[dir][ring]) {
-		mif_err("dir[%d] out of order at ring[%d] seq:0x%08x last:0x%08x\n", dir, ring,
+		pr_info("dir[%d] out of order at ring[%d] seq:0x%08x last:0x%08x\n", dir, ring,
 			seq, last_seq[dir][ring]);
 		if (++out_count[dir][ring] > 5) {
 			dit_print_dump(dir, DIT_DUMP_ALL);

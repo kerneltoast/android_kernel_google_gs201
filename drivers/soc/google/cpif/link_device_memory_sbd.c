@@ -379,7 +379,7 @@ int create_sbd_mem_map(struct sbd_link_device *sl)
 			for (idx = 0; idx < rb_len; idx++)
 				rb->buff[idx] = rb->buff_rgn + (idx * rb_buff_size);
 
-			mif_err("RB[%d:%d][%s] buff_rgn {addr:0x%pK offset:%d size:%u}\n",
+			mif_info("RB[%d:%d][%s] buff_rgn {addr:0x%pK offset:%d size:%u}\n",
 				i, sbd_id2ch(sl, i), udl_str(dir), rb->buff_rgn,
 				calc_offset(rb->buff_rgn, sl->shmem), (rb_len * rb_buff_size));
 

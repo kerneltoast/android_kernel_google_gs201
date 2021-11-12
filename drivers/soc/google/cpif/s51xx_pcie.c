@@ -174,7 +174,7 @@ void first_save_s51xx_status(struct pci_dev *pdev)
 	if (s51xx_pcie->pci_saved_configs == NULL)
 		mif_err("MSI-DBG: s51xx pcie.pci_saved_configs is NULL(s51xx config NOT saved)\n");
 	else
-		mif_err("first s51xx config status save: done\n");
+		mif_info("first s51xx config status save: done\n");
 }
 
 void s51xx_pcie_save_state(struct pci_dev *pdev)

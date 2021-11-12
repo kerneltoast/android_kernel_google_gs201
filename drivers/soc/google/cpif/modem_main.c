@@ -183,7 +183,7 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 
 	if (iod->format == IPC_BOOT) {
 		modemctl->bootd = iod;
-		mif_err("BOOT device = %s\n", iod->name);
+		mif_info("BOOT device = %s\n", iod->name);
 	}
 
 	/* link between io device and modem shared */
@@ -783,7 +783,7 @@ static int cpif_probe(struct platform_device *pdev)
 	if (!ld)
 		goto free_mc;
 
-	mif_err("%s: %s link created\n", pdata->name, ld->name);
+	mif_info("%s: %s link created\n", pdata->name, ld->name);
 
 	ld->mc = modemctl;
 	ld->msd = msd;
@@ -851,7 +851,7 @@ static int cpif_probe(struct platform_device *pdev)
 		mif_err("failed to register vendor hook\n");
 #endif
 
-	mif_err("%s: done ---\n", pdev->name);
+	mif_info("%s: done ---\n", pdev->name);
 	return 0;
 
 free_iod:

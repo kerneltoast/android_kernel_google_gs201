@@ -44,9 +44,9 @@ int register_modem_voice_call_event_notifier(struct notifier_block *nb)
 
 void modem_voice_call_notify_event(enum modem_voice_call_event evt, void *data)
 {
-	mif_err("voice call event notify (%d) ++\n", evt);
+	mif_info("voice call event notify (%d) ++\n", evt);
 	raw_notifier_call_chain(&modem_voice_call_event_notifier, evt, data);
-	mif_err("voice call event notify (%d) --\n", evt);
+	mif_info("voice call event notify (%d) --\n", evt);
 }
 EXPORT_SYMBOL(modem_voice_call_notify_event);
 #endif

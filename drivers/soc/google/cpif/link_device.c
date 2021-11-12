@@ -536,7 +536,7 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 	struct modem_ctl *mc = ld->mc;
 	int err;
 
-	mif_err("%s: INIT_START <- %s (%s.state:%s init_end_cnt:%d)\n",
+	mif_info("%s: INIT_START <- %s (%s.state:%s init_end_cnt:%d)\n",
 		ld->name, mc->name, mc->name, mc_state(mc),
 		atomic_read(&mld->init_end_cnt));
 
@@ -594,7 +594,7 @@ static void cmd_init_start_handler(struct mem_link_device *mld)
 init_exit:
 	send_ipc_irq(mld, cmd2int(CMD_PIF_INIT_DONE));
 
-	mif_err("%s: PIF_INIT_DONE -> %s\n", ld->name, mc->name);
+	mif_info("%s: PIF_INIT_DONE -> %s\n", ld->name, mc->name);
 }
 
 #define PHONE_START_IRQ_MARGIN	4
@@ -2623,7 +2623,7 @@ static int link_start_dump_boot(struct link_device *ld, struct io_device *iod)
 				ld->name, magic, ld->magic_dump);
 			return -EFAULT;
 		}
-		mif_err("%s: magic == 0x%08X\n", ld->name, magic);
+		mif_info("%s: magic == 0x%08X\n", ld->name, magic);
 	}
 
 	return 0;
@@ -2708,14 +2708,14 @@ static void pcie_send_ap2cp_irq(struct mem_link_device *mld, u16 mask)
 	spin_lock_irqsave(&mc->pcie_tx_lock, flags);
 
 	if (mutex_is_locked(&mc->pcie_onoff_lock)) {
-		mif_err_limited("Reserve doorbell interrupt: PCI on/off working\n");
+		mif_info_limited("Reserve doorbell interrupt: PCI on/off working\n");
 		set_ctrl_msg(&mld->ap2cp_msg, mask);
 		mc->reserve_doorbell_int = true;
 		goto exit;
 	}
 
 	if (!mc->pcie_powered_on) {
-		mif_err_limited("Reserve doorbell interrupt: PCI not powered on\n");
+		mif_info_limited("Reserve doorbell interrupt: PCI not powered on\n");
 		set_ctrl_msg(&mld->ap2cp_msg, mask);
 		mc->reserve_doorbell_int = true;
 		s5100_try_gpio_cp_wakeup(mc);
@@ -2928,7 +2928,7 @@ static irqreturn_t shmem_cp2ap_wakelock_handler(int irq, void *data)
 	struct mem_link_device *mld = (struct mem_link_device *)data;
 	unsigned int req;
 
-	mif_err("%s\n", __func__);
+	mif_info("%s\n", __func__);
 
 	req = extract_ctrl_msg(&mld->cp2ap_united_status, mld->sbi_cp2ap_wakelock_mask,
 			mld->sbi_cp2ap_wakelock_pos);
@@ -2936,16 +2936,16 @@ static irqreturn_t shmem_cp2ap_wakelock_handler(int irq, void *data)
 	if (req == 0) {
 		if (cpif_wake_lock_active(mld->ws)) {
 			cpif_wake_unlock(mld->ws);
-			mif_err("cp_wakelock unlocked\n");
+			mif_info("cp_wakelock unlocked\n");
 		} else {
-			mif_err("cp_wakelock already unlocked\n");
+			mif_info("cp_wakelock already unlocked\n");
 		}
 	} else if (req == 1) {
 		if (cpif_wake_lock_active(mld->ws)) {
-			mif_err("cp_wakelock already unlocked\n");
+			mif_info("cp_wakelock already unlocked\n");
 		} else {
 			cpif_wake_lock(mld->ws);
-			mif_err("cp_wakelock locked\n");
+			mif_info("cp_wakelock locked\n");
 		}
 	} else {
 		mif_err("unsupported request: cp_wakelock\n");
@@ -2964,14 +2964,14 @@ static irqreturn_t shmem_cp2ap_rat_mode_handler(int irq, void *data)
 	req = extract_ctrl_msg(&mld->cp2ap_united_status, mld->sbi_cp_rat_mode_mask,
 			mld->sbi_cp_rat_mode_pos);
 
-	mif_err("value: %u\n", req);
+	mif_info("value: %u\n", req);
 
 	if (req) {
 		exynos_pcie_l1ss_ctrl(0, PCIE_L1SS_CTRL_MODEM_IF);
-		mif_err("cp requests pcie l1ss disable\n");
+		mif_info("cp requests pcie l1ss disable\n");
 	} else {
 		exynos_pcie_l1ss_ctrl(1, PCIE_L1SS_CTRL_MODEM_IF);
-		mif_err("cp requests pcie l1ss enable\n");
+		mif_info("cp requests pcie l1ss enable\n");
 	}
 
 	return IRQ_HANDLED;
@@ -3110,7 +3110,7 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 				}
 
 				mld->mif_table.freq[mif_max_num_of_table - 1 - i] = mif_max_freq;
-				mif_err("MIF_LEV[%d] : %u\n",
+				mif_info("MIF_LEV[%d] : %u\n",
 						mif_max_num_of_table - i, mif_max_freq);
 			}
 		}
@@ -3118,7 +3118,7 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 		for (i = mif_max_num_of_table - 1; i >= 0; i--) {
 			mld->mif_table.freq[i] =
 				dvfs_domain->list_level[counter++].level;
-			mif_err("MIF_LEV[%d] : %u\n", i + 1,
+			mif_info("MIF_LEV[%d] : %u\n", i + 1,
 					mld->mif_table.freq[i]);
 		}
 	} else if (!strcmp(dvfs_domain_name, "CP_CPU")) {
@@ -3127,7 +3127,7 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 		for (i = dvfs_domain->num_of_level - 1; i >= 0; i--) {
 			mld->cp_cpu_table.freq[i] =
 				dvfs_domain->list_level[counter++].level;
-			mif_err("CP_CPU_LEV[%d] : %u\n", i + 1,
+			mif_info("CP_CPU_LEV[%d] : %u\n", i + 1,
 					mld->cp_cpu_table.freq[i]);
 		}
 	} else if (!strcmp(dvfs_domain_name, "CP")) {
@@ -3136,7 +3136,7 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 		for (i = dvfs_domain->num_of_level - 1; i >= 0; i--) {
 			mld->cp_table.freq[i] =
 				dvfs_domain->list_level[counter++].level;
-			mif_err("CP_LEV[%d] : %u\n", i + 1,
+			mif_info("CP_LEV[%d] : %u\n", i + 1,
 					mld->cp_table.freq[i]);
 		}
 	} else if (!strcmp(dvfs_domain_name, "CP_EM")) {
@@ -3145,7 +3145,7 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 		for (i = dvfs_domain->num_of_level - 1; i >= 0; i--) {
 			mld->cp_em_table.freq[i] =
 				dvfs_domain->list_level[counter++].level;
-			mif_err("CP_LEV[%d] : %u\n", i + 1,
+			mif_info("CP_LEV[%d] : %u\n", i + 1,
 					mld->cp_em_table.freq[i]);
 		}
 	} else if (!strcmp(dvfs_domain_name, "CP_MCW")) {
@@ -3154,7 +3154,7 @@ static int parse_ect(struct mem_link_device *mld, char *dvfs_domain_name)
 		for (i = dvfs_domain->num_of_level - 1; i >= 0; i--) {
 			mld->cp_mcw_table.freq[i] =
 				dvfs_domain->list_level[counter++].level;
-			mif_err("CP_LEV[%d] : %u\n", i + 1,
+			mif_info("CP_LEV[%d] : %u\n", i + 1,
 					mld->cp_mcw_table.freq[i]);
 		}
 	}
@@ -3271,7 +3271,7 @@ static int shmem_register_pcie(struct link_device *ld)
 	int ret;
 	struct device_node *s2mpu_dn;
 #endif
-	mif_err("CP EP driver initialization start.\n");
+	mif_info("CP EP driver initialization start.\n");
 
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 
@@ -3323,7 +3323,7 @@ static int shmem_register_pcie(struct link_device *ld)
 
 	if (is_registered == 0) {
 		/* initialize the pci_dev for modem_ctl */
-		mif_err("s51xx_pcie_init start\n");
+		mif_info("s51xx_pcie_init start\n");
 		s51xx_pcie_init(mc);
 		if (mc->s51xx_pdev == NULL) {
 			mif_err("s51xx_pdev is NULL. Check if CP wake up is done.\n");
@@ -3348,7 +3348,7 @@ static int shmem_register_pcie(struct link_device *ld)
 	print_msi_register(mc->s51xx_pdev);
 	mc->pcie_registered = true;
 
-	mif_err("CP EP driver initialization end.\n");
+	mif_info("CP EP driver initialization end.\n");
 
 	return 0;
 }
@@ -3841,12 +3841,12 @@ static int set_ld_attr(struct platform_device *pdev,
 	ld->name = modem->link_name;
 
 	if (mld->attrs & LINK_ATTR_SBD_IPC) {
-		mif_err("%s<->%s: LINK_ATTR_SBD_IPC\n", ld->name, modem->name);
+		mif_info("%s<->%s: LINK_ATTR_SBD_IPC\n", ld->name, modem->name);
 		ld->sbd_ipc = true;
 	}
 
 	if (mld->attrs & LINK_ATTR_IPC_ALIGNED) {
-		mif_err("%s<->%s: LINK_ATTR_IPC_ALIGNED\n",
+		mif_info("%s<->%s: LINK_ATTR_IPC_ALIGNED\n",
 			ld->name, modem->name);
 		ld->aligned = true;
 	}
@@ -3942,7 +3942,7 @@ static int init_shmem_maps(u32 link_type, struct modem_data *modem,
 		mld->boot_size = cp_shmem_get_size(cp_num, SHMEM_CP) +
 			cp_shmem_get_size(cp_num, SHMEM_VSS);
 		mld->boot_base = NULL;
-		mif_err("boot_base=NULL, boot_size=%lu\n",
+		mif_info("boot_base=NULL, boot_size=%lu\n",
 			(unsigned long)mld->boot_size);
 	}
 #endif
@@ -3967,7 +3967,7 @@ static int init_shmem_maps(u32 link_type, struct modem_data *modem,
 		err = -ENOMEM;
 		goto error;
 	}
-	mif_err("ipc_base=%pK, ipc_size=%lu\n",
+	mif_info("ipc_base=%pK, ipc_size=%lu\n",
 		mld->base, (unsigned long)mld->size);
 
 	switch (link_type) {
@@ -3981,7 +3981,7 @@ static int init_shmem_maps(u32 link_type, struct modem_data *modem,
 			err = -ENOMEM;
 			goto error;
 		}
-		mif_err("vss_base=%pK\n", mld->vss_base);
+		mif_info("vss_base=%pK\n", mld->vss_base);
 
 		/*
 		 * Initialize memory maps for ACPM (physical map -> logical map)
@@ -3998,7 +3998,7 @@ static int init_shmem_maps(u32 link_type, struct modem_data *modem,
 			err = -ENOMEM;
 			goto error;
 		}
-		mif_err("acpm_base=%pK acpm_size:0x%X\n", mld->acpm_base,
+		mif_info("acpm_base=%pK acpm_size:0x%X\n", mld->acpm_base,
 				mld->acpm_size);
 		break;
 	default:
@@ -4271,7 +4271,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	int err;
 	u32 cp_num;
 
-	mif_err("+++\n");
+	mif_info("+++\n");
 
 	/**
 	 * Get the modem (platform) data
@@ -4293,7 +4293,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 		return NULL;
 	}
 
-	mif_err("MODEM:%s LINK:%s\n", modem->name, modem->link_name);
+	mif_info("MODEM:%s LINK:%s\n", modem->name, modem->link_name);
 
 	/*
 	 * Alloc an instance of mem_link_device structure
@@ -4345,7 +4345,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 		goto error;
 
 	if (mld->attrs & LINK_ATTR_DPRAM_MAGIC) {
-		mif_err("%s<->%s: LINK_ATTR_DPRAM_MAGIC\n",
+		mif_info("%s<->%s: LINK_ATTR_DPRAM_MAGIC\n",
 			ld->name, modem->name);
 		mld->dpram_magic = true;
 	}
@@ -4509,7 +4509,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 		mif_err("failed to create sysfs node related hw clat\n");
 #endif
 
-	mif_err("---\n");
+	mif_info("---\n");
 	return ld;
 
 error:

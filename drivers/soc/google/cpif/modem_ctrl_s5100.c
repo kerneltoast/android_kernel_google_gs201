@@ -647,7 +647,7 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 		s51xx_pcie = pci_get_drvdata(mc->s51xx_pdev);
 
 	if (s51xx_pcie && s51xx_pcie->link_status == 1) {
-		mif_err("link_satus:%d\n", s51xx_pcie->link_status);
+		mif_info("link_satus:%d\n", s51xx_pcie->link_status);
 		s51xx_pcie_save_state(mc->s51xx_pdev);
 		pcie_clean_dislink(mc);
 	}
@@ -673,7 +673,7 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE], 1, 0);
 
-	mif_err("---\n");
+	mif_info("---\n");
 
 	return 0;
 }
@@ -697,7 +697,7 @@ static int power_reset_cp(struct modem_ctl *mc)
 
 	if (s51xx_pcie && s51xx_pcie->link_status == 1) {
 		/* save_s5100_status(); */
-		mif_err("link_satus:%d\n", s51xx_pcie->link_status);
+		mif_info("link_satus:%d\n", s51xx_pcie->link_status);
 		pcie_clean_dislink(mc);
 	}
 
@@ -710,7 +710,7 @@ static int power_reset_cp(struct modem_ctl *mc)
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 1, 50);
 	print_mc_state(mc);
 
-	mif_err("---\n");
+	mif_info("---\n");
 
 	return 0;
 }
@@ -723,7 +723,7 @@ static int check_cp_status(struct modem_ctl *mc, unsigned int count)
 
 	while (1) {
 		val = mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_WAKEUP], false);
-		mif_err_limited("CP2AP_WAKEUP == %d (cnt %d)\n", val, cnt);
+		mif_info_limited("CP2AP_WAKEUP == %d (cnt %d)\n", val, cnt);
 
 		if (val != 0) {
 			ret = 0;
@@ -1105,7 +1105,7 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 #endif
 
 	if (mc == NULL) {
-		mif_info("Skip pci power on : mc is NULL\n");
+		mif_err("Skip pci power on : mc is NULL\n");
 		return 0;
 	}
 
@@ -1113,7 +1113,7 @@ int s5100_poweron_pcie(struct modem_ctl *mc)
 	mld = to_mem_link_device(ld);
 
 	if (mc->phone_state == STATE_OFFLINE) {
-		mif_info("Skip pci power on : phone_state is OFFLINE\n");
+		mif_err("Skip pci power on : phone_state is OFFLINE\n");
 		return 0;
 	}
 
@@ -1553,7 +1553,7 @@ int s5100_init_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata)
 
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 0, 0);
 
-	mif_err("Register GPIO interrupts\n");
+	mif_info("Register GPIO interrupts\n");
 	mc->apwake_irq_chip = irq_get_chip(mc->cp_gpio_irq[CP_GPIO_IRQ_CP2AP_WAKEUP].num);
 	if (mc->apwake_irq_chip == NULL) {
 		mif_err("Can't get irq_chip structure!!!!\n");

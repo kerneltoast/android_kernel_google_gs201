@@ -106,7 +106,7 @@ void change_modem_state(struct modem_ctl *mc, enum modem_state state)
 	mc->phone_state = state;
 	spin_unlock_irqrestore(&mc->lock, flags);
 
-	mif_err("%s->state changed (%s -> %s)\n", mc->name,
+	mif_info("%s->state changed (%s -> %s)\n", mc->name,
 		cp_state_str(old_state), cp_state_str(state));
 
 	list_for_each_entry(iod, &mc->modem_state_notify_list, list) {
