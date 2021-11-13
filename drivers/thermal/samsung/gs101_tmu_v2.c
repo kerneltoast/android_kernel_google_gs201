@@ -488,11 +488,13 @@ static int gs1010_tmu_set_trip_temp(void *drv_data, int trip, int temp)
 			threshold[i] = (unsigned char)(trip_temp / MCELSIUS);
 	}
 	mutex_lock(&data->lock);
-	exynos_acpm_tmu_tz_control(data->id, false);
-	data->enabled = false;
-	exynos_acpm_tmu_set_threshold(data->id, threshold);
-	exynos_acpm_tmu_tz_control(data->id, true);
-	data->enabled = true;
+	if (data->enabled) {
+		exynos_acpm_tmu_tz_control(data->id, false);
+		exynos_acpm_tmu_set_threshold(data->id, threshold);
+		exynos_acpm_tmu_tz_control(data->id, true);
+	} else {
+		exynos_acpm_tmu_set_threshold(data->id, threshold);
+	}
 	mutex_unlock(&data->lock);
 
 	return ret;
