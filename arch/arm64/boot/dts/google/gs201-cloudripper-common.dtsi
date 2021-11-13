@@ -19,4 +19,5 @@
 #include "gs201-cloudripper-ldaf.dtsi"
 #include "gs201-cloudripper-nfc.dtsi"
 #include "gs201-cloudripper-sbbm.dtsi"
+#include "gs101-faceauth-dma-heap.dtsi"
 
