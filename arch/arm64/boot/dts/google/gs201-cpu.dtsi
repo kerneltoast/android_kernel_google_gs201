@@ -255,7 +255,6 @@
 			dm-type = <DM_CPU_CL0>;
 
 			min-freq = <300000>;
-			soft-max-freq = <1197000>;
 			max-freq = <2024000>;
 
 			#cooling-cells = <2>; /* min followed by max */
@@ -275,7 +274,6 @@
 			dm-type = <DM_CPU_CL1>;
 
 			min-freq = <400000>;
-			soft-max-freq = <910000>;
 			max-freq = <2348000>;
 
 			#cooling-cells = <2>; /* min followed by max */
@@ -296,7 +294,6 @@
 			dm-type = <DM_CPU_CL2>;
 
 			min-freq = <500000>;
-			soft-max-freq = <984000>;
 			max-freq = <2850000>;
 
 			#cooling-cells = <2>; /* min followed by max */
