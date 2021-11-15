@@ -35,6 +35,7 @@
 #include "usb_psy.h"
 
 #define TCPCI_MODE_VOTER	"TCPCI"
+#define LIMIT_SINK_VOTER	"LIMIT_SINK_CURRENT_VOTER"
 
 #define TCPC_RECEIVE_BUFFER_COUNT_OFFSET                0
 #define TCPC_RECEIVE_BUFFER_FRAME_TYPE_OFFSET           1
@@ -264,6 +265,76 @@ static ssize_t contaminant_detection_status_show(struct device *dev, struct devi
 }
 static DEVICE_ATTR_RO(contaminant_detection_status);
 
+static ssize_t usb_limit_sink_enable_show(struct device *dev, struct device_attribute *attr,
+					  char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return sysfs_emit(buf, "%u\n", chip->limit_sink_enable);
+};
+
+/* usb_limit_sink_current has to be set before usb_limit_sink_enable is invoked */
+static ssize_t usb_limit_sink_enable_store(struct device *dev, struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	bool enable;
+	int ret;
+
+	if (kstrtobool(buf, &enable) < 0)
+		return -EINVAL;
+
+	if (enable) {
+		ret = gvotable_cast_vote(chip->usb_icl_el, LIMIT_SINK_VOTER,
+					 (void *)(long)chip->limit_sink_current, true);
+		if (ret < 0) {
+			dev_err(chip->dev, "Cannot set sink current %d uA (%d)\n",
+				chip->limit_sink_current, ret);
+			goto exit;
+		}
+	} else {
+		ret = gvotable_cast_vote(chip->usb_icl_el, LIMIT_SINK_VOTER, 0, false);
+		if (ret < 0) {
+			dev_err(chip->dev, "Cannot unvote for sink current (%d)\n", ret);
+			goto exit;
+		}
+	}
+
+	chip->limit_sink_enable = enable;
+
+exit:
+	return count;
+}
+static DEVICE_ATTR_RW(usb_limit_sink_enable);
+
+static ssize_t usb_limit_sink_current_show(struct device *dev, struct device_attribute *attr,
+					   char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return sysfs_emit(buf, "%u\n", chip->limit_sink_current);
+};
+
+/* limit_sink_current will not be updated if limit_sink_enable is already enabled */
+static ssize_t usb_limit_sink_current_store(struct device *dev, struct device_attribute *attr,
+					    const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	/* Never accept current over 3A */
+	if (val > 3000000)
+		return -EINVAL;
+
+	chip->limit_sink_current = val;
+
+	return count;
+}
+static DEVICE_ATTR_RW(usb_limit_sink_current);
+
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
 	&dev_attr_bc12_enabled,
@@ -272,6 +343,8 @@ static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_contaminant_detection,
 	&dev_attr_contaminant_detection_status,
 	&dev_attr_cc_toggle_enable,
+	&dev_attr_usb_limit_sink_enable,
+	&dev_attr_usb_limit_sink_current,
 	NULL
 };
 
@@ -2085,6 +2158,14 @@ static int max77759_probe(struct i2c_client *client,
 	if (IS_ERR_OR_NULL(chip->usb_icl_proto_el)) {
 		dev_err(&client->dev, "TCPCI: USB ICL PROTO EL get failed:%ld",
 			PTR_ERR(chip->usb_icl_proto_el));
+		ret = -ENODEV;
+		goto unreg_notifier;
+	}
+
+	chip->usb_icl_el = gvotable_election_get_handle(USB_ICL_EL);
+	if (IS_ERR_OR_NULL(chip->usb_icl_el)) {
+		dev_err(&client->dev, "TCPCI: USB ICL EL get failed:%ld",
+			PTR_ERR(chip->usb_icl_el));
 		ret = -ENODEV;
 		goto unreg_notifier;
 	}
