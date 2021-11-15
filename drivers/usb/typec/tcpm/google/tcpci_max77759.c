@@ -85,6 +85,8 @@ enum gbms_charger_modes {
 #define REGMAP_REG_MAX_ADDR			0x95
 #define REGMAP_REG_COUNT			(REGMAP_REG_MAX_ADDR + 1)
 
+#define SRC_CURRENT_LIMIT_MA		0
+
 static struct logbuffer *tcpm_log;
 
 static bool modparam_conf_sbu;
@@ -99,6 +101,10 @@ static bool hooks_installed;
 
 static u32 partner_src_caps[PDO_MAX_OBJECTS];
 static unsigned int nr_partner_src_caps;
+static bool port_src_pdo_updated;
+static bool limit_src_cap_enable;
+static u32 orig_src_current;
+static unsigned int nr_orig_src_pdo;
 spinlock_t g_caps_lock;
 
 static unsigned int sink_discovery_delay_ms;
@@ -339,6 +345,32 @@ static ssize_t usb_limit_sink_current_store(struct device *dev, struct device_at
 }
 static DEVICE_ATTR_RW(usb_limit_sink_current);
 
+static ssize_t usb_limit_source_enable_show(struct device *dev, struct device_attribute *attr,
+					    char *buf)
+{
+	return sysfs_emit(buf, "%u\n", limit_src_cap_enable);
+}
+
+static ssize_t usb_limit_source_enable_store(struct device *dev, struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	bool enable;
+
+	if (kstrtobool(buf, &enable) < 0)
+		return -EINVAL;
+
+	spin_lock(&g_caps_lock);
+	port_src_pdo_updated = false;
+	limit_src_cap_enable = enable;
+	spin_unlock(&g_caps_lock);
+
+	tcpm_cc_change(chip->tcpci->port);
+
+	return count;
+}
+static DEVICE_ATTR_RW(usb_limit_source_enable);
+
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
 	&dev_attr_bc12_enabled,
@@ -349,6 +381,7 @@ static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_cc_toggle_enable,
 	&dev_attr_usb_limit_sink_enable,
 	&dev_attr_usb_limit_sink_current,
+	&dev_attr_usb_limit_source_enable,
 	NULL
 };
 
@@ -1562,6 +1595,31 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 	return 0;
 }
 
+static void max77759_modify_src_caps(void *unused, unsigned int *nr_src_pdo,
+				     u32 (*src_pdo)[PDO_MAX_OBJECTS], bool *modified)
+{
+	spin_lock(&g_caps_lock);
+
+	if (port_src_pdo_updated) {
+		spin_unlock(&g_caps_lock);
+		return;
+	}
+
+	if (limit_src_cap_enable) {
+		(*src_pdo)[0] &= ~(PDO_CURR_MASK << PDO_FIXED_CURR_SHIFT);
+		(*src_pdo)[0] |= PDO_FIXED_CURR(SRC_CURRENT_LIMIT_MA);
+		*nr_src_pdo = 1;
+	} else {
+		(*src_pdo)[0] |= PDO_FIXED_CURR(orig_src_current);
+		*nr_src_pdo = nr_orig_src_pdo;
+	}
+
+	port_src_pdo_updated = true;
+	*modified = true;
+
+	spin_unlock(&g_caps_lock);
+}
+
 static void max77759_store_partner_src_caps(void *unused, struct tcpm_port *port,
 					    unsigned int *nr_source_caps,
 					    u32 (*source_caps)[PDO_MAX_OBJECTS])
@@ -1876,6 +1934,15 @@ static int max77759_register_vendor_hooks(struct i2c_client *client)
 		return ret;
 	}
 
+	port_src_pdo_updated = true;
+	ret = register_trace_android_vh_typec_tcpm_modify_src_caps(max77759_modify_src_caps, NULL);
+	if (ret) {
+		dev_err(&client->dev,
+			"register_trace_android_vh_typec_tcpm_modify_src_caps failed ret:%d\n",
+			ret);
+		return ret;
+	}
+
 	hooks_installed = true;
 
 	return ret;
@@ -1980,12 +2047,13 @@ static int max77759_probe(struct i2c_client *client,
 	int ret, i;
 	struct max77759_plat *chip;
 	char *usb_psy_name;
-	struct device_node *dn, *ovp_dn;
+	struct device_node *dn, *ovp_dn, *conn;
 	u8 power_status;
 	u16 device_id;
 	u32 ovp_handle;
 	const char *ovp_status;
 	enum of_gpio_flags flags;
+	u32 first_src_pdo = 0;
 
 	ret = max77759_register_vendor_hooks(client);
 	if (ret)
@@ -2119,6 +2187,30 @@ static int max77759_probe(struct i2c_client *client,
 	chip->no_bc_12 = of_property_read_bool(dn, "no-bc-12");
 	chip->no_external_boost = of_property_read_bool(dn, "no-external-boost");
 	of_property_read_u32(dn, "sink-discovery-delay-ms", &sink_discovery_delay_ms);
+
+	conn = of_get_child_by_name(dn, "connector");
+	if (!conn) {
+		dev_err(&client->dev, "connector node not present\n");
+		ret = -ENODEV;
+		goto teardown_bc12;
+	}
+
+	/* DRP is expected and "source-pdos" should be present in device tree */
+	nr_orig_src_pdo = of_property_count_u32_elems(conn, "source-pdos");
+	if (nr_orig_src_pdo < 0) {
+		dev_err(&client->dev, "failed to count elems in source-pdos\n");
+		of_node_put(conn);
+		ret = nr_orig_src_pdo;
+		goto teardown_bc12;
+	}
+
+	ret = of_property_read_u32_index(conn, "source-pdos", 0, &first_src_pdo);
+	of_node_put(conn);
+	if (ret < 0) {
+		dev_err(&client->dev, "failed to read the first source-pdo\n");
+		goto teardown_bc12;
+	}
+	orig_src_current = ((first_src_pdo >> PDO_FIXED_CURR_SHIFT) & PDO_CURR_MASK) * 10;
 
 	chip->usb_psy = power_supply_get_by_name(usb_psy_name);
 	if (IS_ERR_OR_NULL(chip->usb_psy) || !chip->usb_psy) {
