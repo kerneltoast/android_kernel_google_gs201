@@ -660,6 +660,13 @@ static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
 	if (scsi_status != SAM_STAT_CHECK_CONDITION)
 		return;
 
+	/*
+	 * Clear the failfast flags to make the SCSI core retry
+	 * lrbp->cmd. The block layer core sets REQ_FAILFAST_MASK for
+	 * readahead requests.
+	 */
+	lrbp->cmd->request->cmd_flags &= ~REQ_FAILFAST_MASK;
+
 	sense_buffer = lrbp->ucd_rsp_ptr->sr.sense_data;
 	response_code = sense_buffer[0] & 0x7f;
 	if (response_code >= 0x72)

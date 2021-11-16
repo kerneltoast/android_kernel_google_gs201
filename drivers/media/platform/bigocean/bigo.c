@@ -228,37 +228,34 @@ static int bigo_process(struct bigo_core *core, struct bigo_ioc_regs *desc)
 		return -EINVAL;
 	}
 
-	mutex_lock(&core->lock);
-
 	if (!job->regs) {
 		job->regs = kzalloc(core->regs_size, GFP_KERNEL);
 		if (!job->regs) {
 			rc = -ENOMEM;
-			goto unlock;
+			goto exit;
 		}
 	}
 
 	if (copy_from_user(job->regs, (void *)desc->regs, core->regs_size)) {
 		pr_err("Failed to copy from user\n");
 		rc = -EFAULT;
-		goto unlock;
+		goto exit;
 	}
 
 	/*TODO(vinaykalia@): Replace this with EDF scheduler.*/
 	rc = bigo_run_job(core, job);
 	if (rc) {
 		pr_err("Error running job\n");
-		goto unlock;
+		goto exit;
 	}
 
 	if (copy_to_user((void *)desc->regs, job->regs, core->regs_size)) {
 		pr_err("Failed to copy to user\n");
 		rc = -EFAULT;
-		goto unlock;
+		goto exit;
 	}
 
-unlock:
-	mutex_unlock(&core->lock);
+exit:
 	return rc;
 }
 
@@ -318,12 +315,13 @@ static long bigo_unlocked_ioctl(struct file *file, unsigned int cmd,
 			pr_err("Failed to copy from user\n");
 			return -EFAULT;
 		}
-
+		mutex_lock(&core->lock);
 		if (inst->is_secure) {
 			rc = exynos_smc(SMC_PROTECTION_SET, 0, BIGO_SMC_ID,
 					SMC_PROTECTION_ENABLE);
 			if (rc) {
 				pr_err("failed to enable SMC_PROTECTION_SET: %d\n", rc);
+				mutex_unlock(&core->lock);
 				break;
 			}
 		}
@@ -338,6 +336,7 @@ static long bigo_unlocked_ioctl(struct file *file, unsigned int cmd,
 			if (rc)
 				pr_err("failed to disable SMC_PROTECTION_SET: %d\n", rc);
 		}
+		mutex_unlock(&core->lock);
 		break;
 	case BIGO_IOCX_MAP:
 		if (copy_from_user(&mapping, user_desc, sizeof(mapping))) {
