@@ -1543,33 +1543,13 @@ static int exynos_ufs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int exynos_ufs_suspend(struct device *dev)
-{
-	struct ufs_hba *hba = dev_get_drvdata(dev);
-
-	return ufshcd_system_suspend(hba);
-}
-
-static int exynos_ufs_resume(struct device *dev)
-{
-	struct ufs_hba *hba = dev_get_drvdata(dev);
-
-	return ufshcd_system_resume(hba);
-}
-#else
-#define exynos_ufs_suspend	NULL
-#define exynos_ufs_resume	NULL
-#endif /* CONFIG_PM_SLEEP */
-
 static void exynos_ufs_shutdown(struct platform_device *pdev)
 {
 	ufshcd_shutdown((struct ufs_hba *)platform_get_drvdata(pdev));
 }
 
 static const struct dev_pm_ops exynos_ufs_dev_pm_ops = {
-	.suspend		= exynos_ufs_suspend,
-	.resume			= exynos_ufs_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(ufshcd_system_suspend, ufshcd_system_resume)
 };
 
 static const struct of_device_id exynos_ufs_match[] = {
