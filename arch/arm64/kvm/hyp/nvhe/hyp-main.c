@@ -4,7 +4,7 @@
  * Author: Andrew Scull <ascull@google.com>
  */
 
-#include <hyp/switch.h>
+#include <hyp/adjust_pc.h>
 
 #include <asm/pgtable-types.h>
 #include <asm/kvm_asm.h>
@@ -18,6 +18,8 @@
 #include <nvhe/trap_handler.h>
 
 DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
+
+struct kvm_iommu_ops kvm_iommu_ops;
 
 void __kvm_hyp_host_forward_smc(struct kvm_cpu_context *host_ctxt);
 
@@ -123,6 +125,7 @@ static void handle___pkvm_init(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(unsigned long, nr_cpus, host_ctxt, 3);
 	DECLARE_REG(unsigned long *, per_cpu_base, host_ctxt, 4);
 	DECLARE_REG(u32, hyp_va_bits, host_ctxt, 5);
+	DECLARE_REG(enum kvm_iommu_driver, iommu_driver, host_ctxt, 6);
 
 	/*
 	 * __pkvm_init() will return only if an error occurred, otherwise it
@@ -130,7 +133,7 @@ static void handle___pkvm_init(struct kvm_cpu_context *host_ctxt)
 	 * with the host context directly.
 	 */
 	cpu_reg(host_ctxt, 1) = __pkvm_init(phys, size, nr_cpus, per_cpu_base,
-					    hyp_va_bits);
+					    hyp_va_bits, iommu_driver);
 }
 
 static void handle___pkvm_cpu_set_vector(struct kvm_cpu_context *host_ctxt)
@@ -160,41 +163,65 @@ static void handle___pkvm_prot_finalize(struct kvm_cpu_context *host_ctxt)
 {
 	cpu_reg(host_ctxt, 1) = __pkvm_prot_finalize();
 }
+
+static void handle___pkvm_vcpu_init_traps(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(struct kvm_vcpu *, vcpu, host_ctxt, 1);
+
+	__pkvm_vcpu_init_traps(kern_hyp_va(vcpu));
+}
+
 typedef void (*hcall_t)(struct kvm_cpu_context *);
 
 #define HANDLE_FUNC(x)	[__KVM_HOST_SMCCC_FUNC_##x] = (hcall_t)handle_##x
 
 static const hcall_t host_hcall[] = {
-	HANDLE_FUNC(__kvm_vcpu_run),
+	/* ___kvm_hyp_init */
+	HANDLE_FUNC(__kvm_get_mdcr_el2),
+	HANDLE_FUNC(__pkvm_init),
+	HANDLE_FUNC(__pkvm_create_private_mapping),
+	HANDLE_FUNC(__pkvm_cpu_set_vector),
+	HANDLE_FUNC(__kvm_enable_ssbs),
+	HANDLE_FUNC(__vgic_v3_init_lrs),
+	HANDLE_FUNC(__vgic_v3_get_gic_config),
+	HANDLE_FUNC(__pkvm_prot_finalize),
+
+	HANDLE_FUNC(__pkvm_host_share_hyp),
 	HANDLE_FUNC(__kvm_adjust_pc),
+	HANDLE_FUNC(__kvm_vcpu_run),
 	HANDLE_FUNC(__kvm_flush_vm_context),
 	HANDLE_FUNC(__kvm_tlb_flush_vmid_ipa),
 	HANDLE_FUNC(__kvm_tlb_flush_vmid),
 	HANDLE_FUNC(__kvm_flush_cpu_context),
 	HANDLE_FUNC(__kvm_timer_set_cntvoff),
-	HANDLE_FUNC(__kvm_enable_ssbs),
-	HANDLE_FUNC(__vgic_v3_get_gic_config),
 	HANDLE_FUNC(__vgic_v3_read_vmcr),
 	HANDLE_FUNC(__vgic_v3_write_vmcr),
-	HANDLE_FUNC(__vgic_v3_init_lrs),
-	HANDLE_FUNC(__kvm_get_mdcr_el2),
 	HANDLE_FUNC(__vgic_v3_save_aprs),
 	HANDLE_FUNC(__vgic_v3_restore_aprs),
-	HANDLE_FUNC(__pkvm_init),
-	HANDLE_FUNC(__pkvm_cpu_set_vector),
-	HANDLE_FUNC(__pkvm_host_share_hyp),
-	HANDLE_FUNC(__pkvm_create_private_mapping),
-	HANDLE_FUNC(__pkvm_prot_finalize),
+	HANDLE_FUNC(__pkvm_vcpu_init_traps),
 };
 
 static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
 {
 	DECLARE_REG(unsigned long, id, host_ctxt, 0);
+	unsigned long hcall_min = 0;
 	hcall_t hfn;
+
+	/*
+	 * If pKVM has been initialised then reject any calls to the
+	 * early "privileged" hypercalls. Note that we cannot reject
+	 * calls to __pkvm_prot_finalize for two reasons: (1) The static
+	 * key used to determine initialisation must be toggled prior to
+	 * finalisation and (2) finalisation is performed on a per-CPU
+	 * basis. This is all fine, however, since __pkvm_prot_finalize
+	 * returns -EPERM after the first call for a given CPU.
+	 */
+	if (static_branch_unlikely(&kvm_protected_mode_initialized))
+		hcall_min = __KVM_HOST_SMCCC_FUNC___pkvm_prot_finalize;
 
 	id -= KVM_HOST_SMCCC_ID(0);
 
-	if (unlikely(id >= ARRAY_SIZE(host_hcall)))
+	if (unlikely(id < hcall_min || id >= ARRAY_SIZE(host_hcall)))
 		goto inval;
 
 	hfn = host_hcall[id];
@@ -219,6 +246,8 @@ static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 	bool handled;
 
 	handled = kvm_host_psci_handler(host_ctxt);
+	if (!handled && kvm_iommu_ops.host_smc_handler)
+		handled = kvm_iommu_ops.host_smc_handler(host_ctxt);
 	if (!handled)
 		default_host_smc_handler(host_ctxt);
 
