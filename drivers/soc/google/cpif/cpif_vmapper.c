@@ -73,7 +73,7 @@ void cpif_vmap_free(struct cpif_va_mapper *vmap)
 	}
 
 	list_for_each_entry_safe(temp, temp2, &vmap->item_list, item) {
-		err = cpif_iommu_unmap(temp->vaddr_base, vmap->in->item_size);
+		err = cpif_iommu_unmap(temp->vaddr_base, temp->item_size);
 		if (err == 0)
 			mif_err("failed to unmap\n");
 		list_del(&temp->item);
