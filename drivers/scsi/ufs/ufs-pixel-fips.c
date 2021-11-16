@@ -5,6 +5,7 @@
  * Copyright 2021 Google LLC
  *
  * Authors: Konstantin Vyshetsky <vkon@google.com>
+ * Version: 1.0.0
  */
 
 #include <linux/kernel.h>
@@ -700,4 +701,3 @@ MODULE_DESCRIPTION(
 	"FIPS140-2 Compliant SW Driven UFS Inline Encryption Self Test Module");
 MODULE_AUTHOR("Konstantin Vyshetsky");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.1");

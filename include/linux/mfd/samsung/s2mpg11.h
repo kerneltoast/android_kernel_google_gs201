@@ -77,6 +77,12 @@ struct s2mpg11_platform_data {
 	unsigned int b2_soft_ocp_warn_lvl;
 
 	unsigned int buck_ocp_ctrl1;
+	unsigned int buck_ocp_ctrl2;
+	unsigned int buck_ocp_ctrl3;
+	unsigned int buck_ocp_ctrl4;
+	unsigned int buck_ocp_ctrl5;
+	unsigned int buck_ocp_ctrl6;
+	unsigned int buck_ocp_ctrl7;
 };
 
 struct s2mpg11_dev {

@@ -345,6 +345,24 @@ static int s2mpg11_pmic_dt_parse_pdata(struct s2mpg11_dev *iodev,
 	ret = of_property_read_u32(pmic_np, "buck_ocp_ctrl1", &val);
 	pdata->buck_ocp_ctrl1 = ret ? 0 : val;
 
+	ret = of_property_read_u32(pmic_np, "buck_ocp_ctrl2", &val);
+	pdata->buck_ocp_ctrl2 = ret ? 0 : val;
+
+	ret = of_property_read_u32(pmic_np, "buck_ocp_ctrl3", &val);
+	pdata->buck_ocp_ctrl3 = ret ? 0 : val;
+
+	ret = of_property_read_u32(pmic_np, "buck_ocp_ctrl4", &val);
+	pdata->buck_ocp_ctrl4 = ret ? 0 : val;
+
+	ret = of_property_read_u32(pmic_np, "buck_ocp_ctrl5", &val);
+	pdata->buck_ocp_ctrl5 = ret ? 0 : val;
+
+	ret = of_property_read_u32(pmic_np, "buck_ocp_ctrl6", &val);
+	pdata->buck_ocp_ctrl6 = ret ? 0 : val;
+
+	ret = of_property_read_u32(pmic_np, "buck_ocp_ctrl7", &val);
+	pdata->buck_ocp_ctrl7 = ret ? 0 : val;
+
 	ret = of_property_read_u32(pmic_np, "b2_ocp_warn_en", &val);
 	pdata->b2_ocp_warn_en = ret ? 0 : val;
 
@@ -564,10 +582,33 @@ void s2mpg11_ocp_detection_config(struct s2mpg11_pmic *s2mpg11,
 {
 	int ret;
 
-	pr_info("OCP BUCK_OCP_CTRL1: 0x%x\n", pdata->buck_ocp_ctrl1);
 	ret = s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_PM_BUCK_OCP_CTRL1, pdata->buck_ocp_ctrl1);
 	if (ret)
 		pr_err("i2c write error setting BUCK_OCP_CTRL1: %d\n", ret);
+
+	ret = s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_PM_BUCK_OCP_CTRL2, pdata->buck_ocp_ctrl2);
+	if (ret)
+		pr_err("i2c write error setting BUCK_OCP_CTRL2: %d\n", ret);
+
+	ret = s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_PM_BUCK_OCP_CTRL3, pdata->buck_ocp_ctrl3);
+	if (ret)
+		pr_err("i2c write error setting BUCK_OCP_CTRL3: %d\n", ret);
+
+	ret = s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_PM_BUCK_OCP_CTRL4, pdata->buck_ocp_ctrl4);
+	if (ret)
+		pr_err("i2c write error setting BUCK_OCP_CTRL4: %d\n", ret);
+
+	ret = s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_PM_BUCK_OCP_CTRL5, pdata->buck_ocp_ctrl5);
+	if (ret)
+		pr_err("i2c write error setting BUCK_OCP_CTRL5: %d\n", ret);
+
+	ret = s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_PM_BUCK_OCP_CTRL6, pdata->buck_ocp_ctrl6);
+	if (ret)
+		pr_err("i2c write error setting BUCK_OCP_CTRL6: %d\n", ret);
+
+	ret = s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_PM_BUCK_OCP_CTRL7, pdata->buck_ocp_ctrl7);
+	if (ret)
+		pr_err("i2c write error setting BUCK_OCP_CTRL7: %d\n", ret);
 }
 
 void s2mpg11_ocp_warn(struct s2mpg11_pmic *s2mpg11,

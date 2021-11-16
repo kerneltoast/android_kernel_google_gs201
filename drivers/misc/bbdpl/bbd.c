@@ -722,8 +722,13 @@ static int bbd_suspend(pm_message_t state)
 	/* Call SSP suspend */
 	if (pssp_driver->driver.pm && pssp_driver->driver.pm->suspend)
 		pssp_driver->driver.pm->suspend(&dummy_spi.dev);
+	/* Per (b/203008378#comment3), the following delay is specified to the
+	 * chips sensor hub system. Moving the delay to within the define removes
+	 * it when the features is not used. Updating to a non-blocking sleep
+	 * instead of a busy wait.
+	 */
+	msleep(20);
 #endif
-	mdelay(20);
 
 	return 0;
 }
