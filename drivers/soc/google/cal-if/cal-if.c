@@ -29,6 +29,8 @@
 
 #include "../acpm/acpm.h"
 
+extern s32 gs_chipid_get_dvfs_version(void);
+
 int (*exynos_cal_pd_bcm_sync)(unsigned int id, bool on);
 EXPORT_SYMBOL(exynos_cal_pd_bcm_sync);
 
@@ -473,8 +475,14 @@ int cal_if_init(void *np)
 		return 0;
 
 	prop = of_get_property(np, "minmax_idx", &len);
-	if (prop)
+	if (prop) {
 		minmax_idx = be32_to_cpup(prop);
+	} else {
+		int dvfs_version = gs_chipid_get_dvfs_version();
+		if (dvfs_version < 0)
+			return dvfs_version;
+		minmax_idx = dvfs_version;
+	}
 
 	ect_parse_binary_header();
 
