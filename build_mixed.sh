@@ -134,9 +134,9 @@ elif [ -z "${GKI_KERNEL_BUILD_CONFIG}" ]; then
 fi
 
 if [ -n "${GKI_KERNEL_BUILD_CONFIG}" ]; then
-  build_gki
+  build_gki "$@"
 else
   copy_gki_prebuilts
 fi
 
-build_device_kernel
+build_device_kernel "$@"
