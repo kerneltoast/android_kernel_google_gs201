@@ -77,7 +77,7 @@ static int slg51002_regulator_enable_regmap(struct regulator_dev *rdev)
 {
 	struct slg51002_dev *chip = rdev_get_drvdata(rdev);
 	int ret;
-	if (rdev->desc->id >= SLG51002_REGULATOR_GPIO1) {
+	if (chip->gpio_op_on_sw_test_mode && rdev->desc->id >= SLG51002_REGULATOR_GPIO1) {
 		if (chip->enter_sw_test_mode)
 			chip->enter_sw_test_mode(chip->regmap);
 
@@ -96,7 +96,7 @@ static int slg51002_regulator_disable_regmap(struct regulator_dev *rdev)
 {
 	struct slg51002_dev *chip = rdev_get_drvdata(rdev);
 	int ret;
-	if (rdev->desc->id >= SLG51002_REGULATOR_GPIO1) {
+	if (chip->gpio_op_on_sw_test_mode && rdev->desc->id >= SLG51002_REGULATOR_GPIO1) {
 		if (chip->enter_sw_test_mode)
 			chip->enter_sw_test_mode(chip->regmap);
 

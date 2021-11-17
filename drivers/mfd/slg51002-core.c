@@ -720,6 +720,8 @@ static int slg51002_i2c_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto out;
 
+	slg51002->gpio_op_on_sw_test_mode = !(slg51002->chip_id == REVISION_AB);
+
 	return devm_mfd_add_devices(slg51002->dev, -1, slg51002_devs,
 			ARRAY_SIZE(slg51002_devs), NULL, 0, NULL);
 

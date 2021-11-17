@@ -605,6 +605,9 @@
 #define SLEEP_10000_USEC			10000
 #define SLEEP_RANGE_USEC			1000
 
+/* PMIC OTP revisions */
+#define REVISION_AB				0xB13103
+
 enum slg51002_regulators {
 	SLG51002_REGULATOR_LDO1 = 0,
 	SLG51002_REGULATOR_LDO2,
@@ -675,6 +678,7 @@ struct slg51002_dev {
 	int chip_id;
 	u32 op_mode;
 	bool chip_always_on;
+	bool gpio_op_on_sw_test_mode;
 
 	bool is_power_on;
 	struct timer_list timer;
