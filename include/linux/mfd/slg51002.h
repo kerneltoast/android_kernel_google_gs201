@@ -606,6 +606,7 @@
 #define SLEEP_RANGE_USEC			1000
 
 /* PMIC OTP revisions */
+#define REVISION_AA				0xAFDA01
 #define REVISION_AB				0xB13103
 
 enum slg51002_regulators {

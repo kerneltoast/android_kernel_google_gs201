@@ -157,6 +157,41 @@ static const struct regmap_access_table slg51002_volatile_table = {
 	.n_yes_ranges	= ARRAY_SIZE(slg51002_volatile_ranges),
 };
 
+static int slg51002_set_revision_specific_regs(struct slg51002_dev *chip)
+{
+	int ret = 0;
+	size_t i;
+	static const struct slg51002_register_setting regs_aa[] = {
+		/* Startup current limit */
+		{SLG51002_LDO1_CONF1, 0x0A}, {SLG51002_LDO2_CONF1, 0x0A},
+		{SLG51002_LDO3_CONF1, 0x0A}, {SLG51002_LDO4_CONF1, 0x0A},
+		{SLG51002_LDO5_CONF1, 0x0A}, {SLG51002_LDO6_CONF1, 0x0A},
+		{SLG51002_LDO7_CONF1, 0x0A}, {SLG51002_LDO8_CONF1, 0x0A},
+		/* Functional current limit */
+		{SLG51002_LDO1_CONF2, 0x2D}, {SLG51002_LDO2_CONF2, 0x2D},
+		{SLG51002_LDO3_CONF2, 0x2D}, {SLG51002_LDO4_CONF2, 0x2D},
+		{SLG51002_LDO5_CONF2, 0x2D}, {SLG51002_LDO6_CONF2, 0x2A},
+		{SLG51002_LDO7_CONF2, 0x2A}, {SLG51002_LDO8_CONF2, 0x32},
+		/* LDO mode */
+		{SLG51002_LDO6_TRIM2, 0x00}, {SLG51002_LDO7_TRIM2, 0x00},
+		{SLG51002_LDO8_TRIM2, 0x00},
+	};
+
+	if (chip->chip_id != REVISION_AA)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(regs_aa); i++) {
+		ret = regmap_write(chip->i2c_regmap, regs_aa[i].addr, regs_aa[i].val);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to set registers for revision AA: "
+				"addr 0x%02x\n", regs_aa[i].addr);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 static int slg51002_init_regs(struct slg51002_dev *chip)
 {
 	int ret;
@@ -270,6 +305,11 @@ static int slg51002_config_tuning(struct slg51002_dev *chip)
 	ret = slg51002_enter_sw_test_mode(chip->i2c_regmap);
 	if (ret < 0)
 		return ret;
+
+	/* Overwrite OTP revision related registers */
+	ret = slg51002_set_revision_specific_regs(chip);
+	if (ret < 0)
+		dev_warn(chip->dev, "HW may not work as expected\n");
 
 	/* Initialize register settings */
 	ret = slg51002_init_regs(chip);
