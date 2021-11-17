@@ -446,6 +446,7 @@ static int s2mpg13_pmic_dt_parse_pdata(struct s2mpg13_dev *iodev,
 #define I2C_ADDR_PMIC 0x01
 #define I2C_ADDR_METER 0x0A
 #define I2C_ADDR_WLWP 0x0B
+#define I2C_ADDR_GPIO 0x0C
 #define I2C_ADDR_MT_TRIM 0x0E
 #define I2C_ADDR_TRIM 0x0F
 
@@ -492,6 +493,9 @@ static ssize_t s2mpg13_pmic_read_show(struct device *dev,
 		break;
 	case I2C_ADDR_WLWP:
 		client = s2mpg13->iodev->wlwp;
+		break;
+	case I2C_ADDR_GPIO:
+		client = s2mpg13->iodev->gpio;
 		break;
 	case I2C_ADDR_MT_TRIM:
 		client = s2mpg13->iodev->mt_trim;
@@ -549,6 +553,9 @@ static ssize_t s2mpg13_pmic_write_store(struct device *dev,
 		break;
 	case I2C_ADDR_WLWP:
 		client = s2mpg13->iodev->wlwp;
+		break;
+	case I2C_ADDR_GPIO:
+		client = s2mpg13->iodev->gpio;
 		break;
 	case I2C_ADDR_MT_TRIM:
 		client = s2mpg13->iodev->mt_trim;
