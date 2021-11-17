@@ -22,6 +22,7 @@ struct gs_chipid_variant {
 	int rev_reg;
 	int main_rev_bit;
 	int sub_rev_bit;
+	int dvfs_version_reg;
 };
 
 #define RAW_HEX_STR_SIZE 116
@@ -47,6 +48,7 @@ struct gs_chipid_info {
 	u32 sub_rev;
 	u32 lot_id;
 	char *lot_id2;
+	u32 dvfs_version;
 	u64 unique_id;
 	char ap_hw_tune_str[AP_HW_TUNE_HEX_STR_SIZE+1];
 	u8 ap_hw_tune_arr[AP_HW_TUNE_HEX_ARRAY_SIZE];
@@ -97,6 +99,7 @@ static const struct gs_chipid_variant drv_data_gs101 = {
 	.rev_reg = 0x10,
 	.main_rev_bit = 0,
 	.sub_rev_bit = 16,
+	.dvfs_version_reg = 0x900C,
 };
 
 static char lot_id[6];
@@ -167,6 +170,12 @@ static ssize_t lot_id2_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%s\n", gs_soc_info.lot_id2);
 }
 
+static ssize_t dvfs_version_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%u\n", gs_soc_info.dvfs_version);
+}
+
 static ssize_t revision_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -220,6 +229,7 @@ static DEVICE_ATTR_RO(product_id);
 static DEVICE_ATTR_RO(unique_id);
 static DEVICE_ATTR_RO(lot_id);
 static DEVICE_ATTR_RO(lot_id2);
+static DEVICE_ATTR_RO(dvfs_version);
 static DEVICE_ATTR_RO(revision);
 static DEVICE_ATTR_RO(evt_ver);
 static DEVICE_ATTR_RO(raw_str);
@@ -232,6 +242,7 @@ static struct attribute *chipid_sysfs_attrs[] = {
 	&dev_attr_unique_id.attr,
 	&dev_attr_lot_id.attr,
 	&dev_attr_lot_id2.attr,
+	&dev_attr_dvfs_version.attr,
 	&dev_attr_revision.attr,
 	&dev_attr_evt_ver.attr,
 	&dev_attr_raw_str.attr,
@@ -270,6 +281,15 @@ u32 gs_chipid_get_type(void)
 	return gs_soc_info.type;
 }
 EXPORT_SYMBOL_GPL(gs_chipid_get_type);
+
+s32 gs_chipid_get_dvfs_version(void)
+{
+	if (!gs_soc_info.initialized)
+		return -EPROBE_DEFER;
+
+	return gs_soc_info.dvfs_version;
+}
+EXPORT_SYMBOL_GPL(gs_chipid_get_dvfs_version);
 
 u32 gs_chipid_get_revision(void)
 {
@@ -317,6 +337,9 @@ static void gs_chipid_get_chipid_info(void __iomem *reg)
 	temp = (temp >> 11) & LOTID_MASK;
 	chipid_dec_to_36(temp, uniq_id1, lot_id);
 	gs_soc_info.lot_id2 = lot_id;
+
+	val = readb_relaxed(reg + data->dvfs_version_reg);
+	gs_soc_info.dvfs_version = val;
 }
 
 static void gs_chipid_get_raw_str(void __iomem *reg)
