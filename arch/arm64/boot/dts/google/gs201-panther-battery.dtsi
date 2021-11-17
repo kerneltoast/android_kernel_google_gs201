@@ -10,3 +10,9 @@
 	google,chg-battery-capacity = <4277>;
 };
 
+&max77759_fg {
+	/delete-property/ maxim,force-batt-id;
+	maxim,fg-data {
+		#include "gs201-panther-battery-data.dtsi"
+	};
+};
