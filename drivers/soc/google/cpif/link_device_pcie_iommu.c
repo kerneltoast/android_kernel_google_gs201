@@ -141,7 +141,7 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 		ret = pcie_iommu_map(ioc->map_src_pa, virt_to_phys(ioc->map_page_va),
 				     map_size, 0, 1);
 		if (ret) {
-			mif_err("map failure idx:%u src_pa:0x%lX va:0x%p size:0x%X\n",
+			mif_err("map failure idx:%u src_pa:0x%lX va:0x%p size:0x%lX\n",
 				ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);
 			return NULL;
 		}
@@ -210,7 +210,7 @@ void cpif_pcie_iommu_try_ummap_va(struct pktproc_queue *q, unsigned long src_pa,
 	/* ToDo: Set hsi_block_num by variable */
 	ret = pcie_iommu_unmap(ioc->unmap_src_pa, unmap_size, 1);
 	if (ret != unmap_size) {
-		mif_err("invalid unmap size:0x%X expected:0x%X src_pa:0x%lX\n",
+		mif_err("invalid unmap size:0x%zX expected:0x%X src_pa:0x%lX\n",
 			ret, unmap_size, ioc->unmap_src_pa);
 	}
 	ioc->mapped_cnt--;
