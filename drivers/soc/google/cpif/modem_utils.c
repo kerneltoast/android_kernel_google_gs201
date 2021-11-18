@@ -197,7 +197,8 @@ struct io_device *insert_iod_with_format(struct modem_shared *msd,
 	return NULL;
 }
 
-void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop)
+/* netif wake/stop queue of iod having activated ndev */
+static void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop)
 {
 	struct io_device *iod;
 
@@ -208,21 +209,16 @@ void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop)
 
 	spin_lock(&msd->active_list_lock);
 	list_for_each_entry(iod, &msd->activated_ndev_list, node_ndev) {
-		if (tx_stop) {
+		if (tx_stop)
 			netif_stop_subqueue(iod->ndev, 0);
-#ifdef DEBUG_MODEM_IF_FLOW_CTRL
-			mif_err("tx_stop:%s, iod->ndev->name:%s\n",
-				tx_stop ? "suspend" : "resume",
-				iod->ndev->name);
-#endif
-		} else {
+		else
 			netif_wake_subqueue(iod->ndev, 0);
+
 #ifdef DEBUG_MODEM_IF_FLOW_CTRL
-			mif_err("tx_stop:%s, iod->ndev->name:%s\n",
-				tx_stop ? "suspend" : "resume",
-				iod->ndev->name);
+		mif_err("tx_stop:%s, iod->ndev->name:%s\n",
+			tx_stop ? "suspend" : "resume",
+			iod->ndev->name);
 #endif
-		}
 	}
 	spin_unlock(&msd->active_list_lock);
 }

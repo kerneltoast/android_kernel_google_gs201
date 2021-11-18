@@ -434,9 +434,6 @@ static inline void iodevs_for_each(struct modem_shared *msd, action_fn action, v
 	}
 }
 
-/* netif wake/stop queue of iod having activated ndev */
-void netif_tx_flowctl(struct modem_shared *msd, bool tx_stop);
-
 __be32 ipv4str_to_be32(const char *ipv4str, size_t count);
 
 void mif_add_timer(struct timer_list *timer, unsigned long expire,

@@ -94,8 +94,11 @@ enum mem_iface_type {
 
 #define RES_ACK_WAIT_TIMEOUT		10	/* 10 ms */
 
-#define TXQ_STOP_MASK			(0x1<<0)
-#define TX_SUSPEND_MASK			(0x1<<1)
+enum tx_flowctrl_mask_bit {
+	TXQ_STOP_MASK = 1,
+	TX_SUSPEND_MASK,
+};
+
 #define SHM_FLOWCTL_BIT			BIT(2)
 
 /*============================================================================*/
@@ -790,24 +793,19 @@ void mem_cmd_handler(struct mem_link_device *mld, u16 cmd);
 /*============================================================================*/
 void sbd_txq_stop(struct sbd_ring_buffer *rb);
 void sbd_txq_start(struct sbd_ring_buffer *rb);
-
-int sbd_under_tx_flow_ctrl(struct sbd_ring_buffer *rb);
-int sbd_check_tx_flow_ctrl(struct sbd_ring_buffer *rb);
+int sbd_txq_check_busy(struct sbd_ring_buffer *rb);
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 void pktproc_ul_q_stop(struct pktproc_queue_ul *q);
 void pktproc_ul_q_start(struct pktproc_queue_ul *q);
-int pktproc_under_ul_flow_ctrl(struct pktproc_queue_ul *q);
-int pktproc_check_ul_flow_ctrl(struct pktproc_queue_ul *q);
+int pktproc_ul_q_check_busy(struct pktproc_queue_ul *q);
 #endif
 
 void tx_flowctrl_suspend(struct mem_link_device *mld);
 void tx_flowctrl_resume(struct mem_link_device *mld);
 void txq_stop(struct mem_link_device *mld, struct legacy_ipc_device *dev);
 void txq_start(struct mem_link_device *mld, struct legacy_ipc_device *dev);
-
-int under_tx_flow_ctrl(struct mem_link_device *mld, struct legacy_ipc_device *dev);
-int check_tx_flow_ctrl(struct mem_link_device *mld, struct legacy_ipc_device *dev);
+int txq_check_busy(struct mem_link_device *mld, struct legacy_ipc_device *dev);
 
 void send_req_ack(struct mem_link_device *mld, struct legacy_ipc_device *dev);
 void recv_res_ack(struct mem_link_device *mld, struct legacy_ipc_device *dev,

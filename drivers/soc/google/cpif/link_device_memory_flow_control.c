@@ -49,37 +49,32 @@ void pktproc_ul_q_start(struct pktproc_queue_ul *q)
 	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
-int pktproc_under_ul_flow_ctrl(struct pktproc_queue_ul *q)
-{
-	return atomic_read(&q->busy);
-}
-
-int pktproc_check_ul_flow_ctrl(struct pktproc_queue_ul *q)
+int pktproc_ul_q_check_busy(struct pktproc_queue_ul *q)
 {
 	struct link_device *ld = &q->mld->link_dev;
-	struct modem_ctl *mc = ld->mc;
-	int busy_count = atomic_read(&q->busy);
+	int busy_count;
 	unsigned long flags;
+
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	busy_count = atomic_read(&q->busy);
+	if (unlikely(busy_count))
+		atomic_inc(&q->busy);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
+
+	if (!busy_count)
+		return 0;
 
 	spin_lock_irqsave(&q->lock, flags);
 	if (pktproc_ul_q_empty(q->q_info)) {
 		spin_unlock_irqrestore(&q->lock, flags);
 #ifdef DEBUG_MODEM_IF_FLOW_CTRL
-		if (cp_online(mc)) {
-			mif_err("PKTPROC UL Queue %d: No RES_ACK, but EMPTY (busy_cnt %d)\n",
-				q->q_idx, busy_count);
-		}
+		if (cp_online(ld->mc))
+			mif_err("PKTPROC UL Queue %d: EMPTY (busy_cnt %d)\n", q->q_idx, busy_count);
 #endif
 		pktproc_ul_q_start(q);
 		return 0;
 	}
-
 	spin_unlock_irqrestore(&q->lock, flags);
-
-	atomic_inc(&q->busy);
-
-	if (cp_online(mc) && count_flood(busy_count, BUSY_COUNT_MASK))
-		return -ETIME;
 
 	return -EBUSY;
 }
@@ -119,37 +114,28 @@ void sbd_txq_start(struct sbd_ring_buffer *rb)
 	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
-int sbd_under_tx_flow_ctrl(struct sbd_ring_buffer *rb)
-{
-	return atomic_read(&rb->busy);
-}
-
-int sbd_check_tx_flow_ctrl(struct sbd_ring_buffer *rb)
+int sbd_txq_check_busy(struct sbd_ring_buffer *rb)
 {
 	struct link_device *ld = rb->ld;
-	struct modem_ctl *mc = ld->mc;
-	int busy_count = atomic_read(&rb->busy);
+	int busy_count;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	busy_count = atomic_read(&rb->busy);
+	if (unlikely(busy_count))
+		atomic_inc(&rb->busy);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
+
+	if (!busy_count)
+		return 0;
 
 	if (rb_empty(rb)) {
 #ifdef DEBUG_MODEM_IF_FLOW_CTRL
-		if (cp_online(mc)) {
-			mif_err("%s TXQ: No RES_ACK, but EMPTY (busy_cnt %d)\n",
-				rb->iod->name, busy_count);
-		}
+		if (cp_online(ld->mc))
+			mif_err("%s TXQ: EMPTY (busy_cnt %d)\n", rb->iod->name, busy_count);
 #endif
 		sbd_txq_start(rb);
 		return 0;
-	}
-
-	atomic_inc(&rb->busy);
-
-	if (cp_online(mc) && count_flood(busy_count, BUSY_COUNT_MASK)) {
-		/* Currently,
-		 * CP is not doing anything when CP receive req_ack
-		 * command from AP. So, we'll skip this scheme.
-		 */
-		 /* send_req_ack(mld, dev); */
-		return -ETIME;
 	}
 
 	return -EBUSY;
@@ -197,7 +183,7 @@ void txq_start(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 	if (dev->id == IPC_MAP_FMT)
 		return;
 
-	mif_info("Requested stop on dev: %s\n", dev->name);
+	mif_info("Requested start on dev: %s\n", dev->name);
 
 	spin_lock_irqsave(&ld->netif_lock, flags);
 	atomic_set(&dev->txq.busy, 0);
@@ -215,16 +201,21 @@ void tx_flowctrl_resume(struct mem_link_device *mld)
 	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
-int under_tx_flow_ctrl(struct mem_link_device *mld, struct legacy_ipc_device *dev)
-{
-	return atomic_read(&dev->txq.busy);
-}
-
-int check_tx_flow_ctrl(struct mem_link_device *mld, struct legacy_ipc_device *dev)
+int txq_check_busy(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 {
 	struct link_device *ld = &mld->link_dev;
 	struct modem_ctl *mc = ld->mc;
-	int busy_count = atomic_read(&dev->txq.busy);
+	int busy_count;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	busy_count = atomic_read(&dev->txq.busy);
+	if (unlikely(busy_count))
+		atomic_inc(&dev->txq.busy);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
+
+	if (!busy_count)
+		return 0;
 
 	if (txq_empty(dev)) {
 #ifdef DEBUG_MODEM_IF_FLOW_CTRL
@@ -237,9 +228,8 @@ int check_tx_flow_ctrl(struct mem_link_device *mld, struct legacy_ipc_device *de
 		return 0;
 	}
 
-	atomic_inc(&dev->txq.busy);
-
 	if (cp_online(mc) && count_flood(busy_count, BUSY_COUNT_MASK)) {
+		/* notify cp that legacy buffer is stuck. required for legacy only */
 		send_req_ack(mld, dev);
 		return -ETIME;
 	}

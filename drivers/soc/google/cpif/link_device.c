@@ -897,19 +897,10 @@ static enum hrtimer_restart tx_timer_func(struct hrtimer *timer)
 		struct legacy_ipc_device *dev = mld->legacy_link_dev.dev[i];
 		int ret;
 
-		if (unlikely(under_tx_flow_ctrl(mld, dev))) {
-			ret = check_tx_flow_ctrl(mld, dev);
-			if (ret < 0) {
-				if (ret == -EBUSY || ret == -ETIME) {
-					need_schedule = true;
-					continue;
-				} else {
-					link_trigger_cp_crash(mld, CRASH_REASON_MIF_TX_ERR,
-						"check_tx_flow_ctrl error");
-					need_schedule = false;
-					goto exit;
-				}
-			}
+		ret = txq_check_busy(mld, dev);
+		if (ret) {
+			need_schedule = true;
+			continue;
 		}
 
 		ret = tx_frames_to_dev(mld, dev);
@@ -1140,20 +1131,10 @@ static enum hrtimer_restart sbd_tx_timer_func(struct hrtimer *timer)
 		struct sbd_ring_buffer *rb = sbd_id2rb(sl, i, TX);
 		int ret;
 
-		if (unlikely(sbd_under_tx_flow_ctrl(rb))) {
-			ret = sbd_check_tx_flow_ctrl(rb);
-			if (ret < 0) {
-				if (ret == -EBUSY || ret == -ETIME) {
-					need_schedule = true;
-					continue;
-				} else {
-					link_trigger_cp_crash(mld,
-						CRASH_REASON_MIF_TX_ERR,
-						"check_sbd_tx_flow_ctrl error");
-					need_schedule = false;
-					goto exit;
-				}
-			}
+		ret = sbd_txq_check_busy(rb);
+		if (ret) {
+			need_schedule = true;
+			continue;
 		}
 
 		ret = tx_frames_to_rb(rb);
@@ -1278,12 +1259,10 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 	for (i = 0; i < ppa_ul->num_queue; i++) {
 		struct pktproc_queue_ul *q = ppa_ul->q[i];
 
-		if (unlikely(pktproc_under_ul_flow_ctrl(q))) {
-			ret = pktproc_check_ul_flow_ctrl(q);
-			if (ret < 0) {
-				need_schedule = true;
-				continue;
-			}
+		ret = pktproc_ul_q_check_busy(q);
+		if (ret) {
+			need_schedule = true;
+			continue;
 		}
 
 		do {
