@@ -273,6 +273,17 @@ extern s64 kvm_nvhe_sym(hyp_physvirt_offset);
 extern u64 kvm_nvhe_sym(hyp_cpu_logical_map)[NR_CPUS];
 #define hyp_cpu_logical_map CHOOSE_NVHE_SYM(hyp_cpu_logical_map)
 
+enum kvm_iommu_driver {
+	KVM_IOMMU_DRIVER_NONE,
+	KVM_IOMMU_DRIVER_S2MPU,
+};
+
+#ifdef CONFIG_KVM_S2MPU
+int kvm_s2mpu_init(void);
+#else
+static inline int kvm_s2mpu_init(void) { return -ENODEV; }
+#endif
+
 struct vcpu_reset_state {
 	unsigned long	pc;
 	unsigned long	r0;
@@ -787,6 +798,8 @@ static inline bool kvm_vm_is_protected(struct kvm *kvm)
 {
 	return false;
 }
+
+void kvm_init_protected_traps(struct kvm_vcpu *vcpu);
 
 int kvm_arm_vcpu_finalize(struct kvm_vcpu *vcpu, int feature);
 bool kvm_arm_vcpu_is_finalized(struct kvm_vcpu *vcpu);
