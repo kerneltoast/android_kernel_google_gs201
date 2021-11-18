@@ -84,11 +84,6 @@
 			pmsg-size = <0x200000>;
 		};
 
-		bl31_log_reserved: bl31_log_reserved@fd7ff000 {
-			reg = <0 0xfd7ff000 0x00001000>;
-			no-map;
-		};
-
 		bldr_log_reserved: bldr_log_reserved@fd800000 {
 			reg = <0 0xfd800000 0x00100000>;
 			no-map;
