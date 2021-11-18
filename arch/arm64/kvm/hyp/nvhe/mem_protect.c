@@ -11,7 +11,8 @@
 #include <asm/kvm_pgtable.h>
 #include <asm/stage2_pgtable.h>
 
-#include <hyp/switch.h>
+#include <hyp/adjust_pc.h>
+#include <hyp/fault.h>
 
 #include <nvhe/gfp.h>
 #include <nvhe/memory.h>
@@ -24,12 +25,6 @@ extern unsigned long hyp_nr_cpus;
 struct host_kvm host_kvm;
 
 static struct hyp_pool host_s2_pool;
-
-/*
- * Copies of the host's CPU features registers holding sanitized values.
- */
-u64 id_aa64mmfr0_el1_sys_val;
-u64 id_aa64mmfr1_el1_sys_val;
 
 const u8 pkvm_hyp_id = 1;
 
@@ -133,6 +128,9 @@ int __pkvm_prot_finalize(void)
 {
 	struct kvm_s2_mmu *mmu = &host_kvm.arch.mmu;
 	struct kvm_nvhe_init_params *params = this_cpu_ptr(&kvm_init_params);
+
+	if (params->hcr_el2 & HCR_VM)
+		return -EPERM;
 
 	params->vttbr = kvm_get_vttbr(mmu);
 	params->vtcr = host_kvm.arch.vtcr;
@@ -304,10 +302,17 @@ int host_stage2_idmap_locked(phys_addr_t addr, u64 size,
 
 int host_stage2_set_owner_locked(phys_addr_t addr, u64 size, u8 owner_id)
 {
+	int ret;
+
 	hyp_assert_lock_held(&host_kvm.lock);
 
-	return host_stage2_try(kvm_pgtable_stage2_set_owner, &host_kvm.pgt,
-			       addr, size, &host_s2_pool, owner_id);
+	ret = host_stage2_try(kvm_pgtable_stage2_set_owner, &host_kvm.pgt,
+			      addr, size, &host_s2_pool, owner_id);
+
+	if (!ret && kvm_iommu_ops.host_stage2_set_owner)
+		kvm_iommu_ops.host_stage2_set_owner(addr, size, owner_id);
+
+	return ret;
 }
 
 static bool host_stage2_force_pte_cb(u64 addr, u64 end, enum kvm_pgtable_prot prot)
@@ -340,6 +345,17 @@ static int host_stage2_idmap(u64 addr)
 	int ret;
 
 	prot = is_memory ? PKVM_HOST_MEM_PROT : PKVM_HOST_MMIO_PROT;
+
+	/**
+	 * Let device drivers adjust the permitted range first.
+	 * host_stage2_adjust_range() should be last to also properly align it.
+	 */
+	if (!is_memory && kvm_iommu_ops.host_stage2_adjust_mmio_range) {
+		ret = kvm_iommu_ops.host_stage2_adjust_mmio_range(addr, &range.start,
+								  &range.end);
+		if (ret)
+			return ret;
+	}
 
 	hyp_spin_lock(&host_kvm.lock);
 	ret = host_stage2_adjust_range(addr, &range);
@@ -441,16 +457,49 @@ unlock:
 	return ret;
 }
 
+static int host_mmio_dabt_handler(struct kvm_cpu_context *host_ctxt, u32 esr,
+				  phys_addr_t addr)
+{
+	bool wnr = esr & ESR_ELx_WNR;
+	unsigned int len = BIT((esr & ESR_ELx_SAS) >> ESR_ELx_SAS_SHIFT);
+	int rd = (esr & ESR_ELx_SRT_MASK) >> ESR_ELx_SRT_SHIFT;
+	bool handled = false;
+
+	if (kvm_iommu_ops.host_mmio_dabt_handler) {
+		handled = kvm_iommu_ops.host_mmio_dabt_handler(host_ctxt, addr,
+							       len, wnr, rd);
+	}
+
+	if (!handled)
+		return -EPERM;
+
+	kvm_skip_host_instr();
+	return 0;
+}
+
+static bool is_dabt(u64 esr)
+{
+	return ESR_ELx_EC(esr) == ESR_ELx_EC_DABT_LOW;
+}
+
 void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 {
 	struct kvm_vcpu_fault_info fault;
 	u64 esr, addr;
-	int ret = 0;
+	int ret = -EPERM;
 
 	esr = read_sysreg_el2(SYS_ESR);
 	BUG_ON(!__get_fault_info(esr, &fault));
 
 	addr = (fault.hpfar_el2 & HPFAR_MASK) << 8;
-	ret = host_stage2_idmap(addr);
+
+	/* See if any subsystem can handle this abort. */
+	if (is_dabt(esr) && !addr_is_memory(addr))
+		ret = host_mmio_dabt_handler(host_ctxt, esr, addr);
+
+	/* If not handled, attempt to map the page. */
+	if (ret == -EPERM)
+		ret = host_stage2_idmap(addr);
+
 	BUG_ON(ret && ret != -EAGAIN);
 }

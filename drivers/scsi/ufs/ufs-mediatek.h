@@ -15,9 +15,14 @@
 #define REG_UFS_REFCLK_CTRL         0x144
 #define REG_UFS_EXTREG              0x2100
 #define REG_UFS_MPHYCTRL            0x2200
+#define REG_UFS_MTK_IP_VER          0x2240
 #define REG_UFS_REJECT_MON          0x22AC
 #define REG_UFS_DEBUG_SEL           0x22C0
 #define REG_UFS_PROBE               0x22C8
+#define REG_UFS_DEBUG_SEL_B0        0x22D0
+#define REG_UFS_DEBUG_SEL_B1        0x22D4
+#define REG_UFS_DEBUG_SEL_B2        0x22D8
+#define REG_UFS_DEBUG_SEL_B3        0x22DC
 
 /*
  * Ref-clk control
@@ -29,22 +34,6 @@
 #define REFCLK_ACK                  BIT(1)
 
 #define REFCLK_REQ_TIMEOUT_US       3000
-
-/*
- * Vendor specific pre-defined parameters
- */
-#define UFS_MTK_LIMIT_NUM_LANES_RX  2
-#define UFS_MTK_LIMIT_NUM_LANES_TX  2
-#define UFS_MTK_LIMIT_HSGEAR_RX     UFS_HS_G4
-#define UFS_MTK_LIMIT_HSGEAR_TX     UFS_HS_G4
-#define UFS_MTK_LIMIT_PWMGEAR_RX    UFS_PWM_G4
-#define UFS_MTK_LIMIT_PWMGEAR_TX    UFS_PWM_G4
-#define UFS_MTK_LIMIT_RX_PWR_PWM    SLOW_MODE
-#define UFS_MTK_LIMIT_TX_PWR_PWM    SLOW_MODE
-#define UFS_MTK_LIMIT_RX_PWR_HS     FAST_MODE
-#define UFS_MTK_LIMIT_TX_PWR_HS     FAST_MODE
-#define UFS_MTK_LIMIT_HS_RATE       PA_HS_MODE_B
-#define UFS_MTK_LIMIT_DESIRED_MODE  UFS_HS_MODE
 
 /*
  * Other attributes
@@ -117,18 +106,19 @@ struct ufs_mtk_hw_ver {
 struct ufs_mtk_host {
 	struct phy *mphy;
 	struct regulator *reg_va09;
-	struct ufs_mtk_hw_ver hw_ver;
 	struct reset_control *hci_reset;
 	struct reset_control *unipro_reset;
 	struct reset_control *crypto_reset;
 	struct ufs_hba *hba;
 	struct ufs_mtk_crypt_cfg *crypt;
+	struct ufs_mtk_hw_ver hw_ver;
 	enum ufs_mtk_host_caps caps;
 	bool mphy_powered_on;
 	bool unipro_lpm;
 	bool ref_clk_enabled;
 	u16 ref_clk_ungating_wait_us;
 	u16 ref_clk_gating_wait_us;
+	u32 ip_ver;
 };
 
 #endif /* !_UFS_MEDIATEK_H */
