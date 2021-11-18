@@ -20,4 +20,10 @@
 	/* MW_OVP_EN_L configured by USB driver, not here */
 
 	max77759,ls2-en = <&s2mpg12_gpio 3 GPIO_ACTIVE_HIGH>;  /* GRA-M: WLC_TX_SW_EN */
+
+	/* b/202526678 handles for WLC_RX->WLC_RX+GPIO */
+	max77759,wlc-en =  <&gpp0 0 GPIO_ACTIVE_HIGH>;
+	max77759,wlc-vout_is_invalid = <&p9xxx_gpio 14 GPIO_ACTIVE_HIGH>;
+	/* b/202526678 add inhibit pin */
+	max77759,wlc-vbus_en = <&p9xxx_gpio 15 GPIO_ACTIVE_HIGH>;
 };
