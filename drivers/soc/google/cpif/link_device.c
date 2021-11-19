@@ -18,9 +18,6 @@
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/of_reserved_mem.h>
-#if IS_ENABLED(CONFIG_PCI_EXYNOS)
-#include <linux/exynos-pci-ctrl.h>
-#endif
 #if IS_ENABLED(CONFIG_ECT)
 #include <soc/google/ect_parser.h>
 #endif
@@ -2897,7 +2894,7 @@ static irqreturn_t shmem_cp2ap_wakelock_handler(int irq, void *data)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_MCU_IPC) && IS_ENABLED(CONFIG_PCI_EXYNOS)
+#if IS_ENABLED(CONFIG_MCU_IPC) && IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 static irqreturn_t shmem_cp2ap_rat_mode_handler(int irq, void *data)
 {
 	struct mem_link_device *mld = (struct mem_link_device *)data;
@@ -2909,10 +2906,10 @@ static irqreturn_t shmem_cp2ap_rat_mode_handler(int irq, void *data)
 	mif_info("value: %u\n", req);
 
 	if (req) {
-		exynos_pcie_l1ss_ctrl(0, PCIE_L1SS_CTRL_MODEM_IF);
+		s51xx_pcie_l1ss_ctrl(0);
 		mif_info("cp requests pcie l1ss disable\n");
 	} else {
-		exynos_pcie_l1ss_ctrl(1, PCIE_L1SS_CTRL_MODEM_IF);
+		s51xx_pcie_l1ss_ctrl(1);
 		mif_info("cp requests pcie l1ss enable\n");
 	}
 
@@ -3942,7 +3939,7 @@ static int register_irq_handler(struct modem_data *modem,
 	/**
 	 * Retrieve SHMEM MBOX# and IRQ# for RAT_MODE
 	 */
-#if IS_ENABLED(CONFIG_MCU_IPC) && IS_ENABLED(CONFIG_PCI_EXYNOS)
+#if IS_ENABLED(CONFIG_MCU_IPC) && IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	mld->irq_cp2ap_rat_mode = modem->mbx->irq_cp2ap_rat_mode;
 
 	err = cp_mbox_register_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_rat_mode,
