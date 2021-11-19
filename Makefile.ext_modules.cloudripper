@@ -59,4 +59,6 @@ power/reset: | bms
 # TODO(b/198105924): Identically named kernel modules: snd-soc-wm-adsp.ko
 amplifiers/cs35l45: | amplifiers/cs35l41
 
+gxp/gs201: | edgetpu/janeiro/drivers/edgetpu
+
 include $(KERNEL_SRC)/Makefile.ext_modules.include
