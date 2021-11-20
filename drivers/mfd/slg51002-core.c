@@ -323,17 +323,6 @@ static int slg51002_power_on(struct slg51002_dev *chip)
 		usleep_range(2000, 2020);
 	}
 
-	if (gpio_is_valid(chip->chip_cs_pin)) {
-		gpio_set_value_cansleep(chip->chip_cs_pin, 1);
-
-		/*
-		* According to datasheet, turn-on time from CS HIGH to Ready
-		* state is ~10ms
-		*/
-		usleep_range(SLEEP_10000_USEC,
-				SLEEP_10000_USEC + SLEEP_RANGE_USEC);
-	}
-
 	chip->is_power_on = true;
 	dev_dbg(chip->dev, "power on\n");
 
@@ -395,13 +384,6 @@ static int slg51002_power_off(struct slg51002_dev *chip)
 	if (gpio_is_valid(chip->chip_pu_pin)) {
 		gpio_set_value_cansleep(chip->chip_pu_pin, 0);
 		usleep_range(1000, 1020);
-	}
-
-	if (gpio_is_valid(chip->chip_cs_pin)) {
-		gpio_set_value_cansleep(chip->chip_cs_pin, 0);
-		/* Put SLG51002 back to Reset state */
-		usleep_range(SLEEP_10000_USEC,
-				SLEEP_10000_USEC + SLEEP_RANGE_USEC);
 	}
 
 	if (gpio_is_valid(chip->chip_buck_pin)) {
