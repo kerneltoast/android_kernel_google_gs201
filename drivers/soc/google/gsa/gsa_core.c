@@ -604,7 +604,7 @@ static int gsa_probe(struct platform_device *pdev)
 	/* initialize mailbox */
 	s->mb = gsa_mbox_init(pdev);
 	if (IS_ERR(s->mb))
-		return -ENOMEM;
+		return (int)PTR_ERR(s->mb);
 
 	/* add children */
 	err = devm_of_platform_populate(dev);
@@ -663,6 +663,11 @@ static void __exit gsa_driver_exit(void)
 {
 	platform_driver_unregister(&gsa_driver);
 }
+
+/* XXX - EPROBE_DEFER would be better. */
+#ifdef CONFIG_GSA_PKVM
+MODULE_SOFTDEP("pre: pkvm-s2mpu");
+#endif
 
 MODULE_DESCRIPTION("Google GSA core platform driver");
 MODULE_LICENSE("GPL v2");
