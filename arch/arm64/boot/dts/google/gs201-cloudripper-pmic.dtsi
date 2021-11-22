@@ -58,3 +58,29 @@
 	regulator-initial-mode = <SEC_OPMODE_ON>;
 	regulator-always-on;
 };
+
+/* ODPM */
+&m_ext4_rail {
+	schematic-name = "VSYS_PWR_DISPLAY";
+	subsys-name = "Display";
+};
+
+&s_ext4_rail {
+	schematic-name = "VSYS_PWR_WLAN_BT";
+	subsys-name = "WLAN-BT";
+};
+
+&s_ext6_rail {
+	schematic-name = "VSYS_PWR_MMWAVE";
+	subsys-name = "Cellular";
+};
+
+/* VSEN_C3 not available: replace to L3M_VDD_AOC_RET*/
+&ch3 {
+	rail-name = "LDO3M";
+};
+
+/* VSEN_C5 not available: replace to VSYS_PWR_MMWAVE */
+&ch14 {
+	rail-name = "VSEN_C6";
+};

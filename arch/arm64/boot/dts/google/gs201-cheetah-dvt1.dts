@@ -9,6 +9,7 @@
 /plugin/;
 
 #include "gs201-cheetah-common.dtsi"
+#include "gs201-pantah-pmic-odpm-1.dtsi"
 
 / {
 	board_id = <0x30304>;

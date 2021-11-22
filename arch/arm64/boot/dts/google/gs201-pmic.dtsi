@@ -669,8 +669,8 @@
 					channel-en-index = <1>;
 					channel-mux-selection = <0x5C>;
 					shunt-res-uohms = <10000>;
-					schematic-name = "PPVAR_VSYS_PWR_DISP";
-					subsys-name = "Display";
+					schematic-name = "VSYS_PWR_MMWAVE";
+					subsys-name = "Cellular";
 				};
 
 				m_ext5_rail: VSEN_C2 {
@@ -1258,37 +1258,37 @@
 
 			channels {
 				ch13: channel@0 {
-					rail-name = "BUCK1S";
+					rail-name = "VSEN_C4";
 					channel_enabled;
 				};
 
 				ch14: channel@1 {
-					rail-name = "BUCK2S";
+					rail-name = "VSEN_C5";
 					channel_enabled;
 				};
 
 				ch15: channel@2 {
-					rail-name = "BUCK3S";
+					rail-name = "BUCK7S";
 					channel_enabled;
 				};
 
 				ch16: channel@3 {
-					rail-name = "BUCK4S";
+					rail-name = "BUCK1S";
 					channel_enabled;
 				};
 
 				ch17: channel@4 {
-					rail-name = "BUCK5S";
+					rail-name = "BUCK2S";
 					channel_enabled;
 				};
 
 				ch18: channel@5 {
-					rail-name = "BUCK6S";
+					rail-name = "BUCK4S";
 					channel_enabled;
 				};
 
 				ch19: channel@6 {
-					rail-name = "BUCK7S";
+					rail-name = "BUCK5S";
 					channel_enabled;
 				};
 
@@ -1329,17 +1329,17 @@
 					channel-en-index = <1>;
 					channel-mux-selection = <0x5C>;
 					shunt-res-uohms = <10000>;
-					schematic-name = "VSYS_PWR_WLAN_BT";
-					subsys-name = "WLAN-BT";
+					schematic-name = "VSYS_PWR_DISPLAY";
+					subsys-name = "Display";
 				};
 
 				s_ext5_rail: VSEN_C5 {
 					external_rail;
 					channel-en-index = <2>;
 					channel-mux-selection = <0x5D>;
-					shunt-res-uohms = <5000>;
-					schematic-name = "P5_GRAS";
-					subsys-name = "Spare";
+					shunt-res-uohms = <10000>;
+					schematic-name = "VSYS_PWR_WLAN_BT";
+					subsys-name = "WLAN-BT";
 				};
 
 				s_ext6_rail: VSEN_C6 {
@@ -1347,8 +1347,8 @@
 					channel-en-index = <4>;
 					channel-mux-selection = <0x5E>;
 					shunt-res-uohms = <5000>;
-					schematic-name = "P6_GRAS";
-					subsys-name = "Cellular";
+					schematic-name = "VSEN_C6_NC";
+					subsys-name = "Spare";
 				};
 			};
 		};
