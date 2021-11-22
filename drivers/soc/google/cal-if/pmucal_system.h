@@ -45,6 +45,7 @@ extern int pmucal_system_enter(int mode);
 extern int pmucal_system_exit(int mode);
 extern int pmucal_system_earlywakeup(int mode);
 extern int pmucal_system_init(void);
+extern void pmucal_tcxo_demand(bool tcxo_demand);
 
 extern struct pmucal_seq pmucal_lpm_init[];
 extern struct pmucal_lpm pmucal_lpm_list[];

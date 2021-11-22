@@ -35,6 +35,7 @@
 #include <soc/google/exynos-cpupm.h>
 #include <trace/hooks/sound.h>
 #include <trace/hooks/usb.h>
+#include "../../soc/google/cal-if/pmucal_system.h"
 
 static struct hc_driver xhci_exynos_hc_driver;
 
@@ -92,6 +93,9 @@ int xhci_exynos_bus_suspend(struct usb_hcd *hcd)
 		ret_phy = exynos_usbdrd_phy_vendor_set(xhci_exynos->phy_usb2, 1, 0);
 		if (ret_phy)
 			dev_info(xhci_exynos->dev, "phy vendor set fail\n");
+
+		/* Vote to turn off tcxo when suspend with USB2 */
+		pmucal_tcxo_demand(false);
 	}
 
 	xhci_exynos_wake_lock(xhci_exynos, main_hcd, 0);
