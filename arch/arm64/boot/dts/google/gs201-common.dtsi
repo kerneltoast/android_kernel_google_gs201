@@ -12,7 +12,6 @@
 #include "gs201-common-gps.dtsi"
 #include "gs201-common-touch.dtsi"
 #include "gs201-common-typec.dtsi"
-#include "gs201-common-wlan.dtsi"
 #include "gs201-ldaf.dtsi"
 #include "gs201-pmic.dtsi"
 

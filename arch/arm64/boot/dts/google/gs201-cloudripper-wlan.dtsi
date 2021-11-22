@@ -2,7 +2,7 @@
 /*
  * Google GS201 wlan device tree source
  *
- * Copyright 2020 Google,LLC
+ * Copyright 2021 Google,LLC
  */
 
 #include <dt-bindings/gpio/gpio.h>
