@@ -8,30 +8,7 @@
 /dts-v1/;
 /plugin/;
 
-#include "gs201-common.dtsi"
-#include "gs201-cloudripper-battery.dtsi"
-#include "gs201-cloudripper-bcl.dtsi"
-#include "gs201-cloudripper-bluetooth.dtsi"
-#include "gs201-cloudripper-charging.dtsi"
-#include "gs201-cloudripper-cp-s5300-sit.dtsi"
-#include "gs201-cloudripper-ese.dtsi"
-#include "gs201-cloudripper-gsa-gsc.dtsi"
-#include "gs201-cloudripper-nfc.dtsi"
-#include "gs201-cloudripper-sbbm.dtsi"
-#include "gs201-cloudripper-wlan.dtsi"
-
-#include "gs201-ravenclaw-fingerprint.dtsi"
-#include "gs201-ravenclaw-wcharger.dtsi"
-#include "gs201-ravenclaw-usecases.dtsi"
-
-#include "gs201-pantah-camera-pmic.dtsi"
-#include "gs201-cheetah-camera.dtsi"
-#include "gs201-panther-display.dtsi"
-#include "gs201-panther-pmic.dtsi"
-#include "gs201-panther-touch.dtsi"
-#include "gs201-panther-thermal.dtsi"
-#include "gs201-panther-audio.dtsi"
-#include "gs101-faceauth-dma-heap.dtsi"
+#include "gs201-panther-common.dtsi"
 
 / {
 	board_id = <0x30403>;
