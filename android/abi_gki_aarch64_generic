@@ -65,6 +65,7 @@
   blk_alloc_queue
   blk_cleanup_queue
   blkdev_get_by_dev
+  blkdev_get_by_path
   blkdev_put
   blk_execute_rq_nowait
   blk_get_request
@@ -281,6 +282,7 @@
   crypto_unregister_alg
   crypto_unregister_scomp
   csum_ipv6_magic
+  csum_partial
   csum_tcpudp_nofold
   _ctype
   debugfs_attr_read
@@ -1286,6 +1288,9 @@
   of_translate_address
   of_usb_host_tpl_support
   page_endio
+  page_frag_alloc
+  __page_frag_cache_drain
+  page_frag_free
   page_mapping
   __page_pinner_migration_failed
   panic
