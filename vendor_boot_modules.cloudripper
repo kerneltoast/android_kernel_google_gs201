@@ -12,6 +12,7 @@ aoc_core.ko
 aoc_usb_driver.ko
 aoc_uwb_platform_drv.ko
 aoc_uwb_service_dev.ko
+arm-memlat-mon.ko
 at24.ko
 bbd.ko
 bc_max77759.ko
@@ -64,6 +65,7 @@ google-bms.ko
 google-charger.ko
 google-cpm.ko
 google_bcl.ko
+governor_memlat.ko
 gs-chipid.ko
 gs_acpm.ko
 gs_thermal.ko
