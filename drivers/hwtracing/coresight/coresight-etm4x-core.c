@@ -364,8 +364,10 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	if (drvdata->nr_pe)
 		etm4x_relaxed_write32(csa, config->pe_sel, TRCPROCSELR);
 	etm4x_relaxed_write32(csa, config->cfg, TRCCONFIGR);
-	/* nothing specific implemented */
-	etm4x_relaxed_write32(csa, 0x0, TRCAUXCTLR);
+	/* Set IDLEACK to 1: ETM trace unit idle acknowledge is asserted
+	 * irrespective of the ETM trace unit idle state.
+	 */
+	etm4x_relaxed_write32(csa, BIT(1), TRCAUXCTLR);
 	etm4x_relaxed_write32(csa, config->eventctrl0, TRCEVENTCTL0R);
 	etm4x_relaxed_write32(csa, config->eventctrl1, TRCEVENTCTL1R);
 	if (drvdata->stallctl)
