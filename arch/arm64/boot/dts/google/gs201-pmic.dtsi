@@ -37,6 +37,7 @@
 	status = "okay";
 	s2mpg12mfd: s2mpg12mfd@1f {
 		compatible = "samsung,s2mpg12mfd";
+		dev-name = "s2mpg12mfd";
 		acpm-ipc-channel = <2>;
 		s2mpg12,wakeup = "enabled";
 		reg = <0x1f>;
@@ -711,6 +712,7 @@
 	status = "okay";
 	s2mpg13mfd: s2mpg13mfd@2f {
 		compatible = "samsung,s2mpg13mfd";
+		dev-name = "s2mpg13mfd";
 		acpm-ipc-channel = <2>;
 		s2mpg13,wakeup = "enabled";
 		reg = <0x2f>;
