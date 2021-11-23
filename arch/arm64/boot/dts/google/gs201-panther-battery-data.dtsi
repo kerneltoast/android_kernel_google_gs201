@@ -51,10 +51,10 @@ maxim,config {
 		>;
 	};
 
-	/* ATL: 1_ATL_3140_1_101821_BC59_RC2_1112.txt, 2021-11-15, b/197795522 */
+	/* ATL: 1_ATL_3140_1_101821_BC59_RC2_1122.txt, 2021-11-22, b/197795522#comment9 */
 	maxim,cos-a1-1k {
 		maxim,batt-id-kohm = <1>;
-		maxim,model-version = <0>;
+		maxim,model-version = <1>;
 		maxim,force-reset-model-data;
 		maxim,fg-model = /bits/ 16 <
 			0x9590 0xaed0 0xb3b0 0xb890 0xb8e0 0xb920 0xbb60 0xbc70
@@ -74,7 +74,7 @@ maxim,config {
 			/* 0x0035 */	0x089e	/* FullCAPRep */
 			/* 0x0018 */	0x0882	/* DesignCap */
 			/* 0x0046 */	0x3200	/* dPacc */
-			/* 0x0045 */	0x0227	/* dQacc */
+			/* 0x0045 */	0x0220	/* dQacc */
 			/* 0x0023 */	0x089e	/* FullCAPNom */
 			/* 0x003A */	0xa561	/* V_empty */
 			/* 0x0012 */	0x1f00	/* QResidual00 */
@@ -95,10 +95,10 @@ maxim,config {
 		>;
 	};
 
-	/* LSN: 3_LSN_3141_1_101621_BC59_RC2_1112.txt, 2021-11-15, b/197795522 */
+	/* LSN: 3_LSN_3141_1_101621_BC59_RC2_1122.txt, 2021-11-22, b/197795522#comment9 */
 	maxim,lsn-a1-3k {
 		maxim,batt-id-kohm = <3>;
-		maxim,model-version = <0>;
+		maxim,model-version = <1>;
 		maxim,force-reset-model-data;
 		maxim,fg-model = /bits/ 16 <
 			0xa4f0 0xb6f0 0xb8c0 0xba00 0xbbb0 0xbc70 0xbe40 0xbf60
@@ -118,7 +118,7 @@ maxim,config {
 			/* 0x0035 */	0x089b	/* FullCAPRep */
 			/* 0x0018 */	0x0882	/* DesignCap */
 			/* 0x0046 */	0x3200	/* dPacc */
-			/* 0x0045 */	0x0226	/* dQacc */
+			/* 0x0045 */	0x0220	/* dQacc */
 			/* 0x0023 */	0x089b	/* FullCAPNom */
 			/* 0x003A */	0xa561	/* V_empty */
 			/* 0x0012 */	0x2400	/* QResidual00 */
