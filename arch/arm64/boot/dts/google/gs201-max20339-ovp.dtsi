@@ -29,6 +29,7 @@
 };
 
 &max77759tcpc {
+	/delete-property/ ovp-present;
 	in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
 	max20339,ovp = <&max20339_ovp>;
 };
