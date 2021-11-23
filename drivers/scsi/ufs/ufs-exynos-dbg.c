@@ -493,7 +493,7 @@ static void __ufs_get_sfr(struct ufs_dbg_mgr *mgr,
 {
 	struct ufs_vs_handle *handle = mgr->handle;
 	int sel_api = 0;
-	u32 reg;
+	u32 reg = 0;
 	u32 *pval;
 
 	while (cfg) {
@@ -693,8 +693,8 @@ static void __ufs_print_cport(struct ufs_dbg_mgr *mgr, struct device *dev)
 	u32 offset;
 	u32 size = 0;
 	u32 cur_ptr = 0;
-	u32 tag;
-	u32 idx;
+	u32 tag = 0;
+	u32 idx = 0;
 	int tag_printed;
 
 	/*
