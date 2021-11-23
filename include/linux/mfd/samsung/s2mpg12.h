@@ -129,6 +129,7 @@ struct s2mpg12_dev {
 	/* Device Data */
 	struct device *dev;
 	struct s2mpg12_platform_data *pdata;
+	struct regmap *regmap;
 	int device_type;
 	int type;
 

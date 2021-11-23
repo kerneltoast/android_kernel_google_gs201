@@ -93,6 +93,7 @@ struct s2mpg13_dev {
 	/* Device Data */
 	struct device *dev;
 	struct s2mpg13_platform_data *pdata;
+	struct regmap *regmap;
 	int device_type;
 	int type;
 
