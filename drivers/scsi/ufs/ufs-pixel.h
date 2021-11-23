@@ -124,7 +124,7 @@ static inline char *parse_opcode(u8 opcode)
 	case SYNCHRONIZE_CACHE:
 		return "SYNC_CACHE";
 	}
-	return NULL;
+	return "NULL";
 }
 
 #define PIXEL_MIN_SLOWIO_US            (1000)     /*  1 ms      */
