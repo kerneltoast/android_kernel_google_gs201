@@ -139,6 +139,8 @@ struct bcm_ssi_rx_frame {
 	unsigned char data[MAX_SPI_FRAME_LEN-1];
 } __attribute__((__packed__));
 
+struct bbd_device;
+
 struct bcm_spi_priv {
 	struct spi_device *spi;
 
@@ -198,6 +200,24 @@ struct bcm_spi_priv {
 	/* Overrun counter */
 	unsigned long skip_count;
 	unsigned long last_tick;
+
+	bool ssi_dbg;
+	bool ssi_dbg_pzc;
+	bool ssi_dbg_rng;
+
+	/*
+	 * Calculating TX transfer failure operation in bus driver,
+	 * reset in bcm_ssi_open()
+	 */
+	int ssi_tx_fail;
+	/* Calculating TX pzc retries, reset in bcm_ssi_open() */
+	int ssi_tx_pzc_retries;
+	/* Calculating TX pzc retry delays, reset in bcm_ssi_open() */
+	int ssi_tx_pzc_retry_delays;
+
+	unsigned long rx_buffer_avail_bytes;// = HSI_PZC_MAX_RX_BUFFER;
+	/* Should be more MAX_SPI_FRAME_LEN. See below */
+	struct bbd_device *bbd;
 };
 
 /* bcm_gps_regs.cpp */
@@ -211,12 +231,7 @@ int bcm_ireg_read(struct bcm_spi_priv *priv, char *id, unsigned int regaddr,
 		unsigned int *regval, int n);
 
 /* bcm_gps_spi.cpp */
-struct bcm_spi_priv *bcm_get_bcm_gps(void);
-void bcm_ssi_print_trans_stat(struct bcm_spi_priv *priv);
-void bcm_ssi_clear_trans_stat(struct bcm_spi_priv *priv);
-int bcm_ssi_rx(struct bcm_spi_priv *priv, size_t *length);
 int bcm_spi_sync(struct bcm_spi_priv *priv, void *tx_buf, void *rx_buf,
 		int len, int bits_per_word);
-unsigned long bcm_clock_get_ms(void);
 
 #endif /* __BBD_H__ */

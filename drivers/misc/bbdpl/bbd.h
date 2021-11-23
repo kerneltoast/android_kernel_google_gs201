@@ -8,6 +8,10 @@
 #ifndef __BBD_H__
 #define __BBD_H__
 
+#include <linux/device.h>
+#include <linux/cdev.h>
+#include <linux/circ_buf.h>
+
 #define BBD_PWR_STATUS
 
 union long_union_t {
@@ -55,7 +59,7 @@ enum {
 #define GPSD_CORE_ON		"GPSD:CORE_ON"
 #define GPSD_CORE_OFF		"GPSD:CORE_OFF"
 
-/* #define DEBUG_1HZ_STAT */
+#define DEBUG_1HZ_STAT
 
 #define HSI_ERROR_STATUS                  0x2C
 #define HSI_ERROR_STATUS_LPBK_ERROR       0x01
@@ -77,8 +81,11 @@ enum {
 #define HSI_STRM_FIFO_STATUS          0x40104100
 #define HSI_CMND_FIFO_STATUS          0x40104104
 
-#ifdef DEBUG_1HZ_STAT
+#define BBD_BUFF_SIZE (PAGE_SIZE * 2)
 
+struct bbd_device;
+
+#ifdef DEBUG_1HZ_STAT
 enum {
 	STAT_TX_LHD = 0,
 	STAT_TX_SSP,
@@ -95,8 +102,8 @@ enum {
 	STAT_MAX
 };
 
-
 struct bbd_stat {
+	struct bbd_device *bbd;
 	bool enabled;
 
 	u64 ts_irq;
@@ -114,11 +121,9 @@ struct bbd_stat {
 	struct workqueue_struct *workq;
 };
 
-extern struct bbd_stat stat1hz;
-
-void bbd_update_stat(int index, unsigned int count);
-void bbd_enable_stat(void);
-void bbd_disable_stat(void);
+void bbd_update_stat(struct bbd_device *bbd, int index, unsigned int count);
+void bbd_enable_stat(struct bbd_device *bbd);
+void bbd_disable_stat(struct bbd_device *bbd);
 #endif
 
 #ifdef BBD_PWR_STATUS
@@ -127,7 +132,59 @@ enum {
 	STAT_GPS_ON,
 	STAT_GPS_MAX
 };
+
+struct gnss_pwrstats {
+	bool    gps_stat;
+	u64	gps_on_cnt;
+	u64	gps_on_duration;
+	u64	gps_on_entry;
+	u64	gps_on_exit;
+	u64	gps_off_cnt;
+	u64	gps_off_duration;
+	u64	gps_off_entry;
+	u64	gps_off_exit;
+};
 #endif /* BBD_PWR_STATUS */
+
+struct bbd_cdev_priv {
+	struct bbd_device *bbd;
+	struct cdev cdev;		/* char device */
+	struct device *dev;
+	dev_t devno;
+	bool busy;
+	struct circ_buf read_buf;		/* LHD reads from BBD */
+	struct mutex lock;			/* Lock for read_buf */
+	char _read_buf[BBD_BUFF_SIZE];		/* LHD reads from BBD */
+	char write_buf[BBD_BUFF_SIZE];		/* LHD writes into BBD */
+	wait_queue_head_t poll_wait;		/* for poll */
+#ifdef BBD_PWR_STATUS
+	struct gnss_pwrstats pwrstats;		/* GNSS power state */
+#endif /* BBD_PWR_STATUS */
+};
+
+struct bbd_device {
+	struct device *dev;
+	struct class *class;			/* for device_create */
+
+#ifdef DEBUG_1HZ_STAT
+	struct bbd_stat stat1hz;
+#endif
+	struct notifier_block notifier;
+
+	struct bbd_cdev_priv priv[BBD_DEVICE_INDEX];/* individual structures */
+
+	bool db;				/* debug flag */
+#ifdef CONFIG_SENSORS_SSP
+	bool ssp_dbg;
+	bool ssp_pkt_dbg;
+#endif
+	void *ssp_priv;				/* private data pointer */
+	struct bbd_callbacks *ssp_cb;		/* callbacks for SSP */
+
+	bool legacy_patch;		/* check for using legacy_bbd_patch */
+	dev_t dev_num;			/* device number */
+};
+
 
 /** callback for incoming data from 477x to senser hub driver **/
 struct bbd_callbacks {
@@ -138,10 +195,9 @@ struct bbd_callbacks {
 };
 
 extern void	bbd_register(void *ext_data, struct bbd_callbacks *pcallbacks);
-extern ssize_t	bbd_send_packet(unsigned char *buf, size_t size);
-extern ssize_t	bbd_pull_packet(
-		unsigned char *buf, size_t size, unsigned int timeout_ms);
 extern int	bbd_mcu_reset(void);
-extern int	bbd_init(struct device *dev, bool legacy_patch);
+extern struct bbd_device *bbd_init(struct device *dev, bool legacy_patch);
+extern void bbd_exit(struct device *dev);
+extern void bcm_ssi_debug(struct device *dev, int type, bool value);
 
 #endif /* __BBD_H__ */
