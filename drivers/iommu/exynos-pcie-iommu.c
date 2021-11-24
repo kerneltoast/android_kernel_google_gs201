@@ -902,10 +902,12 @@ int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 	unsigned long flags;
 	int pcie_vid = g_sysmmu_drvdata[hsi_block_num]->pcie_vid;
 
+#ifdef ENABLE_DRAM_REGION_VALIDATION
 	if (check_memory_validation(paddr) != 0) {
 		pr_warn("WARN - Unexpected address request : 0x%pap\n", &paddr);
 		return -EINVAL;
 	}
+#endif
 
 	/* Make sure start address align least 4KB */
 	if ((iova & SYSMMU_4KB_MASK) != 0) {
