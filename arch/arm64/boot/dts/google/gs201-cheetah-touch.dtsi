@@ -45,6 +45,7 @@
 	synaptics,firmware_names = "synaptics.img",
 				   "synaptics.img",
 				   "synaptics_b.img";
+	synaptics,touch_offload_id = /bits/ 8 <'c' '1' '0' '0'>;
 
 	controller-data {
 		cs-gpio = <&gpp20 3 0>;
