@@ -364,6 +364,13 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 		if (fore == (q->num_desc - 1))
 			desc[fore].control |= (1 << 3);	/* RINGEND */
 
+		if (unlikely(desc[fore].reserved0 != 0)) { /* W/A to detect mem poison */
+			mif_err("mem poison:0x%llX r0:%d c:%d s:%d l%d cl%d r1:%d\n",
+					desc[fore].cp_data_paddr, desc[fore].reserved0,
+					desc[fore].control, desc[fore].status,
+					desc[fore].lro, desc[fore].clat, desc[fore].reserved1);
+			panic("memory poison\n");
+		}
 		*q->fore_ptr = circ_new_ptr(q->num_desc, *q->fore_ptr, 1);
 		fore = circ_new_ptr(q->num_desc, fore, 1);
 	}
