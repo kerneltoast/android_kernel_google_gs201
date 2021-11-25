@@ -1616,8 +1616,8 @@ static int acpm_mbox_test_remove(struct platform_device *pdev)
 
 	mutex_destroy(&mbox->mfd->lock);
 
-	kfree(mbox);
 	dev_info(mbox->device, "%s done.\n", __func__);
+	kfree(mbox);
 	return 0;
 }
 
