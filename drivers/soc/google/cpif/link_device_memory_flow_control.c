@@ -36,7 +36,7 @@ void pktproc_ul_q_stop(struct pktproc_queue_ul *q)
 	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
-void pktproc_ul_q_start(struct pktproc_queue_ul *q)
+static void pktproc_ul_q_start(struct pktproc_queue_ul *q)
 {
 	struct link_device *ld = &q->mld->link_dev;
 	unsigned long flags;
@@ -98,7 +98,7 @@ void sbd_txq_stop(struct sbd_ring_buffer *rb)
 	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
-void sbd_txq_start(struct sbd_ring_buffer *rb)
+static void sbd_txq_start(struct sbd_ring_buffer *rb)
 {
 	struct link_device *ld = rb->ld;
 	unsigned long flags;
@@ -165,17 +165,7 @@ void txq_stop(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 	}
 }
 
-void tx_flowctrl_suspend(struct mem_link_device *mld)
-{
-	struct link_device *ld = &mld->link_dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ld->netif_lock, flags);
-	stop_net_ifaces(ld, TX_SUSPEND_MASK);
-	spin_unlock_irqrestore(&ld->netif_lock, flags);
-}
-
-void txq_start(struct mem_link_device *mld, struct legacy_ipc_device *dev)
+static void txq_start(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 {
 	struct link_device *ld = &mld->link_dev;
 	unsigned long flags;
@@ -188,16 +178,6 @@ void txq_start(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 	spin_lock_irqsave(&ld->netif_lock, flags);
 	atomic_set(&dev->txq.busy, 0);
 	resume_net_ifaces(ld, TXQ_STOP_MASK);
-	spin_unlock_irqrestore(&ld->netif_lock, flags);
-}
-
-void tx_flowctrl_resume(struct mem_link_device *mld)
-{
-	struct link_device *ld = &mld->link_dev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ld->netif_lock, flags);
-	resume_net_ifaces(ld, TX_SUSPEND_MASK);
 	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
@@ -235,6 +215,26 @@ int txq_check_busy(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 	}
 
 	return -EBUSY;
+}
+
+void tx_flowctrl_suspend(struct mem_link_device *mld)
+{
+	struct link_device *ld = &mld->link_dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	stop_net_ifaces(ld, TX_SUSPEND_MASK);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
+}
+
+void tx_flowctrl_resume(struct mem_link_device *mld)
+{
+	struct link_device *ld = &mld->link_dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ld->netif_lock, flags);
+	resume_net_ifaces(ld, TX_SUSPEND_MASK);
+	spin_unlock_irqrestore(&ld->netif_lock, flags);
 }
 
 void send_req_ack(struct mem_link_device *mld, struct legacy_ipc_device *dev)

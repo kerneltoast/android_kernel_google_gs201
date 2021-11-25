@@ -791,21 +791,19 @@ int mem_reset_ipc_link(struct mem_link_device *mld);
 void mem_cmd_handler(struct mem_link_device *mld, u16 cmd);
 
 /*============================================================================*/
-void sbd_txq_stop(struct sbd_ring_buffer *rb);
-void sbd_txq_start(struct sbd_ring_buffer *rb);
-int sbd_txq_check_busy(struct sbd_ring_buffer *rb);
-
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 void pktproc_ul_q_stop(struct pktproc_queue_ul *q);
-void pktproc_ul_q_start(struct pktproc_queue_ul *q);
 int pktproc_ul_q_check_busy(struct pktproc_queue_ul *q);
 #endif
 
+void sbd_txq_stop(struct sbd_ring_buffer *rb);
+int sbd_txq_check_busy(struct sbd_ring_buffer *rb);
+
+void txq_stop(struct mem_link_device *mld, struct legacy_ipc_device *dev);
+int txq_check_busy(struct mem_link_device *mld, struct legacy_ipc_device *dev);
+
 void tx_flowctrl_suspend(struct mem_link_device *mld);
 void tx_flowctrl_resume(struct mem_link_device *mld);
-void txq_stop(struct mem_link_device *mld, struct legacy_ipc_device *dev);
-void txq_start(struct mem_link_device *mld, struct legacy_ipc_device *dev);
-int txq_check_busy(struct mem_link_device *mld, struct legacy_ipc_device *dev);
 
 void send_req_ack(struct mem_link_device *mld, struct legacy_ipc_device *dev);
 void recv_res_ack(struct mem_link_device *mld, struct legacy_ipc_device *dev,
