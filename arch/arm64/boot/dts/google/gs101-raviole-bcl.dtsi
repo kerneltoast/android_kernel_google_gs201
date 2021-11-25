@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Google GS101 Whitefin2-specific bcl device tree source
+ * Google GS101 Raviole-specific bcl device tree source
  *
  * Copyright (c) 2020 Google, LLC
  *		https://www.google.com
@@ -15,7 +15,7 @@
 			google_mitigation: google,mitigation {
 				compatible = "google,google-bcl";
 				#thermal-sensor-cells = <1>;
-				google,power-supply = <&max77759_fg>;
+				google,power-supply = <&google_battery>;
 				google,main-power = <&s2mpg10mfd>;
 				google,sub-power = <&s2mpg11mfd>;
 				ppm_settings = <0>;
