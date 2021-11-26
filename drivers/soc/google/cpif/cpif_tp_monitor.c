@@ -495,7 +495,7 @@ static void tpmon_set_gro(struct tpmon_data *data)
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	if (ppa->use_napi && ppa->use_exclusive_irq) {
-		for (i = 0; i > ppa->num_queue; i++) {
+		for (i = 0; i < ppa->num_queue; i++) {
 			struct pktproc_queue *q = ppa->q[i];
 
 			q->netdev.gro_flush_timeout = timeout;
