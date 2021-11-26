@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Battery device tree entries specific to raviole
+ * Battery device tree entries specific to panther/cheetah
  *
  * Copyright 2021 Google,LLC
  *
@@ -76,7 +76,7 @@
 	dc_charger_irq: dc-charger-irq {
 		samsung,pins = "gpa9-0"; /* XEINT_20 (PLC_INT_L) */
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 	};
 };
 

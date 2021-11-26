@@ -9,7 +9,7 @@
 #include "gs201-cloudripper-battery.dtsi"
 #include "gs201-cloudripper-bcl.dtsi"
 #include "gs201-cloudripper-bluetooth.dtsi"
-#include "gs201-cloudripper-charging.dtsi"
+#include "gs201-pantah-charging.dtsi"
 #include "gs201-cloudripper-cp-s5300-sit.dtsi"
 #include "gs201-cloudripper-ese.dtsi"
 #include "gs201-cloudripper-gsa-gsc.dtsi"
