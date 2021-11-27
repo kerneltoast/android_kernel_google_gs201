@@ -20,3 +20,4 @@
 #include "gs101-slider-thermal.dtsi"
 #include "gs101-slider-touch.dtsi"
 #include "gs101-slider-wcharger.dtsi"
+#include "gs101-slider-sensor.dtsi"
