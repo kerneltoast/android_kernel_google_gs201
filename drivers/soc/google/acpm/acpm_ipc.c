@@ -42,7 +42,6 @@ static struct acpm_ipc_info *acpm_ipc;
 static struct workqueue_struct *update_log_wq;
 static struct acpm_debug_info *acpm_debug;
 static bool is_acpm_stop_log;
-static bool acpm_stop_log_req;
 
 static struct acpm_framework *acpm_initdata;
 static void __iomem *acpm_srambase;
@@ -272,11 +271,6 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 		buffer->rear_index = rear;
 		front = __raw_readl(buffer->log_buff_front);
 	}
-
-	if (acpm_stop_log_req) {
-		is_acpm_stop_log = true;
-		acpm_ramdump();
-	}
 }
 
 static void acpm_log_print(void)
@@ -290,8 +284,8 @@ static void acpm_log_print(void)
 
 void acpm_stop_log_and_dumpram(void)
 {
-	acpm_stop_log_req = true;
-	acpm_log_print();
+	is_acpm_stop_log = true;
+	acpm_ramdump();
 }
 EXPORT_SYMBOL_GPL(acpm_stop_log_and_dumpram);
 
