@@ -270,8 +270,8 @@ void VL53L1_hist_remove_ambient_bins(
 		}
 	}
 
-	if (pdata->number_of_ambient_bins > 0) {
-
+	if (pdata->number_of_ambient_bins > 0 &&
+		pdata->VL53L1_p_023 <= VL53L1_HISTOGRAM_BUFFER_SIZE) {
 
 		for (bin = pdata->number_of_ambient_bins;
 				bin < pdata->VL53L1_p_023; bin++) {
