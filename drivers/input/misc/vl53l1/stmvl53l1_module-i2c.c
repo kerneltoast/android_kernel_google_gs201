@@ -517,13 +517,13 @@ static int stmvl53l1_probe(struct i2c_client *client,
 		rc = -ENOMEM;
 		return rc;
 	}
-	if (vl53l1_data) {
-		vl53l1_data->client_object =
-				kzalloc(sizeof(struct i2c_data), GFP_KERNEL);
-		if (!vl53l1_data)
-			goto done_freemem;
-		i2c_data = (struct i2c_data *)vl53l1_data->client_object;
-	}
+
+	vl53l1_data->client_object =
+		kzalloc(sizeof(struct i2c_data), GFP_KERNEL);
+	if (!vl53l1_data->client_object)
+		goto done_freemem;
+
+	i2c_data = vl53l1_data->client_object;
 	i2c_data->client = client;
 	i2c_data->vl53l1_data = vl53l1_data;
 	i2c_data->irq = -1; /* init to no irq */
@@ -642,8 +642,10 @@ int stmvl53l1_power_up_i2c(void *object)
 	struct i2c_data *data = (struct i2c_data *)object;
 	struct device *dev = &data->client->dev;
 
-	if (data->vl53l1_data->is_power_up)
-		return rc;
+	if (data->vl53l1_data != NULL) {
+		if (data->vl53l1_data->is_power_up)
+			return rc;
+	}
 
 	/* turn on power */
 	if (data->vio_gpio != -1) {
@@ -709,8 +711,10 @@ int stmvl53l1_power_down_i2c(void *i2c_object)
 	struct i2c_data *data = (struct i2c_data *)i2c_object;
 	struct device *dev = &data->client->dev;
 
-	if (!data->vl53l1_data->is_power_up)
-		return rc;
+	if (data->vl53l1_data != NULL) {
+		if (!data->vl53l1_data->is_power_up)
+			return rc;
+	}
 
 	/* turn off power */
 	if (data->pwren_gpio != -1)
