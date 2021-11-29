@@ -376,7 +376,9 @@ VL53L1_Error VL53L1_GetUID(VL53L1_DEV Dev, uint64_t *pUid)
 			(uint8_t)(0x1F8 >> 2),
 			(uint8_t)(8 >> 2),
 			fmtdata);
-	memcpy(pUid, fmtdata, sizeof(uint64_t));
+
+	if (Status == VL53L1_ERROR_NONE)
+		memcpy(pUid, fmtdata, sizeof(uint64_t));
 
 	LOG_FUNCTION_END(Status);
 	return Status;

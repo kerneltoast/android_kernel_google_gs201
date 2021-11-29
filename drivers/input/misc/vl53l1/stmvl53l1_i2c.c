@@ -199,11 +199,12 @@ VL53L1_Error VL53L1_WrWord(VL53L1_DEV pdev, uint16_t index, uint16_t data)
 VL53L1_Error VL53L1_RdWord(VL53L1_DEV pdev, uint16_t index, uint16_t *pdata)
 {
 	VL53L1_Error status;
-	uint8_t buffer[2];
+	uint16_t buffer;
 
-	status = VL53L1_ReadMulti(pdev, index, buffer, 2);
+	status = VL53L1_ReadMulti(pdev, index, (uint8_t *)&buffer, 2);
 
-	*pdata = ((uint16_t)buffer[0] << 8) + (uint16_t)buffer[1];
+	if (status == VL53L1_ERROR_NONE)
+		*pdata = ntohs(buffer);
 
 	return status;
 }
@@ -227,12 +228,12 @@ VL53L1_Error VL53L1_WrDWord(VL53L1_DEV pdev, uint16_t index, uint32_t data)
 VL53L1_Error VL53L1_RdDWord(VL53L1_DEV pdev, uint16_t index, uint32_t *pdata)
 {
 	VL53L1_Error status = VL53L1_ERROR_NONE;
-	uint8_t buffer[4];
+	uint32_t buffer;
 
-	status = VL53L1_ReadMulti(pdev, index, buffer, 4);
+	status = VL53L1_ReadMulti(pdev, index, (uint8_t *)&buffer, 4);
 
-	*pdata = ((uint32_t)buffer[0] << 24) + ((uint32_t)buffer[1] << 16) +
-		 ((uint32_t)buffer[2] << 8) + (uint32_t)buffer[3];
+	if (status == VL53L1_ERROR_NONE)
+		*pdata = ntohl(buffer);
 
 	return status;
 }
@@ -249,6 +250,9 @@ VL53L1_Error VL53L1_WriteMulti(VL53L1_DEV pdev, uint16_t index,
 	dev = (struct stmvl53l1_data *)container_of(pdev,
 			struct stmvl53l1_data,
 			stdev);
+
+	if (count == 0)
+		return VL53L1_ERROR_INVALID_PARAMS;
 
 	for (i = 0; i < count; i += chunk_size) {
 		status = (cci_write(dev, hostaddr, &pdata[i],
