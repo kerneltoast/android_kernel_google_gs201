@@ -3371,56 +3371,39 @@ static int stmvl53l1_ioctl_handler(
 		void __user *p)
 {
 	int rc = 0;
-	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
-	struct device *dev = &i2c_data->client->dev;
 
 	if (!data)
 		return -EINVAL;
 
 	switch (cmd) {
 	case VL53L1_IOCTL_POWER_UP:
-		dev_dbg(dev, "VL53L1_IOCTL_POWER_UP\n");
 		rc = ctrl_power_up(data);
 		break;
-
 	case VL53L1_IOCTL_POWER_DOWN:
-		dev_dbg(dev, "VL53L1_IOCTL_POWER_DOWN\n");
 		rc = ctrl_power_down(data);
 		break;
-
 	case VL53L1_IOCTL_START:
-		dev_dbg(dev, "VL53L1_IOCTL_START\n");
 		rc = ctrl_start(data);
 		break;
-
 	case VL53L1_IOCTL_STOP:
-		dev_dbg(dev, "VL53L1_IOCTL_STOP\n");
 		rc = ctrl_stop(data);
 		break;
-
 	case VL53L1_IOCTL_GETDATAS:
 		rc = ctrl_getdata(data, p);
 		break;
-
 	case VL53L1_IOCTL_GETDATAS_BLOCKING:
 		rc = ctrl_getdata_blocking(data, p);
 		break;
-
 	/* Register tool */
 	case VL53L1_IOCTL_REGISTER:
-		dev_dbg(dev, "VL53L1_IOCTL_REGISTER\n");
 		reset_release(data);
 		rc = ctrl_reg_access(data, p);
 		reset_hold(data);
 		break;
-
 	case VL53L1_IOCTL_PARAMETER:
-		dev_dbg(dev, "VL53L1_IOCTL_PARAMETER\n");
 		rc = ctrl_params(data, p);
 		break;
-
 	case VL53L1_IOCTL_ROI:
-		dev_dbg(dev, "VL53L1_IOCTL_ROI\n");
 		rc = ctrl_roi(data, p);
 		break;
 	case VL53L1_IOCTL_MZ_DATA:
@@ -3430,19 +3413,15 @@ static int stmvl53l1_ioctl_handler(
 		rc = ctrl_mz_data_blocking(data, p);
 		break;
 	case VL53L1_IOCTL_CALIBRATION_DATA:
-		dev_dbg(dev, "VL53L1_IOCTL_CALIBRATION_DATA\n");
 		rc = ctrl_calibration_data(data, p);
 		break;
 	case VL53L1_IOCTL_PERFORM_CALIBRATION:
-		dev_dbg(dev, "VL53L1_IOCTL_PERFORM_CALIBRATION\n");
 		rc = ctrl_perform_calibration(data, p);
 		break;
 	case VL53L1_IOCTL_AUTONOMOUS_CONFIG:
-		dev_dbg(dev, "VL53L1_IOCTL_AUTONOMOUS_CONFIG\n");
 		rc = ctrl_autonomous_config(data, p);
 		break;
 	case VL53L1_IOCTL_ZONE_CALIBRATION_DATA:
-		dev_dbg(dev, "VL53L1_IOCTL_ZONE_CALIBRATION_DATA\n");
 		rc = ctrl_zone_calibration_data(data, p);
 		break;
 	case VL53L1_IOCTL_MZ_DATA_ADDITIONAL:
