@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+#include <dt-bindings/soc/google/debug-snapshot-def.h>
+
+&dpm {
+	version = <101>;
+	variant = "eng";
+
+	security {
+		cp_mem_not_clear	= <0>;
+		dbg_mem_enable		= <0>;
+		seh_enable		= <0>;
+		pm_test_enable		= <0>;
+		seclog_enable		= <0>;
+		harxlog_enable		= <0>;
+		sdm_enable		= <0>;
+	};
+
+	abl {
+		ramdump_mode		= <DPM_ENABLE>;
+		ramdump2usb		= <DPM_ENABLE>;
+	};
+
+	feature {
+		/* dump-mode support */
+		dump-mode {
+			enabled = <1>;
+			file-support = <0>;
+		};
+
+		event {
+			method = DSS_LOG_TASK,
+			       DSS_LOG_WORK,
+			       DSS_LOG_CPUIDLE,
+			       DSS_LOG_SUSPEND,
+			       DSS_LOG_IRQ,
+			       DSS_LOG_HRTIMER,
+			       DSS_LOG_CLK,
+			       DSS_LOG_PMU,
+			       DSS_LOG_FREQ,
+			       DSS_LOG_DM,
+			       DSS_LOG_REGULATOR,
+			       DSS_LOG_THERMAL,
+			       DSS_LOG_ACPM,
+			       DSS_LOG_PRINTK;
+		};
+
+		/* debug-kinfo support */
+		debug-kinfo {
+			enabled = <1>;
+		};
+	};
+
+	policy {
+		exception {
+			pre_log		= <1>;
+
+			el1_da		= <GO_DEFAULT_ID>;
+			el1_ia		= <GO_DEFAULT_ID>;
+			el1_undef	= <GO_DEFAULT_ID>;
+			el1_sp_pc	= <GO_DEFAULT_ID>;
+			el1_inv		= <GO_DEFAULT_ID>;
+			el1_serror	= <GO_DEFAULT_ID>;
+		};
+	};
+}; /* end of dpm */
