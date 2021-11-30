@@ -28,7 +28,8 @@ struct s2mpg13_spmic_thermal_sensor {
 	unsigned int adc_chan;
 	bool thr_triggered;
 	int emul_temperature;
-	int irq;
+	int ot_irq;
+	int ut_irq;
 };
 
 struct s2mpg13_spmic_thermal_chip {
@@ -310,6 +311,28 @@ static int s2mpg13_spmic_thermal_get_hot_temp(struct thermal_zone_device *tzd)
 }
 
 /*
+ * IRQ handler.
+ */
+static irqreturn_t s2mpg13_spmic_thermal_irq(int irq, void *data)
+{
+	struct s2mpg13_spmic_thermal_chip *chip = data;
+	struct device *dev = chip->dev;
+	int i;
+
+	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
+		if ((chip->sensor[i].ot_irq == irq) || (chip->sensor[i].ut_irq == irq)) {
+			dev_info_ratelimited(dev, "PMIC_THERM[%d] IRQ, %d\n", i,
+					     irq);
+			thermal_zone_device_update(chip->sensor[i].tzd,
+						   THERMAL_EVENT_UNSPECIFIED);
+			return IRQ_HANDLED;
+		}
+	}
+	WARN(1, "Bad IRQ in thermal %d", irq);
+	return IRQ_NONE;
+}
+
+/*
  * Register thermal zones.
  */
 static int
@@ -462,6 +485,8 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct s2mpg13_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct s2mpg13_platform_data *pdata;
+	int irq_base, i;
+	int irq_count = 0;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(struct s2mpg13_spmic_thermal_chip),
 			    GFP_KERNEL);
@@ -487,6 +512,13 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	irq_base = pdata->irq_base;
+	if (!irq_base) {
+		dev_err(dev, "Failed to get irq base %d\n", irq_base);
+		ret = -ENODEV;
+		goto fail;
+	}
+
 	s2mpg13_spmic_thermal_init(chip);
 
 	/* Set sampling rate */
@@ -506,9 +538,49 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 		goto disable_ntc;
 	}
 
+	/* Setup IRQ */
+	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
+		chip->sensor[i].ot_irq =
+			irq_base + S2MPG13_IRQ_NTC_WARN_OT_CH1_INT7 + i;
+
+		chip->sensor[i].ut_irq =
+			irq_base + S2MPG13_IRQ_NTC_WARN_UT_CH1_INT8 + i;
+
+		ret = devm_request_threaded_irq(&pdev->dev, chip->sensor[i].ot_irq,
+						NULL, s2mpg13_spmic_thermal_irq,
+						0, "PMIC_THERM_IRQ", chip);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"Failed to request NTC[%d] IRQ: %d: %d\n", i,
+				chip->sensor[i].ot_irq, ret);
+			goto free_irq_tz;
+		}
+		irq_count++;
+
+		ret = devm_request_threaded_irq(&pdev->dev, chip->sensor[i].ut_irq,
+						NULL, s2mpg13_spmic_thermal_irq,
+						0, "PMIC_THERM_IRQ", chip);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"Failed to request NTC[%d] IRQ: %d: %d\n", i,
+				chip->sensor[i].ut_irq, ret);
+			goto free_irq_tz;
+		}
+		irq_count++;
+	}
+
 	platform_set_drvdata(pdev, chip);
+
 	return ret;
 
+free_irq_tz:
+	if (irq_count & 0x01)
+		devm_free_irq(&pdev->dev, chip->sensor[i].ot_irq, chip);
+
+	while (--i >= 0) {
+		devm_free_irq(&pdev->dev, chip->sensor[i].ot_irq, chip);
+		devm_free_irq(&pdev->dev, chip->sensor[i].ut_irq, chip);
+	}
 disable_ntc:
 	s2mpg13_spmic_set_enable(chip, false);
 fail:
