@@ -14,10 +14,10 @@
 		fod_hpp = [8D 7F 8A 6E 8E 4B 8A 4D 8B 42 90 1B];
 		google,q_value = <60>;
 
-		google,alignment_scalar_low_current = <200>;
+		google,alignment_scalar_low_current = <250>;
 		google,alignment_scalar_high_current = <50>;
-		google,alignment_offset_low_current = <130000>;
-		google,alignment_offset_high_current = <141000>;
+		google,alignment_offset_low_current = <122000>;
+		google,alignment_offset_high_current = <132000>;
 		google,alignment_current_threshold = <500>;
 	};
 };

@@ -14,10 +14,10 @@
 		fod_hpp = [A4 72 8F 78 8B 6B 88 5C 89 51 8E 29];
 		google,q_value = <67>;
 
-		google,alignment_scalar_low_current = <200>;
-		google,alignment_scalar_high_current = <100>;
-		google,alignment_offset_low_current = <127000>;
-		google,alignment_offset_high_current = <137000>;
+		google,alignment_scalar_low_current = <250>;
+		google,alignment_scalar_high_current = <50>;
+		google,alignment_offset_low_current = <122000>;
+		google,alignment_offset_high_current = <132000>;
 		google,alignment_current_threshold = <500>;
 	};
 };
