@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Common display configurations for Cheetah display.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+vddd-supply = <&m_ldo28_reg>;
+vddd-normal-microvolt = <CHEETAH_VDDD_NORMAL_MICROVOLT>;
+vddd-lp-microvolt = <CHEETAH_VDDD_LP_MICROVOLT>;
+vci-supply = <&m_ldo27_reg>;
+vddi-supply = <&s_bucka_reg>;
+touch = <&spitouch>;
