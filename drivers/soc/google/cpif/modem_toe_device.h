@@ -41,7 +41,6 @@ struct toe_ctrl_t {
 };
 
 void toe_set_iod_clat_netdev(struct io_device *iod, void *args);
-bool toe_check_6_to_4_ready(void);
 int toe_dev_init(struct mem_link_device *mld);
 int toe_dev_create(struct platform_device *pdev);
 

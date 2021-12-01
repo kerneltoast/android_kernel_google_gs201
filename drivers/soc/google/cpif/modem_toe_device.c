@@ -53,21 +53,6 @@ void toe_set_iod_clat_netdev(struct io_device *iod, void *args)
 	}
 }
 
-/*
- * bpf_skb_proto_6_to_4 does not support UDP GRO with fraglist.
- * check if the BPF tc is not needed to avoid edge cases.
- */
-bool toe_check_6_to_4_ready(void)
-{
-	if (!tc->clat_hal_ready)
-		return false;
-
-	if (!tc->clat_ifaces_num)
-		return true;
-
-	return tc->clat_dev_support;
-}
-
 static int toe_dev_open(struct inode *inode, struct file *filp)
 {
 	return 0;
@@ -126,8 +111,6 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 {
 	ssize_t count = 0;
 
-	count += scnprintf(&buf[count], PAGE_SIZE - count,
-			   "6_to_4_ready:%d\n", toe_check_6_to_4_ready());
 	count += scnprintf(&buf[count], PAGE_SIZE - count,
 			   "hal_ready:%d ifaces_num:%d dev_support:%d\n",
 			   tc->clat_hal_ready, tc->clat_ifaces_num, tc->clat_dev_support);

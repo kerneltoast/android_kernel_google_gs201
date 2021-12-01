@@ -389,12 +389,7 @@ static bool check_gro_support(struct sk_buff *skb)
 
 	switch (gro_support) {
 	case GRO_TCP_UDP:
-		/* bpf_skb_proto_6_to_4 on the eBPF clat call path
-		 * does not support UDP GROed skb.
-		 * allow UDP GRO only when hw clat supported.
-		 */
-		return proto == IPPROTO_TCP ||
-		       (proto == IPPROTO_UDP && toe_check_6_to_4_ready());
+		return proto == IPPROTO_TCP || proto == IPPROTO_UDP;
 	case GRO_TCP_ONLY:
 		return proto == IPPROTO_TCP;
 	default:
