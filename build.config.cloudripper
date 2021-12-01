@@ -8,11 +8,17 @@ MAKE_GOALS="$MAKE_GOALS
 modules
 google/gs201-a0.dtb
 google/dtbo.img
+google/gs201-dpm-eng.dtbo
+google/gs201-dpm-user.dtbo
+google/gs201-dpm-userdebug.dtbo
 "
 
 FILES="
 arch/arm64/boot/dts/google/gs201-a0.dtb
 arch/arm64/boot/dts/google/dtbo.img
+arch/arm64/boot/dts/google/gs201-dpm-eng.dtbo
+arch/arm64/boot/dts/google/gs201-dpm-user.dtbo
+arch/arm64/boot/dts/google/gs201-dpm-userdebug.dtbo
 "
 
 if [ -z "$MIXED_BUILD" ]; then
