@@ -10,16 +10,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/samsung.h>
 
-&slg51002 {
-	dlg,reg-init =
-	/* LDO3: 2.25V */
-	<0x2300 0x69>,
-	/* LDO6: 1.1V */
-	<0x2900 0x8C>,
-	/* LDO7: 1.0V */
-	<0x3100 0x78>;
-};
-
 &slg51002_ldo1 {
 	regulator-min-microvolt = <2850000>;
 	regulator-max-microvolt = <2850000>;
