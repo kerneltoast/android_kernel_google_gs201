@@ -20,7 +20,6 @@
 #include "gs201-cloudripper-wlan.dtsi"
 
 #include "gs201-ravenclaw-fingerprint.dtsi"
-#include "gs201-ravenclaw-wcharger.dtsi"
 #include "gs201-ravenclaw-usecases.dtsi"
 #include "gs201-ravenclaw-uwb.dtsi"
 

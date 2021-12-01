@@ -2,7 +2,7 @@
 /*
  * Wireless Charger device tree entries.
  *
- * Copyright 2020 Google Inc.
+ * Copyright 2022 Google Inc.
  */
 
 #include <dt-bindings/pinctrl/samsung.h>
@@ -50,7 +50,6 @@
 		/* Support p9412 GPIO */
 		idt,has_p9412_gpio;
 
-		idt,has_rtx = <0>;
 		/* Granvilla GPIO 2~4 */
 		idt,gpio_ben = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;  /* EXT_BST_EN */
 		idt,gpio_boost = <&s2mpg12_gpio 3 GPIO_ACTIVE_HIGH>; /* WLC_TX_SW_EN */
