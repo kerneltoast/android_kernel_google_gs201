@@ -1798,7 +1798,7 @@ void run_local_timers(void)
 		if (time_before(jiffies, base->next_expiry))
 			return;
 	}
-	raise_softirq(TIMER_SOFTIRQ);
+	raise_timer_softirq();
 }
 
 /*
