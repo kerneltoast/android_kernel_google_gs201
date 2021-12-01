@@ -2480,13 +2480,15 @@ program_msi_data:
 	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, &mask_val);
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	dev_info(dev, "MSI INIT: check MSI_INTR0_ENABLE(0x%x): 0x%x\n", PCIE_MSI_INTR0_ENABLE, val);
-	if (val != 0xf1) {
-		exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, 0xf1);
-		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, &val);
+	if (exynos_pcie->ep_device_type != EP_QC_WIFI) {
+		if (val != 0xf1) {
+			exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, 0xf1);
+			exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, &val);
+		}
 	}
 
 	dev_info(dev, "MSI INIT: check MSI_INTR0_MASK(0x%x): 0x%x\n", PCIE_MSI_INTR0_MASK, mask_val);
-	mask_val &= ~(0xf1);
+	mask_val &= ~(val);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, mask_val);
 	udelay(1);
 	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, &mask_val);
@@ -3167,7 +3169,8 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 
 	/* This function is only working with the devices which support L1SS */
 	if (exynos_pcie->ep_device_type != EP_SAMSUNG_MODEM &&
-	    exynos_pcie->ep_device_type != EP_BCM_WIFI) {
+	    exynos_pcie->ep_device_type != EP_BCM_WIFI &&
+	    exynos_pcie->ep_device_type != EP_QC_WIFI) {
 		dev_err(dev, "Can't set L1SS!!! (EP: L1SS not supported)\n");
 
 		return -EINVAL;
@@ -3285,7 +3288,8 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 				exynos_pcie_rc_wr_other_conf(pp, ep_pci_bus, 0,
 							     exynos_pcie->ep_link_ctrl_off, 4, val);
 				dev_dbg(dev, "CPen:4EP:ASPM(0x80)=0x%x\n", val);
-			} else if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
+			} else if (exynos_pcie->ep_device_type == EP_BCM_WIFI ||
+				   exynos_pcie->ep_device_type == EP_QC_WIFI) {
 				dev_dbg(dev, "%s: #2 enable WIFI L1.2\n", __func__);
 
 				/* enable sequence:
@@ -3413,7 +3417,8 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 				val &= ~(PORT_LINK_L1SS_ENABLE);
 				exynos_pcie_rc_wr_own_conf(pp, PCIE_LINK_L1SS_CONTROL, 4, val);
 				dev_dbg(dev, "CPdis:4RC:L1SS_CTRL(0x19C)=0x%x\n", val);
-			} else if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
+			} else if (exynos_pcie->ep_device_type == EP_BCM_WIFI ||
+				   exynos_pcie->ep_device_type == EP_QC_WIFI) {
 				dev_dbg(dev, "%s: #4 disable WIFI L1.2\n", __func__);
 
 				/* disable sequence:
@@ -3826,6 +3831,8 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 	struct irq_domain *msi_domain;
 	struct msi_domain_info *msi_domain_info;
 	int ret;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 
 	pp->irq = platform_get_irq(pdev, 0);
 	if (!pp->irq) {
@@ -3841,6 +3848,17 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 	}
 
 	exynos_pcie_setup_rc(pp);
+
+	if (exynos_pcie->ep_device_type == EP_QC_WIFI) {
+		/*
+		 * Set DMA mask to 32-bit because
+		 * devices only work with 32-bit MSI.
+		 */
+		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to set DMA mask to 32-bit.");
+		}
+	}
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
