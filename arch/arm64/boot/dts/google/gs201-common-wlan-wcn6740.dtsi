@@ -36,6 +36,15 @@
 			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 			samsung,pin-val = <0>;
 		};
+
+		wlan_buck: wlan_buck {
+			samsung,pins = "gph2-5";
+			samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+		};
 	};
 };
 
@@ -47,6 +56,7 @@
 			wlan: qcom,cnss-qca6490 {
 				compatible = "qcom,cnss-qca6490";
 				wlan-en-gpio = <&gph2 4 GPIO_ACTIVE_HIGH /* WLAN_EN */ >;
+				wlan-buck-gpio = <&gph2 5 0x1>;
 				pinctrl-names = "wlan_en_active", "wlan_en_sleep";
 				pinctrl-0 = <&cnss_wlan_en_active>;
 				pinctrl-1 = <&cnss_wlan_en_sleep>;
