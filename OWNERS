@@ -4,3 +4,4 @@ per-file build*=saravanak@google.com,elavila@google.com,willmcvicker@google.com
 per-file vendor_{boot,dlkm}*=*
 per-file Makefile.ext_modules*=*
 per-file build.config.slider*=*
+per-file repack_kernel_boot_images.sh=*
