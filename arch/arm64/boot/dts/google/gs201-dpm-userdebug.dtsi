@@ -64,3 +64,15 @@
 		};
 	};
 }; /* end of dpm */
+
+&log_arrdumppanic {
+	status = "disabled";
+};
+
+&log_preslcdump {
+	status = "disabled";
+};
+
+&log_slcdump {
+	status = "disabled";
+};
