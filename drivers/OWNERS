@@ -37,6 +37,8 @@ per-file dma-buf/heaps/samsung/**=*
 
 per-file gpu/exynos/**=*
 
+per-file hwtracing/coresight/**=*
+
 per-file i2c/busses/i2c-acpm.c=*
 per-file i2c/busses/i2c-exynos5.c=*
 per-file i2c/busses/i2c-exynos5.h=*
