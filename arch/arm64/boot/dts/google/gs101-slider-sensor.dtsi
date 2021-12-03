@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google sensor device tree source for Slider
+ *
+ * Copyright 2021 Google,LLC
+ */
+&aoc {
+	sensor_1v8-supply = <&s_ldo7_reg>;
+	sensor_3v3-supply = <&s_ldo6_reg>;
+};

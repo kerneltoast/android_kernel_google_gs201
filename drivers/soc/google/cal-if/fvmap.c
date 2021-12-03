@@ -7,7 +7,6 @@
 #include <linux/kobject.h>
 #include <soc/google/cal-if.h>
 #include <linux/module.h>
-#include <linux/of.h>
 
 #include "fvmap.h"
 #include "cmucal.h"
@@ -39,7 +38,6 @@ enum margin_id {
 };
 
 static int *margin_table[MARGIN_MAX];
-static int l123_restrict;
 
 static int margin_mif;
 static int margin_int;
@@ -211,30 +209,9 @@ static void fvmap_copy_from_sram(void *map_base, void __iomem *sram_base)
 				pr_debug("  DVFS CMU addr:0x%x\n", member_addr);
 		}
 
-		if ((strcmp(vclk->name, "MIF") == 0)
-			&& (fvmap_header[i].num_of_lv > 0)
-			&& (l123_restrict)) {
-			/*
-			 * l123_restrict removes MIF L1/L2/L3 on devices
-			 * having issues with these frequencies.
-			 */
-			fvmap_header[i].num_of_lv -= 3;
-			new->table[0].rate = readl_relaxed(&old->table[0].rate);
-			new->table[0].volt = readl_relaxed(&old->table[0].volt);
-
-			for (j = 1; j < fvmap_header[i].num_of_lv ; j++) {
-				new->table[j].rate = readl_relaxed(&old->table[j + 3].rate);
-				new->table[j].volt = readl_relaxed(&old->table[j + 3].volt);
-			}
-		} else {
-			for (j = 0; j < fvmap_header[i].num_of_lv; j++) {
-				new->table[j].rate = readl_relaxed(&old->table[j].rate);
-				new->table[j].volt = readl_relaxed(&old->table[j].volt);
-			}
-		}
 		for (j = 0; j < fvmap_header[i].num_of_lv; j++) {
-			int volt = new->table[j].volt;
-
+			int volt = new->table[j].volt = old->table[j].rate;
+			new->table[j].rate = old->table[j].rate;
 			if (margin) {
 				if (margin <= 100 && margin >= -100) {
 					volt = volt + (volt * margin / 100);
@@ -309,20 +286,9 @@ DEFINE_INT_ATTRIBUTE(margin_bo, MARGIN_BO);
 int fvmap_init(void __iomem *sram_base)
 {
 	void __iomem *map_base;
-	struct device_node *np;
-	int ret = 0;
-	const char *str = NULL;
 	struct dentry *de = NULL;
 
-	np = of_find_node_by_path("/exynos_devfreq/devfreq_mif@17000010");
-	if (!IS_ERR(np))
-		ret = of_property_read_string(np, "l123_restrict", &str);
-
-	if ((str) && (!ret)) {
-		pr_debug("%s:fvmap l123_restrict=%s\n", __func__, str);
-		l123_restrict = (str[0] != '0');
-	}
-
+	pr_info("%s: kzalloc \n", __func__);
 	map_base = kzalloc(FVMAP_SIZE, GFP_KERNEL);
 
 	fvmap_base = map_base;
