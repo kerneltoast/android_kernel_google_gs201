@@ -24,7 +24,7 @@ struct cpif_addr_pair {
 
 struct cpif_netrx_mng {
 	u64 num_packet;
-	u64 max_packet_size;
+	u64 frag_size;
 	u64 total_buf_size;
 
 	struct cpif_va_mapper *desc_map;

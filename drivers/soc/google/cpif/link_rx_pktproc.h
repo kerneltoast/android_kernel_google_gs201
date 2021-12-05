@@ -38,7 +38,7 @@
 #define LRO_MODE_ON		0x10
 
 /* padding for LRO packet */
-#define LRO_MAX_HEADLEN		100 /* TCP (max 60byte) + IPv6 (40byte) */
+#define LRO_MAX_HEADLEN		SKB_DATA_ALIGN(100) /* TCP (max 60byte) + IPv6 (40byte) */
 
 /*
  * PktProc info region

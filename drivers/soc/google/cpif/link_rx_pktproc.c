@@ -621,12 +621,7 @@ static struct sk_buff *cpif_build_skb_single(struct pktproc_queue *q, u8 *src, u
 	struct sk_buff *skb;
 
 	if (q->manager) {
-		u16 total_len;
-
-		total_len = SKB_DATA_ALIGN(len + front_pad_size);
-		total_len += SKB_DATA_ALIGN(rear_pad_size);
-
-		skb = build_skb(src - front_pad_size, total_len);
+		skb = build_skb(src - front_pad_size, q->manager->frag_size);
 		if (unlikely(!skb))
 			goto error;
 
@@ -1409,8 +1404,8 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 					"  total number of packets:%llu\n",
 				q->manager->num_packet);
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
-					"  max packet size:%llu\n",
-				q->manager->max_packet_size);
+					"  frag size:%llu\n",
+				q->manager->frag_size);
 			count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
 		}
 	}
@@ -1539,9 +1534,9 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 			if (pktproc_check_active(q->ppa, q->q_idx))
 				q->clear_data_addr(q);
 			if (q->manager)
-				mif_info("num packets:%llu max packet size:%llu\n",
+				mif_info("num packets:%llu frag size:%llu\n",
 					q->manager->num_packet,
-					q->manager->max_packet_size);
+					q->manager->frag_size);
 			break;
 		default:
 			break;
@@ -1604,7 +1599,7 @@ static int pktproc_create_buffer_manager(struct pktproc_queue *q, u64 ap_desc_pb
 	struct pktproc_adaptor *ppa;
 	unsigned int desc_total_size = 0;
 	struct cpif_addr_pair desc_addr_pair;
-	u64 total_packet_size = 0;
+	u64 frag_size = 0; /* size of fragmenting a page */
 
 	if (!q) {
 		mif_err("q is null\n");
@@ -1630,14 +1625,14 @@ static int pktproc_create_buffer_manager(struct pktproc_queue *q, u64 ap_desc_pb
 
 	desc_addr_pair.cp_addr = q->cp_desc_pbase;
 	desc_addr_pair.ap_addr = phys_to_virt(ap_desc_pbase);
-	total_packet_size = ppa->max_packet_size + ppa->skb_padding_size +
-				sizeof(struct skb_shared_info);
-	mif_info("about to init netrx mng: cp_addr: 0x%llX ap_addr: %pK psize: %llu\n",
-			q->cp_desc_pbase, q->desc_sktbuf, total_packet_size);
+	frag_size = SKB_DATA_ALIGN(ppa->max_packet_size + ppa->skb_padding_size)
+				+ SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	mif_info("about to init netrx mng: cp_addr: 0x%llX ap_addr: %pK frag_size: %llu\n",
+			q->cp_desc_pbase, q->desc_sktbuf, frag_size);
 	mif_info("desc_total_size:%d cp_buff_pbase: 0x%llX num_desc: %d\n",
 			desc_total_size, q->cp_buff_pbase, q->num_desc);
 	q->manager = cpif_create_netrx_mng(&desc_addr_pair, desc_total_size,
-					q->cp_buff_pbase, total_packet_size,
+					q->cp_buff_pbase, frag_size,
 					q->num_desc);
 	if (!q->manager) {
 		mif_err("cpif_create_netrx_mng() error\n");

@@ -14,7 +14,7 @@
 #define NETRX_POOL_PAGE_SIZE	32768
 struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pair,
 						u64 desc_size, u64 databuf_cp_pbase,
-						u64 max_packet_size, u64 num_packet)
+						u64 frag_size, u64 num_packet)
 {
 	struct cpif_netrx_mng *cm;
 	u64 temp;
@@ -30,11 +30,11 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	if (cm == NULL)
 		goto fail_cm;
 
-	cm->max_packet_size = max_packet_size;
+	cm->frag_size = frag_size;
 	cm->num_packet = num_packet;
 
 	/* finding the least number of pages required for data map */
-	num_packet_per_page = NETRX_POOL_PAGE_SIZE / max_packet_size;
+	num_packet_per_page = NETRX_POOL_PAGE_SIZE / frag_size;
 	total_page_count = num_packet / num_packet_per_page + 1;
 	/**
 	 * total buffer size is calculated based on worst case. buffer
@@ -45,7 +45,7 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	cm->desc_map = cpif_vmap_create(desc_addr_pair->cp_addr, desc_size, desc_size);
 	if (!cm->desc_map)
 		goto fail_vmap;
-	cm->data_map = cpif_vmap_create(databuf_cp_pbase, cm->total_buf_size, max_packet_size);
+	cm->data_map = cpif_vmap_create(databuf_cp_pbase, cm->total_buf_size, frag_size);
 	if (!cm->data_map) {
 		cpif_vmap_free(cm->desc_map);
 		goto fail_vmap;
@@ -66,8 +66,8 @@ struct cpif_netrx_mng *cpif_create_netrx_mng(struct cpif_addr_pair *desc_addr_pa
 	/* initialize data address list */
 	INIT_LIST_HEAD(&cm->data_addr_list);
 
-	mif_info("netrx mng: num_packet: %llu max_packet_size: %llu total_buf_size: %llu\n",
-		 cm->num_packet, cm->max_packet_size, cm->total_buf_size);
+	mif_info("netrx mng: num_packet: %llu frag_size: %llu total_buf_size: %llu\n",
+		 cm->num_packet, cm->frag_size, cm->total_buf_size);
 	mif_info("desc vmap: va_start: 0x%llX va_end: 0x%llX va_size: %llu\n",
 		 cm->desc_map->va_start, cm->desc_map->va_end, cm->desc_map->va_size);
 	mif_info("data vmap: va_start: 0x%llX va_end: 0x%llX va_size: %llu\n",
@@ -136,7 +136,7 @@ struct cpif_addr_pair *cpif_map_rx_buf(struct cpif_netrx_mng *cm)
 		goto done;
 	}
 
-	data = cpif_page_alloc(cm->data_pool, cm->max_packet_size, &used_tmp_alloc);
+	data = cpif_page_alloc(cm->data_pool, cm->frag_size, &used_tmp_alloc);
 	if (!data) {
 		spin_unlock_irqrestore(&cm->lock, flags);
 		mif_err_limited("failed to page alloc: return\n");
