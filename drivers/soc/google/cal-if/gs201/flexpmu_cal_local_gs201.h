@@ -554,6 +554,9 @@ struct pmucal_seq hsi0_status[] = {
 
 struct pmucal_seq hsi0_off[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "HSI0_CMU_HSI0_CONTROLLER_OPTION", 0x11000000, 0x0800, (0x1 << 24), (0x0 << 24), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "PLL_CON0_PLL_USB",
+			0x11000000, 0x0140, (0x1 << 4), (0x0 << 4),
+			0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "HSI0_CONFIGURATION", 0x18060000, 0x2080, (0x1 << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WAIT, "HSI0_STATUS", 0x18060000, 0x2084, (0x1 << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
 };
