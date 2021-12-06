@@ -211,7 +211,6 @@ struct exynos_devfreq_data {
 	unsigned long *time_in_state;
 	unsigned long last_stat_updated;
 
-	u32 l123_restrict;
 	struct thermal_cooling_device *cooling_dev;
 	unsigned long cooling_state;
 	unsigned long sysfs_req;
