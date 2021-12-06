@@ -13,14 +13,18 @@
 &hsi2c_8 {
 	p9412@3c {
 		dev-name = "p9412";
+		/* RTX */
 		idt,has_rtx = <1>;
 		idt,gpio_extben = <&gpp1 3 GPIO_ACTIVE_HIGH>;
 		/* WLCDC */
 		idt,gpio_dc_switch = <&s2mpg10_gpio 0 GPIO_ACTIVE_HIGH>;
 		idt,max_vout_mv = <19500>;
 		idt,has_wlc_dc = <1>;
-
+		/* Enable */
 		idt,gpio_qi_vbus_en = <&s2mpg10_gpio 2 GPIO_ACTIVE_HIGH>;
+		/* CSP */
+		idt,fuel-gauge = <&max77759_fg>;
+		/* Defender */
 		google,power_mitigate_threshold = <90>;
 
 		p9xxx_gpio: p9xxx_gpio {
