@@ -8,6 +8,14 @@
 
 #include <dt-bindings/pinctrl/samsung.h>
 
+&m_ldo25_reg {
+	/delete-property/ regulator-always-on;
+};
+
+&m_ldo26_reg {
+	/delete-property/ regulator-always-on;
+};
+
 /*
  * Touch is connected to spi_0, pins:
  *   CLK=GPP20[0], MOSI=GPP20[1], MISO=GPP20[2], CS=GPP20[3]
@@ -21,6 +29,21 @@
  * AOC2AP: XAOC_GPIO8 - gpio_in[74] -> XEINT_19 - GPA8[7]
  */
 
+&ts_irq {
+	samsung,pins = "gpa7-0";
+	samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+};
+
+
+&pinctrl_1 {
+	ts_irq_sleep: ts-irq-sleep {
+		samsung,pins = "gpa7-0";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
 &spitouch {
 	status = "ok";
 	compatible = "focaltech,ts";
@@ -32,6 +55,8 @@
 	focaltech,max-touch-number = <10>;
 	focaltech,display-coords = <0 0 1079 2399>;
 	focaltech,panel_map = <&sdc_s6e3fc3_p10 0>;
+
+	pinctrl-1 = <&ts_spi_bus_sleep &ts_spi_cs_sleep &ts_irq_sleep>;
 
 	controller-data {
 		cs-gpio = <&gpp20 3 0>;
