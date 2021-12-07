@@ -872,9 +872,13 @@ static void exynos_ufs_hibern8_notify(struct ufs_hba *hba,
 	}
 }
 
-static int __exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
+static int __exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
+	enum ufs_notify_change_status status)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+
+	if (status == PRE_CHANGE)
+		return 0;
 
 	if (!IS_C_STATE_ON(ufs) ||
 	    ufs->h_state != H_HIBERN8)
