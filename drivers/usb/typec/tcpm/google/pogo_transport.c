@@ -23,6 +23,10 @@
 
 #define POGO_TIMEOUT_MS 10000
 
+static bool modparam_force_usb;
+module_param_named(force_usb, modparam_force_usb, bool, 0644);
+MODULE_PARM_DESC(force_usb, "Force enabling usb path over pogo");
+
 struct pogo_event {
 	struct kthread_work work;
 	struct pogo_transport *pogo_transport;
@@ -50,10 +54,16 @@ static void update_pogo_transport(struct kthread_work *work)
 
 	mutex_lock(&chip->data_path_lock);
 	pogo_transport->pogo_active = event->pogo_active;
-	logbuffer_log(chip->log, "%s pogo_usb:%d pogo_usb_active:%d data_active:%d", __func__,
-		      pogo_transport->pogo_active ? 1 : 0, pogo_transport->pogo_usb_active ? 1 : 0,
-		      chip->data_active ? 1 : 0);
-	if (pogo_transport->pogo_active && !pogo_transport->pogo_usb_active) {
+	dev_info(pogo_transport->dev, "%s force_usb:%d pogo_usb:%d pogo_usb_active:%d data_active:%d",
+		 __func__,
+		 modparam_force_usb ? 1 : 0,
+		 pogo_transport->pogo_active ? 1 : 0,
+		 pogo_transport->pogo_usb_active ? 1 : 0,
+		 chip->data_active ? 1 : 0);
+
+	if (modparam_force_usb) {
+		goto exit;
+	} else if (pogo_transport->pogo_active && !pogo_transport->pogo_usb_active) {
 		data_alt_path_active(chip, true);
 		if (chip->data_active) {
 			ret = extcon_set_state_sync(chip->extcon,
@@ -72,8 +82,7 @@ static void update_pogo_transport(struct kthread_work *work)
 		logbuffer_log(chip->log, "%s: %s turning on host for Pogo", __func__, ret < 0 ?
 			      "Failed" : "Succeeded");
 		pogo_transport->pogo_usb_active = true;
-	}
-	if (!pogo_transport->pogo_active && pogo_transport->pogo_usb_active) {
+	} else if (!pogo_transport->pogo_active && pogo_transport->pogo_usb_active) {
 		ret = extcon_set_state_sync(chip->extcon, EXTCON_USB_HOST, 0);
 		logbuffer_log(chip->log, "%s: %s turning off host for Pogo", __func__, ret < 0 ?
 			      "Failed" : "Succeeded");
@@ -84,6 +93,7 @@ static void update_pogo_transport(struct kthread_work *work)
 		data_alt_path_active(chip, false);
 		enable_data_path_locked(chip);
 	}
+exit:
 	mutex_unlock(&chip->data_path_lock);
 	devm_kfree(pogo_transport->dev, event);
 }
@@ -258,6 +268,7 @@ static int pogo_transport_probe(struct platform_device *pdev)
 		goto destroy_worker;
 	}
 
+	dev_info(&pdev->dev, "force usb:%d\n", modparam_force_usb ? 1 : 0);
 	put_device(&data_client->dev);
 	of_node_put(data_np);
 	return 0;
