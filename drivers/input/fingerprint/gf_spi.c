@@ -339,7 +339,7 @@ static int irq_setup(struct gf_dev *gf_dev)
 		pr_err("failed to request IRQ:%d\n", gf_dev->irq);
 		return status;
 	}
-	gf_enable_irq(gf_dev);
+	gf_dev->irq_enabled = 1;
 
 	return status;
 }
