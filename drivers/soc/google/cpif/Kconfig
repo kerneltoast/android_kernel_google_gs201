@@ -196,6 +196,12 @@ config CP_PKTPROC_CLAT
 	help
 	  Enable HW pktproc clat
 
+config CP_PKTPROC_LRO
+	tristate "Enable HW PKTPROC LRO"
+	default n
+	help
+	  Enable HW pktproc LRO
+
 config CP_THERMAL
     tristate "Enable CP thermal zones"
     depends on THERMAL

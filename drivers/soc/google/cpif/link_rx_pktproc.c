@@ -570,51 +570,6 @@ static u8 *get_packet_vaddr(struct pktproc_queue *q, struct pktproc_desc_sktbuf 
 	return ret;
 }
 
-static u32 cpif_prepare_lro_and_get_headlen(struct sk_buff *skb, bool *is_udp)
-{
-	u32 headlen = 0;
-	struct iphdr *iph = (struct iphdr *)skb->data;
-
-	if (iph->version == 6) {
-		struct ipv6hdr *ipv6h = (struct ipv6hdr *)skb->data;
-
-		headlen += sizeof(struct ipv6hdr);
-		if (ipv6h->nexthdr == NEXTHDR_TCP) {
-			struct tcphdr *th = (struct tcphdr *)(skb->data + headlen);
-
-			headlen += th->doff * 4;
-			skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV6;
-		} else {
-			struct udphdr *uh = (struct udphdr *)(skb->data + headlen);
-			__be16 backup_len = uh->len;
-
-			uh->check = 0;
-			uh->len = htons(skb->len - headlen);
-			uh->check = csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
-						ntohs(uh->len), IPPROTO_UDP,
-						csum_partial(uh, ntohs(uh->len), 0));
-			uh->len = backup_len;
-			headlen += sizeof(struct udphdr);
-			skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4 | SKB_GSO_FRAGLIST;
-			*is_udp = true;
-		}
-	} else { /* ipv4 */
-		headlen += sizeof(struct iphdr);
-		if (iph->protocol == IPPROTO_TCP) {
-			struct tcphdr *th = (struct tcphdr *)(skb->data + headlen);
-
-			headlen += th->doff * 4;
-			skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
-		} else {
-			headlen += sizeof(struct udphdr);
-			skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4 | SKB_GSO_FRAGLIST;
-			*is_udp = true;
-		}
-	}
-
-	return headlen;
-}
-
 static struct sk_buff *cpif_build_skb_single(struct pktproc_queue *q, u8 *src, u16 len,
 		u16 front_pad_size, u16 rear_pad_size, int *buffer_count)
 {
@@ -662,6 +617,52 @@ error:
 		q->manager->already_retrieved = src;
 
 	return NULL;
+}
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC_LRO)
+static u32 cpif_prepare_lro_and_get_headlen(struct sk_buff *skb, bool *is_udp)
+{
+	u32 headlen = 0;
+	struct iphdr *iph = (struct iphdr *)skb->data;
+
+	if (iph->version == 6) {
+		struct ipv6hdr *ipv6h = (struct ipv6hdr *)skb->data;
+
+		headlen += sizeof(struct ipv6hdr);
+		if (ipv6h->nexthdr == NEXTHDR_TCP) {
+			struct tcphdr *th = (struct tcphdr *)(skb->data + headlen);
+
+			headlen += th->doff * 4;
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV6;
+		} else {
+			struct udphdr *uh = (struct udphdr *)(skb->data + headlen);
+			__be16 backup_len = uh->len;
+
+			uh->check = 0;
+			uh->len = htons(skb->len - headlen);
+			uh->check = csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
+						    ntohs(uh->len), IPPROTO_UDP,
+						    csum_partial(uh, ntohs(uh->len), 0));
+			uh->len = backup_len;
+			headlen += sizeof(struct udphdr);
+			skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4 | SKB_GSO_FRAGLIST;
+			*is_udp = true;
+		}
+	} else { /* ipv4 */
+		headlen += sizeof(struct iphdr);
+		if (iph->protocol == IPPROTO_TCP) {
+			struct tcphdr *th = (struct tcphdr *)(skb->data + headlen);
+
+			headlen += th->doff * 4;
+			skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
+		} else {
+			headlen += sizeof(struct udphdr);
+			skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_L4 | SKB_GSO_FRAGLIST;
+			*is_udp = true;
+		}
+	}
+
+	return headlen;
 }
 
 static struct sk_buff *cpif_build_skb_gro(struct pktproc_queue *q, u8 *src, u16 len,
@@ -767,6 +768,7 @@ gro_fail_inval:
 		dev_kfree_skb_any(skb_head);
 	return NULL;
 }
+#endif
 
 static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_buff **new_skb)
 {
@@ -844,6 +846,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 		return 1; /* dit cannot support HW GRO packets */
 	}
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC_LRO)
 	/* guaranteed that only TCP/IP, UDP/IP in this case */
 	if (desc_done_ptr.lro == (LRO_MODE_ON | LRO_FIRST_SEG)) {
 		bool nomem = false;
@@ -872,6 +875,14 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 			goto rx_error;
 		}
 	}
+#else
+	skb = cpif_build_skb_single(q, src, len, ppa->skb_padding_size,
+				    sizeof(struct skb_shared_info), &buffer_count);
+	if (unlikely(!skb)) {
+		ret = -ENOMEM;
+		goto rx_error;
+	}
+#endif
 
 	if (csum)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1826,15 +1837,14 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 	} else
 		accum_buff_size = 0;
 
-	if (ppa->use_netrx_mng)
-		ppa->skb_padding_size = max(NET_SKB_PAD + NET_IP_ALIGN, LRO_MAX_HEADLEN);
-	else {
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-		ppa->skb_padding_size = max(NET_SKB_PAD + NET_IP_ALIGN, LRO_MAX_HEADLEN);
+	ppa->skb_padding_size = SKB_FRONT_PADDING;
 #else
+	if (ppa->use_netrx_mng)
+		ppa->skb_padding_size = SKB_FRONT_PADDING;
+	else
 		ppa->skb_padding_size = 0;
 #endif
-	}
 
 	/* Create queue */
 	for (i = 0; i < ppa->num_queue; i++) {

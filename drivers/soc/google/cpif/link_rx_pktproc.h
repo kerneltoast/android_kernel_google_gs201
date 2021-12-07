@@ -30,6 +30,7 @@
 #define PKTPROC_STATUS_IPCS	0x40
 #define PKTPROC_STATUS_PFD	0x80
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC_LRO)
 /* LRO bit field */
 #define LRO_LAST_SEG		0x01
 #define LRO_MID_SEG		0x02
@@ -37,8 +38,11 @@
 #define LRO_PACKET		0x08
 #define LRO_MODE_ON		0x10
 
-/* padding for LRO packet */
-#define LRO_MAX_HEADLEN		SKB_DATA_ALIGN(100) /* TCP (max 60byte) + IPv6 (40byte) */
+/* W/A padding for LRO packet (except first) TCP (60 bytes) + IPv6 (40 bytes) = 100 */
+#define SKB_FRONT_PADDING	(NET_SKB_PAD + NET_IP_ALIGN + SKB_DATA_ALIGN(100))
+#else
+#define SKB_FRONT_PADDING	(NET_SKB_PAD + NET_IP_ALIGN)
+#endif
 
 /*
  * PktProc info region
