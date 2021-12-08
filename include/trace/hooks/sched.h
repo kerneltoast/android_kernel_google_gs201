@@ -19,6 +19,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_select_task_rq_rt,
 	TP_PROTO(struct task_struct *p, int prev_cpu, int sd_flag, int wake_flags, int *new_cpu),
 	TP_ARGS(p, prev_cpu, sd_flag, wake_flags, new_cpu), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_select_task_rq_dl,
+	TP_PROTO(struct task_struct *p, int prev_cpu, int sd_flag, int wake_flags, int *new_cpu),
+	TP_ARGS(p, prev_cpu, sd_flag, wake_flags, new_cpu), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_select_fallback_rq,
 	TP_PROTO(int cpu, struct task_struct *p, int *new_cpu),
 	TP_ARGS(cpu, p, new_cpu), 1);
@@ -232,6 +236,11 @@ DECLARE_HOOK(android_vh_map_util_freq,
 		bool *need_freq_update),
 	TP_ARGS(util, freq, cap, next_freq, policy, need_freq_update));
 
+DECLARE_HOOK(android_vh_update_next_freq,
+	TP_PROTO(struct cpufreq_policy *policy, unsigned int old_next_freq,
+		unsigned int *new_next_freq, s64 delta_ns),
+	TP_ARGS(policy, old_next_freq, new_next_freq, delta_ns));
+
 struct em_perf_domain;
 DECLARE_HOOK(android_vh_em_cpu_energy,
 	TP_PROTO(struct em_perf_domain *pd,
@@ -274,6 +283,16 @@ DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_get,
 	TP_PROTO(struct task_struct *p, enum uclamp_id clamp_id,
 		 struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff, int *ret),
 	TP_ARGS(p, clamp_id, uclamp_max, uclamp_eff, ret), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_task_util,
+	TP_PROTO(unsigned long task_util, unsigned long min_util,
+		 unsigned long max_util, unsigned long *ret),
+	TP_ARGS(task_util, min_util, max_util, ret), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_rq_util_with,
+	TP_PROTO(unsigned long util, unsigned long min_util,
+		 unsigned long max_util, unsigned long *ret),
+	TP_ARGS(util, min_util, max_util, ret), 1);
 
 DECLARE_HOOK(android_vh_build_sched_domains,
 	TP_PROTO(bool has_asym),
