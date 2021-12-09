@@ -74,37 +74,6 @@ enum smc_error_flag {
 static inline void start_tx_timer(struct mem_link_device *mld,
 				  struct hrtimer *timer);
 
-#if IS_ENABLED(CONFIG_CP_SECURE_BOOT)
-static char *smc_err_string[32] = {
-	"CP_NO_ERROR",
-	"CP_NOT_ALIGN_64KB",
-	"CP_MEM_TOO_BIG",
-	"CP_FLAG_OUT_RANGE",
-	"CP_WRONG_TZASC_REGION_NUM",
-	"CP_WRONG_BL_SIZE",
-	"CP_MEM_OUT_OF_RANGE",
-	"CP_NOT_ALIGN_16B",
-	"CP_MEM_IN_SECURE_DRAM",
-	"CP_ASP_ENABLE_FAIL",
-	"CP_ASP_DISABLE_FAIL",
-	"CP_NOT_WORKING",
-	"CP_ALREADY_WORKING",
-	"CP_ALREADY_DUMP_MODE",
-	"CP_NOT_VALID_MAGIC",
-	"CP_SHOULD_BE_DISABLE",
-	"CP_ALREADY_ENABLE_CPMEM_ON",
-	"CP_ALREADY_SET_WND",
-	"CP_FAIL_TO_SET_WND",
-	"CP_INVALID_CP_BASE",
-	"CP_CORRUPTED_CP_MEM_INFO",
-	"CP_WHILE_CHECKING_SIGN",
-	"CP_NOT_WHILE_CHECKING_SIGN",
-	"CP_IS_IN_INVALID_STATE",
-	"CP_IS_IN_INVALID_STATE2",
-	"CP_ERR_WHILE_CP_SIGN_CHECK",
-};
-#endif
-
 #if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
 #define SYSMMU_BAAW_SIZE	0x8000000
 #endif
@@ -2261,8 +2230,7 @@ static int shmem_security_request(struct link_device *ld, struct io_device *iod,
 	if (try_cnt >= MAX_TRY_CNT)
 		mif_info("%s: it fails to check signature of main binary.\n", ld->name);
 
-	mif_info("%s: return_value=0x%08x(%s)\n", ld->name, err,
-			err < sizeof(smc_err_string) ? smc_err_string[err] : "NULL");
+	mif_info("%s: return_value=%d\n", ld->name, err);
 #endif
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
