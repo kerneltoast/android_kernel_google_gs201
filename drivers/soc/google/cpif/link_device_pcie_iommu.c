@@ -5,7 +5,6 @@
  */
 
 #include "link_device_pcie_iommu.h"
-#include "s51xx_pcie.h"
 
 extern int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 			  int prot, int hsi_block_num);
@@ -46,10 +45,10 @@ void cpif_pcie_iommu_enable_regions(struct mem_link_device *mld)
 	}
 
 	/* Also setup AoC window for voice calls */
-	ret = pcie_iommu_map(AOC_PCIE_WINDOW_START, AOC_PCIE_WINDOW_START,
-			     AOC_PCIE_WINDOW_SIZE, 0, 1);
-	mif_info("pcie iommu AoC addr:0x%08x size:0x%08x ret:%d\n",
-		 AOC_PCIE_WINDOW_START, AOC_PCIE_WINDOW_SIZE, ret);
+	ret = pcie_iommu_map(shm_get_vss_base(), shm_get_vss_base(),
+			     shm_get_vss_size(), 0, 1);
+	mif_info("pcie iommu AoC addr:0x%08lx size:0x%08x ret:%d\n",
+		 shm_get_vss_base(), shm_get_vss_size(), ret);
 
 	enabled_region = true;
 }
