@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
+#include <linux/blkdev.h>
 #include <linux/bio.h>
 
 #define CREATE_TRACE_POINTS
@@ -260,58 +261,104 @@ static void destroy_zcomp_cookie_pool(struct zcomp *zcomp)
 	spin_unlock(&zcomp->cookie_pool.lock);
 }
 
+static int flush_pending_io(struct zcomp *comp)
+{
+	int err = 0;
+	LIST_HEAD(req_list);
+
+	spin_lock(&comp->request_lock);
+	list_splice_init(&comp->request_list, &req_list);
+	spin_unlock(&comp->request_lock);
+
+	while (!list_empty(&req_list)) {
+		struct zcomp_cookie *cookie;
+
+		cookie = list_last_entry(&req_list, struct zcomp_cookie, list);
+		list_del(&cookie->list);
+		if (comp->op->compress_async(comp, cookie->page, cookie)) {
+			if (cookie->bio)
+				bio_io_error(cookie->bio);
+			err = -EIO;
+		}
+	}
+
+	return err;
+}
+
+static void zram_unplug(struct blk_plug_cb *cb, bool from_schedule)
+{
+	flush_pending_io((struct zcomp *)(cb->data));
+}
+
+/*
+ * If the comp is plugged, append the cookie to request list and return true
+ * otherwise, return false.
+ */
+static void zram_append_request(struct zcomp *comp, struct zcomp_cookie *cookie)
+{
+	spin_lock(&comp->request_lock);
+	list_add(&cookie->list, &comp->request_list);
+	spin_unlock(&comp->request_lock);
+}
 
 int zcomp_compress(struct zcomp *comp, u32 index, struct page *page,
 			struct bio *bio)
 {
-	int ret;
+	/*
+	 * Async IO should return 1 instead of 0 to indicate
+	 * IO submit is successful because IO completion
+	 * callback should be handled at different context.
+	 */
+	int ret = 1;
 	unsigned long element;
+	struct zcomp_cookie *cookie;
 
 	if (zcomp_page_same_pattern(page, &element)) {
 		zram_slot_update(comp->zram, index, element, 0);
 		return 0;
 	}
 
-	if (zcomp_async(comp)) {
-		struct zcomp_cookie *cookie = alloc_zcomp_cookie(comp);
+	if (!zcomp_async(comp)) {
+		struct zcomp_cookie stack_cookie;
 
-		if (!cookie)
-			return -ENOMEM;
-
+		cookie = &stack_cookie;
 		cookie->zram = comp->zram;
 		cookie->index = index;
 		cookie->page = page;
 		cookie->bio = bio;
-		/*
-		 * Since __zram_make_request has bio_endio, zcomp_async needs
-		 * to hold the bio completion until the IO request is done if
-		 * the IO is submitted successfully. zcomp_copy_buffer in
-		 * zcomp instance will handle it. If the IO submission fails,
-		 * we release the bio chain here so that __zram_make_request's
-		 * bio_endio will finally call the IO completion to handle
-		 * the error propagation.
-		 */
-		if (bio)
-			bio_inc_remaining(bio);
-		ret = comp->op->compress_async(comp, page, cookie);
-		if (!ret) {
-			/*
-			 * Async IO should return 1 instead of 0 to indicate
-			 * IO submit is successful because IO completion
-			 * callback should be handled at different context.
-			 */
-			ret = 1;
-		} else if (ret && bio)
-			bio_io_error(bio);
+
+		return comp->op->compress(comp, page, cookie);
+	}
+
+	cookie = alloc_zcomp_cookie(comp);
+	if (!cookie)
+		return -ENOMEM;
+
+	cookie->zram = comp->zram;
+	cookie->index = index;
+	cookie->page = page;
+	cookie->bio = bio;
+	/*
+	 * Since __zram_make_request has bio_endio, zcomp_async needs
+	 * to hold the bio completion until the IO request is done if
+	 * the IO is submitted successfully. zcomp_copy_buffer in
+	 * zcomp instance will handle it. If the IO submission fails,
+	 * we release the bio chain here so that __zram_make_request's
+	 * bio_endio will finally call the IO completion to handle
+	 * the error propagation.
+	 */
+	if (bio)
+		bio_inc_remaining(bio);
+
+	if (blk_check_plugged(zram_unplug, comp, sizeof(struct blk_plug_cb))) {
+		zram_append_request(comp, cookie);
 	} else {
-		struct zcomp_cookie cookie;
-
-		cookie.zram = comp->zram;
-		cookie.index = index;
-		cookie.page = page;
-		cookie.bio = bio;
-
-		ret = comp->op->compress(comp, page, &cookie);
+		flush_pending_io(comp);
+		if (comp->op->compress_async(comp, page, cookie)) {
+			if (cookie->bio)
+				bio_io_error(cookie->bio);
+			ret = -EIO;
+		}
 	}
 
 	return ret;
@@ -387,8 +434,11 @@ struct zcomp *zcomp_create(const char *algo_name, struct zram *zram)
 		return ERR_PTR(error);
 	}
 
-	if (zcomp_async(comp))
+	if (zcomp_async(comp)) {
 		init_zcomp_cookie_pool(comp);
+		INIT_LIST_HEAD(&comp->request_list);
+		spin_lock_init(&comp->request_lock);
+	}
 	comp->zram = zram;
 	up_read(&zcomp_rwsem);
 
