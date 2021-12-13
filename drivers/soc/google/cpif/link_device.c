@@ -79,38 +79,6 @@ static inline void start_tx_timer(struct mem_link_device *mld,
 #endif
 
 /*============================================================================*/
-static inline bool ipc_active(struct mem_link_device *mld)
-{
-	struct link_device *ld = &mld->link_dev;
-	struct modem_ctl *mc = ld->mc;
-
-	if (unlikely(!cp_online(mc))) {
-		mif_err("%s<->%s: %s.state %s != ONLINE <%ps>\n",
-			ld->name, mc->name, mc->name, mc_state(mc), CALLER);
-		return false;
-	}
-
-	if (mld->dpram_magic) {
-		unsigned int magic = ioread32(mld->legacy_link_dev.magic);
-		unsigned int mem_access = ioread32(mld->legacy_link_dev.mem_access);
-
-		if (magic != ld->magic_ipc || mem_access != 1) {
-			mif_err("%s<->%s: ERR! magic:0x%X access:%d <%ps>\n",
-				ld->name, mc->name, magic, mem_access, CALLER);
-			return false;
-		}
-	}
-
-	if (atomic_read(&mld->forced_cp_crash)) {
-		mif_err("%s<->%s: ERR! forced_cp_crash:%d <%ps>\n",
-			ld->name, mc->name, atomic_read(&mld->forced_cp_crash),
-			CALLER);
-		return false;
-	}
-
-	return true;
-}
-
 static inline void purge_txq(struct mem_link_device *mld)
 {
 	struct link_device *ld = &mld->link_dev;
@@ -1218,13 +1186,6 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 	unsigned int count;
 	int ret, i;
 
-	spin_lock_irqsave(&mc->lock, flags);
-	if (unlikely(!ipc_active(mld))) {
-		spin_unlock_irqrestore(&mc->lock, flags);
-		return HRTIMER_NORESTART;
-	}
-	spin_unlock_irqrestore(&mc->lock, flags);
-
 	for (i = 0; i < ppa_ul->num_queue; i++) {
 		struct pktproc_queue_ul *q = ppa_ul->q[i];
 
@@ -1254,10 +1215,14 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 	}
 
 	/* irq will be raised after dit_kick() */
-	if (need_dit)
+	if (need_dit) {
 		dit_kick(DIT_DIR_TX, false);
-	else if (need_irq)
-		send_ipc_irq(mld, mask2int(MASK_SEND_DATA));
+	} else if (need_irq) {
+		spin_lock_irqsave(&mc->lock, flags);
+		if (ipc_active(mld))
+			send_ipc_irq(mld, mask2int(MASK_SEND_DATA));
+		spin_unlock_irqrestore(&mc->lock, flags);
+	}
 
 	if (need_schedule) {
 		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);

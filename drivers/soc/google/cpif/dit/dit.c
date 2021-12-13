@@ -19,6 +19,7 @@
 #include <soc/google/exynos-cpupm.h>
 #endif
 
+#include "link_device.h"
 #include "dit_common.h"
 #include "dit_net.h"
 #include "dit_hal.h"
@@ -1232,8 +1233,10 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 	int pending_bit = *((int *)(arg));
 	enum dit_desc_ring ring_num;
 	struct mem_link_device *mld;
+	struct modem_ctl *mc;
 	enum dit_direction dir = DIT_DIR_MAX;
 	u32 pending_mask = DIT_ALL_INT_PENDING_MASK;
+	unsigned long flags;
 
 	switch (pending_bit) {
 	case RX_DST0_INT_PENDING_BIT:
@@ -1265,9 +1268,13 @@ irqreturn_t dit_irq_handler(int irq, void *arg)
 		dir = DIT_DIR_TX;
 		pending_mask = DIT_TX_INT_PENDING_MASK;
 		mld = ld_to_mem_link_device(dc->ld);
+		mc = dc->ld->mc;
 
 		dit_update_dst_desc_pos(DIT_DIR_TX, ring_num);
-		send_ipc_irq(mld, mask2int(MASK_SEND_DATA));
+		spin_lock_irqsave(&mc->lock, flags);
+		if (ipc_active(mld))
+			send_ipc_irq(mld, mask2int(MASK_SEND_DATA));
+		spin_unlock_irqrestore(&mc->lock, flags);
 		break;
 	case ERR_INT_PENDING_BIT:
 		/* nothing to do when ERR interrupt */
