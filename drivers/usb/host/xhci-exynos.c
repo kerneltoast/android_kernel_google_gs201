@@ -860,6 +860,9 @@ disable_runtime:
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
+	wakeup_source_unregister(main_wakelock);
+	wakeup_source_unregister(shared_wakelock);
+
 	return ret;
 }
 

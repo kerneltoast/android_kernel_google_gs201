@@ -158,6 +158,10 @@
 		maxim,batt-id-range-pct = <0>;
 
 		maxim,psy-type-unknown;
+		maxim,filtercfg-temp = <100>;
+		maxim,filtercfg-temp-hysteresis = <30>;
+		maxim,filtercfg-default = /bits/ 16 <0xc623>;
+		maxim,filtercfg-adjust = /bits/ 16 <0xc615>;
 		maxim,fg-data {
 			#include "gs101-fake-battery-data.dtsi"
 		};
