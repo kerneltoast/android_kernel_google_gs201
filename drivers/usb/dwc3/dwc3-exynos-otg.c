@@ -856,7 +856,7 @@ u32 dwc3_otg_is_connect(void)
 
 	exynos = exynos_dwusb_get_struct();
 	if (!exynos) {
-		dev_err(exynos->dev, "[%s] error\n", __func__);
+		pr_err("[%s] error\n", __func__);
 		return -ENODEV;
 	}
 	dotg = exynos->dotg;
@@ -927,13 +927,14 @@ emeg_out:
 
 int dwc3_otg_usb_recovery_reconn(struct dwc3_exynos *exynos)
 {
-	struct dwc3_otg *dotg = exynos->dotg;
+	struct dwc3_otg *dotg;
 
 	if (exynos == NULL) {
 		pr_err("WARNING : exynos is NULL\n");
 		return -ENODEV;
 	}
 
+	dotg = exynos->dotg;
 	schedule_work(&dotg->recov_work);
 
 	return 0;
