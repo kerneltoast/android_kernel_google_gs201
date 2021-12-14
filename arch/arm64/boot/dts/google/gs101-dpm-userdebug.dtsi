@@ -8,7 +8,7 @@
 
 	security {
 		cp_mem_not_clear	= <0>;
-		dbg_mem_enable		= <0>;
+		dbg_mem_enable		= <1>;
 		seh_enable		= <0>;
 		pm_test_enable		= <0>;
 		seclog_enable		= <0>;
