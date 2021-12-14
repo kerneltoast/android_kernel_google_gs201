@@ -26,10 +26,9 @@ void pktproc_ul_q_stop(struct pktproc_queue_ul *q)
 	struct link_device *ld = &q->mld->link_dev;
 	unsigned long flags;
 
-	mif_info("Requested stop on PKTPROC UL QUEUE %d\n", q->q_idx);
-
 	spin_lock_irqsave(&ld->netif_lock, flags);
 	if (!atomic_read(&q->busy)) {
+		mif_info("Requested stop on PKTPROC UL QUEUE %d\n", q->q_idx);
 		atomic_set(&q->busy, 1);
 		stop_net_ifaces(ld, TXQ_STOP_MASK);
 	}
@@ -88,10 +87,9 @@ void sbd_txq_stop(struct sbd_ring_buffer *rb)
 	if (!ld->is_ps_ch(rb->ch))
 		return;
 
-	mif_info("Requested stop on rb ch: %d name: %s\n", rb->ch, rb->iod->name);
-
 	spin_lock_irqsave(&ld->netif_lock, flags);
 	if (!atomic_read(&rb->busy)) {
+		mif_info("Requested stop on rb ch: %d name: %s\n", rb->ch, rb->iod->name);
 		atomic_set(&rb->busy, 1);
 		stop_net_ifaces(ld, TXQ_STOP_MASK);
 	}
@@ -150,10 +148,9 @@ void txq_stop(struct mem_link_device *mld, struct legacy_ipc_device *dev)
 	if (dev->id == IPC_MAP_FMT)
 		return;
 
-	mif_info("Requested stop on dev: %s\n", dev->name);
-
 	spin_lock_irqsave(&ld->netif_lock, flags);
 	if (!atomic_read(&dev->txq.busy)) {
+		mif_info("Requested stop on dev: %s\n", dev->name);
 		atomic_set(&dev->txq.busy, 1);
 		ret = stop_net_ifaces(ld, TXQ_STOP_MASK);
 	}
