@@ -52,6 +52,15 @@ static inline int s2mpg1x_read_reg(enum s2mpg1x_id id, struct i2c_client *i2c,
 	return ret;
 }
 
+static inline int s2mpg1x_write_reg(enum s2mpg1x_id id, struct i2c_client *i2c,
+				    u8 reg, u8 val)
+{
+	int ret = -1;
+
+	SWITCH_ID_FUNC(id, write_reg, i2c, reg, val);
+	return ret;
+}
+
 static inline int s2mpg1x_bulk_write(enum s2mpg1x_id id, struct i2c_client *i2c,
 				     u8 reg, int count, u8 *buf)
 {

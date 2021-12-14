@@ -340,20 +340,20 @@ static void s2mpg10_meter_set_lpf_mode(struct s2mpg10_meter *s2mpg10,
 	}
 }
 
-static void s2mpg10_meter_read_lpf_data_reg(struct s2mpg10_meter *s2mpg10)
+void s2mpg10_meter_read_lpf_data_reg(struct s2mpg10_meter *s2mpg10, u32 *data)
 {
 	int i;
-	u8 data[S2MPG1X_METER_LPF_BUF];
+	u8 buf[S2MPG1X_METER_LPF_BUF];
 	u8 reg = S2MPG10_METER_LPF_DATA_CH0_1; /* first lpf data register */
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg10_bulk_read(s2mpg10->i2c, reg, S2MPG1X_METER_LPF_BUF,
-				  data);
-		s2mpg10->lpf_data[i] =
-			data[0] + (data[1] << 8) + ((data[2] & 0x1F) << 16);
+				  buf);
+		data[i] = buf[0] + (buf[1] << 8) + ((buf[2] & 0x1F) << 16);
 		reg += S2MPG1X_METER_LPF_BUF;
 	}
 }
+EXPORT_SYMBOL_GPL(s2mpg10_meter_read_lpf_data_reg);
 
 static void s2mpg10_meter_set_acc_mode(struct s2mpg10_meter *s2mpg10,
 				       s2mpg1x_meter_mode mode)
@@ -499,7 +499,7 @@ static ssize_t s2mpg10_lpf_current_show(struct device *dev,
 	mutex_lock(&s2mpg10->meter_lock);
 
 	s2mpg10_meter_set_lpf_mode(s2mpg10, S2MPG1X_METER_CURRENT);
-	s2mpg10_meter_read_lpf_data_reg(s2mpg10);
+	s2mpg10_meter_read_lpf_data_reg(s2mpg10, s2mpg10->lpf_data);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg1x_meter_muxsel muxsel = s2mpg10->chg_mux_sel[i];
@@ -523,7 +523,7 @@ static ssize_t s2mpg10_lpf_power_show(struct device *dev,
 	mutex_lock(&s2mpg10->meter_lock);
 
 	s2mpg10_meter_set_lpf_mode(s2mpg10, S2MPG1X_METER_POWER);
-	s2mpg10_meter_read_lpf_data_reg(s2mpg10);
+	s2mpg10_meter_read_lpf_data_reg(s2mpg10, s2mpg10->lpf_data);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg1x_meter_muxsel muxsel = s2mpg10->chg_mux_sel[i];
@@ -698,6 +698,7 @@ static int s2mpg10_meter_probe(struct platform_device *pdev)
 	ret = s2mpg10_update_reg(s2mpg10->i2c, S2MPG10_METER_BUCK_METER_TRIM3,
 				dsm_result & S2MPG10_METER_DSM_TRIM_HIGH_MASK,
 				S2MPG10_METER_DSM_TRIM_HIGH_MASK);
+
 #if !IS_ENABLED(CONFIG_ODPM)
 
 	/* initial setting */
@@ -718,6 +719,8 @@ static int s2mpg10_meter_probe(struct platform_device *pdev)
 	s2mpg10_ext_meter_onoff(s2mpg10, false);
 
 #else
+	s2mpg10_meter_set_lpf_mode(s2mpg10, S2MPG1X_METER_POWER);
+
 	ret = mfd_add_devices(s2mpg10->dev, -1, s2mpg10_meter_devs,
 			      ARRAY_SIZE(s2mpg10_meter_devs), NULL, 0, NULL);
 	if (ret < 0) {
