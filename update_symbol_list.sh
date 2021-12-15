@@ -124,6 +124,20 @@ function update_aosp_abi {
   merge_and_sort_symbol_lists "aosp/${pixel_symbol_list}" \
     "private/gs-google/${pixel_symbol_list}"
 
+  # Create the symbol list commit and check if the ABI xml needs to be updated
+  COMMIT_TEXT=$(mktemp -t abi_sym_commit_text.XXXXX)
+  echo "ANDROID: Update the ABI symbol list" > ${COMMIT_TEXT}
+  echo >> ${COMMIT_TEXT}
+  echo "Update the generic symbol list." >> ${COMMIT_TEXT}
+  echo >> ${COMMIT_TEXT}
+  echo "Bug: ${BUG}" >> ${COMMIT_TEXT}
+  if [ -n "${CHANGE_ID}" ]; then
+    echo "Change-Id: ${CHANGE_ID}" >> ${COMMIT_TEXT}
+  fi
+  git -C aosp commit -s -F ${COMMIT_TEXT} -- android/
+  commit_ret=$?
+  rm -f ${COMMIT_TEXT}
+
   # Check if the added symbols are included in another symbol list
   verify_new_symbols_require_abi_update "${pixel_symbol_list}"
 
@@ -139,26 +153,20 @@ function update_aosp_abi {
       SKIP_MRPROPER= \
       build/build_abi.sh --update "$@"
     # TODO: How do I know if the build failed or the ABI xml was updated??
-  fi
 
-  # Create the git commit for aosp/android13-5.10
-  COMMIT_TEXT=$(mktemp -t abi_commit_text.XXXXX)
-  if [ "${ABI_XML_UPDATE_REQUIRED}" != "0" -a -f "${out_dir}/dist/abi.report.short" ]; then
-    echo "ANDROID: Update the ABI representation" > ${COMMIT_TEXT}
-    echo >> ${COMMIT_TEXT}
-    cat ${out_dir}/dist/abi.report.short >> ${COMMIT_TEXT}
-  else
-    echo "ANDROID: Update the ABI symbol list" > ${COMMIT_TEXT}
-    echo >> ${COMMIT_TEXT}
-    echo "Update the generic symbol list." >> ${COMMIT_TEXT}
+    # Create the git ABI xml commit for aosp/android13-5.10 if needed
+    if [ -f "${out_dir}/dist/abi.report.short" ]; then
+      COMMIT_TEXT=$(mktemp -t abi_xml_commit_text.XXXXX)
+      echo "ANDROID: Update the ABI representation" > ${COMMIT_TEXT}
+      echo >> ${COMMIT_TEXT}
+      cat ${out_dir}/dist/abi.report.short >> ${COMMIT_TEXT}
+      echo >> ${COMMIT_TEXT}
+      echo "Bug: ${BUG}" >> ${COMMIT_TEXT}
+      git -C aosp commit -s -F ${COMMIT_TEXT} -- android/
+      commit_ret=$?
+      rm -f ${COMMIT_TEXT}
+    fi
   fi
-  echo >> ${COMMIT_TEXT}
-  echo "Bug: ${BUG}" >> ${COMMIT_TEXT}
-  if [ -n "${CHANGE_ID}" ]; then
-    echo "Change-Id: ${CHANGE_ID}" >> ${COMMIT_TEXT}
-  fi
-  git -C aosp commit -s -F ${COMMIT_TEXT} -- android/
-  commit_ret=$?
 
   echo "========================================================"
   if ! git -C aosp diff --quiet aosp/android13-5.10..HEAD; then
@@ -189,7 +197,6 @@ function update_aosp_abi {
     echo " No changes were detected after rebasing to the tip of tree."
   fi
 
-  rm -f ${COMMIT_TEXT}
   # Rollback to the original branch/commit
   if [ -n "${AOSP_CUR_BRANCH_OR_SHA1}" ]; then
     git -C aosp checkout ${AOSP_CUR_BRANCH_OR_SHA1}
