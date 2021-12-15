@@ -623,7 +623,7 @@ bool mif_gpio_set_value(struct cpif_gpio *gpio, int value, unsigned int delay_ms
 	int dup = 0;
 
 	if (!gpio->valid) {
-		mif_err("GET GPIO %d is not valid\n", gpio->num);
+		mif_err("SET GPIO %d is not valid\n", gpio->num);
 		return false;
 	}
 
