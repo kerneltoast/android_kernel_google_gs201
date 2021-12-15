@@ -14,6 +14,7 @@
 #include <dt-bindings/soc/google/gs201-pm-qos.h>
 #include "gs201-rmem.dtsi"
 #include "gs201-bts.dtsi"
+#include "gs101-cp-tm.dtsi"
 #include "gs201-cpu.dtsi"
 #include "gs201-dit.dtsi"
 #include "gs201-drm-dpu.dtsi"
