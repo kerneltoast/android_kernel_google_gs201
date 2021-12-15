@@ -61,6 +61,33 @@ get_bootimg_header_field() {
     sed -ne "/^${key}: /s/^${key}: //p" "${hfile}"
 }
 
+# adb root
+function adb_wait_root() {
+    if ! adb -s $SERIALNO get-state >& /dev/null ; then
+        echo
+        echo "!!! Device $SERIALNO is not reachable via ADB !!!"
+        echo "Please make sure device boot into Android and tap \"Allow\" to the \"Allow USB Debugging\" dialog."
+        echo
+        exit 1
+    fi
+    if ! adb -s $SERIALNO root | grep 'adbd is already running as root' ; then
+        sleep 2
+        adb -s $SERIALNO wait-for-device >& /dev/null
+    fi
+}
+
+# Dump partitions from device
+function dump_boot_images_from_device() {
+	adb_wait_root
+	for img in dtbo boot vendor_boot vendor_dlkm; do
+		if [ "${img}" == "vendor_dlkm" ]; then
+			adb -s $SERIALNO pull /dev/block/$(adb -s $SERIALNO shell getprop dev.mnt.blk.${img}) "${DEVICE_DIR}"/${img}.img
+		else
+			adb -s $SERIALNO pull /dev/block/bootdevice/by-name/${img}$(adb -s $SERIALNO shell getprop ro.boot.slot_suffix) "${DEVICE_DIR}"/${img}.img
+		fi
+	done
+}
+
 trap cleanup_and_exit EXIT
 
 ARGS=()
@@ -93,57 +120,28 @@ readonly LZ4="prebuilts/kernel-build-tools/linux-x86/bin/lz4"
 readonly LZ4_COMPRESS="${LZ4} -c -12 --favor-decSpeed"
 readonly LZ4_DECOMP="${LZ4} -c -f -d"
 
-# Create device directory if need be
-if [ -n "${DEVICE_DIR}" ]; then
-    mkdir -p "${DEVICE_DIR}" || true
-fi
-
 # Create destination directory if need be
-if [ -n "${OUTPUT_DIR}" ]; then
+if [ -n "${OUTPUT_DIR}" ] && [ ! -d "${OUTPUT_DIR}" ]; then
     mkdir -p "${OUTPUT_DIR}" || true
 fi
 
-KERNEL_IMAGE="${KERNEL_DIST_DIR}/Image${KCOMPRESS}"
-
-# Dump partitions from device
-function adb_wait_root() {
-    if ! adb -s $SERIALNO get-state >& /dev/null ; then
-        echo
-        echo "!!! Device $SERIALNO is not reachable via ADB !!!"
-        echo "Please make sure device boot into Android and tap \"Allow\" to the \"Allow USB Debugging\" dialog."
-        echo
-        exit 1
-    fi
-    if ! adb -s $SERIALNO root | grep 'adbd is already running as root' ; then
-        sleep 2
-        adb -s $SERIALNO wait-for-device >& /dev/null
-    fi
-}
-
-adb_wait_root
 RESP=""
-for img in dtbo boot vendor_boot vendor_dlkm; do
-	if [ -f "${DEVICE_DIR}/${img}.img" ]; then
-		if [ "${RESP}" == "" ]; then
-			echo
-			read -p "Previous dumped file [ ${DEVICE_DIR}/${img}.img ] already exit!!! Do you want to dump from device and replace it? (y/N): " RESP
-			echo
-		fi
-		case $RESP in
-			[Yy]* ) RESP="YES";	;;
-			* ) RESP="NO"; ;;
-		esac
-	else
-		RESP="YES"
+# Create device directory and dump paritions from device if need be
+if [ -n "${DEVICE_DIR}" ] && [ ! -d "${DEVICE_DIR}" ]; then
+    mkdir -p "${DEVICE_DIR}" || true
+    dump_boot_images_from_device
+else
+	if [ "${RESP}" == "" ]; then
+		echo
+		read -p "Previous dumped files already exit in ${DEVICE_DIR}/ !!! Do you want to dump from device and replace it? (y/N): " RESP
+		echo
 	fi
-	if [ "${RESP}" == "YES" ]; then
-		if [ "${img}" == "vendor_dlkm" ]; then
-			adb -s $SERIALNO pull /dev/block/$(adb -s $SERIALNO shell getprop dev.mnt.blk.${img}) "${DEVICE_DIR}"/${img}.img
-		else
-			adb -s $SERIALNO pull /dev/block/bootdevice/by-name/${img}$(adb -s $SERIALNO shell getprop ro.boot.slot_suffix) "${DEVICE_DIR}"/${img}.img
-		fi
-	fi
-done
+	case $RESP in
+		[Yy]* ) dump_boot_images_from_device;	;;
+	esac
+fi
+
+KERNEL_IMAGE="${KERNEL_DIST_DIR}/Image${KCOMPRESS}"
 
 # Extract boot images
 echo "Extracting boot.img from ${DEVICE_DIR}/ ..."
