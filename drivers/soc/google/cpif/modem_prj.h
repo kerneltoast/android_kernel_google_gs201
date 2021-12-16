@@ -32,7 +32,6 @@
 #include <soc/google/s2mpu.h>
 #endif
 #endif
-#include "modem_debug.h"
 #include "modem_v1.h"
 
 #include "include/circ_queue.h"

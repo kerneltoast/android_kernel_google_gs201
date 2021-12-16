@@ -70,8 +70,6 @@ static unsigned long wakeup_dflags =
 module_param(wakeup_dflags, ulong, 0664);
 MODULE_PARM_DESC(wakeup_dflags, "modem_v1 wakeup debug flags");
 
-static struct raw_notifier_head cp_crash_notifier;
-
 static bool wakeup_log_enable;
 inline void set_wakeup_packet_log(bool enable)
 {
@@ -677,16 +675,6 @@ int mif_gpio_toggle_value(struct cpif_gpio *gpio, int delay_ms)
 	return value;
 }
 EXPORT_SYMBOL(mif_gpio_toggle_value);
-
-int __ref register_cp_crash_notifier(struct notifier_block *nb)
-{
-	return raw_notifier_chain_register(&cp_crash_notifier, nb);
-}
-
-void __ref modemctl_notify_event(enum modemctl_event evt)
-{
-	raw_notifier_call_chain(&cp_crash_notifier, evt, NULL);
-}
 
 void mif_stop_logging(void)
 {
