@@ -458,7 +458,7 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 	if (ret)
 		goto err_drvdata_add;
 
-	dev_info(dev, "attached with pgtable %pa\n", &domain->page_table);
+	dev_info(dev, "attached with pgtable %pap\n", &page_table);
 
 	return 0;
 
@@ -480,6 +480,7 @@ static void samsung_sysmmu_detach_dev(struct iommu_domain *dom,
 	struct list_head *group_list;
 	struct sysmmu_drvdata *drvdata;
 	struct iommu_group *group = dev->iommu_group;
+	phys_addr_t page_table;
 	unsigned int i;
 
 	domain = to_sysmmu_domain(dom);
@@ -492,7 +493,8 @@ static void samsung_sysmmu_detach_dev(struct iommu_domain *dom,
 		samsung_sysmmu_detach_drvdata(drvdata);
 	}
 
-	dev_info(dev, "detached from pgtable %pa\n", &domain->page_table);
+	page_table = virt_to_phys(domain->page_table);
+	dev_info(dev, "detached from pgtable %pap\n", &page_table);
 }
 
 static inline sysmmu_pte_t make_sysmmu_pte(phys_addr_t paddr,
