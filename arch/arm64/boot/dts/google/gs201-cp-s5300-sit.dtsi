@@ -34,7 +34,7 @@
 				mif,link_type = <LINKDEV_PCIE>;
 				mif,link_name = "PCIE";
 				mif,link_attrs = <(
-					LINK_ATTR_XMIT_BTDLR_SPI |
+					LINK_ATTR_XMIT_BTDLR_PCIE |
 					LINK_ATTR_XMIT_BTDLR |
 					LINK_ATTR_DUMP_ALIGNED |
 					LINK_ATTR_BOOT_ALIGNED |
