@@ -3494,8 +3494,14 @@ int exynos_pcie_rc_l1ss_ctrl(int enable, int id, int ch_num)
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_l1ss_ctrl);
 
 /* to support CP driver */
-int exynos_pcie_poweron(int ch_num)
+int exynos_pcie_poweron(int ch_num, int spd)
 {
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct dw_pcie *pci = exynos_pcie->pci;
+
+	dev_info(pci->dev, "%s requested with link speed GEN%d\n", __func__, spd);
+	exynos_pcie->max_link_speed = spd;
+
 	return exynos_pcie_rc_poweron(ch_num);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_poweron);
