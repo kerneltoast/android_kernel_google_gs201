@@ -36,8 +36,10 @@
 	synaptics,spi-byte-delay-us = <0>;
 	synaptics,spi-block-delay-us = <0>;
 	synaptics,panel_map = <&sdc_s6e3hc3_c10>,
+			      <&sdc_s6e3hc4>,
 			      <&boe_nt37290>;
 	synaptics,firmware_names = "synaptics.img",
+				   "synaptics.img",
 				   "synaptics_b.img";
 
 	controller-data {
