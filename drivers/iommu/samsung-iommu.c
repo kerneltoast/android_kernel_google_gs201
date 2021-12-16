@@ -827,7 +827,7 @@ static struct iommu_device *samsung_sysmmu_probe_device(struct device *dev)
 
 	client = (struct sysmmu_clientdata *) dev_iommu_priv_get(dev);
 	client->dev_link = kcalloc(client->sysmmu_count,
-				   sizeof(**client->dev_link), GFP_KERNEL);
+				   sizeof(*client->dev_link), GFP_KERNEL);
 	if (!client->dev_link)
 		return ERR_PTR(-ENOMEM);
 
