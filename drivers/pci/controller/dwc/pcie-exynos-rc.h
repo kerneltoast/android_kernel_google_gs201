@@ -361,6 +361,7 @@ static size_t __maybe_unused pcie_iommu_unmap(unsigned long iova, size_t size,
 					    int hsi_block_num)
 {
 	pr_err("PCIe SysMMU is NOT Enabled!!!\n");
+	return 0;
 }
 #endif
 
