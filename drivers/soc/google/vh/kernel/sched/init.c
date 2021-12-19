@@ -41,6 +41,8 @@ extern void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struc
 						   int clamp_id, unsigned int value);
 extern void init_uclamp_stats(void);
 extern void rvh_sched_fork_pixel_mod(void *data, struct task_struct *tsk);
+extern void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
+					 struct task_struct *orig);
 
 extern struct cpufreq_governor sched_pixel_gov;
 
@@ -114,6 +116,10 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_rvh_sched_fork(rvh_sched_fork_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
