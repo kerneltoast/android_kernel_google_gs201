@@ -76,7 +76,7 @@
 	dc_charger_irq: dc-charger-irq {
 		samsung,pins = "gpa9-0"; /* XEINT_20 (PLC_INT_L) */
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
 
