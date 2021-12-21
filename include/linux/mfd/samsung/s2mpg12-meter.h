@@ -35,5 +35,7 @@ int s2mpg12_meter_set_muxsel(struct s2mpg12_meter *s2mpg12, int channel,
 int s2mpg12_meter_onoff(struct s2mpg12_meter *s2mpg12, bool onoff);
 int s2mpg12_ext_meter_onoff(struct s2mpg12_meter *s2mpg12, bool onoff);
 u32 s2mpg12_muxsel_to_power_resolution(s2mpg1x_meter_muxsel m);
+void s2mpg12_meter_read_lpf_data_reg(struct s2mpg12_meter *s2mpg12,
+				     u32 *data);
 
 #endif /* __LINUX_MFD_S2MPG12_METER_H */

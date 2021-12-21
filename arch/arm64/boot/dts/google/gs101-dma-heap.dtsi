@@ -55,7 +55,7 @@
 	};
 
 	faceauth_tpu_dma_heap: faceauth_tpu_dma_heap {
-		compatible = "samsung,dma-heap-cma";
+		compatible = "samsung,dma-heap-chunk";
 		memory-region = <&faceauth_tpu>;
 		dma-heap,name = "faceauth_tpu";
 		dma-heap,secure;

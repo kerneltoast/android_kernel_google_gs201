@@ -19,6 +19,7 @@ typedef enum {
 	ADDRESS_CTRL1,
 	ADDRESS_CTRL2,
 	ADDRESS_BUCKEN1,
+	ADDRESS_LPF_C0_0,
 	ADDRESS_COUNT,
 } address_t;
 
@@ -27,6 +28,7 @@ const int COMMON_ADDRESS[ADDRESS_COUNT][ID_COUNT] = {
 	[ADDRESS_CTRL1] = { S2MPG10_METER_CTRL1, S2MPG11_METER_CTRL1 },
 	[ADDRESS_CTRL2] = { S2MPG10_METER_CTRL2, S2MPG11_METER_CTRL2 },
 	[ADDRESS_BUCKEN1] = { S2MPG10_METER_BUCKEN1, S2MPG11_METER_BUCKEN1 },
+	[ADDRESS_LPF_C0_0] = { S2MPG10_METER_LPF_C0_0, S2MPG11_METER_LPF_C0_0 },
 };
 #endif
 #if defined(CONFIG_SOC_GS201)
@@ -34,6 +36,7 @@ const int COMMON_ADDRESS[ADDRESS_COUNT][ID_COUNT] = {
 	[ADDRESS_CTRL1] = { S2MPG12_METER_CTRL1, S2MPG13_METER_CTRL1 },
 	[ADDRESS_CTRL2] = { S2MPG12_METER_CTRL2, S2MPG13_METER_CTRL2 },
 	[ADDRESS_BUCKEN1] = { S2MPG12_METER_BUCKEN1, S2MPG13_METER_BUCKEN1 },
+	[ADDRESS_LPF_C0_0] = { S2MPG12_METER_LPF_C0_0, S2MPG13_METER_LPF_C0_0 },
 };
 #endif
 const u32 s2mpg1x_int_sample_rate_uhz[S2MPG1X_INT_FREQ_COUNT] = {
@@ -146,6 +149,18 @@ static inline int s2mpg1x_meter_set_ext_samp_rate(enum s2mpg1x_id id,
 {
 	return s2mpg1x_update_reg(id, i2c, COMMON_ADDRESS[ADDRESS_CTRL2][id],
 				  hz, EXT_SAMP_RATE_MASK);
+}
+
+static inline int s2mpg1x_meter_set_lpf_coefficient(enum s2mpg1x_id id,
+						    struct i2c_client *i2c,
+						    int ch,
+						    u32 val)
+{
+	if (ch >= S2MPG1X_METER_CHANNEL_MAX)
+		return -EINVAL;
+
+	return s2mpg1x_write_reg(id, i2c, COMMON_ADDRESS[ADDRESS_LPF_C0_0][id] +
+				 ch, val);
 }
 
 static inline const u32 *s2mpg1x_meter_get_int_samping_rate_table(void)

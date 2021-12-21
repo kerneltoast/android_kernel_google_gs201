@@ -329,20 +329,21 @@ static void s2mpg13_meter_set_lpf_mode(struct s2mpg13_meter *s2mpg13,
 	}
 }
 
-static void s2mpg13_meter_read_lpf_data_reg(struct s2mpg13_meter *s2mpg13)
+void s2mpg13_meter_read_lpf_data_reg(struct s2mpg13_meter *s2mpg13,
+					    u32 *data)
 {
 	int i;
-	u8 data[S2MPG1X_METER_LPF_BUF];
+	u8 buf[S2MPG1X_METER_LPF_BUF];
 	u8 reg = S2MPG13_METER_LPF_DATA_CH0_1; /* first lpf data register */
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg13_bulk_read(s2mpg13->i2c, reg, S2MPG1X_METER_LPF_BUF,
-				  data);
-		s2mpg13->lpf_data[i] =
-			data[0] + (data[1] << 8) + ((data[2] & 0x1F) << 16);
+				  buf);
+		data[i] = buf[0] + (buf[1] << 8) + ((buf[2] & 0x1F) << 16);
 		reg += S2MPG1X_METER_LPF_BUF;
 	}
 }
+EXPORT_SYMBOL_GPL(s2mpg13_meter_read_lpf_data_reg);
 
 static void s2mpg13_meter_set_acc_mode(struct s2mpg13_meter *s2mpg13,
 				       s2mpg1x_meter_mode mode)
@@ -503,7 +504,7 @@ static ssize_t s2mpg13_lpf_current_show(struct device *dev,
 	mutex_lock(&s2mpg13->meter_lock);
 
 	s2mpg13_meter_set_lpf_mode(s2mpg13, S2MPG1X_METER_CURRENT);
-	s2mpg13_meter_read_lpf_data_reg(s2mpg13);
+	s2mpg13_meter_read_lpf_data_reg(s2mpg13, s2mpg13->lpf_data);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg1x_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];
@@ -529,7 +530,7 @@ static ssize_t s2mpg13_lpf_power_show(struct device *dev,
 	mutex_lock(&s2mpg13->meter_lock);
 
 	s2mpg13_meter_set_lpf_mode(s2mpg13, S2MPG1X_METER_POWER);
-	s2mpg13_meter_read_lpf_data_reg(s2mpg13);
+	s2mpg13_meter_read_lpf_data_reg(s2mpg13, s2mpg13->lpf_data);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg1x_meter_muxsel muxsel = s2mpg13->chg_mux_sel[i];

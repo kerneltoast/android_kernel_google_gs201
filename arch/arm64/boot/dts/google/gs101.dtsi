@@ -1913,4 +1913,10 @@
 		interrupts = <GIC_SPI INTREQ__SECURE_LOG IRQ_TYPE_LEVEL_HIGH>;
 		memory-region = <&seclog_mem>;
 	};
+	pps {
+		compatible = "pps-gpio";
+		gpios = <&gpp17 1 GPIO_ACTIVE_HIGH>;
+		assert-falling-edge = <0>;
+	};
+
 };

@@ -323,7 +323,6 @@
 		};
 	};
 
-
 	etm2: etm@25a40000 {
 		compatible = "arm,primecell";
 		arm,primecell-periphid = <0x000bb95d>;
