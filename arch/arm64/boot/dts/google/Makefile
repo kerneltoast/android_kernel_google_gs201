@@ -76,6 +76,7 @@ dtbo-$(CONFIG_BOARD_CLOUDRIPPER) += \
         gs201-cheetah-proto1_1-wingboard.dtbo \
         gs201-cheetah-evt1.dtbo \
         gs201-cheetah-evt1-wingboard.dtbo \
+        gs201-cheetah-evt1-nfc.dtbo \
         gs201-cheetah-evt1_1.dtbo \
         gs201-cheetah-dvt1.dtbo \
         gs201-cheetah-pvt1.dtbo \
@@ -104,6 +105,7 @@ gs201-cheetah-proto1_1.dtbo-base := gs201-a0.dtb
 gs201-cheetah-proto1_1-wingboard.dtbo-base := gs201-a0.dtb
 gs201-cheetah-evt1.dtbo-base := gs201-a0.dtb
 gs201-cheetah-evt1-wingboard.dtbo-base := gs201-a0.dtb
+gs201-cheetah-evt1-nfc.dtbo-base := gs201-a0.dtb
 gs201-cheetah-evt1_1.dtbo-base := gs201-a0.dtb
 gs201-cheetah-dvt1.dtbo-base := gs201-a0.dtb
 gs201-cheetah-pvt1.dtbo-base := gs201-a0.dtb
