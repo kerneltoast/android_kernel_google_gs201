@@ -258,12 +258,6 @@ struct __packed sipc_fmt_hdr {
 #define sipc5_is_not_reserved_channel(ch) \
 	((ch) != 0 && (ch) != 5 && (ch) != 6 && (ch) != 27 && (ch) != 255)
 
-#if IS_ENABLED(CONFIG_MODEM_IF_QOS)
-#define MAX_NDEV_TX_Q 2
-#else
-#define MAX_NDEV_TX_Q 1
-#endif
-#define MAX_NDEV_RX_Q 1
 /* mark value for high priority packet, hex QOSH */
 #define RAW_HPRIO	0x514F5348
 
@@ -796,7 +790,7 @@ void sipc5_build_header(struct io_device *iod, u8 *buff, u8 cfg,
 void vnet_setup(struct net_device *ndev);
 const struct file_operations *get_bootdump_io_fops(void);
 const struct file_operations *get_ipc_io_fops(void);
-int sipc5_init_io_device(struct io_device *iod);
+int sipc5_init_io_device(struct io_device *iod, struct mem_link_device *mld);
 void sipc5_deinit_io_device(struct io_device *iod);
 
 #if IS_ENABLED(CONFIG_CPIF_VENDOR_HOOK)

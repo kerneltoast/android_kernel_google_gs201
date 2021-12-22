@@ -203,7 +203,9 @@ struct pktproc_queue {
 
 	/* IRQ */
 	int irq;
+#if IS_ENABLED(CONFIG_MCU_IPC)
 	u32 irq_idx;
+#endif
 
 	/* NAPI */
 	struct net_device netdev;
@@ -295,7 +297,9 @@ struct pktproc_adaptor {
 	u32 desc_num_ratio_percent;		/* Number of descriptors ratio as percent */
 	u32 num_queue;		/* Number of queue */
 	bool use_exclusive_irq;	/* Exclusive interrupt */
+#if IS_ENABLED(CONFIG_MCU_IPC)
 	u32 exclusive_irq_idx[PKTPROC_MAX_QUEUE];
+#endif
 	bool use_hw_iocc;	/* H/W IO cache coherency */
 	u32 max_packet_size;	/* Max packet size CP sees */
 	u32 true_packet_size;	/* True packet size AP allocated */

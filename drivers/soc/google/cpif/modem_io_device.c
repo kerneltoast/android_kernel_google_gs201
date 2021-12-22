@@ -708,11 +708,12 @@ static int cpif_cdev_create_device(struct io_device *iod, const struct file_oper
 	return ret;
 }
 
-int sipc5_init_io_device(struct io_device *iod)
+int sipc5_init_io_device(struct io_device *iod, struct mem_link_device *mld)
 {
 	int ret = 0;
 	int i;
 	struct vnet *vnet;
+	unsigned int txqs = 1, rxqs = 1;
 
 	if (iod->attrs & IO_ATTR_SBD_IPC)
 		iod->sbd_ipc = true;
@@ -769,12 +770,18 @@ int sipc5_init_io_device(struct io_device *iod)
 		break;
 
 	case IODEV_NET:
+#if IS_ENABLED(CONFIG_MODEM_IF_QOS)
+		txqs = 2;
+#endif
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+		rxqs = mld->pktproc.num_queue;
+#endif
 		skb_queue_head_init(&iod->sk_rx_q);
 		INIT_LIST_HEAD(&iod->node_ndev);
 
 		iod->ndev = alloc_netdev_mqs(sizeof(struct vnet),
 					iod->name, NET_NAME_UNKNOWN, vnet_setup,
-					MAX_NDEV_TX_Q, MAX_NDEV_RX_Q);
+					txqs, rxqs);
 		if (!iod->ndev) {
 			mif_info("%s: ERR! alloc_netdev fail\n", iod->name);
 			return -ENOMEM;

@@ -207,7 +207,7 @@ static struct io_device *create_io_device(struct platform_device *pdev,
 	}
 
 	/* register misc device or net device */
-	ret = sipc5_init_io_device(iod);
+	ret = sipc5_init_io_device(iod, pdata->mld);
 	if (ret) {
 		devm_kfree(dev, iod);
 		mif_err("sipc5_init_io_device fail (%d)\n", ret);

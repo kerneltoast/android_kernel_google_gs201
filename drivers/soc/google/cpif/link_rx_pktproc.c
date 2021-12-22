@@ -887,6 +887,9 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	if (csum)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
+	if (ppa->use_exclusive_irq)
+		skb_record_rx_queue(skb, q->q_idx);
+
 	/* Set priv */
 	skbpriv(skb)->lnk_hdr = 0;
 	skbpriv(skb)->sipc_ch = ch_id;
@@ -1671,8 +1674,6 @@ static int pktproc_create_buffer_manager(struct pktproc_queue *q, u64 ap_desc_pb
 
 static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 {
-	int ret = 0;
-
 	mif_dt_read_u64(np, "pktproc_cp_base", ppa->cp_base);
 	mif_dt_read_u32(np, "pktproc_dl_version", ppa->version);
 
@@ -1693,7 +1694,10 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 		ppa->netrx_capacity = 0;
 #endif
 		mif_dt_read_u32(np, "pktproc_dl_use_exclusive_irq", ppa->use_exclusive_irq);
+#if IS_ENABLED(CONFIG_MCU_IPC)
 		if (ppa->use_exclusive_irq) {
+			int ret;
+
 			ret = of_property_read_u32_array(np, "pktproc_dl_exclusive_irq_idx",
 							ppa->exclusive_irq_idx, ppa->num_queue);
 			if (ret) {
@@ -1701,6 +1705,7 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 				return ret;
 			}
 		}
+#endif
 		mif_dt_read_bool(np, "pktproc_dl_use_napi", ppa->use_napi);
 		break;
 	default:
@@ -2046,8 +2051,8 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		q->enable_irq = pktproc_enable_irq;
 		q->disable_irq = pktproc_disable_irq;
 		if (ppa->use_exclusive_irq) {
-			q->irq_idx = ppa->exclusive_irq_idx[q->q_idx];
 #if IS_ENABLED(CONFIG_MCU_IPC)
+			q->irq_idx = ppa->exclusive_irq_idx[q->q_idx];
 			ret = cp_mbox_register_handler(q->irq_idx,
 							mld->irq_cp2ap_msg, q->irq_handler, q);
 			if (ret) {
