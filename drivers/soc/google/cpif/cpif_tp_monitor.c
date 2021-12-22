@@ -590,20 +590,51 @@ static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 {
-	struct modem_ctl *mc = data->tpmon->ld->mc;
-	u32 val;
-
-	if (!mc)
-		return;
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	struct mem_link_device *mld = ld_to_mem_link_device(data->tpmon->ld);
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+#endif
+	unsigned int num_queue = 1;
+	unsigned int i;
+	u32 val, *q_cpu;
 
 	if (!data->enable)
 		return;
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	if (ppa->use_exclusive_irq)
+		num_queue = ppa->num_queue;
+#endif
+
+	q_cpu = kzalloc(sizeof(u32) * num_queue, GFP_KERNEL);
+	if (!q_cpu)
+		return;
+
 	val = tpmon_get_curr_level(data);
+	tpmon_get_cpu_per_queue(val, q_cpu, num_queue, false);
 
-	mif_info("%s (CPU:%d)\n", data->name, val);
+	for (i = 0; i < num_queue; i++) {
+		int q_irq = -1;
 
-	exynos_pcie_rc_set_affinity(mc->pcie_ch_num, val);
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+		if (ppa->use_napi)
+			pktproc_stop_napi_poll(ppa, i);
+
+		if (ppa->use_exclusive_irq)
+			q_irq = ppa->q[i]->irq;
+#endif
+
+		mif_info("%s (q[%u] cpu:%u)\n", data->name, i, q_cpu[i]);
+		if (q_irq < 0) {
+			struct modem_ctl *mc = data->tpmon->ld->mc;
+
+			exynos_pcie_rc_set_affinity(mc->pcie_ch_num, q_cpu[i]);
+		} else {
+			irq_set_affinity_hint(q_irq, cpumask_of(q_cpu[i]));
+		}
+	}
+
+	kfree(q_cpu);
 }
 #endif
 
