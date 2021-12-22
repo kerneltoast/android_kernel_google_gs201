@@ -657,22 +657,22 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 static void tpmon_set_irq_affinity_dit(struct tpmon_data *data)
 {
-	u32 val;
+	u32 val, cpu[1];
 
 	if (!data->enable)
 		return;
 
 	val = tpmon_get_curr_level(data);
+	tpmon_get_cpu_per_queue(val, cpu, 1, false);
 
-	if (dit_get_irq_affinity() == val) {
-		mif_info("skip to set same cpu_num for %s (CPU:%d)\n",
-			data->name, val);
+	if (dit_get_irq_affinity() == cpu[0]) {
+		mif_info("skip to set same cpu_num for %s (CPU:%u)\n",
+			 data->name, cpu[0]);
 		return;
 	}
 
-	mif_info("%s (CPU:%d)\n", data->name, val);
-
-	dit_set_irq_affinity(val);
+	mif_info("%s (CPU:%u)\n", data->name, cpu[0]);
+	dit_set_irq_affinity(cpu[0]);
 }
 #endif
 
