@@ -331,34 +331,51 @@ static bool tpmon_check_to_unboost(struct tpmon_data *data)
 	return true;
 }
 
+static void tpmon_get_cpu_per_queue(u32 mask, u32 *q, unsigned int q_num,
+				    bool get_mask)
+{
+	u32 cur_mask = mask, bit_pos = 0;
+	bool masks_lt_qnum = false;
+	unsigned int idx = 0;
+
+	if (!mask)
+		return;
+
+	while (cur_mask || idx < q_num) {
+		u32 bit_mask;
+
+		if (!cur_mask) {
+			cur_mask = mask;
+			bit_pos = 0;
+
+			if (idx < q_num)
+				masks_lt_qnum = true;
+		}
+
+		bit_mask = (u32)BIT(bit_pos);
+
+		if (bit_mask & cur_mask) {
+			cur_mask &= ~bit_mask;
+			if (get_mask)
+				q[idx % q_num] |= bit_mask;
+			else
+				q[idx % q_num] = bit_pos;
+			idx++;
+		}
+
+		if (masks_lt_qnum && idx == q_num)
+			cur_mask = 0;
+
+		bit_pos++;
+	}
+}
+
 /*
  * Target
  */
 /* RPS */
 #if IS_ENABLED(CONFIG_RPS)
 /* From net/core/net-sysfs.c */
-static ssize_t tpmon_show_rps_map(struct netdev_rx_queue *queue, char *buf)
-{
-	struct rps_map *map;
-	cpumask_var_t mask;
-	int i, len;
-
-	if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
-		return -ENOMEM;
-
-	rcu_read_lock();
-	map = rcu_dereference(queue->rps_map);
-	if (map)
-		for (i = 0; i < map->len; i++)
-			cpumask_set_cpu(map->cpus[i], mask);
-
-	len = snprintf(buf, MAX_RPS_STRING, "%*pb", cpumask_pr_args(mask));
-	rcu_read_unlock();
-	free_cpumask_var(mask);
-
-	return len < MAX_RPS_STRING ? len : -EINVAL;
-}
-
 static ssize_t tpmon_store_rps_map(struct netdev_rx_queue *queue,
 						const char *buf, ssize_t len)
 {
@@ -416,20 +433,35 @@ static ssize_t tpmon_store_rps_map(struct netdev_rx_queue *queue,
 
 static void tpmon_set_rps(struct tpmon_data *data)
 {
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	struct mem_link_device *mld = container_of(data->tpmon->ld,
+						   struct mem_link_device, link_dev);
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+#endif
 	struct io_device *iod;
-	unsigned long flags;
-	int ret = 0;
-	char mask[MAX_RPS_STRING] = {};
-	u32 val;
+	unsigned int num_queue = 1;
+	unsigned int i;
+	u32 val, *rxq_mask;
 
 	if (!data->enable)
 		return;
 
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	if (ppa->use_exclusive_irq)
+		num_queue = ppa->num_queue;
+#endif
+
+	rxq_mask = kzalloc(sizeof(u32) * num_queue, GFP_KERNEL);
+	if (!rxq_mask)
+		return;
+
 	val = tpmon_get_curr_level(data);
-	snprintf(mask, MAX_RPS_STRING, "%x", val);
+	tpmon_get_cpu_per_queue(val, rxq_mask, num_queue, true);
 
 	list_for_each_entry(iod, &data->tpmon->net_node_list, node_all_ndev) {
-		char org_mask[MAX_RPS_STRING] = {};
+		char mask[MAX_RPS_STRING] = {};
+		unsigned long flags;
+		int ret;
 
 		if (!iod->name)
 			continue;
@@ -437,18 +469,14 @@ static void tpmon_set_rps(struct tpmon_data *data)
 		if (!iod->ndev)
 			continue;
 
-		tpmon_show_rps_map(&(iod->ndev->_rx[0]), org_mask);
-		if (!strncmp(mask, org_mask, MAX_RPS_STRING)) {
-			mif_info("skip to set same level for %s(0x%x)\n",
-				iod->ndev->name, val);
-			continue;
-		}
+		for (i = 0; i < num_queue; i++) {
+			snprintf(mask, MAX_RPS_STRING, "%x", rxq_mask[i]);
 
-		ret = (int)tpmon_store_rps_map(&(iod->ndev->_rx[0]),
-			mask, strlen(mask));
-		if (ret < 0) {
-			mif_err("tpmon_store_rps_map() error:%d\n", ret);
-			break;
+			ret = (int)tpmon_store_rps_map(&iod->ndev->_rx[i], mask, strlen(mask));
+			if (ret < 0) {
+				mif_err("tpmon_store_rps_map() error:%d\n", ret);
+				goto out;
+			}
 		}
 
 		spin_lock_irqsave(&iod->clat_lock, flags);
@@ -460,6 +488,7 @@ static void tpmon_set_rps(struct tpmon_data *data)
 		dev_hold(iod->clat_ndev);
 		spin_unlock_irqrestore(&iod->clat_lock, flags);
 
+		snprintf(mask, MAX_RPS_STRING, "%x", val);
 		ret = (int)tpmon_store_rps_map(&(iod->clat_ndev->_rx[0]),
 			mask, strlen(mask));
 		dev_put(iod->clat_ndev);
@@ -470,7 +499,11 @@ static void tpmon_set_rps(struct tpmon_data *data)
 		}
 	}
 
-	mif_info("%s (mask:0x%s)\n", data->name, mask);
+	for (i = 0; i < num_queue; i++)
+		mif_info("%s (rxq[%u] mask:0x%02x)\n", data->name, i, rxq_mask[i]);
+
+out:
+	kfree(rxq_mask);
 }
 #endif
 
