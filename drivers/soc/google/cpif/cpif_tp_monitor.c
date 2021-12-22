@@ -554,36 +554,52 @@ static void tpmon_set_gro(struct tpmon_data *data)
 #if IS_ENABLED(CONFIG_MCU_IPC)
 static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 {
-	u32 val;
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	struct mem_link_device *mld = ld_to_mem_link_device(data->tpmon->ld);
 	struct pktproc_adaptor *ppa = &mld->pktproc;
-	int i;
 #endif
+	unsigned int num_queue = 1;
+	unsigned int i;
+	u32 val, *q_cpu;
 
 	if (!data->enable)
 		return;
 
-	val = tpmon_get_curr_level(data);
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	if (ppa->use_exclusive_irq)
+		num_queue = ppa->num_queue;
+#endif
 
-	if (cp_mbox_get_affinity(data->extra_idx) == val) {
-		mif_info("skip to set same cpu_num for %s (CPU:%d)\n",
-			data->name, val);
+	q_cpu = kzalloc(sizeof(u32) * num_queue, GFP_KERNEL);
+	if (!q_cpu)
 		return;
 	}
 
-	mif_info("%s (CPU:%d)\n", data->name, val);
+	val = tpmon_get_curr_level(data);
+	tpmon_get_cpu_per_queue(val, q_cpu, num_queue, false);
+
+	for (i = 0; i < num_queue; i++) {
+		int irq_idx = data->extra_idx;
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
-	if (ppa->use_exclusive_irq) {
-		for (i = 0; i < ppa->num_queue; i++) {
-			if (ppa->use_napi)
-				pktproc_stop_napi_poll(ppa, i);
-		}
-	}
+		if (ppa->use_napi)
+			pktproc_stop_napi_poll(ppa, i);
+
+		if (ppa->use_exclusive_irq)
+			irq_idx = ppa->q[i]->irq_idx;
 #endif
 
-	cp_mbox_set_affinity(data->extra_idx, val);
+		if (cp_mbox_get_affinity(irq_idx) == q_cpu[i]) {
+			mif_info("skip to set same cpu_num for %s (CPU:%u)\n",
+				 data->name, q_cpu[i]);
+			continue;
+		}
+
+		mif_info("%s (CPU:%u)\n", data->name, val);
+		cp_mbox_set_affinity(irq_idx, q_cpu[i]);
+	}
+
+	kfree(q_cpu);
 }
 #endif
 
