@@ -516,6 +516,17 @@ struct fuse_entry_out {
 	struct fuse_attr attr;
 };
 
+#define FUSE_ACTION_KEEP	0
+#define FUSE_ACTION_REMOVE	1
+#define FUSE_ACTION_REPLACE	2
+
+struct fuse_entry_bpf_out {
+	uint64_t	backing_action;
+	uint64_t	backing_fd;
+	uint64_t	bpf_action;
+	uint64_t	bpf_fd;
+};
+
 struct fuse_forget_in {
 	uint64_t	nlookup;
 };
@@ -631,6 +642,12 @@ struct fuse_read_in {
 	uint32_t	read_flags;
 	uint64_t	lock_owner;
 	uint32_t	flags;
+	uint32_t	padding;
+};
+
+struct fuse_read_out {
+	uint64_t	offset;
+	uint32_t	again;
 	uint32_t	padding;
 };
 
@@ -807,7 +824,7 @@ struct fuse_in_header {
 	uint32_t	uid;
 	uint32_t	gid;
 	uint32_t	pid;
-	uint32_t	padding;
+	uint32_t	error_in;
 };
 
 struct fuse_out_header {
@@ -941,5 +958,50 @@ struct fuse_removemapping_one {
 
 #define FUSE_REMOVEMAPPING_MAX_ENTRY   \
 		(PAGE_SIZE / sizeof(struct fuse_removemapping_one))
+
+struct fuse_mount;
+
+/** One input argument of a request */
+struct fuse_in_arg {
+	unsigned size;
+	const void *value;
+};
+
+/** One output argument of a request */
+struct fuse_arg {
+	unsigned size;
+	void *value;
+};
+
+struct fuse_args {
+	uint64_t nodeid;
+	uint32_t opcode;
+	uint32_t error_in;
+	unsigned short in_numargs;
+	unsigned short out_numargs;
+	int force:1;
+	int noreply:1;
+	int nocreds:1;
+	int in_pages:1;
+	int out_pages:1;
+	int out_argvar:1;
+	int page_zeroing:1;
+	int page_replace:1;
+	int may_block:1;
+	struct fuse_in_arg in_args[5];
+	struct fuse_arg out_args[3];
+	void (*end)(struct fuse_mount *fm, struct fuse_args *args, int error);
+
+	/* Path used for completing d_canonical_path */
+	struct path *canonical_path;
+};
+
+#define FUSE_BPF_USER_FILTER	1
+#define FUSE_BPF_BACKING	2
+#define FUSE_BPF_POST_FILTER	4
+
+#define FUSE_OPCODE_FILTER	0x0ffff
+#define FUSE_PREFILTER		0x10000
+#define FUSE_POSTFILTER		0x20000
 
 #endif /* _LINUX_FUSE_H */

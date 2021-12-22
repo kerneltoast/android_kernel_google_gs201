@@ -26,8 +26,9 @@ package(
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kleaf:common_kernels.bzl", "aarch64_outs", "define_common_kernels")
 load("//build/kleaf:kernel.bzl", "kernel_build", "kernel_modules_install")
+load("@kernel_toolchain_info//:dict.bzl", "CLANG_VERSION")
 
-define_common_kernels()
+define_common_kernels(toolchain_version = CLANG_VERSION)
 
 kernel_build(
     name = "cloudripper",
@@ -193,8 +194,6 @@ kernel_build(
         "zram.ko",
         "zsmalloc.ko",
     ],
-    # Keep in sync with build.config.common
-    toolchain_version = "r428724",
     deps = [
         "//prebuilts/misc/linux-x86/libufdt:mkdtimg",
     ],
