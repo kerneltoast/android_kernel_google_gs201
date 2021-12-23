@@ -764,8 +764,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x14>;
-				wmo = <0x14>;
+				rmo = <0x20>;
+				wmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
@@ -849,8 +849,8 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x14>;
-				wmo = <0x14>;
+				rmo = <0x20>;
+				wmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
 			};
