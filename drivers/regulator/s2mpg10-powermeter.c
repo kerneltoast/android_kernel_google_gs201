@@ -29,13 +29,6 @@
 #include <linux/regulator/pmic_class.h>
 #include <linux/mfd/core.h>
 
-static void s2mpg10_meter_set_acc_mode(struct s2mpg10_meter *s2mpg10,
-				       s2mpg1x_meter_mode mode);
-static void s2mpg10_meter_read_acc_data_reg(struct s2mpg10_meter *s2mpg10,
-					    u64 *data);
-static void s2mpg10_meter_read_acc_count(struct s2mpg10_meter *s2mpg10,
-					 u32 *count);
-
 #if IS_ENABLED(CONFIG_ODPM)
 static struct mfd_cell s2mpg10_meter_devs[] = {
 	{
@@ -43,34 +36,6 @@ static struct mfd_cell s2mpg10_meter_devs[] = {
 	},
 };
 #endif
-
-/**
- * Load measurement into registers and read measurement from the registers
- *
- * Note: data must be an array with length S2MPG1X_METER_CHANNEL_MAX
- */
-int s2mpg10_meter_load_measurement(struct s2mpg10_meter *s2mpg10,
-				   s2mpg1x_meter_mode mode, u64 *data,
-				   u32 *count, u64 *timestamp_capture)
-{
-	mutex_lock(&s2mpg10->meter_lock);
-
-	s2mpg10_meter_set_acc_mode(s2mpg10, mode);
-
-	s2mpg1x_meter_set_async_blocking(ID_S2MPG10, s2mpg10->i2c,
-					 timestamp_capture);
-
-	if (data)
-		s2mpg10_meter_read_acc_data_reg(s2mpg10, data);
-
-	if (count)
-		s2mpg10_meter_read_acc_count(s2mpg10, count);
-
-	mutex_unlock(&s2mpg10->meter_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(s2mpg10_meter_load_measurement);
 
 static u64 muxsel_to_current_resolution(s2mpg1x_meter_muxsel m)
 {
@@ -355,50 +320,6 @@ void s2mpg10_meter_read_lpf_data_reg(struct s2mpg10_meter *s2mpg10, u32 *data)
 }
 EXPORT_SYMBOL_GPL(s2mpg10_meter_read_lpf_data_reg);
 
-static void s2mpg10_meter_set_acc_mode(struct s2mpg10_meter *s2mpg10,
-				       s2mpg1x_meter_mode mode)
-{
-	switch (mode) {
-	case S2MPG1X_METER_POWER:
-		s2mpg10_write_reg(s2mpg10->i2c, S2MPG10_METER_CTRL3, 0x00);
-		break;
-	case S2MPG1X_METER_CURRENT:
-		s2mpg10_write_reg(s2mpg10->i2c, S2MPG10_METER_CTRL3, 0xFF);
-		break;
-	}
-}
-
-static void s2mpg10_meter_read_acc_data_reg(struct s2mpg10_meter *s2mpg10,
-					    u64 *data)
-{
-	int i;
-	u8 buf[S2MPG1X_METER_ACC_BUF];
-	u8 reg = S2MPG10_METER_ACC_DATA_CH0_1; /* first acc data register */
-
-	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg10_bulk_read(s2mpg10->i2c, reg, S2MPG1X_METER_ACC_BUF,
-				  buf);
-
-		/* 41 bits of data */
-		data[i] = ((u64)buf[0] << 0) | ((u64)buf[1] << 8) |
-			  ((u64)buf[2] << 16) | ((u64)buf[3] << 24) |
-			  ((u64)buf[4] << 32) | (((u64)buf[5] & 0x1) << 8);
-
-		reg += S2MPG1X_METER_ACC_BUF;
-	}
-}
-
-static void s2mpg10_meter_read_acc_count(struct s2mpg10_meter *s2mpg10,
-					 u32 *count)
-{
-	u8 data[S2MPG1X_METER_COUNT_BUF]; /* ACC_COUNT is 20-bit data */
-
-	s2mpg10_bulk_read(s2mpg10->i2c, S2MPG10_METER_ACC_COUNT_1,
-			  S2MPG1X_METER_COUNT_BUF, data);
-
-	*count = (data[0] << 0) | (data[1] << 8) | ((data[2] & 0x0F) << 16);
-}
-
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 static ssize_t s2mpg10_muxsel_table_show(struct device *dev,
 					 struct device_attribute *attr,
@@ -548,8 +469,10 @@ static ssize_t s2mpg10_acc_current_show(struct device *dev,
 	u64 acc_data[S2MPG1X_METER_CHANNEL_MAX];
 	u32 acc_count;
 
-	s2mpg10_meter_load_measurement(s2mpg10, S2MPG1X_METER_CURRENT, acc_data,
-				       &acc_count, NULL);
+	s2mpg1x_meter_measure_acc(ID_S2MPG10, s2mpg10->i2c,
+				  &s2mpg10->meter_lock,
+				  S2MPG1X_METER_CURRENT, acc_data,
+				  &acc_count, NULL, INT_125HZ);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg1x_meter_muxsel muxsel = s2mpg10->chg_mux_sel[i];
@@ -573,8 +496,10 @@ static ssize_t s2mpg10_acc_power_show(struct device *dev,
 	u64 acc_data[S2MPG1X_METER_CHANNEL_MAX];
 	u32 acc_count;
 
-	s2mpg10_meter_load_measurement(s2mpg10, S2MPG1X_METER_POWER, acc_data,
-				       &acc_count, NULL);
+	s2mpg1x_meter_measure_acc(ID_S2MPG10, s2mpg10->i2c,
+				  &s2mpg10->meter_lock,
+				  S2MPG1X_METER_POWER, acc_data,
+				  &acc_count, NULL, INT_125HZ);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg1x_meter_muxsel muxsel = s2mpg10->chg_mux_sel[i];
@@ -704,7 +629,7 @@ static int s2mpg10_meter_probe(struct platform_device *pdev)
 	/* initial setting */
 	/* set BUCK1M ~ BUCK8m muxsel from CH0 to CH7 */
 	/* any necessary settings can be added */
-	s2mpg1x_meter_set_int_samp_rate(ID_S2MPG10, s2mpg10->i2c, INT_500HZ);
+	s2mpg1x_meter_set_int_samp_rate(ID_S2MPG10, s2mpg10->i2c, INT_125HZ);
 
 	s2mpg10_meter_set_muxsel(s2mpg10, 0, BUCK1);
 	s2mpg10_meter_set_muxsel(s2mpg10, 1, BUCK2);

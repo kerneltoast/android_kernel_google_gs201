@@ -51,12 +51,6 @@ static struct mfd_cell s2mpg13_devs[] = {
 	},
 };
 
-void s2mpg13_usleep(unsigned int u_sec)
-{
-	usleep_range(u_sec, u_sec + 10);
-}
-EXPORT_SYMBOL_GPL(s2mpg13_usleep);
-
 int s2mpg13_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 {
 	struct s2mpg13_dev *s2mpg13 = i2c_get_clientdata(i2c);

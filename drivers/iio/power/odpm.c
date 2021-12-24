@@ -28,13 +28,12 @@
 
 #include <linux/mfd/samsung/s2mpg1x-meter.h>
 
-#if defined(CONFIG_SOC_GS101)
+#if IS_ENABLED(CONFIG_SOC_GS101)
 #include <linux/mfd/samsung/s2mpg10-meter.h>
 #include <linux/mfd/samsung/s2mpg11-meter.h>
 #include <linux/mfd/samsung/s2mpg10.h>
 #include <linux/mfd/samsung/s2mpg11.h>
-#endif
-#if defined(CONFIG_SOC_GS201)
+#elif IS_ENABLED(CONFIG_SOC_GS201)
 #include <linux/mfd/samsung/s2mpg12-meter.h>
 #include <linux/mfd/samsung/s2mpg13-meter.h>
 #include <linux/mfd/samsung/s2mpg12.h>
@@ -69,7 +68,7 @@
 #define ODPM_FREQ_DECIMAL_UHZ_STR_LEN_MAX 6
 #define ODPM_SAMPLING_FREQ_CHAR_LEN_MAX 20
 
-#if defined(CONFIG_SOC_GS101)
+#if IS_ENABLED(CONFIG_SOC_GS101)
 #define _SWITCH_METER_FUNC_VOID(infop, func, args...)                          \
 	do {                                                                   \
 		switch ((infop)->chip.hw_id) {                                 \
@@ -99,7 +98,7 @@
 	} while (0)
 #endif
 
-#if defined(CONFIG_SOC_GS201)
+#if IS_ENABLED(CONFIG_SOC_GS201)
 #define _SWITCH_METER_FUNC_VOID(infop, func, args...)                          \
 	do {                                                                   \
 		switch ((infop)->chip.hw_id) {                                 \
@@ -215,6 +214,7 @@ struct odpm_info {
 	struct odpm_chip chip;
 	void *meter; /* Parent meter device data */
 	struct i2c_client *i2c;
+	struct mutex *meter_lock; /* Meter lock */
 	struct mutex lock; /* Global HW lock */
 
 	struct odpm_channel_data channels[ODPM_CHANNEL_MAX];
@@ -242,7 +242,7 @@ static const struct iio_chan_spec s2mpg1x_single_channel[ODPM_CHANNEL_MAX] = {
 	ODPM_ACC_CHANNEL(2), ODPM_ACC_CHANNEL(3),
 	ODPM_ACC_CHANNEL(4), ODPM_ACC_CHANNEL(5),
 	ODPM_ACC_CHANNEL(6), ODPM_ACC_CHANNEL(7),
-#if defined(CONFIG_SOC_GS201)
+#if IS_ENABLED(CONFIG_SOC_GS201)
 	ODPM_ACC_CHANNEL(8), ODPM_ACC_CHANNEL(9),
 	ODPM_ACC_CHANNEL(10), ODPM_ACC_CHANNEL(11),
 #endif
@@ -319,7 +319,7 @@ static int odpm_io_set_ext_channels_en(struct odpm_info *info, u8 channels)
 static int odpm_io_set_buck_channels_en(struct odpm_info *info, u8 *channels,
 					int num_bytes)
 {
-#if defined(CONFIG_SOC_GS101)
+#if IS_ENABLED(CONFIG_SOC_GS101)
 	/* Disable BUCK5M if necessary (A0-specific) */
 	if (info->chip.hw_id == ID_S2MPG10 &&
 	    info->chip.hw_rev == S2MPG10_EVT0) {
@@ -335,7 +335,8 @@ static int odpm_io_send_blank_async(struct odpm_info *info,
 				    u64 *timestamp_capture)
 {
 	return s2mpg1x_meter_set_async_blocking(info->chip.hw_id, info->i2c,
-						timestamp_capture);
+						timestamp_capture,
+						info->chip.int_sampling_rate_i);
 }
 
 static int odpm_io_update_ext_enable_bits(struct odpm_info *info)
@@ -489,8 +490,8 @@ static void odpm_periodic_refresh_setup(struct odpm_info *info)
 	add_timer(&info->timer_refresh);
 }
 
-static bool odpm_match_int_sampling_rate(struct odpm_info *info, u32 sampling_rate,
-					 int *index)
+static bool odpm_match_int_sampling_rate(struct odpm_info *info,
+					 u32 sampling_rate, int *index)
 {
 	bool success = false;
 	int i;
@@ -506,8 +507,8 @@ static bool odpm_match_int_sampling_rate(struct odpm_info *info, u32 sampling_ra
 	return success;
 }
 
-static bool odpm_match_ext_sampling_rate(struct odpm_info *info, u32 sampling_rate,
-					 int *index)
+static bool odpm_match_ext_sampling_rate(struct odpm_info *info,
+					 u32 sampling_rate, int *index)
 {
 	bool success = false;
 	int i;
@@ -755,7 +756,8 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 		pr_err("odpm: cannot read sample rate value\n");
 		return -EINVAL;
 	}
-	if (!odpm_match_int_sampling_rate(info, sampling_rate, &sampling_rate_i)) {
+	if (!odpm_match_int_sampling_rate(info, sampling_rate,
+					  &sampling_rate_i)) {
 		pr_err("odpm: cannot parse sample rate value %d\n",
 		       sampling_rate);
 		return -EINVAL;
@@ -767,7 +769,8 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 		pr_err("odpm: cannot read external sample rate value\n");
 		return -EINVAL;
 	}
-	if (!odpm_match_ext_sampling_rate(info, sampling_rate, &sampling_rate_i)) {
+	if (!odpm_match_ext_sampling_rate(info, sampling_rate,
+					  &sampling_rate_i)) {
 		pr_err("odpm: cannot parse external sample rate value %d\n",
 		       sampling_rate);
 		return -EINVAL;
@@ -864,10 +867,10 @@ static void odpm_print_clock_skew(struct odpm_info *info, u64 elapsed_ms,
 	u64 ratio_u = (1000000 * uHz_estimated) / uHz;
 	s64 pct_u = (((s64)ratio_u - (1 * 1000000)) * 100);
 
-	pr_info("odpm: %s: elapsed_ms: %d, acc_count: %d\n", info->chip.name,
-		elapsed_ms, acc_count);
-	pr_info("odpm: %s: internal clock skew: %d.%06d %%\n", info->chip.name,
-		pct_u / 1000000, abs(pct_u) % 1000000);
+	pr_info("odpm: %s: elapsed_ms: %lld, acc_count: %d\n",
+		info->chip.name, elapsed_ms, acc_count);
+	pr_info("odpm: %s: internal clock skew: %lld.%06lld %%\n",
+		info->chip.name, pct_u / 1000000, abs(pct_u) % 1000000);
 }
 #endif
 
@@ -892,9 +895,8 @@ static u32 odpm_estimate_sampling_frequency(struct odpm_info *info,
 	 * otherwise we'd accumulate large quantization error. This may occur
 	 * nominally if two instantaneous requests are followed back-to-back.
 	 */
-	if (acc_count < ODPM_MIN_INTERVAL_ACC_COUNT) {
+	if (acc_count < ODPM_MIN_INTERVAL_ACC_COUNT)
 		return sampling_frequency_table_uhz;
-	}
 
 	if (elapsed_ms == 0) {
 		pr_err("odpm: %s: elapsed time is 0 ms\n", info->chip.name);
@@ -964,9 +966,14 @@ static int odpm_refresh_registers(struct odpm_info *info, bool resume)
 
 	timestamp_before_async = ktime_get_boottime_ns();
 
-	SWITCH_METER_FUNC(info, ret, meter_load_measurement,
-			  S2MPG1X_METER_POWER, acc_data, &acc_count,
-			  &timestamp_after_async);
+	ret = s2mpg1x_meter_measure_acc(info->chip.hw_id,
+					info->i2c,
+					info->meter_lock,
+					S2MPG1X_METER_POWER,
+					acc_data,
+					&acc_count,
+					&timestamp_after_async,
+					info->chip.int_sampling_rate_i);
 
 	if (ret < 0) {
 		pr_err("odpm: %s: i2c error; count not measure interval\n",
@@ -1235,13 +1242,17 @@ static void odpm_set_sampling_rate(struct odpm_info *info,
 		goto sampling_rate_store_exit;
 	}
 
-	if (type == ODPM_SAMPLING_RATE_INTERNAL || type == ODPM_SAMPLING_RATE_ALL) {
+	if (type == ODPM_SAMPLING_RATE_INTERNAL ||
+	    type == ODPM_SAMPLING_RATE_ALL) {
 		ret = odpm_io_set_int_sampling_rate(info, int_sampling_rate_i);
-		odpm_print_new_sampling_rate(info, ret, ODPM_SAMPLING_RATE_INTERNAL);
+		odpm_print_new_sampling_rate(info, ret,
+					     ODPM_SAMPLING_RATE_INTERNAL);
 	}
-	if (type == ODPM_SAMPLING_RATE_EXTERNAL || type == ODPM_SAMPLING_RATE_ALL) {
+	if (type == ODPM_SAMPLING_RATE_EXTERNAL ||
+	    type == ODPM_SAMPLING_RATE_ALL) {
 		ret = odpm_io_set_ext_sampling_rate(info, ext_sampling_rate_i);
-		odpm_print_new_sampling_rate(info, ret, ODPM_SAMPLING_RATE_EXTERNAL);
+		odpm_print_new_sampling_rate(info, ret,
+					     ODPM_SAMPLING_RATE_EXTERNAL);
 	}
 
 	/* Send blank ASYNC, ignoring the latest set of data */
@@ -1339,6 +1350,15 @@ static ssize_t energy_value_show(struct device *dev,
 	struct odpm_info *info = iio_priv(indio_dev);
 	ssize_t count = 0;
 	int ch;
+
+#if IS_ENABLED(CONFIG_SOC_GS201)
+	/* Disable ODPM for A0 (b/213412265) */
+	if ((info->chip.hw_id == ID_S2MPG12 &&
+	     info->chip.hw_rev == S2MPG12_EVT0) ||
+	    (info->chip.hw_id == ID_S2MPG13 &&
+	     info->chip.hw_rev == S2MPG13_EVT0))
+		return -1;
+#endif
 
 	/* take snapshot */
 	mutex_lock(&info->lock);
@@ -1761,13 +1781,14 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 	info->chip.sampling_rate_ext_count = S2MPG1X_EXT_FREQ_COUNT;
 
 	switch (id) {
-#if defined(CONFIG_SOC_GS101)
+#if IS_ENABLED(CONFIG_SOC_GS101)
 	case ID_S2MPG10: {
 		struct s2mpg10_meter *meter = info->meter;
 		struct s2mpg10_dev *pmic = dev_get_drvdata(meter->dev->parent);
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
+		info->meter_lock = &meter->meter_lock;
 	} break;
 	case ID_S2MPG11: {
 		struct s2mpg11_meter *meter = info->meter;
@@ -1775,15 +1796,16 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
+		info->meter_lock = &meter->meter_lock;
 	} break;
-#endif
-#if defined(CONFIG_SOC_GS201)
+#elif IS_ENABLED(CONFIG_SOC_GS201)
 	case ID_S2MPG12: {
 		struct s2mpg12_meter *meter = info->meter;
 		struct s2mpg12_dev *pmic = dev_get_drvdata(meter->dev->parent);
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
+		info->meter_lock = &meter->meter_lock;
 	} break;
 	case ID_S2MPG13: {
 		struct s2mpg13_meter *meter = info->meter;
@@ -1791,6 +1813,7 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
+		info->meter_lock = &meter->meter_lock;
 	} break;
 #endif
 	}
@@ -1919,11 +1942,10 @@ static int odpm_resume(struct platform_device *pdev)
 }
 
 static const struct platform_device_id odpm_id[] = {
-#if defined(CONFIG_SOC_GS101)
+#if IS_ENABLED(CONFIG_SOC_GS101)
 	{ "s2mpg10-odpm", ID_S2MPG10 },
 	{ "s2mpg11-odpm", ID_S2MPG11 },
-#endif
-#if defined(CONFIG_SOC_GS201)
+#elif IS_ENABLED(CONFIG_SOC_GS201)
 	{ "s2mpg12-odpm", ID_S2MPG12 },
 	{ "s2mpg13-odpm", ID_S2MPG13 },
 #endif

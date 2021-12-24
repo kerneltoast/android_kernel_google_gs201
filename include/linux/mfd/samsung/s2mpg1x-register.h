@@ -180,6 +180,9 @@ typedef enum {
 #define S2MPG1X_METER_COUNT_BUF 3 /* 20-bit */
 #define S2MPG1X_METER_BUCKEN_BUF 2
 
+/* MT_TRIM(0xE) MASK */
+#define S2MPG1X_PMETER_MRST_MASK	BIT(7)
+
 /* S2MPG1x_METER_CTRL1 */
 #define METER_EN_MASK BIT(0)
 #define EXT_METER_EN_MASK BIT(1)

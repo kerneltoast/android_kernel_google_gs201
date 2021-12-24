@@ -201,7 +201,6 @@ int s2mpg12_bulk_read(struct i2c_client *i2c, u8 reg, int count, u8 *buf);
 int s2mpg12_write_reg(struct i2c_client *i2c, u8 reg, u8 value);
 int s2mpg12_bulk_write(struct i2c_client *i2c, u8 reg, int count, u8 *buf);
 int s2mpg12_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask);
-void s2mpg12_usleep(unsigned int u_sec);
 
 u8 s2mpg12_get_rev_id(void);
 int pmic_read_pwrkey_status(void);

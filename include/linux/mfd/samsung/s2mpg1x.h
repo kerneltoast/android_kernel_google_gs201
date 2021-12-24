@@ -9,18 +9,17 @@
 #define __LINUX_MFD_S2MPG1X_H
 
 enum s2mpg1x_id {
-#if defined(CONFIG_SOC_GS101)
+#if IS_ENABLED(CONFIG_SOC_GS101)
 	ID_S2MPG10,
 	ID_S2MPG11,
-#endif
-#if defined(CONFIG_SOC_GS201)
+#elif IS_ENABLED(CONFIG_SOC_GS201)
 	ID_S2MPG12,
 	ID_S2MPG13,
 #endif
 	ID_COUNT,
 };
 
-#if defined(CONFIG_SOC_GS101)
+#if IS_ENABLED(CONFIG_SOC_GS101)
 #define SWITCH_ID_FUNC(id, func, args...)                                      \
 	do {                                                                   \
 		switch (id) {                                                  \
@@ -37,9 +36,7 @@ enum s2mpg1x_id {
 
 #include <linux/mfd/samsung/s2mpg10.h>
 #include <linux/mfd/samsung/s2mpg11.h>
-#endif
-
-#if defined(CONFIG_SOC_GS201)
+#elif IS_ENABLED(CONFIG_SOC_GS201)
 #define SWITCH_ID_FUNC(id, func, args...)                                      \
 	do {                                                                   \
 		switch (id) {                                                  \
@@ -90,6 +87,15 @@ static inline int s2mpg1x_bulk_write(enum s2mpg1x_id id, struct i2c_client *i2c,
 	int ret = -1;
 
 	SWITCH_ID_FUNC(id, bulk_write, i2c, reg, count, buf);
+	return ret;
+}
+
+static inline int s2mpg1x_bulk_read(enum s2mpg1x_id id, struct i2c_client *i2c,
+				    u8 reg, int count, u8 *buf)
+{
+	int ret = -1;
+
+	SWITCH_ID_FUNC(id, bulk_read, i2c, reg, count, buf);
 	return ret;
 }
 

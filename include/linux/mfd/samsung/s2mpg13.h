@@ -150,6 +150,5 @@ int s2mpg13_bulk_read(struct i2c_client *i2c, u8 reg, int count, u8 *buf);
 int s2mpg13_write_reg(struct i2c_client *i2c, u8 reg, u8 value);
 int s2mpg13_bulk_write(struct i2c_client *i2c, u8 reg, int count, u8 *buf);
 int s2mpg13_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask);
-void s2mpg13_usleep(unsigned int u_sec);
 
 #endif /* __S2MPG13_MFD_H__ */
