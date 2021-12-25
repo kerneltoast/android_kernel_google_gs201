@@ -15,12 +15,14 @@
 #include <linux/thermal.h>
 #include <linux/interrupt.h>
 #include <linux/types.h>
+#include <linux/kthread.h>
 #include <linux/mfd/samsung/s2mpg13.h>
 #include <linux/mfd/samsung/s2mpg13-register.h>
 
 #include "../thermal_core.h"
 
 #define GTHERM_CHAN_NUM 8
+#define SENSOR_WAIT_SLEEP_MS 50
 
 struct s2mpg13_spmic_thermal_sensor {
 	struct s2mpg13_spmic_thermal_chip *chip;
@@ -38,6 +40,9 @@ struct s2mpg13_spmic_thermal_chip {
 	struct s2mpg13_dev *iodev;
 	struct s2mpg13_spmic_thermal_sensor sensor[GTHERM_CHAN_NUM];
 	u8 adc_chan_en;
+	struct kobject *kobjs[GTHERM_CHAN_NUM];
+	struct kthread_worker *wq;
+	struct kthread_delayed_work wait_sensor_work;
 };
 
 /**
@@ -129,6 +134,26 @@ static int s2mpg13_map_temp_volt(int input)
 	       mult_frac(s2mpg13_adc_map[low - 1].volt - s2mpg13_adc_map[low].volt,
 			 input - s2mpg13_adc_map[low].temp,
 			 s2mpg13_adc_map[low - 1].temp - s2mpg13_adc_map[low].temp);
+}
+
+static int s2mpg13_spmic_thermal_read_raw(struct s2mpg13_spmic_thermal_sensor *s, int *raw)
+{
+	struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_thermal = s->chip;
+	u8 data_buf[S2MPG13_METER_NTC_BUF];
+	u8 reg = S2MPG13_METER_LPF_DATA_NTC0_1 + S2MPG13_METER_NTC_BUF * s->adc_chan;
+
+	int ret = s2mpg13_bulk_read(s2mpg13_spmic_thermal->i2c, reg, S2MPG13_METER_NTC_BUF,
+								data_buf);
+	if (ret)
+		return ret;
+
+	*raw = data_buf[0] + ((data_buf[1] & 0xf) << 8);
+
+	// All 0 usually means not ready
+	if (*raw == 0)
+		return -EBUSY;
+
+	return ret;
 }
 
 /*
@@ -330,6 +355,38 @@ static irqreturn_t s2mpg13_spmic_thermal_irq(int irq, void *data)
 	}
 	WARN(1, "Bad IRQ in thermal %d", irq);
 	return IRQ_NONE;
+}
+
+/*
+ * Wait for sensors to be ready.
+ */
+static void s2mpg13_spmic_thermal_wait_sensor(struct kthread_work *work)
+{
+	struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_thermal =
+		container_of(work, struct s2mpg13_spmic_thermal_chip, wait_sensor_work.work);
+	struct device *dev = s2mpg13_spmic_thermal->dev;
+	u8 mask = 0x1;
+	int raw, ret, i, j = 64000 / SENSOR_WAIT_SLEEP_MS;
+
+	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
+		if (!(s2mpg13_spmic_thermal->adc_chan_en & mask))
+			continue;
+		/* Wait for longest refresh period */
+		while (j--) {
+			ret = s2mpg13_spmic_thermal_read_raw(&s2mpg13_spmic_thermal->sensor[i],
+											&raw);
+			dev_info(dev, "Sensor %d raw:0x%x\n", i, raw);
+			if (ret != -EBUSY)
+				break;
+			dev_info(dev, "Sensor %d not ready, retry...\n", i);
+			msleep(SENSOR_WAIT_SLEEP_MS);
+		}
+		if (j < 0)
+			dev_warn(dev, "Sensor %d timeout, give up...\n", i);
+
+		thermal_zone_device_update(s2mpg13_spmic_thermal->sensor[i].tzd,
+					   THERMAL_EVENT_UNSPECIFIED);
+	}
 }
 
 /*
@@ -569,7 +626,18 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 		irq_count++;
 	}
 
+	chip->wq = kthread_create_worker(0, "spmic-init");
+	if (IS_ERR_OR_NULL(chip->wq)) {
+		ret = PTR_ERR(chip->wq);
+		goto free_irq_tz;
+	}
+
+	kthread_init_delayed_work(&chip->wait_sensor_work, s2mpg13_spmic_thermal_wait_sensor);
+
 	platform_set_drvdata(pdev, chip);
+
+	dev_info(dev, "probe done, now wait for sensors\n");
+	kthread_mod_delayed_work(chip->wq, &chip->wait_sensor_work, 0);
 
 	return ret;
 
