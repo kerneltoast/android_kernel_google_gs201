@@ -290,8 +290,6 @@ static int s2mpg13_notifier_handler(struct notifier_block *nb,
 		return NOTIFY_DONE;
 	}
 
-	queue_delayed_work(s2mpg13->irq_wqueue, &s2mpg13->irq_work, 0);
-
 	s2mpg13_call_interrupt(s2mpg13, irq_reg_sub[S2MPG13_IRQS_PMIC_INT1],
 		irq_reg_sub[S2MPG13_IRQS_PMIC_INT2], irq_reg_sub[S2MPG13_IRQS_PMIC_INT3],
 		irq_reg_sub[S2MPG13_IRQS_PMIC_INT4], irq_reg_sub[S2MPG13_IRQS_METER_INT1],
