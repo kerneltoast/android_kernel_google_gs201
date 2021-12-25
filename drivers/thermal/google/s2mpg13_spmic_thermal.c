@@ -313,6 +313,18 @@ static struct thermal_zone_of_device_ops s2mpg13_spmic_thermal_ops = {
 	.set_emul_temp = s2mpg13_spmic_thermal_set_emul_temp,
 };
 
+static ssize_t
+tz_temp_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct thermal_zone_device *tzd = to_thermal_zone(dev);
+
+	thermal_zone_device_update(tzd, THERMAL_EVENT_UNSPECIFIED);
+
+	return sysfs_emit(buf, "%d\n", tzd->temperature);
+}
+
+static DEVICE_ATTR_RO(tz_temp);
+
 static int s2mpg13_spmic_thermal_get_hot_temp(struct thermal_zone_device *tzd)
 {
 	int ntrips;
@@ -399,7 +411,7 @@ s2mpg13_spmic_thermal_register_tzd(struct s2mpg13_spmic_thermal_chip *s2mpg13_sp
 	struct thermal_zone_device *tzd;
 	struct device *dev = s2mpg13_spmic_thermal->dev;
 	u8 mask = 0x1;
-	int temp;
+	int temp, ret;
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
 		dev_info(dev, "Registering %d sensor\n", i);
@@ -418,6 +430,12 @@ s2mpg13_spmic_thermal_register_tzd(struct s2mpg13_spmic_thermal_chip *s2mpg13_sp
 			thermal_zone_device_enable(tzd);
 		else
 			thermal_zone_device_disable(tzd);
+
+		ret = device_create_file(&tzd->device, &dev_attr_tz_temp);
+		if (ret)
+			dev_err(dev,
+				"Error creating tz_temp node for thermal zone:%ld for channel:%d\n",
+				PTR_ERR(tzd), i);
 
 		temp = s2mpg13_spmic_thermal_get_hot_temp(tzd);
 		s2mpg13_spmic_thermal_set_hot_trip(&s2mpg13_spmic_thermal->sensor[i], temp);
