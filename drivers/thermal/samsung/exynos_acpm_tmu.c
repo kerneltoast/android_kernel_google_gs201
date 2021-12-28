@@ -365,6 +365,56 @@ void exynos_acpm_tmu_set_emul_temp(int tz, unsigned char temp)
 	}
 }
 
+void exynos_acpm_tmu_reg_read(u8 tmu_id, u16 offset, u32 *val)
+{
+	union tmu_ipc_message message;
+
+	memset(&message, 0, sizeof(message));
+	message.req.type = TMU_IPC_REG_READ;
+	message.req.rsvd = tmu_id;
+	message.req.req_rsvd0 = (offset & TMU_REG_OFFSET_MASK_1);
+	message.req.req_rsvd1 = ((offset & TMU_REG_OFFSET_MASK_2) >> TMU_REG_OFFSET_SHIFT_8);
+
+	exynos_acpm_tmu_ipc_send_data(&message);
+	*val = (message.resp.rsvd0 |
+		(message.resp.rsvd1 << TMU_REG_VAL_SHIFT_8) |
+		(message.resp.rsvd2 << TMU_REG_VAL_SHIFT_16) |
+		(message.resp.rsvd3 << TMU_REG_VAL_SHIFT_24));
+
+	if (acpm_tmu_log) {
+		pr_info_ratelimited("[acpm_tmu_reg_read] tmu_id:0x%02x tmu_reg_offset:0x%04x tmu_reg_val:0x%08x\n",
+			message.req.rsvd,
+			(message.req.req_rsvd0 | (message.req.req_rsvd1 << TMU_REG_OFFSET_SHIFT_8)),
+			*val);
+	}
+}
+
+void exynos_acpm_tmu_reg_write(u8 tmu_id, u16 offset, u32 val)
+{
+	union tmu_ipc_message message;
+
+	memset(&message, 0, sizeof(message));
+	message.req.type = TMU_IPC_REG_WRITE;
+	message.req.rsvd = tmu_id;
+	message.req.req_rsvd0 = (offset & TMU_REG_OFFSET_MASK_1);
+	message.req.req_rsvd1 = ((offset & TMU_REG_OFFSET_MASK_2) >> TMU_REG_OFFSET_SHIFT_8);
+	message.req.req_rsvd2 = (val & TMU_REG_VAL_MASK_1);
+	message.req.req_rsvd3 = ((val & TMU_REG_VAL_MASK_2) >> TMU_REG_VAL_SHIFT_8);
+	message.req.req_rsvd4 = ((val & TMU_REG_VAL_MASK_3) >> TMU_REG_VAL_SHIFT_16);
+	message.req.req_rsvd5 = ((val & TMU_REG_VAL_MASK_4) >> TMU_REG_VAL_SHIFT_24);
+
+	exynos_acpm_tmu_ipc_send_data(&message);
+	if (acpm_tmu_log) {
+		pr_info_ratelimited("[acpm_tmu_reg_write] tmu_id:0x%02x tmu_reg_offset:0x%04x tmu_reg_val:0x%08x\n",
+			message.req.rsvd,
+			(message.req.req_rsvd0 | (message.req.req_rsvd1 << TMU_REG_OFFSET_SHIFT_8)),
+			(message.req.req_rsvd2 |
+			 (message.req.req_rsvd3 << TMU_REG_VAL_SHIFT_8) |
+			 (message.req.req_rsvd4 << TMU_REG_VAL_SHIFT_16) |
+			 (message.req.req_rsvd5 << TMU_REG_VAL_SHIFT_24)));
+	}
+}
+
 int exynos_acpm_tmu_init(void)
 {
 	struct device_node *np;

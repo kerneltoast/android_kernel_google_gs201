@@ -249,7 +249,7 @@ static bool has_tz_pending_irq(struct gs101_tmu_data *pdata)
 
 	for (cnt = 0; cnt < tz_config_p->sensor_cnt; cnt++) {
 		probe_id = tz_config_p->sensors[cnt].probe_id;
-		val = readl(pdata->base + TMU_INTPEND_REG(probe_id));
+		val = readl(pdata->base + TMU_REG_INTPEND(probe_id));
 		if (val)
 			return true;
 	}
@@ -2266,6 +2266,522 @@ static void pause_stats_setup(struct gs101_tmu_data *data)
 }
 
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
+static u8 tmu_id;
+static u16 tmu_reg_offset;
+static u32 tmu_reg_val;
+
+static int param_tmu_reg_read_get(char *buf, const struct kernel_param *kp)
+{
+	exynos_acpm_tmu_reg_read(tmu_id, tmu_reg_offset, &tmu_reg_val);
+
+	return sysfs_emit(buf, "0x%08x\n", tmu_reg_val);
+}
+
+static int param_tmu_reg_read_set(const char *val, const struct kernel_param *kp)
+{
+	int ret = 0;
+	char **argv;
+	int argc;
+
+	argv = argv_split(GFP_KERNEL, val, &argc);
+	if (!argv) {
+		ret = -ENOMEM;
+		pr_err("%s: memory allocation error", __func__);
+		goto out;
+	}
+	if (argc != 2) {
+		ret = -EINVAL;
+		pr_err("%s: invalid args count", __func__);
+	} else {
+		ret = kstrtou8(argv[0], 16, &tmu_id);
+		if (ret) {
+			pr_err("%s: parse tmu_id error", __func__);
+			goto out;
+		} else if (tmu_id > TMU_END) {
+			pr_err("%s: tmu_id input error", __func__);
+			goto out;
+		}
+
+		ret = kstrtou16(argv[1], 16, &tmu_reg_offset);
+		if (ret) {
+			pr_err("%s: parse tmu_reg_offset error", __func__);
+			goto out;
+		} else if (tmu_reg_offset >
+			   TMU_REG_PAST_TEMP1_0(TMU_P15_SENSOR)) {
+			pr_err("%s: tmu_reg_offset input error", __func__);
+			goto out;
+		}
+	}
+out:
+	argv_free(argv);
+	return ret;
+}
+
+static const struct kernel_param_ops param_ops_tmu_reg_read = {
+	.get = param_tmu_reg_read_get,
+	.set = param_tmu_reg_read_set,
+};
+
+module_param_cb(tmu_reg_read, &param_ops_tmu_reg_read, NULL, 0644);
+MODULE_PARM_DESC(tmu_reg_read,
+		 "read tmu register: <tmu_id> <tmu_reg_offset>");
+
+static int param_tmu_reg_write_set(const char *val, const struct kernel_param *kp)
+{
+	int ret = 0;
+	char **argv;
+	int argc;
+
+	argv = argv_split(GFP_KERNEL, val, &argc);
+	if (!argv) {
+		ret = -ENOMEM;
+		pr_err("%s: memory allocation error", __func__);
+		goto out;
+	}
+	if (argc != 3) {
+		ret = -EINVAL;
+		pr_err("%s: invalid args count", __func__);
+	} else {
+		ret = kstrtou8(argv[0], 16, &tmu_id);
+		if (ret) {
+			pr_err("%s: parse tmu_id error", __func__);
+			goto out;
+		} else if (tmu_id > TMU_END) {
+			pr_err("%s: tmu_id input error", __func__);
+			goto out;
+		}
+
+		ret = kstrtou16(argv[1], 16, &tmu_reg_offset);
+		if (ret) {
+			pr_err("%s: parse tmu_reg_offset error", __func__);
+			goto out;
+		} else if (tmu_reg_offset >
+			   TMU_REG_PAST_TEMP1_0(TMU_P15_SENSOR)) {
+			pr_err("%s: tmu_reg_offset input error", __func__);
+			goto out;
+		}
+
+		ret = kstrtou32(argv[2], 16, &tmu_reg_val);
+		if (ret) {
+			pr_err("%s: parse tmu_reg_val error", __func__);
+			goto out;
+		} else if (tmu_reg_val > U32_MAX) {
+			pr_err("%s: tmu_reg_val input error", __func__);
+			goto out;
+		}
+
+		exynos_acpm_tmu_reg_write(tmu_id, tmu_reg_offset,
+					  tmu_reg_val);
+	}
+out:
+	argv_free(argv);
+	return ret;
+}
+
+static const struct kernel_param_ops param_ops_tmu_reg_write = {
+	.set = param_tmu_reg_write_set,
+};
+
+module_param_cb(tmu_reg_write, &param_ops_tmu_reg_write, NULL, 0200);
+MODULE_PARM_DESC(tmu_reg_write,
+		 "write tmu register: <tmu_id> <tmu_reg_offset> <value>");
+
+static int param_tmu_reg_dump_state(char *buf, const struct kernel_param *kp)
+{
+	int i,j;
+	u16 offset;
+	u32 val;
+	int len = 0;
+
+	if (suspended_count || atomic_read(&gs101_tmu_in_suspend))
+		return sysfs_emit(buf, "in tmu suspending..try again\n");
+
+	for (i = 0; i < TMU_END; i++) {
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		len += sysfs_emit_at(buf, len,
+				     "tmu_id:0x%02x register dump start\n", i);
+
+		offset = TMU_REG_CONTROL;
+		exynos_acpm_tmu_reg_read(i, offset, &val);
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		len += sysfs_emit_at(buf, len, "TMU_REG_CONTROL\n");
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+
+		offset = TMU_REG_TMU_STATUS;
+		exynos_acpm_tmu_reg_read(i, offset, &val);
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		len += sysfs_emit_at(buf, len, "TMU_REG_TMU_STATUS\n");
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		len += sysfs_emit_at(buf, len, "TMU_REG_INTEN\n");
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		for (j = 0; j <= TMU_P15_SENSOR; j++ ) {
+			offset = TMU_REG_INTEN(j);
+			exynos_acpm_tmu_reg_read(i, offset, &val);
+			len += sysfs_emit_at(buf, len,
+					  "tmu_reg_offset:0x%04x --> ", offset);
+			len += sysfs_emit_at(buf, len,
+					  "tmu_reg_val:0x%08x\n", val);
+		}
+
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		len += sysfs_emit_at(buf, len, "TMU_REG_INTPEND\n");
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		for (j = 0; j <= TMU_P15_SENSOR; j++ ) {
+			offset = TMU_REG_INTPEND(j);
+			exynos_acpm_tmu_reg_read(i, offset, &val);
+			len += sysfs_emit_at(buf, len,
+					  "tmu_reg_offset:0x%04x --> ", offset);
+			len += sysfs_emit_at(buf, len,
+					  "tmu_reg_val:0x%08x\n", val);
+		}
+	}
+
+	return len;
+}
+
+static const struct kernel_param_ops param_ops_tmu_reg_dump_state = {
+	.get = param_tmu_reg_dump_state,
+};
+
+module_param_cb(tmu_reg_dump_state, &param_ops_tmu_reg_dump_state, NULL, 0444);
+MODULE_PARM_DESC(tmu_reg_dump_state,
+		 "tmu register dump about tmu state");
+
+static int param_tmu_reg_dump_current_temp(char *buf,
+					   const struct kernel_param *kp)
+{
+	int i,j;
+	u16 offset;
+	u32 val;
+	int len = 0;
+
+	for (i = 0; i < TMU_END; i++) {
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		len += sysfs_emit_at(buf, len,
+				     "tmu_id:0x%02x register dump start\n", i);
+
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		len += sysfs_emit_at(buf, len, "TMU_REG_CURRENT_TEMP\n");
+		len += sysfs_emit_at(buf, len, "=======================\n");
+		for (j = 0; j <= TMU_P15_SENSOR; j++ ) {
+			if ((j % 2) > 0)
+				continue;
+
+			offset = TMU_REG_CURRENT_TEMP(j);
+			exynos_acpm_tmu_reg_read(i, offset, &val);
+			len += sysfs_emit_at(buf, len,
+					  "tmu_reg_offset:0x%04x --> ", offset);
+			len += sysfs_emit_at(buf, len,
+					  "tmu_reg_val:0x%08x\n", val);
+		}
+	}
+
+	return len;
+}
+
+static const struct kernel_param_ops param_ops_tmu_reg_dump_current_temp = {
+	.get = param_tmu_reg_dump_current_temp,
+};
+
+module_param_cb(tmu_reg_dump_current_temp, &param_ops_tmu_reg_dump_current_temp,
+		NULL, 0444);
+MODULE_PARM_DESC(tmu_reg_dump_current_temp,
+		 "tmu register dump about sensor current temperature");
+
+static int param_tmu_top_reg_dump_rise_thres(char *buf, const struct kernel_param *kp)
+{
+	int i;
+	u16 offset;
+	u32 val;
+	int len = 0;
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_RISE7_6\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_RISE7_6(i);
+		exynos_acpm_tmu_reg_read(TMU_TOP, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_RISE5_4\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_RISE5_4(i);
+		exynos_acpm_tmu_reg_read(TMU_TOP, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_RISE3_2\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_RISE3_2(i);
+		exynos_acpm_tmu_reg_read(TMU_TOP, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_RISE1_0\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_RISE1_0(i);
+		exynos_acpm_tmu_reg_read(TMU_TOP, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	return len;
+}
+
+static const struct kernel_param_ops param_ops_tmu_top_reg_dump_rise_thres = {
+	.get = param_tmu_top_reg_dump_rise_thres,
+};
+
+module_param_cb(tmu_top_reg_dump_rise_thres,
+		&param_ops_tmu_top_reg_dump_rise_thres, NULL, 0444);
+MODULE_PARM_DESC(tmu_top_reg_dump_rise_thres,
+		 "tmu top register dump about sensor rise threshold");
+
+static int param_tmu_sub_reg_dump_rise_thres(char *buf, const struct kernel_param *kp)
+{
+	int i;
+	u16 offset;
+	u32 val;
+	int len = 0;
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_RISE7_6\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_RISE7_6(i);
+		exynos_acpm_tmu_reg_read(TMU_SUB, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_RISE5_4\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_RISE5_4(i);
+		exynos_acpm_tmu_reg_read(TMU_SUB, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_RISE3_2\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_RISE3_2(i);
+		exynos_acpm_tmu_reg_read(TMU_SUB, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_RISE1_0\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_RISE1_0(i);
+		exynos_acpm_tmu_reg_read(TMU_SUB, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	return len;
+}
+
+static const struct kernel_param_ops param_ops_tmu_sub_reg_dump_rise_thres = {
+	.get = param_tmu_sub_reg_dump_rise_thres,
+};
+
+module_param_cb(tmu_sub_reg_dump_rise_thres,
+		&param_ops_tmu_sub_reg_dump_rise_thres, NULL, 0444);
+MODULE_PARM_DESC(tmu_sub_reg_dump_rise_thres,
+		 "tmu sub register dump about sensor rise threshold");
+
+static int param_tmu_top_reg_dump_fall_thres(char *buf, const struct kernel_param *kp)
+{
+	int i;
+	u16 offset;
+	u32 val;
+	int len = 0;
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_FALL7_6\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_FALL7_6(i);
+		exynos_acpm_tmu_reg_read(TMU_TOP, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_FALL5_4\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_FALL5_4(i);
+		exynos_acpm_tmu_reg_read(TMU_TOP, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_FALL3_2\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_FALL3_2(i);
+		exynos_acpm_tmu_reg_read(TMU_TOP, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_FALL1_0\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_FALL1_0(i);
+		exynos_acpm_tmu_reg_read(TMU_TOP, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	return len;
+}
+
+static const struct kernel_param_ops param_ops_tmu_top_reg_dump_fall_thres = {
+	.get = param_tmu_top_reg_dump_fall_thres,
+};
+
+module_param_cb(tmu_top_reg_dump_fall_thres,
+		&param_ops_tmu_top_reg_dump_fall_thres, NULL, 0444);
+MODULE_PARM_DESC(tmu_top_reg_dump_fall_thres,
+		 "tmu top register dump about sensor fall threshold");
+
+static int param_tmu_sub_reg_dump_fall_thres(char *buf, const struct kernel_param *kp)
+{
+	int i;
+	u16 offset;
+	u32 val;
+	int len = 0;
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_FALL7_6\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_FALL7_6(i);
+		exynos_acpm_tmu_reg_read(TMU_SUB, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_FALL5_4\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_FALL5_4(i);
+		exynos_acpm_tmu_reg_read(TMU_SUB, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_FALL3_2\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_FALL3_2(i);
+		exynos_acpm_tmu_reg_read(TMU_SUB, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	len += sysfs_emit_at(buf, len,
+			     "TMU_REG_THRESHOLD_TEMP_FALL1_0\n");
+	len += sysfs_emit_at(buf, len, "=======================\n");
+	for (i = 0; i <= TMU_P15_SENSOR; i++ ) {
+		offset = TMU_REG_THRESHOLD_TEMP_FALL1_0(i);
+		exynos_acpm_tmu_reg_read(TMU_SUB, offset, &val);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_offset:0x%04x --> ", offset);
+		len += sysfs_emit_at(buf, len,
+				  "tmu_reg_val:0x%08x\n", val);
+	}
+
+	return len;
+}
+
+static const struct kernel_param_ops param_ops_tmu_sub_reg_dump_fall_thres = {
+	.get = param_tmu_sub_reg_dump_fall_thres,
+};
+
+module_param_cb(tmu_sub_reg_dump_fall_thres,
+		&param_ops_tmu_sub_reg_dump_fall_thres, NULL, 0444);
+MODULE_PARM_DESC(tmu_sub_reg_dump_fall_thres,
+		 "tmu sub register dump about sensor fall threshold");
+
 static void exynos_acpm_tmu_test_cp_call(bool mode)
 {
 	struct gs101_tmu_data *devnode;

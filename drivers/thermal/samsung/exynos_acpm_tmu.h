@@ -38,6 +38,26 @@
 #define TMU_IPC_IRQ_CLEAR	0x14
 #define TMU_IPC_EMUL_TEMP	0x15
 #define TMU_IPC_HYSTERESIS	0x16
+#define TMU_IPC_REG_READ	0xFE
+#define TMU_IPC_REG_WRITE	0xFF
+
+/* TMU register offset shift for IPC messages */
+#define TMU_REG_OFFSET_SHIFT_8	(8)
+
+/* TMU register offset MASK for IPC messages */
+#define TMU_REG_OFFSET_MASK_1	(0xFF)
+#define TMU_REG_OFFSET_MASK_2	(TMU_REG_OFFSET_MASK_1 << TMU_REG_OFFSET_SHIFT_8)
+
+/* TMU register value shift for IPC messages */
+#define TMU_REG_VAL_SHIFT_8	(8)
+#define TMU_REG_VAL_SHIFT_16	(16)
+#define TMU_REG_VAL_SHIFT_24	(24)
+
+/* TMU register value mask for IPC messages */
+#define TMU_REG_VAL_MASK_1	(0xFF)
+#define TMU_REG_VAL_MASK_2	(TMU_REG_VAL_MASK_1 << TMU_REG_VAL_SHIFT_8)
+#define TMU_REG_VAL_MASK_3	(TMU_REG_VAL_MASK_1 << TMU_REG_VAL_SHIFT_16)
+#define TMU_REG_VAL_MASK_4	(TMU_REG_VAL_MASK_1 << TMU_REG_VAL_SHIFT_24)
 
 /*
  * 16-byte TMU IPC message format (REQ)
@@ -127,6 +147,8 @@ void exynos_acpm_tmu_set_interrupt_enable(int tz, unsigned char inten);
 void exynos_acpm_tmu_tz_control(int tz, bool enable);
 void exynos_acpm_tmu_clear_tz_irq(int tz);
 void exynos_acpm_tmu_set_emul_temp(int tz, unsigned char temp);
+void exynos_acpm_tmu_reg_read(u8 tmu_id, u16 offset, u32 *val);
+void exynos_acpm_tmu_reg_write(u8 tmu_id, u16 offset, u32 val);
 
 int exynos_acpm_tmu_init(void);
 
