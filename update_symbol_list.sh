@@ -205,8 +205,9 @@ function update_aosp_abi {
 function extract_pixel_symbols {
   echo "========================================================"
   echo " Extracting symbols and updating the symbol list"
-  local clang_prebuilt_bin=$(. private/gs-google/build.config.common && \
-    echo $CLANG_PREBUILT_BIN)
+  local clang_version=$(. private/gs-google/build.config.constants && \
+    echo $CLANG_VERSION)
+  local clang_prebuilt_bin=prebuilts/clang/host/linux-x86/clang-${clang_version}/bin
   local additions_only=$1
   local pixel_symbol_list=$2
 
