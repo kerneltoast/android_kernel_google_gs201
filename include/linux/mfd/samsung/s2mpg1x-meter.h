@@ -64,7 +64,21 @@ const u32 s2mpg1x_ext_sample_rate_uhz[S2MPG1X_EXT_FREQ_COUNT] = {
 };
 #endif
 
+#if defined(CONFIG_SOC_GS101)
 #define ACQUISITION_TIME_US (40 * S2MPG1X_METER_CHANNEL_MAX)
+#endif
+/*
+ * The internal data and sample count are not updated at the
+ * same timing on Pro due to the duty cycling function.
+ * So at least waiting for a sampling complete per channel will be necessary
+ * to prevent the mismatch of irregular timing. (b/209886118)
+ * The default acquisition time / channel:
+ * internal meter: 8ms (1 / 125Hz)
+ * external meter: 32ms (1 / 31.25Hz)
+ */
+#if defined(CONFIG_SOC_GS201)
+#define ACQUISITION_TIME_US (32000 * S2MPG1X_METER_CHANNEL_MAX)
+#endif
 static inline int s2mpg1x_meter_set_async_blocking(enum s2mpg1x_id id,
 						   struct i2c_client *i2c,
 						   u64 *timestamp_capture)
