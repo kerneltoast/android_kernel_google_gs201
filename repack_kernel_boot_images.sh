@@ -106,7 +106,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ${#ARGS[*]} -ne 3 ]]; then
+if [[ ${#ARGS[*]} -gt 4 ]]; then
 	echo
     exit_badparam "Unexpected number of arguments"
 fi
@@ -125,7 +125,7 @@ if [ -n "${OUTPUT_DIR}" ] && [ ! -d "${OUTPUT_DIR}" ]; then
     mkdir -p "${OUTPUT_DIR}" || true
 fi
 
-RESP=""
+RESP=${ARGS[3]:-""}
 # Create device directory and dump paritions from device if need be
 if [ -n "${DEVICE_DIR}" ] && [ ! -d "${DEVICE_DIR}" ]; then
     mkdir -p "${DEVICE_DIR}" || true
@@ -133,7 +133,7 @@ if [ -n "${DEVICE_DIR}" ] && [ ! -d "${DEVICE_DIR}" ]; then
 else
 	if [ "${RESP}" == "" ]; then
 		echo
-		read -p "Previous dumped files already exit in ${DEVICE_DIR}/ !!! Do you want to dump from device and replace it? (y/N): " RESP
+		read -p "Previous dumped files already exist in ${DEVICE_DIR}/ !!! Do you want to dump from device and replace it? (y/N): " RESP
 		echo
 	fi
 	case $RESP in

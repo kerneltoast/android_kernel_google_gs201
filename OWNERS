@@ -6,4 +6,4 @@ per-file Makefile.ext_modules*=*
 per-file build.config.slider*=*
 per-file BUILD.bazel=*
 per-file repack_kernel_boot_images.sh=*
-
+per-file download_hlos_boot_images_and_repack_kernel_boot_images.sh=*
