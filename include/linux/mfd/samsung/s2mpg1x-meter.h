@@ -49,11 +49,20 @@ const u32 s2mpg1x_int_sample_rate_uhz[S2MPG1X_INT_FREQ_COUNT] = {
 	[INT_1000HZ] = 1000000000,
 };
 
+#if defined(CONFIG_SOC_GS101)
 const u32 s2mpg1x_ext_sample_rate_uhz[S2MPG1X_EXT_FREQ_COUNT] = {
 	[EXT_7P_628125HZ] = 7628125, [EXT_15P_25625HZ] = 15256250,
 	[EXT_30P_5125HZ] = 30512500, [EXT_61P_025HZ] = 61025000,
 	[EXT_122P_05HZ] = 122050000,
 };
+#endif
+#if defined(CONFIG_SOC_GS201)
+const u32 s2mpg1x_ext_sample_rate_uhz[S2MPG1X_EXT_FREQ_COUNT] = {
+	[EXT_7P_8125HZ] = 7812500, [EXT_15P_625HZ] = 15625000,
+	[EXT_31P_25HZ] = 31250000, [EXT_62P_5HZ] = 62500000,
+	[EXT_125HZ] = 125000000,
+};
+#endif
 
 #define ACQUISITION_TIME_US (40 * S2MPG1X_METER_CHANNEL_MAX)
 static inline int s2mpg1x_meter_set_async_blocking(enum s2mpg1x_id id,

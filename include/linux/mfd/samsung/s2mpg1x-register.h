@@ -148,11 +148,20 @@ typedef enum {
 } s2mpg1x_int_samp_rate;
 
 typedef enum {
+#if defined(CONFIG_SOC_GS101)
 	EXT_7P_628125HZ = 0,
 	EXT_15P_25625HZ,
 	EXT_30P_5125HZ,
 	EXT_61P_025HZ,
 	EXT_122P_05HZ,
+#endif
+#if defined(CONFIG_SOC_GS201)
+	EXT_7P_8125HZ = 0,
+	EXT_15P_625HZ,
+	EXT_31P_25HZ,
+	EXT_62P_5HZ,
+	EXT_125HZ,
+#endif
 	S2MPG1X_EXT_FREQ_COUNT,
 	S2MPG1X_EXT_FREQ_NONE,
 } s2mpg1x_ext_samp_rate;
