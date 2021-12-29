@@ -990,7 +990,7 @@
 				regulator-name = "S2MPG13_LDO5";
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-always-on;
+				regulator-boot-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x25>;
 				schematic-name = "L5S_PROX";
@@ -1011,7 +1011,7 @@
 				regulator-name = "S2MPG13_LDO7";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-always-on;
+				regulator-boot-on;
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0x27>;
 				schematic-name = "L7S_SENSORS_FPS";

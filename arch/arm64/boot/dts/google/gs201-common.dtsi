@@ -370,3 +370,9 @@
 	vreg1-supply = <&s_ldo3_reg>;  /* PP0850_L3S_PCIE1: AVDD085_PCIE_GEN4_1 */
 	vreg2-supply = <&s_ldo18_reg>; /* PP1800_L18S_PCIE1: AVDD18_PCIE_GEN4_1 */
 };
+
+&aoc {
+	sensor_1v8-supply = <&s_ldo7_reg>;
+	sensor_3v3-supply = <&s_ldo5_reg>;
+	sensor_power_list = "sensor_1v8", "sensor_3v3";
+};
