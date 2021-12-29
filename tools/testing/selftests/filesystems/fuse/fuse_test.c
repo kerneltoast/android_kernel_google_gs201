@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
 
@@ -195,7 +196,7 @@ out:
 static int bpf_test_real(const char *mount_dir)
 {
 	const char *test_name = "real";
-	const char *test_data =	"Weebles wobble but they don't fall down";
+	const char *test_data = "Weebles wobble but they don't fall down";
 	int result = TEST_FAILURE;
 	int bpf_fd = -1;
 	int src_fd = -1;
@@ -434,7 +435,7 @@ out:
 
 static int bpf_test_redact_readdir(const char *mount_dir)
 {
-	char *names[] = {"f1", "f2", "f3", "f4", "f5", "f6", ".", ".."};
+	const char *names[] = {"f1", "f2", "f3", "f4", "f5", "f6", ".", ".."};
 	int num_shown = (ARRAY_SIZE(names) - 2) / 2 + 2;
 	int result = TEST_FAILURE;
 	int bpf_fd = -1;
@@ -965,7 +966,7 @@ static int bpf_test_symlink(const char *mount_dir)
 {
 	const char *test_name = "real";
 	const char *symlink_name = "partial";
-	const char *test_data =	"Weebles wobble but they don't fall down";
+	const char *test_data = "Weebles wobble but they don't fall down";
 	int result = TEST_FAILURE;
 	int bpf_fd = -1;
 	int src_fd = -1;
@@ -1153,7 +1154,6 @@ static int bpf_test_remove_backing(const char *mount_dir)
 	int pid = -1;
 	int status;
 	char data[256] = {0};
-	int backing_fd = -1;
 
 	/*
 	 * Create folder1/file
@@ -1199,6 +1199,7 @@ static int bpf_test_remove_backing(const char *mount_dir)
 			struct fuse_entry_out feo;
 			struct fuse_entry_bpf_out febo;
 		} __attribute__((packed)) in;
+		int backing_fd = -1;
 
 		TESTFUSEINIT();
 		TESTFUSEIN(FUSE_LOOKUP | FUSE_POSTFILTER, &in);
@@ -1212,20 +1213,16 @@ static int bpf_test_remove_backing(const char *mount_dir)
 			.backing_fd = backing_fd,
 			}));
 
-		while (read(fuse_dev, bytes_in, sizeof(bytes_in)) != -1) {
-			struct fuse_in_header *in_header =
-				(struct fuse_in_header *)bytes_in;
-
-			TESTCOND(in_header->opcode == FUSE_FORGET ||
-				 in_header->opcode == FUSE_BATCH_FORGET);
-		}
+		while (read(fuse_dev, bytes_in, sizeof(bytes_in)) != -1)
+			;
+		TESTEQUAL(close(backing_fd), -1);
+		TESTEQUAL(errno, EBADF);
 	FUSE_DONE
 
 	result = TEST_SUCCESS;
 out:
 	close(fuse_dev);
 	close(fd);
-	close(backing_fd);
 	close(src_fd);
 	close(bpf_fd);
 	umount(mount_dir);
@@ -1293,6 +1290,36 @@ out:
 	umount(mount_dir);
 	close(fuse_dev);
 	close(bpf_fd);
+	close(src_fd);
+	return result;
+}
+
+static int mmap_test(const char *mount_dir)
+{
+	const char *file = "file";
+	int result = TEST_FAILURE;
+	int src_fd = -1;
+	int fuse_dev = -1;
+	int fd = -1;
+	char *addr = NULL;
+
+	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
+	     src_fd != -1);
+	TESTEQUAL(mount_fuse(mount_dir, -1, src_fd, &fuse_dev), 0);
+	TEST(fd = s_open(s_path(s(mount_dir), s(file)),
+			 O_CREAT | O_RDWR | O_CLOEXEC, 0777),
+	     fd != -1);
+	TESTSYSCALL(fallocate(fd, 0, 4096, SEEK_CUR));
+	TEST(addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0),
+	     addr != (void *) -1);
+	memset(addr, 'a', 4096);
+
+	result = TEST_SUCCESS;
+out:
+	munmap(addr, 4096);
+	close(fd);
+	umount(mount_dir);
+	close(fuse_dev);
 	close(src_fd);
 	return result;
 }
@@ -1396,6 +1423,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(bpf_test_file_rename),
 		MAKE_TEST(bpf_test_alter_errcode_bpf),
 		MAKE_TEST(bpf_test_alter_errcode_userspace),
+		MAKE_TEST(mmap_test),
 	};
 #undef MAKE_TEST
 
