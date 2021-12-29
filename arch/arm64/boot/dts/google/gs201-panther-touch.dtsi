@@ -48,7 +48,7 @@
 	status = "ok";
 	compatible = "focaltech,ts";
 
-	spi-max-frequency = <1000000>;
+	spi-max-frequency = <10000000>;
 
 	focaltech,irq-gpio = <&gpa7 0 0>;
 	focaltech,reset-gpio = <&gpp23 2 0>;
