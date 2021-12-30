@@ -2101,8 +2101,12 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 create_error:
 	for (i = 0; i < ppa->num_queue; i++) {
+		if (!ppa->q[i])
+			continue;
+
 		if (ppa->q[i]->manager)
 			cpif_exit_netrx_mng(ppa->q[i]->manager);
+
 		kfree(ppa->q[i]->dma_addr);
 		kfree(ppa->q[i]);
 	}
