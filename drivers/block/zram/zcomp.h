@@ -24,7 +24,8 @@ struct zcomp_cookie {
 	u32 index; /* requested page-sized block index in zram block */
 	struct page *page; /* requested page for compression */
 	struct bio *bio;
-	struct list_head list;
+	struct list_head list; /* list for page pool at idle */
+			       /* list for pended io at active */
 };
 
 struct zcomp_cookie_pool {
@@ -49,6 +50,8 @@ struct zcomp {
 	const struct zcomp_operation *op;
 	struct list_head list;
 	struct zcomp_cookie_pool cookie_pool;
+	struct list_head request_list;
+	spinlock_t request_lock;;
 
 	struct hlist_node node;
 	char algo_name[64];
