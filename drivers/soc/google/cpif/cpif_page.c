@@ -87,7 +87,7 @@ struct cpif_page_pool *cpif_page_pool_create(u64 num_page, u64 page_size)
 			mif_err("failed to alloc cpif_page\n");
 			goto fail;
 		}
-		cur->page = dev_alloc_pages(pool->page_order);
+		cur->page = __dev_alloc_pages(GFP_KERNEL | __GFP_NOWARN, pool->page_order);
 		if (unlikely(!cur->page)) {
 			mif_err("failed to get page\n");
 			cur->usable = false;
