@@ -251,7 +251,7 @@ static void fvmap_copy_from_sram(void __iomem *map_base, void __iomem *sram_base
 		}
 
 		for (j = 0; j < fvmap_header[i].num_of_lv; j++) {
-			int volt = new->table[j].volt = old->table[j].rate;
+			int volt = new->table[j].volt = old->table[j].volt;
 			new->table[j].rate = old->table[j].rate;
 			if (margin) {
 				if (margin <= 100 && margin >= -100) {
