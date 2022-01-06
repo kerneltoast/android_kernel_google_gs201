@@ -106,7 +106,7 @@
 	s2mpu_g3aa: s2mpu@1a8a0000 {
 		compatible = "google,s2mpu";
 		reg = <0x0 0x1a8a0000 0x10000>;
-		power-domain-id = <0x1ab10204>;
+		power-domain-id = <0x1a810204>;
 		interrupts = <GIC_SPI IRQ_SYSMMU_G3AA_S2_G3AA IRQ_TYPE_LEVEL_HIGH>;
 	};
 
