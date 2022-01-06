@@ -110,12 +110,6 @@
 		interrupts = <GIC_SPI IRQ_SYSMMU_G3AA_S2_G3AA IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	s2mpu_g3d: s2mpu@20080000 {
-		compatible = "google,s2mpu";
-		reg = <0x0 0x20080000 0x10000>;
-		power-domain-id = <0x27f10204>;
-	};
-
 	s2mpu_gdc_d0: s2mpu@1d0c0000 {
 		compatible = "google,s2mpu";
 		reg = <0x0 0x1d0c0000 0x10000>;
