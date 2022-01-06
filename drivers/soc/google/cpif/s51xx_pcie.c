@@ -41,7 +41,7 @@
 
 static int s51xx_pcie_read_procmem(struct seq_file *m, void *v)
 {
-	pr_err("Procmem READ!\n");
+	mif_info("Procmem READ!\n");
 
 	return 0;
 }
@@ -247,7 +247,7 @@ void s51xx_pcie_restore_state(struct pci_dev *pdev)
 	ret = pci_enable_device(pdev);
 
 	if (ret)
-		pr_err("Can't enable PCIe Device after linkup!\n");
+		mif_err("Can't enable PCIe Device after linkup!\n");
 	pci_set_master(pdev);
 
 	/* DBG: print out EP config values after restore_state */
@@ -299,13 +299,13 @@ int s51xx_pcie_request_msi_int(struct pci_dev *pdev, int int_num)
 	int err = -EFAULT;
 
 	if (int_num > MAX_MSI_NUM) {
-		pr_err("Too many MSI interrupts are requested(<=16)!!!\n");
+		mif_err("Too many MSI interrupts are requested(<=16)!!!\n");
 		return -EFAULT;
 	}
 
 	err = pci_alloc_irq_vectors_affinity(pdev, int_num, int_num, PCI_IRQ_MSI, NULL);
 	if (err <= 0) {
-		pr_err("Can't get msi IRQ!!!!!\n");
+		mif_err("Can't get msi IRQ!!!!!\n");
 		return -EFAULT;
 	}
 
@@ -318,10 +318,10 @@ static void s51xx_pcie_linkdown_cb(struct exynos_pcie_notify *noti)
 	struct pci_driver *driver = pdev->driver;
 	struct modem_ctl *mc = container_of(driver, struct modem_ctl, pci_driver);
 
-	pr_err("s51xx Link-Down notification callback function!!!\n");
+	mif_err("s51xx Link-Down notification callback function!!!\n");
 
 	if (mc->pcie_powered_on == false) {
-		pr_info("%s: skip cp crash during dislink sequence\n", __func__);
+		mif_info("%s: skip cp crash during dislink sequence\n", __func__);
 		exynos_pcie_set_perst_gpio(mc->pcie_ch_num, 0);
 	} else {
 		s5100_force_crash_exit_ext();
@@ -367,7 +367,7 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	dev_info(dev, "db_addr : 0x%x , val : 0x%x, offset : 0x%x\n",
 			db_addr, val, (unsigned int)s51xx_pcie->dbaddr_offset);
 
-	pr_err("Disable BAR resources.\n");
+	mif_info("Disable BAR resources.\n");
 	for (i = 0; i < 6; i++) {
 		pdev->resource[i].start = 0x0;
 		pdev->resource[i].end = 0x0;
@@ -386,7 +386,7 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	dev_info(&bus_self->dev, "[%s] BAR %d: tmp rsc : %pR\n", __func__, resno, tmp_rsc);
 	s51xx_pcie->dbaddr_base = tmp_rsc->start;
 
-	pr_err("Set Doorbell register address.\n");
+	mif_info("Set Doorbell register address.\n");
 	s51xx_pcie->doorbell_addr = devm_ioremap(&pdev->dev,
 			s51xx_pcie->dbaddr_base + s51xx_pcie->dbaddr_offset, SZ_4);
 
@@ -397,21 +397,21 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	 * dev_err(dev, "PCIe doorbell setting for ABOX is failed\n");
 	 */
 
-	pr_info("s51xx_pcie.doorbell_addr = %p  (start 0x%lx offset : %lx)\n",
+	mif_info("s51xx_pcie.doorbell_addr = %p  (start 0x%lx offset : %lx)\n",
 		s51xx_pcie->doorbell_addr, (unsigned long)s51xx_pcie->dbaddr_base,
 					(unsigned long)s51xx_pcie->dbaddr_offset);
 
 	if (s51xx_pcie->doorbell_addr == NULL)
-		pr_err("Can't ioremap doorbell address!!!\n");
+		mif_err("Can't ioremap doorbell address!!!\n");
 
-	pr_info("Register PCIE notification LINKDOWN event...\n");
+	mif_info("Register PCIE notification LINKDOWN event...\n");
 	s51xx_pcie->pcie_event.events = EXYNOS_PCIE_EVENT_LINKDOWN;
 	s51xx_pcie->pcie_event.user = pdev;
 	s51xx_pcie->pcie_event.mode = EXYNOS_PCIE_TRIGGER_CALLBACK;
 	s51xx_pcie->pcie_event.callback = s51xx_pcie_linkdown_cb;
 	exynos_pcie_register_event(&s51xx_pcie->pcie_event);
 
-	pr_err("Enable PCI device...\n");
+	mif_info("Enable PCI device...\n");
 	ret = pci_enable_device(pdev);
 
 	pci_set_master(pdev);
@@ -459,7 +459,7 @@ static void s51xx_pcie_remove(struct pci_dev *pdev)
 {
 	struct s51xx_pcie *s51xx_pcie = pci_get_drvdata(pdev);
 
-	pr_err("s51xx PCIe Remove!!!\n");
+	mif_err("s51xx PCIe Remove!!!\n");
 
 	if (s51xx_pcie->pci_saved_configs)
 		kfree(s51xx_pcie->pci_saved_configs);
@@ -490,7 +490,7 @@ int s51xx_pcie_init(struct modem_ctl *mc)
 	int ch_num = mc->pcie_ch_num;
 	int ret;
 
-	pr_err("Register PCIE drvier for s51xx.(chNum: %d, mc: 0x%p)\n", ch_num, mc);
+	mif_info("Register PCIE drvier for s51xx.(chNum: %d, mc: 0x%p)\n", ch_num, mc);
 
 	mc->pci_driver = s51xx_driver;
 
