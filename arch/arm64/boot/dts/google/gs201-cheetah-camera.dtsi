@@ -173,12 +173,12 @@
 	fragment@lwiscamera {
 		target-path = "/";
 		__overlay__ {
-			/* REAR CAMERA GN1 */
+			/* REAR CAMERA NAGUAL */
 			sensor0: sensor@0 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "sensor-gn1";
+				node-name = "sensor-nagual";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_1>;
@@ -260,12 +260,12 @@
 					 0>;
 			};
 
-			/* FRONT CAMERA 3J1 */
+			/* FRONT CAMERA DOKKAEBI */
 			sensor1: sensor@1 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "sensor-3j1";
+				node-name = "sensor-dokkaebi";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_2>;
@@ -339,12 +339,12 @@
 					 1000>;
 			};
 
-			/* REAR ULTRA WIDE CAMERA IMX386 */
+			/* REAR ULTRA WIDE CAMERA SANDWORM */
 			sensor2: sensor@2 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "sensor-imx386";
+				node-name = "sensor-sandworm";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_3>;
@@ -418,12 +418,12 @@
 					 1000>;
 			};
 
-			/* REAR Folded Tele Camera GM5 */
+			/* REAR Folded Tele Camera KRAKEN */
 			sensor3: sensor@3 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "sensor-gm5";
+				node-name = "sensor-kraken";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_4>;
@@ -498,12 +498,12 @@
 					 0>;
 			};
 
-			/* Eeprom lc898128 for gn1*/
+			/* EEPROM GARGOYLE for NAGUAL*/
 			eeprom0: eeprom@0 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "eeprom-lc898128";
+				node-name = "eeprom-gargoyle";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_1>;
@@ -568,12 +568,12 @@
 					 1000>;
 			};
 
-			/* Eeprom m24c64x for 3j1 */
+			/* EEPROM SMAUG for DOKKAEBI */
 			eeprom1: eeprom@1 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "eeprom-m24c64x-3j1";
+				node-name = "eeprom-smaug-dokkaebi";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_2>;
@@ -603,12 +603,12 @@
 					<1000>;
 			};
 
-			/* Eeprom m24c64x for imx386 */
+			/* EEPROM SMAUG for SANDWORM */
 			eeprom2: eeprom@2 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "eeprom-m24c64x-imx386";
+				node-name = "eeprom-smaug-sandworm";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_3>;
@@ -638,12 +638,12 @@
 					<1000>;
 			};
 
-			/* Eeprom sem1215sa for GM5*/
+			/* EEPROM JOTNAR for KRAKEN*/
 			eeprom3: eeprom@3 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "eeprom-sem1215sa";
+				node-name = "eeprom-jotnar";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_4>;
@@ -687,12 +687,12 @@
 					 0>;
 			};
 
-			/* Actuator ak7377 for gn1*/
+			/* Actuator SLENDERMAN for NAGUAL*/
 			actuator0: actuator@0 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "act-ak7377";
+				node-name = "act-slenderman";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_1>;
@@ -732,12 +732,12 @@
 				periodic-io-thread-priority = <99>;
 			};
 
-			/* Actuator sem1215sa for gm5 */
+			/* Actuator JOTNAR for KRAKEN */
 			actuator1: actuator@1 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "act-sem1215sa";
+				node-name = "act-jotnar";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_4>;
@@ -784,12 +784,12 @@
 				periodic-io-thread-priority = <99>;
 			};
 
-			/* Actuator ak7377 for imx386*/
+			/* Actuator SLENDERMAN for SANDWORM*/
 			actuator2: actuator@2 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "act-ak7377-imx386";
+				node-name = "act-slenderman-sandworm";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_3>;
@@ -829,12 +829,12 @@
 				periodic-io-thread-priority = <99>;
 			};
 
-			/* Ois lc898128 for gn1*/
+			/* Ois GARGOYLE for NAGUAL*/
 			ois0: ois@0 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "ois-lc898128";
+				node-name = "ois-gargoyle";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_1>;
@@ -881,12 +881,12 @@
 				periodic-io-thread-priority = <99>;
 			};
 
-			/* Ois sem1215sa for gm5 */
+			/* Ois JOTNAR for KRAKEN */
 			ois1: ois@1 {
 				compatible = "google,lwis-i2c-device";
 
 				/* Device node name */
-				node-name = "ois-sem1215sa";
+				node-name = "ois-jotnar";
 
 				/* I2C */
 				i2c-bus = <&hsi2c_4>;
