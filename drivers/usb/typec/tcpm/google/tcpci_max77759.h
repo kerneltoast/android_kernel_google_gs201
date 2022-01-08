@@ -176,4 +176,5 @@ enum tcpm_psy_online_states {
 
 void enable_data_path_locked(struct max77759_plat *chip);
 void data_alt_path_active(struct max77759_plat *chip, bool active);
+void register_data_active_callback(void (*callback)(void *data_active_payload), void *data);
 #endif /* __TCPCI_MAX77759_H */
