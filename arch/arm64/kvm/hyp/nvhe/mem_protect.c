@@ -125,19 +125,19 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
 
 	prepare_host_vtcr();
 	hyp_spin_lock_init(&host_kvm.lock);
+	mmu->arch = &host_kvm.arch;
 
 	ret = prepare_s2_pool(pgt_pool_base);
 	if (ret)
 		return ret;
 
-	ret = __kvm_pgtable_stage2_init(&host_kvm.pgt, &host_kvm.arch,
+	ret = __kvm_pgtable_stage2_init(&host_kvm.pgt, mmu,
 					&host_kvm.mm_ops, KVM_HOST_S2_FLAGS,
 					host_stage2_force_pte_cb);
 	if (ret)
 		return ret;
 
 	mmu->pgd_phys = __hyp_pa(host_kvm.pgt.pgd);
-	mmu->arch = &host_kvm.arch;
 	mmu->pgt = &host_kvm.pgt;
 	WRITE_ONCE(mmu->vmid.vmid_gen, 0);
 	WRITE_ONCE(mmu->vmid.vmid, 0);
@@ -466,7 +466,7 @@ struct pkvm_mem_transition {
 
 struct pkvm_mem_share {
 	const struct pkvm_mem_transition	tx;
-	const enum kvm_pgtable_prot		prot;
+	const enum kvm_pgtable_prot		completer_prot;
 };
 
 struct check_walk_data {
@@ -656,7 +656,7 @@ static int check_share(struct pkvm_mem_share *share)
 
 	switch (tx->completer.id) {
 	case PKVM_ID_HYP:
-		ret = hyp_ack_share(completer_addr, tx, share->prot);
+		ret = hyp_ack_share(completer_addr, tx, share->completer_prot);
 		break;
 	default:
 		ret = -EINVAL;
@@ -684,7 +684,7 @@ static int __do_share(struct pkvm_mem_share *share)
 
 	switch (tx->completer.id) {
 	case PKVM_ID_HYP:
-		ret = hyp_complete_share(completer_addr, tx, share->prot);
+		ret = hyp_complete_share(completer_addr, tx, share->completer_prot);
 		break;
 	default:
 		ret = -EINVAL;
@@ -808,7 +808,7 @@ int __pkvm_host_share_hyp(u64 pfn)
 				.id	= PKVM_ID_HYP,
 			},
 		},
-		.prot	= PAGE_HYP,
+		.completer_prot	= PAGE_HYP,
 	};
 
 	host_lock_component();
@@ -841,7 +841,7 @@ int __pkvm_host_unshare_hyp(u64 pfn)
 				.id	= PKVM_ID_HYP,
 			},
 		},
-		.prot	= PAGE_HYP,
+		.completer_prot	= PAGE_HYP,
 	};
 
 	host_lock_component();
