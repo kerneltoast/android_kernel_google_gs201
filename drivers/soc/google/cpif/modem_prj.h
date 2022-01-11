@@ -210,7 +210,13 @@ enum modem_state {
 	STATE_SIM_ATTACH,	/* Deprecated */
 	STATE_SIM_DETACH,	/* Deprecated */
 	STATE_CRASH_WATCHDOG,	/* cp watchdog crash */
+
+	/* Internal states */
+	STATE_RESET,		/* normal reset */
 };
+
+/* Intervals in ms for the reset noti via poll */
+#define STATE_RESET_INTERVAL_MS	(200)
 
 enum link_state {
 	LINK_STATE_OFFLINE = 0,

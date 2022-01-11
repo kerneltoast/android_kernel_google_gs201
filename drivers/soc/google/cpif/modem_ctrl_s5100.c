@@ -724,7 +724,12 @@ static int power_on_cp(struct modem_ctl *mc)
 	if (!cpif_wake_lock_active(mc->ws))
 		cpif_wake_lock(mc->ws);
 
-	mc->phone_state = STATE_OFFLINE;
+	if (mc->phone_state != STATE_OFFLINE) {
+		change_modem_state(mc, STATE_RESET);
+		msleep(STATE_RESET_INTERVAL_MS);
+	}
+	change_modem_state(mc, STATE_OFFLINE);
+
 	pcie_clean_dislink(mc);
 
 	mc->pcie_registered = false;

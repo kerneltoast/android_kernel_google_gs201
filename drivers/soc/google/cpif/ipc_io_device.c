@@ -102,27 +102,22 @@ static unsigned int ipc_poll(struct file *filp, struct poll_table_struct *wait)
 	case STATE_ONLINE:
 		if (!skb_queue_empty(rxq))
 			return POLLIN | POLLRDNORM;
-		else /* wq is waken up without rx, return for wait */
-			return 0;
+		break;
 	case STATE_CRASH_EXIT:
 	case STATE_CRASH_RESET:
 	case STATE_NV_REBUILDING:
 	case STATE_CRASH_WATCHDOG:
 		mif_err_limited("%s: %s.state == %s\n", iod->name, mc->name, mc_state(mc));
+
 		if (iod->format == IPC_FMT)
 			return POLLHUP;
-
-		/* give delay to prevent infinite sys_poll call from
-		 * select() in APP layer without 'sleep' user call takes
-		 * almost 100% cpu usage when it is looked up by 'top'
-		 * command.
-		 */
-		msleep(20);
 		break;
+	case STATE_RESET:
+		mif_err_limited("%s: %s.state == %s\n", iod->name, mc->name, mc_state(mc));
 
-	case STATE_OFFLINE:
-		if (iod->ch == EXYNOS_CH_ID_CPLOG && ld->protocol == PROTOCOL_SIT)
+		if (iod->attrs & IO_ATTR_STATE_RESET_NOTI)
 			return POLLHUP;
+		break;
 	default:
 		break;
 	}
@@ -148,8 +143,17 @@ static long ipc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				iod->name, cp_state_str(p_state));
 		}
 
-		if (p_state == STATE_NV_REBUILDING)
+		switch (p_state) {
+		case STATE_NV_REBUILDING:
 			mc->phone_state = STATE_ONLINE;
+			break;
+		/* Do not return an internal state */
+		case STATE_RESET:
+			p_state = STATE_OFFLINE;
+			break;
+		default:
+			break;
+		}
 
 		return p_state;
 

@@ -404,7 +404,6 @@ static int power_reset_cp(struct modem_ctl *mc)
 	if (ld->sbd_ipc && hrtimer_active(&mld->sbd_print_timer))
 		hrtimer_cancel(&mld->sbd_print_timer);
 
-	/* mc->phone_state = STATE_OFFLINE; */
 	if (mc->phone_state == STATE_OFFLINE) {
 		mif_info("already offline\n");
 		return 0;
@@ -413,7 +412,8 @@ static int power_reset_cp(struct modem_ctl *mc)
 	if (mc->phone_state == STATE_ONLINE)
 		modem_notify_event(MODEM_EVENT_RESET, mc);
 
-	/* Change phone state to OFFLINE */
+	change_modem_state(mc, STATE_RESET);
+	msleep(STATE_RESET_INTERVAL_MS);
 	change_modem_state(mc, STATE_OFFLINE);
 
 	if (cal_cp_status()) {

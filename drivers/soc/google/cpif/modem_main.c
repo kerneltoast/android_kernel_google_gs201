@@ -825,9 +825,10 @@ static int cpif_probe(struct platform_device *pdev)
 			goto free_iod;
 		}
 
-		if (iod[i]->format == IPC_FMT || iod[i]->format == IPC_BOOT)
-			list_add_tail(&iod[i]->list,
-					&modemctl->modem_state_notify_list);
+		/* Basically, iods of IPC_FMT and IPC_BOOT will receive the state */
+		if (iod[i]->format == IPC_FMT || iod[i]->format == IPC_BOOT ||
+		    iod[i]->attrs & IO_ATTR_STATE_RESET_NOTI)
+			list_add_tail(&iod[i]->list, &modemctl->modem_state_notify_list);
 
 		attach_devices(iod[i], dev);
 	}

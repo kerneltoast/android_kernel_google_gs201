@@ -159,6 +159,7 @@
 /* Deprecated */
 #define IO_ATTR_ZEROCOPY		(0x1 << 12) /* support SW zerocopy on SBD */
 #define IO_ATTR_MULTI_CH		(0x1 << 13) /* Multi channel IO device */
+#define IO_ATTR_STATE_RESET_NOTI	(0x1 << 14) /* Receive CP reset state noti */
 
 /* SIPC channel ID */
 #define SIPC_CH_ID_RAW_0		0
