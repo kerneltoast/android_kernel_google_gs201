@@ -220,7 +220,6 @@ static const char * const modem_state_string[] = {
 	[STATE_SIM_ATTACH]	= "SIM_ATTACH",
 	[STATE_SIM_DETACH]	= "SIM_DETACH",
 	[STATE_CRASH_WATCHDOG]	= "WDT_RESET",
-	[STATE_INIT] = "INIT",
 };
 
 static const inline char *cp_state_str(enum modem_state state)

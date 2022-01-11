@@ -210,7 +210,6 @@ enum modem_state {
 	STATE_SIM_ATTACH,	/* Deprecated */
 	STATE_SIM_DETACH,	/* Deprecated */
 	STATE_CRASH_WATCHDOG,	/* cp watchdog crash */
-	STATE_INIT,		/* cp booting has not been tried yet */
 };
 
 enum link_state {

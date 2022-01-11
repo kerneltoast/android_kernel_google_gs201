@@ -112,7 +112,7 @@ static struct modem_ctl *create_modemctl_device(struct platform_device *pdev,
 
 	modemctl->msd = msd;
 
-	modemctl->phone_state = STATE_INIT;
+	modemctl->phone_state = STATE_OFFLINE;
 
 	INIT_LIST_HEAD(&modemctl->modem_state_notify_list);
 	spin_lock_init(&modemctl->lock);
