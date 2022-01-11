@@ -207,8 +207,8 @@ enum modem_state {
 	STATE_ONLINE,
 	STATE_NV_REBUILDING,	/* <= rebuilding start */
 	STATE_LOADER_DONE,
-	STATE_SIM_ATTACH,
-	STATE_SIM_DETACH,
+	STATE_SIM_ATTACH,	/* Deprecated */
+	STATE_SIM_DETACH,	/* Deprecated */
 	STATE_CRASH_WATCHDOG,	/* cp watchdog crash */
 	STATE_INIT,		/* cp booting has not been tried yet */
 };
@@ -217,11 +217,6 @@ enum link_state {
 	LINK_STATE_OFFLINE = 0,
 	LINK_STATE_IPC,
 	LINK_STATE_CP_CRASH
-};
-
-struct sim_state {
-	bool online;	/* SIM is online? */
-	bool changed;	/* online is changed? */
 };
 
 struct cp_power_stats {
@@ -359,9 +354,6 @@ struct io_device {
 
 	int (*recv_net_skb)(struct io_device *iod, struct link_device *ld,
 			    struct sk_buff *skb);
-
-	/* inform the IO device that the SIM is not inserting or removing */
-	void (*sim_state_changed)(struct io_device *iod, bool sim_online);
 
 	struct modem_ctl *mc;
 	struct modem_shared *msd;
@@ -589,7 +581,6 @@ struct modem_ctl {
 	struct modem_shared *msd;
 
 	enum modem_state phone_state;
-	struct sim_state sim_state;
 
 	/* spin lock for each modem_ctl instance */
 	spinlock_t lock;

@@ -555,22 +555,6 @@ static int io_dev_recv_net_skb_from_link_dev(struct io_device *iod,
 	return rx_multi_pdp(skb);
 }
 
-static void io_dev_sim_state_changed(struct io_device *iod, bool sim_online)
-{
-	if (atomic_read(&iod->opened) == 0) {
-		mif_info("%s: ERR! not opened\n", iod->name);
-	} else if (iod->mc->sim_state.online == sim_online) {
-		mif_info("%s: SIM state not changed\n", iod->name);
-	} else {
-		iod->mc->sim_state.online = sim_online;
-		iod->mc->sim_state.changed = true;
-		mif_info("%s: SIM state changed {online %d, changed %d}\n",
-			iod->name, iod->mc->sim_state.online,
-			iod->mc->sim_state.changed);
-		wake_up(&iod->wq);
-	}
-}
-
 u16 exynos_build_fr_config(struct io_device *iod, struct link_device *ld,
 				unsigned int count)
 {
@@ -722,8 +706,6 @@ int sipc5_init_io_device(struct io_device *iod, struct mem_link_device *mld)
 		iod->link_header = false;
 	else
 		iod->link_header = true;
-
-	iod->sim_state_changed = io_dev_sim_state_changed;
 
 	/* Get data from link device */
 	iod->recv_skb_single = io_dev_recv_skb_single_from_link_dev;

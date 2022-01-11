@@ -101,13 +101,10 @@ static unsigned int bootdump_poll(struct file *filp, struct poll_table_struct *w
 	switch (mc->phone_state) {
 	case STATE_BOOTING:
 	case STATE_ONLINE:
-		if (!mc->sim_state.changed) {
-			if (!skb_queue_empty(rxq))
-				return POLLIN | POLLRDNORM;
-			else /* wq is waken up without rx, return for wait */
-				return 0;
-		}
-		/* fall through, if sim_state has been changed */
+		if (!skb_queue_empty(rxq))
+			return POLLIN | POLLRDNORM;
+		else /* wq is waken up without rx, return for wait */
+			return 0;
 	case STATE_CRASH_EXIT:
 	case STATE_CRASH_RESET:
 	case STATE_NV_REBUILDING:
@@ -301,13 +298,6 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 		if (p_state != STATE_ONLINE) {
 			mif_debug("%s: IOCTL_GET_CP_STATUS (state %s)\n",
 				iod->name, cp_state_str(p_state));
-		}
-
-		if (mc->sim_state.changed) {
-			enum modem_state s_state = mc->sim_state.online ?
-					STATE_SIM_ATTACH : STATE_SIM_DETACH;
-			mc->sim_state.changed = false;
-			return s_state;
 		}
 
 		if (p_state == STATE_NV_REBUILDING)
