@@ -180,6 +180,8 @@ struct t_handover_block_info {
 } __packed;
 #define IOCTL_HANDOVER_BLOCK_INFO	_IO('o', 0x57)
 
+#define IOCTL_SET_SPI_BOOT_MODE		_IO('o', 0x58)
+
 /*
  * Definitions for IO devices
  */

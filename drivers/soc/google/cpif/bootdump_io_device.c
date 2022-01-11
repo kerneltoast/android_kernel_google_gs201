@@ -162,6 +162,7 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	enum modem_state p_state;
 	struct cpif_version version;
 	int ret = 0;
+	struct mem_link_device *mld;
 
 	switch (cmd) {
 	case IOCTL_POWER_ON:
@@ -404,6 +405,24 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 		}
 		mif_info("%s: IOCTL_HANDOVER_BLOCK_INFO\n", iod->name);
 		return ld->handover_block_info(ld, arg);
+
+	case IOCTL_SET_SPI_BOOT_MODE:
+		mld = to_mem_link_device(ld);
+		if (!mld) {
+			mif_err("%s: mld is null\n", iod->name);
+			return -EINVAL;
+		}
+		if (mld->spi_bus_num < 0) {
+			mif_err("invalid cpboot_spi_bus_num\n");
+			return -ENODEV;
+		}
+		mld->attrs |= LINK_ATTR_XMIT_BTDLR_SPI;
+		mld->attrs &= (~LINK_ATTR_XMIT_BTDLR_PCIE);
+
+		ld->load_cp_image = cpboot_spi_load_cp_image;
+
+		mif_info("%s: IOCTL_SET_SPI_BOOT_MODE\n", iod->name);
+		return 0;
 
 	default:
 		 /* If you need to handle the ioctl for specific link device,

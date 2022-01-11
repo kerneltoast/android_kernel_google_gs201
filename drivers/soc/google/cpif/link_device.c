@@ -3587,12 +3587,12 @@ static int set_ld_attr(struct platform_device *pdev,
 			break;
 
 		ld->load_cp_image = link_load_cp_image;
+		mld->spi_bus_num = -1;
+		mif_dt_read_u32_noerr(pdev->dev.of_node, "cpboot_spi_bus_num",
+				mld->spi_bus_num);
 		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_SPI) {
 			ld->load_cp_image = cpboot_spi_load_cp_image;
 
-			mld->spi_bus_num = -1;
-			mif_dt_read_u32_noerr(pdev->dev.of_node, "cpboot_spi_bus_num",
-					      mld->spi_bus_num);
 			if (mld->spi_bus_num < 0) {
 				mif_err("cpboot_spi_bus_num error\n");
 				err = -ENODEV;
