@@ -54,6 +54,7 @@ INITRAMFS_VENDOR_RAMDISK_FRAGMENT_NAME=dlkm
 LZ4_RAMDISK=1
 BOOT_IMAGE_HEADER_VERSION=4
 VENDOR_DLKM_MODULES_LIST=${KERNEL_DIR}/vendor_dlkm_modules.slider
+VENDOR_DLKM_MODULES_BLOCKLIST=${KERNEL_DIR}/vendor_dlkm.blocklist.slider
 VENDOR_DLKM_PROPS=${KERNEL_DIR}/vendor_dlkm.props.slider
 GKI_RAMDISK_PREBUILT_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/ramdisk-aosp_arm64.img
 VENDOR_RAMDISK_BINARY=${VENDOR_RAMDISK_BINARY:-${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-oriole.img}
