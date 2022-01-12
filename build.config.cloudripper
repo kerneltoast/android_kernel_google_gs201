@@ -28,6 +28,7 @@ $DEVICE_KERNEL_FILES
 fi
 
 MODULES_LIST=${KERNEL_DIR}/vendor_boot_modules.cloudripper
+VENDOR_DLKM_MODULES_BLOCKLIST=${KERNEL_DIR}/vendor_dlkm.blocklist.cloudripper
 
 VENDOR_RAMDISK_CMDS="modify_vendor_ramdisk"
 function modify_vendor_ramdisk() {

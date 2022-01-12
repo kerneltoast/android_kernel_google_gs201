@@ -1,0 +1,16 @@
+blocklist bcmdhd43752
+blocklist synadhd43752
+blocklist bcmdhd4389
+blocklist cl_dsp
+blocklist drv2624
+blocklist ftm5
+blocklist input-cs40l26-i2c
+blocklist pktgen
+blocklist sec_touch
+blocklist snd-soc-cs35l41-i2c
+blocklist snd-soc-cs35l41-spi
+blocklist st33spi
+blocklist st54spi
+blocklist uwb_desense.ko
+blocklist uwb-hal.ko
+blocklist uwbcore.ko
