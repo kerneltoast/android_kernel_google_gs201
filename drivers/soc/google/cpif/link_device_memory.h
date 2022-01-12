@@ -84,8 +84,6 @@ enum mem_iface_type {
 #define CMD_SILENT_NV_REBUILD	0x000E
 #define CMD_NORMAL_POWER_OFF	0x000F
 
-#define DATALLOC_PERIOD_MS		2	/* 2 ms */
-
 /*============================================================================*/
 #define MAX_SKB_TXQ_DEPTH		1024
 #define TX_PERIOD_MS			1	/* 1 ms */

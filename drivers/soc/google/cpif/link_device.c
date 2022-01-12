@@ -995,28 +995,6 @@ static inline void shmem_stop_timers(struct mem_link_device *mld)
 	cancel_tx_timer(mld, &mld->tx_timer);
 }
 
-static inline void start_datalloc_timer(struct mem_link_device *mld,
-				  struct hrtimer *timer)
-{
-	struct link_device *ld = &mld->link_dev;
-	struct modem_ctl *mc = ld->mc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&mc->lock, flags);
-
-	if (unlikely(cp_offline(mc)))
-		goto exit;
-
-	if (!hrtimer_is_queued(timer)) {
-		ktime_t ktime = ktime_set(0, ms2ns(DATALLOC_PERIOD_MS));
-
-		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
-	}
-
-exit:
-	spin_unlock_irqrestore(&mc->lock, flags);
-}
-
 static int tx_frames_to_rb(struct sbd_ring_buffer *rb)
 {
 	struct sk_buff_head *skb_txq = &rb->skb_q;
