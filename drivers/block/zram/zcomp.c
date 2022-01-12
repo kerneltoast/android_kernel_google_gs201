@@ -288,6 +288,7 @@ static int flush_pending_io(struct zcomp *comp)
 static void zram_unplug(struct blk_plug_cb *cb, bool from_schedule)
 {
 	flush_pending_io((struct zcomp *)(cb->data));
+	kfree(cb);
 }
 
 /*
