@@ -35,3 +35,7 @@
 		#include "gs201-cheetah-display-common.dtsi"
 	};
 };
+
+&sdc_s6e3hc4 {
+	vddd-normal-microvolt = <CHEETAH_3HC4_VDDD_NORMAL_MICROVOLT>;
+};
