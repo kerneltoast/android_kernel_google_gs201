@@ -972,7 +972,7 @@ static int samsung_sysmmu_of_xlate(struct device *dev,
 
 	client = (struct sysmmu_clientdata *) dev_iommu_priv_get(dev);
 	new_link = krealloc(client->sysmmus,
-			    sizeof(*data) * (client->sysmmu_count + 1),
+			    sizeof(data) * (client->sysmmu_count + 1),
 			    GFP_KERNEL);
 	if (!new_link)
 		return -ENOMEM;
