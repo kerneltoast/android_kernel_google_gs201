@@ -9,6 +9,8 @@
 
 #include "modem_prj.h"
 
+#define CPIF_GFP_MASK	(__GFP_NOWARN | __GFP_NORETRY | __GFP_NOMEMALLOC)
+
 struct cpif_page {
 	struct page	*page;
 	bool		usable;

@@ -87,7 +87,7 @@ struct cpif_page_pool *cpif_page_pool_create(u64 num_page, u64 page_size)
 			mif_err("failed to alloc cpif_page\n");
 			goto fail;
 		}
-		cur->page = __dev_alloc_pages(GFP_KERNEL | __GFP_NOWARN, pool->page_order);
+		cur->page = __dev_alloc_pages(GFP_KERNEL | CPIF_GFP_MASK, pool->page_order);
 		if (unlikely(!cur->page)) {
 			mif_err("failed to get page\n");
 			cur->usable = false;
@@ -191,7 +191,7 @@ static void *cpif_alloc_tmp_page(struct cpif_page_pool *pool, u64 alloc_size)
 	/* new page is required */
 	if (!tmp->usable) {
 		u64 page_order = pool->page_order;
-		struct page *new_pg = dev_alloc_pages(page_order);
+		struct page *new_pg = __dev_alloc_pages(GFP_ATOMIC | CPIF_GFP_MASK, page_order);
 
 		if (unlikely(!new_pg)) {
 			if (alloc_size > PAGE_SIZE) {
@@ -199,7 +199,7 @@ static void *cpif_alloc_tmp_page(struct cpif_page_pool *pool, u64 alloc_size)
 						alloc_size);
 				return NULL;
 			}
-			new_pg = dev_alloc_pages(0); /* retry alloc with lowest order */
+			new_pg = __dev_alloc_pages(GFP_ATOMIC | CPIF_GFP_MASK, 0); /* try 4KB */
 			if (unlikely(!new_pg)) {
 				mif_err_limited("cannot alloc new page\n");
 				return NULL;
