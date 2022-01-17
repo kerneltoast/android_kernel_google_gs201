@@ -688,6 +688,35 @@ static int register_pcie(struct link_device *ld)
 	return 0;
 }
 
+static void gpio_power_off_cp(struct modem_ctl *mc)
+{
+#if IS_ENABLED(CONFIG_CP_WRESET_WA)
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 0, 50);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 0);
+#else
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 0, 0);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 0, 0);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 30);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 0, 50);
+#endif
+}
+
+static void gpio_power_offon_cp(struct modem_ctl *mc)
+{
+	gpio_power_off_cp(mc);
+
+#if IS_ENABLED(CONFIG_CP_WRESET_WA)
+	udelay(50);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 1, 50);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 1, 50);
+#else
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 1, 10);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 1, 10);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 1, 10);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 1, 0);
+#endif
+}
+
 static int power_on_cp(struct modem_ctl *mc)
 {
 	struct link_device *ld = get_current_link(mc->iod);
@@ -718,21 +747,7 @@ static int power_on_cp(struct modem_ctl *mc)
 	init_ctrl_msg(&mld->cp2ap_msg);
 
 	print_mc_state(mc);
-
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 0, 50);
-#if IS_ENABLED(CONFIG_CP_WRESET_WA)
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 0);
-	udelay(50);
-#else
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 50);
-#endif
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 1, 50);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 1, 50);
-#if !IS_ENABLED(CONFIG_CP_WRESET_WA)
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 1, 0);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 1, 0);
-#endif
-
+	gpio_power_offon_cp(mc);
 	mif_info("GPIO status after S5100 Power on\n");
 	print_mc_state(mc);
 
@@ -752,13 +767,7 @@ static int power_off_cp(struct modem_ctl *mc)
 
 	pcie_clean_dislink(mc);
 
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 0, 0);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 0);
-#if !IS_ENABLED(CONFIG_CP_WRESET_WA)
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 0, 0);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 0, 0);
-#endif
-
+	gpio_power_off_cp(mc);
 	print_mc_state(mc);
 
 exit:
@@ -789,13 +798,7 @@ static int power_shutdown_cp(struct modem_ctl *mc)
 		msleep(20);
 	}
 
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 0, 0);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 0);
-#if !IS_ENABLED(CONFIG_CP_WRESET_WA)
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 0, 0);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 0, 0);
-#endif
-
+	gpio_power_off_cp(mc);
 	print_mc_state(mc);
 
 	pcie_clean_dislink(mc);
@@ -840,16 +843,7 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 
 	mif_info("s5100_cp_reset_required:%d\n", mc->s5100_cp_reset_required);
 	if (mc->s5100_cp_reset_required) {
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 0, 50);
-#if IS_ENABLED(CONFIG_CP_WRESET_WA)
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 0);
-		udelay(50);
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 1, 50);
-#else
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 50);
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 1, 50);
-#endif
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 1, 50);
+		gpio_power_offon_cp(mc);
 	} else {
 #if !IS_ENABLED(CONFIG_CP_WRESET_WA)
 		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 0, 50);
@@ -890,16 +884,7 @@ static int power_reset_cp(struct modem_ctl *mc)
 		pcie_clean_dislink(mc);
 	}
 
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 0, 50);
-#if IS_ENABLED(CONFIG_CP_WRESET_WA)
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 0);
-	udelay(50);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 1, 50);
-#else
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 0, 50);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_PWR], 1, 50);
-#endif
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_NRESET], 1, 50);
+	gpio_power_offon_cp(mc);
 	print_mc_state(mc);
 
 	mif_info("---\n");
