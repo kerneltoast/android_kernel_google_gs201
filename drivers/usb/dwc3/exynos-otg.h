@@ -115,6 +115,7 @@ void dwc3_exynos_otg_exit(struct dwc3 *dwc, struct dwc3_exynos *exynos);
 int dwc3_otg_start(struct dwc3 *dwc, struct dwc3_exynos *exynos);
 void dwc3_otg_stop(struct dwc3 *dwc, struct dwc3_exynos *exynos);
 int dwc3_otg_usb_recovery_reconn(struct dwc3_exynos *exynos);
+bool dwc3_otg_check_usb_suspend(struct dwc3_exynos *exynos);
 
 extern void __iomem *phycon_base_addr;
 extern int exynos_usbdrd_pipe3_enable(struct phy *phy);

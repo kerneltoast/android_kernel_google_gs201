@@ -512,6 +512,9 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 
 	if (on) {
 		__pm_stay_awake(dotg->wakelock);
+		if (!dwc3_otg_check_usb_suspend(exynos))
+			dev_err(dev, "too long to wait for dwc3 suspended\n");
+
 		exynos->vbus_state = true;
 		while (dwc->gadget_driver == NULL) {
 			wait_counter++;
@@ -524,6 +527,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		}
 
 		exynos->need_dr_role = 1;
+		dwc->connected = true;
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
 		exynos->need_dr_role = 0;
 		if (ret) {
@@ -825,6 +829,27 @@ int dwc3_otg_host_enable(bool enabled)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dwc3_otg_host_enable);
+
+bool dwc3_otg_check_usb_suspend(struct dwc3_exynos *exynos)
+{
+	int wait_counter = 0;
+	bool exynos_suspend, dwc_suspend;
+
+	do {
+		exynos_suspend = (pm_runtime_suspend(exynos->dev) &
+				  (atomic_read(&exynos->dev->power.usage_count) < 1));
+		dwc_suspend = (pm_runtime_suspend(exynos->dwc->dev) &
+			       (atomic_read(&exynos->dwc->dev->power.usage_count) < 1));
+
+		if (exynos_suspend && dwc_suspend)
+			break;
+
+		wait_counter++;
+		msleep(20);
+	} while (wait_counter < DWC3_EXYNOS_MAX_WAIT_COUNT);
+
+	return (wait_counter < DWC3_EXYNOS_MAX_WAIT_COUNT) ? true : false;
+}
 
 static int dwc3_otg_reboot_notify(struct notifier_block *nb, unsigned long event, void *buf)
 {
