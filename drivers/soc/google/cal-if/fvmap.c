@@ -288,7 +288,6 @@ int fvmap_init(void __iomem *sram_base)
 	void __iomem *map_base;
 	struct dentry *de = NULL;
 
-	pr_info("%s: kzalloc \n", __func__);
 	map_base = kzalloc(FVMAP_SIZE, GFP_KERNEL);
 
 	fvmap_base = map_base;
