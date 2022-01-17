@@ -12,10 +12,13 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/inotify.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 
+#include <linux/capability.h>
 #include <linux/random.h>
 
 #include <include/uapi/linux/fuse.h>
@@ -171,6 +174,9 @@ static int basic_test(const char *mount_dir)
 			.fh = 1,
 			.open_flags = open_in->flags,
 		}));
+
+		TESTFUSEINNULL(FUSE_CANONICAL_PATH);
+		TESTFUSEOUTREAD("ignored", 7);
 
 		TESTFUSEIN(FUSE_READ, read_in);
 		TESTFUSEOUTREAD(test_data, strlen(test_data));
@@ -623,6 +629,9 @@ static int bpf_test_creat(const char *mount_dir)
 			.fh = 1,
 			.open_flags = create_in->flags,
 			}));
+
+		TESTFUSEINNULL(FUSE_CANONICAL_PATH);
+		TESTFUSEOUTREAD("ignored", 7);
 
 		TESTFUSEIN(FUSE_FLUSH, flush_in);
 		TESTFUSEOUTEMPTY();
@@ -1324,6 +1333,85 @@ out:
 	return result;
 }
 
+static int readdir_perms_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	struct __user_cap_header_struct uchs = { _LINUX_CAPABILITY_VERSION_3 };
+	struct __user_cap_data_struct ucds[2];
+	int src_fd = -1;
+	int fuse_dev = -1;
+	DIR *dir = NULL;
+
+	/* Must remove capabilities for this test. */
+	TESTSYSCALL(syscall(SYS_capget, &uchs, ucds));
+	ucds[0].effective &= ~(1 << CAP_DAC_OVERRIDE | 1 << CAP_DAC_READ_SEARCH);
+	TESTSYSCALL(syscall(SYS_capset, &uchs, ucds));
+
+	/* This is what we are testing in fuseland. First test without fuse, */
+	TESTSYSCALL(mkdir("test", 0111));
+	TEST(dir = opendir("test"), dir == NULL);
+	closedir(dir);
+	dir = NULL;
+
+	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
+	     src_fd != -1);
+	TESTEQUAL(mount_fuse(mount_dir, -1, src_fd, &fuse_dev), 0);
+
+	TESTSYSCALL(s_mkdir(s_path(s(mount_dir), s("test")), 0111));
+	TEST(dir = s_opendir(s_path(s(mount_dir), s("test"))), dir == NULL);
+
+	result = TEST_SUCCESS;
+out:
+	ucds[0].effective |= 1 << CAP_DAC_OVERRIDE | 1 << CAP_DAC_READ_SEARCH;
+	syscall(SYS_capset, &uchs, ucds);
+
+	closedir(dir);
+	s_rmdir(s_path(s(mount_dir), s("test")));
+	umount(mount_dir);
+	close(fuse_dev);
+	close(src_fd);
+	rmdir("test");
+	return result;
+}
+
+static int inotify_test(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	int src_fd = -1;
+	int fuse_dev = -1;
+	struct s dir;
+	int inotify_fd = -1;
+	int watch;
+	int fd = -1;
+	char buffer[sizeof(struct inotify_event) + NAME_MAX + 1];
+
+	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
+	     src_fd != -1);
+	TESTEQUAL(mount_fuse(mount_dir, -1, src_fd, &fuse_dev), 0);
+
+	TEST(inotify_fd = inotify_init1(IN_CLOEXEC), inotify_fd != -1);
+	dir = s_path(s(mount_dir), s("dir"));
+	TESTSYSCALL(mkdir(dir.s, 0777));
+	TEST(watch = inotify_add_watch(inotify_fd, dir.s, IN_CREATE), watch);
+	TEST(fd = s_creat(s_path(s(ft_src), s("dir/file")), 0777), fd != -1);
+	// buffer will be two struct lengths, as "file" gets rounded up to the
+	// next multiple of struct inotify_event
+	TESTEQUAL(read(inotify_fd, &buffer, sizeof(buffer)),
+		  sizeof(struct inotify_event) * 2);
+
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+	s_unlink(s_path(s(ft_src), s("dir/file")));
+	close(inotify_fd);
+	rmdir(dir.s);
+	free(dir.s);
+	umount(mount_dir);
+	close(fuse_dev);
+	close(src_fd);
+	return result;
+}
+
 static int parse_options(int argc, char *const *argv)
 {
 	signed char c;
@@ -1424,6 +1512,8 @@ int main(int argc, char *argv[])
 		MAKE_TEST(bpf_test_alter_errcode_bpf),
 		MAKE_TEST(bpf_test_alter_errcode_userspace),
 		MAKE_TEST(mmap_test),
+		MAKE_TEST(readdir_perms_test),
+		MAKE_TEST(inotify_test),
 	};
 #undef MAKE_TEST
 
