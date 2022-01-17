@@ -38,7 +38,7 @@ static __u64 clock_gettime(struct pps_ktime *kt)
 {
 	struct timespec64 ts = { .tv_sec = 0, .tv_nsec = 0 };
 
-	ktime_get_ts64(&ts);
+	ktime_get_boottime_ts64(&ts);
 	kt->sec = ts.tv_sec;
 	kt->nsec = ts.tv_nsec;
 	return (__u64) ts.tv_sec * NANOSEC_PER_SEC + ts.tv_nsec;
