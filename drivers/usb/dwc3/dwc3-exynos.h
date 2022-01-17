@@ -60,6 +60,8 @@
 
 #define USB_BUS_CLOCK_DELAY_MS 3000
 
+#define DWC3_EXYNOS_MAX_WAIT_COUNT 250
+
 struct dwc3_exynos_rsw {
 	struct otg_fsm		*fsm;
 	struct work_struct	work;
