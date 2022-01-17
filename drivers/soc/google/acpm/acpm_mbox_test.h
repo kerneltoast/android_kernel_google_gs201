@@ -139,6 +139,9 @@ struct acpm_dvfs_validity {
 	struct delayed_work mbox_stress_trigger_wk;
 	struct workqueue_struct *rate_change_wq[NUM_OF_WQ];
 	struct workqueue_struct *mbox_stress_trigger_wq;
+	unsigned int upper_bound;
+	unsigned int lower_bound;
+	bool is_given_range;
 };
 
 #define PMIC_RANDOM_ADDR_RANGE  0x1FF
