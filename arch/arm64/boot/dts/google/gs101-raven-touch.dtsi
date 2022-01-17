@@ -15,3 +15,13 @@
 	sec,encoded_enable = <1>;
 	sec,fod_coords = <720 2361>;
 };
+
+&m_ldo25_reg {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&m_ldo26_reg {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+};
