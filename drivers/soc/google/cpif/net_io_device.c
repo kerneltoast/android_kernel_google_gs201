@@ -275,27 +275,35 @@ drop:
 
 static bool _is_tcp_ack(struct sk_buff *skb)
 {
-	switch (skb->protocol) {
-	/* TCPv4 ACKs */
-	case htons(ETH_P_IP):
-		if ((ip_hdr(skb)->protocol == IPPROTO_TCP) &&
-			(ntohs(ip_hdr(skb)->tot_len) - (ip_hdr(skb)->ihl << 2) ==
-			 tcp_hdr(skb)->doff << 2) &&
-		    ((tcp_flag_word(tcp_hdr(skb)) &
-		      cpu_to_be32(0x00FF0000)) == TCP_FLAG_ACK))
-			return true;
-		break;
+	u16 payload_len = 0;
 
-	/* TCPv6 ACKs */
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		if (ip_hdr(skb)->protocol != IPPROTO_TCP)
+			return false;
+
+		if (skb->network_header == skb->transport_header)
+			skb->transport_header += (ip_hdr(skb)->ihl << 2);
+		payload_len = ntohs(ip_hdr(skb)->tot_len) - (ip_hdr(skb)->ihl << 2);
+		break;
 	case htons(ETH_P_IPV6):
-		if ((ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) &&
-			(ntohs(ipv6_hdr(skb)->payload_len) ==
-			 (tcp_hdr(skb)->doff) << 2) &&
-		    ((tcp_flag_word(tcp_hdr(skb)) &
-		      cpu_to_be32(0x00FF0000)) == TCP_FLAG_ACK))
-			return true;
+		if (ipv6_hdr(skb)->nexthdr != IPPROTO_TCP)
+			return false;
+
+		if (skb->network_header == skb->transport_header)
+			skb->transport_header += sizeof(struct ipv6hdr);
+		payload_len = ntohs(ipv6_hdr(skb)->payload_len);
+		break;
+	default:
 		break;
 	}
+
+	if (!payload_len)
+		return false;
+
+	if (payload_len == (tcp_hdr(skb)->doff << 2) &&
+	    (tcp_flag_word(tcp_hdr(skb)) & cpu_to_be32(0x00FF0000)) == TCP_FLAG_ACK)
+		return true;
 
 	return false;
 }
