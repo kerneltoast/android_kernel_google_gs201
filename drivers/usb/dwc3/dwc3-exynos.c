@@ -1335,8 +1335,10 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 
 	dwc = exynos->dwc;
 	spin_lock_irqsave(&dwc->lock, flags);
-	if (pm_runtime_suspended(dev))
+	if (pm_runtime_suspended(dev)) {
+		spin_unlock_irqrestore(&dwc->lock, flags);
 		return 0;
+	}
 
 	dwc3_exynos_clk_disable(exynos);
 
