@@ -10,10 +10,14 @@
 #include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
 
 &m_ldo25_reg {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
 	/delete-property/ regulator-always-on;
 };
 
 &m_ldo26_reg {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
 	/delete-property/ regulator-always-on;
 };
 
