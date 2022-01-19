@@ -58,6 +58,7 @@ obj-$(CONFIG_UACCE)		+= uacce/
 obj-$(CONFIG_XILINX_SDFEC)	+= xilinx_sdfec.o
 obj-$(CONFIG_HISI_HIKEY_USB)	+= hisi_hikey_usb.o
 obj-$(CONFIG_UID_SYS_STATS)	+= uid_sys_stats.o
+obj-$(CONFIG_OPEN_DICE)		+= open-dice.o
 obj-$(CONFIG_GSC_TPM)		+= gsc-spi.o
 obj-$(CONFIG_GOOGLE_LOGBUFFER)	+= logbuffer.o
 obj-$(CONFIG_GOOGLE_VOTABLE)	+= gvotable.o

@@ -421,6 +421,18 @@ static void fuse_dentry_canonical_path(const struct path *path,
 	char *path_name;
 	int err;
 
+#ifdef CONFIG_FUSE_BPF
+	struct fuse_err_ret fer;
+
+	fer = fuse_bpf_backing(inode, struct fuse_dummy_io,
+			       fuse_canonical_path_initialize,
+			       fuse_canonical_path_backing,
+			       fuse_canonical_path_finalize, path,
+			       canonical_path);
+	if (fer.ret)
+		return;
+#endif
+
 	path_name = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!path_name)
 		goto default_path;
@@ -1524,6 +1536,7 @@ static int fuse_permission(struct inode *inode, int mask)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	bool refreshed = false;
 	int err = 0;
+	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	if (fuse_is_bad(inode))
 		return -EIO;
@@ -1536,7 +1549,6 @@ static int fuse_permission(struct inode *inode, int mask)
 	 */
 	if (fc->default_permissions ||
 	    ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))) {
-		struct fuse_inode *fi = get_fuse_inode(inode);
 		u32 perm_mask = STATX_MODE | STATX_UID | STATX_GID;
 
 		if (perm_mask & READ_ONCE(fi->inval_mask) ||
@@ -1576,6 +1588,10 @@ static int fuse_permission(struct inode *inode, int mask)
 			if (!err && !(inode->i_mode & S_IXUGO))
 				return -EACCES;
 		}
+#ifdef CONFIG_FUSE_BPF
+	} else if (!(mask & MAY_NOT_BLOCK) && fi->backing_inode) {
+		err = fuse_access(inode, mask);
+#endif
 	}
 	return err;
 }

@@ -80,6 +80,16 @@ extern unsigned long cpu_util_cfs_group_mod(struct rq *rq);
 #define cpu_util_cfs_group_mod cpu_util_cfs
 #endif
 
+unsigned int map_scaling_freq(int cpu, unsigned int freq)
+{
+	struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
+
+	if (sg_cpu->sg_policy && sg_cpu->sg_policy->policy)
+		return clamp(freq, sg_cpu->sg_policy->policy->min, sg_cpu->sg_policy->policy->max);
+
+	return freq;
+}
+
 /************************ Governor internals ***********************/
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 void update_uclamp_stats(int cpu, u64 time)
