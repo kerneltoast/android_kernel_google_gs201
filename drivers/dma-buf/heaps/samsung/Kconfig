@@ -4,6 +4,7 @@ config DMABUF_SAMSUNG_HEAPS
 	select SAMSUNG_SECURE_IOVA if EXYNOS_CONTENT_PATH_PROTECTION
 	select DMABUF_HEAPS_PAGE_POOL
 	select DMABUF_HEAPS_DEFERRED_FREE
+	select TRUSTY_DMA_BUF_SHARED_MEM_ID
 	depends on DMABUF_HEAPS
 	help
 	  Choose this option to enable the DMA-BUF userland memory heaps for samsung.

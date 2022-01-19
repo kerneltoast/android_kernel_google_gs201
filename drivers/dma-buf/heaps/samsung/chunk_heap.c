@@ -88,8 +88,9 @@ static int chunk_heap_buffer_allocate(struct cma *cma, unsigned int need_count,
 	return 0;
 }
 
-static void *chunk_heap_protect(struct samsung_dma_heap *samsung_dma_heap, unsigned int chunk_size,
-				struct page **pages, unsigned long nr_pages)
+static void *chunk_heap_protect(struct samsung_dma_buffer *buffer,
+				unsigned int chunk_size, struct page **pages,
+				unsigned long nr_pages)
 {
 	unsigned long *paddr_array = NULL;
 	unsigned long paddr, i;
@@ -114,23 +115,23 @@ static void *chunk_heap_protect(struct samsung_dma_heap *samsung_dma_heap, unsig
 		paddr = virt_to_phys(paddr_array);
 	}
 
-	priv = samsung_dma_buffer_protect(samsung_dma_heap, chunk_size, nr_pages, paddr);
+	priv = samsung_dma_buffer_protect(buffer, chunk_size, nr_pages, paddr);
 	if (IS_ERR(priv))
 		kfree(paddr_array);
 
 	return priv;
 }
 
-static int chunk_heap_unprotect(struct samsung_dma_heap *samsung_dma_heap, void *priv)
+static int chunk_heap_unprotect(struct samsung_dma_buffer *buffer)
 {
-	struct buffer_prot_info *protdesc = priv;
+	struct buffer_prot_info *protdesc = buffer->priv;
 	void *paddr_array = NULL;
 	int ret;
 
 	if (protdesc->chunk_count > 1)
 		paddr_array = phys_to_virt(protdesc->bus_address);
 
-	ret = samsung_dma_buffer_unprotect(priv, samsung_dma_heap);
+	ret = samsung_dma_buffer_unprotect(buffer);
 
 	kfree(paddr_array);
 
@@ -180,7 +181,7 @@ static struct dma_buf *chunk_heap_allocate(struct dma_heap *heap, unsigned long 
 	heap_cache_flush(buffer);
 
 	if (dma_heap_flags_protected(samsung_dma_heap->flags)) {
-		buffer->priv = chunk_heap_protect(samsung_dma_heap, chunk_size, pages, nr_chunks);
+		buffer->priv = chunk_heap_protect(buffer, chunk_size, pages, nr_chunks);
 		if (IS_ERR(buffer->priv)) {
 			ret = PTR_ERR(buffer->priv);
 			goto err_prot;
@@ -197,7 +198,7 @@ static struct dma_buf *chunk_heap_allocate(struct dma_heap *heap, unsigned long 
 	return dmabuf;
 
 err_export:
-	protret = chunk_heap_unprotect(samsung_dma_heap, buffer->priv);
+	protret = chunk_heap_unprotect(buffer);
 err_prot:
 	samsung_dma_buffer_free(buffer);
 err_buffer:
@@ -224,7 +225,7 @@ static void chunk_heap_release(struct samsung_dma_buffer *buffer)
 	table = &buffer->sg_table;
 
 	if (dma_heap_flags_protected(dma_heap->flags))
-		ret = chunk_heap_unprotect(dma_heap, buffer->priv);
+		ret = chunk_heap_unprotect(buffer);
 
 	if (!ret) {
 		for_each_sgtable_sg(table, sg, i) {
