@@ -40,7 +40,7 @@
 	key_voldown: key-voldown {
 		samsung,pins = "gpa10-1";  /* VOL_DN_L */
 		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
-		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
 
