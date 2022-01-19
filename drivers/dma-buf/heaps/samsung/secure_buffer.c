@@ -8,71 +8,62 @@
 
 #include <linux/slab.h>
 #include <linux/genalloc.h>
-#include <linux/smc.h>
 #include <linux/kmemleak.h>
 #include <linux/dma-mapping.h>
-#include <linux/arm-smccc.h>
 #include <linux/dma-direct.h>
 #include <linux/samsung-dma-heap.h>
 #include <linux/samsung-secure-iova.h>
+#include <linux/trusty/trusty.h>
 
-#define SMC_DRM_PPMP_PROT		(0x82002110)
-#define SMC_DRM_PPMP_UNPROT		(0x82002111)
-
-static inline unsigned long ppmp_smc(unsigned long cmd, unsigned long arg0,
-				     unsigned long arg1, unsigned long arg2)
+static int buffer_protect_trusty(struct samsung_dma_buffer *buffer,
+				 struct buffer_prot_info *protdesc)
 {
-	struct arm_smccc_res res;
+	int ret;
+	struct device *trusty_dev = buffer->heap->trusty_dev;
+	u64 tag = (u64)protdesc->flags | ((u64)(protdesc->dma_addr) << 32);
 
-	arm_smccc_smc(cmd, arg0, arg1, arg2, 0, 0, 0, 0, &res);
-	return (unsigned long)res.a0;
-}
-
-static int buffer_protect_smc(struct device *dev, struct buffer_prot_info *protdesc,
-			      unsigned int protalign)
-{
-	unsigned long ret;
-
-	dma_map_single(dev, protdesc, sizeof(*protdesc), DMA_TO_DEVICE);
-	ret = ppmp_smc(SMC_DRM_PPMP_PROT, virt_to_phys(protdesc), 0, 0);
-	if (ret) {
-		dma_unmap_single(dev, phys_to_dma(dev, virt_to_phys(protdesc)), sizeof(*protdesc),
-				 DMA_TO_DEVICE);
-
-		perr("CMD %#x (err=%#lx,dva=%#x,size=%#x,cnt=%u,flg=%u,phy=%#lx)",
-		     SMC_DRM_PPMP_PROT, ret, protdesc->dma_addr,
-		     protdesc->chunk_size, protdesc->chunk_count,
-		     protdesc->flags, protdesc->bus_address);
-		return -EACCES;
+	if (!trusty_dev) {
+		perr("Trusty device missing");
+		return -EINVAL;
 	}
 
-	return 0;
-}
-
-static int buffer_unprotect_smc(struct device *dev,
-				struct buffer_prot_info *protdesc)
-{
-	unsigned long ret;
-
-	ret = ppmp_smc(SMC_DRM_PPMP_UNPROT, virt_to_phys(protdesc), 0, 0);
-
-	dma_unmap_single(dev, phys_to_dma(dev, virt_to_phys(protdesc)), sizeof(*protdesc),
-			 DMA_TO_DEVICE);
-
+	ret = trusty_transfer_memory(trusty_dev, &buffer->mem_id,
+				     buffer->sg_table.sgl,
+				     buffer->sg_table.orig_nents,
+				     PAGE_KERNEL, tag, true /* lend */);
 	if (ret) {
-		perr("CMD %#x (err=%#lx,dva=%#x,size=%#x,cnt=%u,flg=%u,phy=%#lx)",
-		     SMC_DRM_PPMP_UNPROT, ret, protdesc->dma_addr,
-		     protdesc->chunk_size, protdesc->chunk_count,
-		     protdesc->flags, protdesc->bus_address);
-		return -EACCES;
+		perr("trusty_transfer_memory failed: %d", ret);
 	}
 
-	return 0;
+	return ret;
 }
 
-void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chunk_size,
-				 unsigned int nr_pages, unsigned long paddr)
+static int buffer_unprotect_trusty(struct samsung_dma_buffer *buffer)
 {
+	int ret;
+	struct device *trusty_dev = buffer->heap->trusty_dev;
+
+	if (!trusty_dev) {
+		perr("Trusty device missing");
+		return -EINVAL;
+	}
+
+	ret = trusty_reclaim_memory(trusty_dev, buffer->mem_id,
+				    buffer->sg_table.sgl,
+				    buffer->sg_table.orig_nents);
+	if (ret) {
+		perr("trusty_reclaim_memory failed %d: handle: 0x%llx", ret,
+		     buffer->mem_id);
+	}
+
+	return ret;
+}
+
+void *samsung_dma_buffer_protect(struct samsung_dma_buffer *buffer,
+				 unsigned int chunk_size, unsigned int nr_pages,
+				 unsigned long paddr)
+{
+	struct samsung_dma_heap *heap = buffer->heap;
 	struct device *dev = dma_heap_get_dev(heap->dma_heap);
 	struct buffer_prot_info *protdesc;
 	unsigned int protalign = heap->alignment;
@@ -112,7 +103,7 @@ void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chu
 	if (dma_heap_flags_dynamic_protected(heap->flags))
 		return protdesc;
 
-	ret = buffer_protect_smc(dev, protdesc, protalign);
+	ret = buffer_protect_trusty(buffer, protdesc);
 	if (ret) {
 		if (protdesc->chunk_count > 1)
 			dma_unmap_single(dev, phys_to_dma(dev, paddr), array_size, DMA_TO_DEVICE);
@@ -125,14 +116,15 @@ void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chu
 	return protdesc;
 }
 
-int samsung_dma_buffer_unprotect(void *priv, struct samsung_dma_heap *heap)
+int samsung_dma_buffer_unprotect(struct samsung_dma_buffer *buffer)
 {
-	struct buffer_prot_info *protdesc = priv;
+	struct buffer_prot_info *protdesc = buffer->priv;
+	struct samsung_dma_heap *heap = buffer->heap;
 	struct device *dev;
 	unsigned long buf_size = protdesc->chunk_count * protdesc->chunk_size;
 	int ret = 0;
 
-	if (!priv || !heap)
+	if (!protdesc || !heap)
 		return 0;
 
 	dev = dma_heap_get_dev(heap->dma_heap);
@@ -142,12 +134,12 @@ int samsung_dma_buffer_unprotect(void *priv, struct samsung_dma_heap *heap)
 				 sizeof(unsigned long) * protdesc->chunk_count, DMA_TO_DEVICE);
 
 	if (!dma_heap_flags_dynamic_protected(heap->flags))
-		ret = buffer_unprotect_smc(dev, protdesc);
+		ret = buffer_unprotect_trusty(buffer);
 
 	/*
 	 * retain the secure device address if unprotection to its area fails.
 	 * It might be unusable forever since we do not know the state of the
-	 * secure world before returning error from ppmp_smc() above.
+	 * secure world before returning error from above.
 	 */
 	if (!ret)
 		secure_iova_free(protdesc->dma_addr, buf_size);

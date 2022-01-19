@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/trusty/trusty.h>
 #include <linux/platform_device.h>
 #include <linux/iommu.h>
 #include <linux/device.h>
@@ -54,6 +55,7 @@ struct samsung_dma_buffer {
 	int vmap_cnt;
 	struct deferred_freelist_item deferred_free;
 	unsigned long ino;
+	trusty_shared_mem_id_t mem_id;
 };
 
 struct samsung_dma_heap {
@@ -64,6 +66,7 @@ struct samsung_dma_heap {
 	unsigned long flags;
 	unsigned int alignment;
 	unsigned int protection_id;
+	struct device *trusty_dev;
 };
 
 extern const struct dma_buf_ops samsung_dma_buf_ops;
@@ -152,18 +155,20 @@ struct buffer_prot_info {
 };
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap, unsigned int chunk_size,
-				 unsigned int nr_pages, unsigned long paddr);
-int samsung_dma_buffer_unprotect(void *priv, struct samsung_dma_heap *heap);
+void *samsung_dma_buffer_protect(struct samsung_dma_buffer *buffer,
+				 unsigned int chunk_size, unsigned int nr_pages,
+				 unsigned long paddr);
+int samsung_dma_buffer_unprotect(struct samsung_dma_buffer *buffer);
 #else
-static inline void *samsung_dma_buffer_protect(struct samsung_dma_heap *heap,
-					       unsigned int chunk_size, unsigned int nr_pages,
+static inline void *samsung_dma_buffer_protect(struct samsung_dma_buffer *buffer,
+					       unsigned int chunk_size,
+					       unsigned int nr_pages,
 					       unsigned long paddr)
 {
 	return NULL;
 }
 
-static inline int samsung_dma_buffer_unprotect(void *priv, struct samsung_dma_heap *heap)
+static inline int samsung_dma_buffer_unprotect(struct samsung_dma_buffer *buffer)
 {
 	return 0;
 }
