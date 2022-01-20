@@ -292,10 +292,6 @@ struct exynos_pcie {
 	struct pcie_eom_result **eom_result;
 	struct notifier_block	itmon_nb;
 
-	struct regulator	*vreg1;
-	struct regulator	*vreg2;
-	bool			vreg_enable;
-
 	int wlan_gpio;
 	int ssd_gpio;
 	u32 pmu_offset;
