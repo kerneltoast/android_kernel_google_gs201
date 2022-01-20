@@ -114,9 +114,7 @@ unsigned char s2mpu_get_and_modify(struct exynos_pcie *exynos_pcie,
 				   bool inc)
 {
 	unsigned char val;
-	unsigned long flags;
 
-	spin_lock_irqsave(&exynos_pcie->s2mpu_refcnt_lock, flags);
 	val = (*refcnt_ptr);
 	if (inc) {
 		val++;
@@ -130,7 +128,7 @@ unsigned char s2mpu_get_and_modify(struct exynos_pcie *exynos_pcie,
 			*refcnt_ptr = val;
 		}
 	}
-	spin_unlock_irqrestore(&exynos_pcie->s2mpu_refcnt_lock, flags);
+
 	return val;
 }
 
@@ -144,6 +142,7 @@ void s2mpu_update_refcnt(struct device *dev,
 	unsigned char *refcnt_ptr;
 	int ret;
 	unsigned char refcnt;
+	unsigned long flags;
 
 	/* Align to 4K as required by S2MPU */
 	s2mpu_get_alignment(dma_addr, size, &align_addr, &align_size);
@@ -163,6 +162,9 @@ void s2mpu_update_refcnt(struct device *dev,
 		return;
 	}
 
+	/* Put lock on while-loop to protect race condition on
+	 * s2mpu_open/s2mpu_close and the case of align_size over 4K */
+	spin_lock_irqsave(&exynos_pcie->s2mpu_refcnt_lock, flags);
 	while (align_size != 0) {
 		if (incr) {
 			refcnt = s2mpu_get_and_modify(exynos_pcie, refcnt_ptr,
@@ -185,6 +187,7 @@ void s2mpu_update_refcnt(struct device *dev,
 						      false);
 			if (refcnt == REF_COUNT_UNDERFLOW) {
 				dev_err(dev, "s2mpu error underflow in refcount\n");
+				spin_unlock_irqrestore(&exynos_pcie->s2mpu_refcnt_lock, flags);
 				return;
 			}
 			if (refcnt == 0) {
@@ -201,6 +204,7 @@ void s2mpu_update_refcnt(struct device *dev,
 		align_size -= ALIGN_SIZE;
 		refcnt_ptr++;
 	}
+	spin_unlock_irqrestore(&exynos_pcie->s2mpu_refcnt_lock, flags);
 }
 
 static void *gs101_pcie_dma_alloc_attrs(struct device *dev, size_t size,
