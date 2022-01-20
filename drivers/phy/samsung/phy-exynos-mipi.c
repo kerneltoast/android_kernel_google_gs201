@@ -1063,5 +1063,6 @@ static struct platform_driver exynos_mipi_phy_driver = {
 };
 module_platform_driver(exynos_mipi_phy_driver);
 
+MODULE_SOFTDEP("pre: phy-exynos-mipi-dsim");
 MODULE_DESCRIPTION("Samsung EXYNOS SoC MIPI CSI/DSI D/C-PHY driver");
 MODULE_LICENSE("GPL v2");

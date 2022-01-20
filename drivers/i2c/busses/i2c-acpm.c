@@ -111,6 +111,8 @@ static struct platform_driver acpm_mfd_bus_driver = {
 module_platform_driver(acpm_mfd_bus_driver);
 
 MODULE_SOFTDEP("pre: vh_i2c");
+MODULE_SOFTDEP("pre: s2mpg10-regulator");
+MODULE_SOFTDEP("pre: s2mpg11-regulator");
 MODULE_DESCRIPTION(" I2C ACPM driver");
 MODULE_AUTHOR("Hyeonseong Gil, <hs.gil@samsung.com>");
 MODULE_LICENSE("GPL v2");
