@@ -14,7 +14,9 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "link_device_memory.h"
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 #include "dit.h"
+#endif
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 #include "link_device_pcie_iommu.h"
 #endif
@@ -784,16 +786,6 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	struct link_device *ld = &q->mld->link_dev;
 	bool csum = false;
 
-	if (!pktproc_check_active(ppa, q->q_idx)) {
-		mif_err_limited("Queue %d not activated\n", q->q_idx);
-		return -EACCES;
-	}
-
-	if (ppa->desc_mode != DESC_MODE_SKTBUF) {
-		mif_err_limited("Invalid desc_mode %d\n", ppa->desc_mode);
-		return -EINVAL;
-	}
-
 	if (!is_desc_valid(q, &desc_done_ptr)) {
 		ret = -EINVAL;
 		goto rx_error_on_desc;
@@ -822,6 +814,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	pr_buffer("pktproc", (char *)src + ppa->skb_padding_size, (size_t)len, (size_t)40);
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	if (dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx)) {
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 		unsigned long src_paddr = 0;
@@ -845,6 +838,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 
 		return 1; /* dit cannot support HW GRO packets */
 	}
+#endif
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_LRO)
 	/* guaranteed that only TCP/IP, UDP/IP in this case */
@@ -967,11 +961,11 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 {
 	int ret = 0;
 	u32 num_frames = 0;
-	u32 rcvd_total = 0, rcvd_dit = 0;
+	u32 rcvd_total = 0;
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
+	u32 rcvd_dit = 0;
+#endif
 	u32 budget_used = 0;
-
-	if (!pktproc_check_active(q->ppa, q->q_idx))
-		return -EACCES;
 
 	num_frames = pktproc_get_usage(q);
 
@@ -992,17 +986,20 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 		}
 		rcvd_total += ret;
 		budget_used++;
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 		/* skb will be null if dit fills the skb */
 		if (!skb) {
 			rcvd_dit += ret; /* ret will be always 1 */
 			continue;
 		}
+#endif
 
 		ret = q->mld->pass_skb_to_net(q->mld, skb);
 		if (ret < 0)
 			break;
 	}
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	if (rcvd_dit) {
 		dit_kick(DIT_DIR_RX, false);
 
@@ -1010,15 +1007,26 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 		if (rcvd_dit == rcvd_total)
 			goto out;
 	}
+#endif
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	if (rcvd_total - rcvd_dit > 0)
+#else
+	if (rcvd_total > 0)
+#endif
 		tpmon_start();
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	q->update_fore_ptr(q, rcvd_total - rcvd_dit);
+#else
+	q->update_fore_ptr(q, rcvd_total);
+#endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 out:
+#endif
 	if (q->ppa->use_napi)
 		*work_done = rcvd_total;
 
@@ -1405,8 +1413,10 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 			q->q_info_ptr->cp_buff_pbase);
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  q_buff_size:0x%08x\n",
 			q->q_buff_size);
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 		count += scnprintf(&buf[count], PAGE_SIZE - count, "  DIT:%d\n",
 			dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx));
+#endif
 
 		if (q->manager) {
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
@@ -1477,10 +1487,13 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr, ch
 			"  fail:len%lld chid%lld addr%lld nomem%lld bmnomem%lld csum%lld\n",
 			q->stat.err_len, q->stat.err_chid, q->stat.err_addr,
 			q->stat.err_nomem, q->stat.err_bm_nomem, q->stat.err_csum);
+
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 		if (dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx))
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
 				"  fail:enqueue_dit%lld\n",
 				q->stat.err_enqueue_dit);
+#endif
 	}
 
 	return count;
@@ -1517,9 +1530,6 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 		mif_err("ppa is null\n");
 		return -EPERM;
 	}
-
-	if (!pktproc_check_support(ppa))
-		return 0;
 
 	mld = container_of(ppa, struct mem_link_device, pktproc);
 
@@ -1768,7 +1778,8 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 	mif_dt_read_u32_noerr(np, "pktproc_dl_support", ppa->support);
 	if (!ppa->support) {
-		mif_info("pktproc_support is 0. Just return\n");
+		mif_err("pktproc_support is 0.\n");
+		panic("pktproc_support is 0\n");
 		return 0;
 	}
 

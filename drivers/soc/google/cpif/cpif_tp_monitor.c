@@ -14,7 +14,9 @@
 #include <linux/exynos-pci-ctrl.h>
 #include "s51xx_pcie.h"
 #endif
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 #include "dit.h"
+#endif
 #if IS_ENABLED(CONFIG_EXYNOS_BTS)
 #include <soc/google/bts.h>
 #endif
@@ -505,10 +507,12 @@ static void tpmon_set_gro(struct tpmon_data *data)
 	}
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	if (dit_get_netdev()) {
 		dit_get_netdev()->gro_flush_timeout = timeout;
 		mld->dummy_net.gro_flush_timeout = 0;
 	}
+#endif
 
 	mif_info("%s (flush timeout:%ld)\n", data->name, timeout);
 }

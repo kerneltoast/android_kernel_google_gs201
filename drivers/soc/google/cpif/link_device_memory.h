@@ -304,7 +304,7 @@ struct mem_link_device {
 	void (*debug_info)(void);
 	void (*cmd_handler)(struct mem_link_device *mld, u16 cmd);
 
-	unsigned int tx_period_ms;
+	unsigned int tx_period_ns;
 	unsigned int force_use_memcpy;
 	unsigned int memcpy_packet_count;
 	unsigned int zeromemcpy_packet_count;

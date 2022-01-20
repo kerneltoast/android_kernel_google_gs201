@@ -791,7 +791,7 @@ static int cpif_probe(struct platform_device *pdev)
 	ld->msd = msd;
 	list_add(&ld->list, &msd->link_dev_list);
 
-	/* set sime mode */
+	/* get sim mode */
 	sim_mode = get_sim_mode(dev->of_node);
 
 	/* char device */

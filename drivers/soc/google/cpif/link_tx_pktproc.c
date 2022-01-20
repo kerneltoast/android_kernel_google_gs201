@@ -9,7 +9,9 @@
 #include "modem_prj.h"
 #include "modem_utils.h"
 #include "link_device_memory.h"
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 #include "dit.h"
+#endif
 
 static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *skb)
 {
@@ -17,8 +19,9 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 	struct pktproc_desc_ul *desc;
 	void *target_addr;
 	int len = skb->len;
-	int ret;
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	bool use_dit;
+#endif
 	u32 space;
 
 	q->stat.total_cnt++;
@@ -37,8 +40,11 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 		return -ENOSPC;
 	}
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	use_dit = dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx);
-	if (!use_dit) {
+	if (!use_dit)
+#endif
+	{
 		target_addr = (void *)(q->q_buff_vbase +
 			(q->done_ptr * q->max_packet_size));
 		skb_copy_from_linear_data(skb, target_addr, skb->len);
@@ -58,7 +64,9 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 
 	barrier();
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	if (use_dit) {
+		int ret;
 		/* skb may not be valid after dit_enqueue is done */
 		ret = dit_enqueue_src_desc_ring_skb(DIT_DIR_TX, skb);
 		if (ret < 0) {
@@ -68,6 +76,7 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 			return ret;
 		}
 	}
+#endif
 
 	q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 
@@ -92,11 +101,6 @@ static int pktproc_set_end(struct pktproc_queue_ul *q, unsigned int desc_index,
 
 	if (desc_index == q->q_info->fore_ptr)
 		return -ERANGE;
-
-	if (!pktproc_check_ul_q_active(q->ppa_ul, q->q_idx)) {
-		q->stat.inactive_cnt++;
-		return -EACCES;
-	}
 
 	prev_index = circ_prev_ptr(q->num_desc, desc_index, prev_offset);
 
@@ -302,8 +306,10 @@ int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul)
 
 		q->q_info->num_desc = q->num_desc;
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 		if (dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx))
 			dit_reset_dst_wp_rp(DIT_DIR_TX);
+#endif
 
 		memset(&q->stat, 0, sizeof(struct pktproc_statistics_ul));
 

@@ -229,7 +229,7 @@ bool stop_net_ifaces(struct link_device *ld, unsigned long set_mask)
 		cpif_set_bit(ld->tx_flowctrl_mask, set_mask);
 
 	if (!atomic_read(&ld->netif_stopped)) {
-		mif_info("Normal netif tx queue stopped: tx_flowctrl=0x%04lx(set_bit:%lu)\n",
+		mif_info_limited("tx queue stopped: tx_flowctrl=0x%04lx(set_bit:%lu)\n",
 			 ld->tx_flowctrl_mask, set_mask);
 
 		netif_tx_flowctl(ld->msd, true);
@@ -245,7 +245,7 @@ void resume_net_ifaces(struct link_device *ld, unsigned long clear_mask)
 	cpif_clear_bit(ld->tx_flowctrl_mask, clear_mask);
 
 	if (!ld->tx_flowctrl_mask && atomic_read(&ld->netif_stopped)) {
-		mif_info("Normal netif tx queue resumed: tx_flowctrl=0x%04lx(clear_bit:%lu)\n",
+		mif_info_limited("tx queue resumed: tx_flowctrl=0x%04lx(clear_bit:%lu)\n",
 			 ld->tx_flowctrl_mask, clear_mask);
 
 		netif_tx_flowctl(ld->msd, false);

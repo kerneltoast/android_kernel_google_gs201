@@ -105,15 +105,15 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 	unsigned int tx_bytes;
 	struct timespec64 ts;
 
-	/* Record the timestamp */
-	ktime_get_ts64(&ts);
-
 	if (unlikely(!cp_online(mc))) {
 		if (!netif_queue_stopped(ndev))
 			netif_stop_queue(ndev);
 		/* Just drop the TX packet */
 		goto drop;
 	}
+
+	/* Record the timestamp */
+	ktime_get_ts64(&ts);
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 	/* no need of head and tail */
@@ -172,7 +172,13 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 #endif
 
 	/* Build SIPC5 link header*/
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+	buff = skb_new->data;
+#else
 	buff = skb_push(skb_new, headroom);
+#endif
+
+#if !IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 	if (cfg || cfg_sit) {
 		switch (ld->protocol) {
 		case PROTOCOL_SIPC:
@@ -186,6 +192,7 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 			return -EINVAL;
 		}
 	}
+#endif
 
 	/* IP loop-back */
 	if (iod->msd->loopback_ipaddr) {
@@ -197,9 +204,11 @@ static netdev_tx_t vnet_xmit(struct sk_buff *skb, struct net_device *ndev)
 		}
 	}
 
+#if !IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 	/* Apply padding */
 	if (tailroom)
 		skb_put(skb_new, tailroom);
+#endif
 
 	ret = ld->send(ld, iod, skb_new);
 	if (unlikely(ret < 0)) {

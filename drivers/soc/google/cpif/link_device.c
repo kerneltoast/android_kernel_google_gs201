@@ -35,7 +35,9 @@
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 #include "s51xx_pcie.h"
 #endif
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 #include "dit.h"
+#endif
 #include "direct_dm.h"
 
 #define MIF_TX_QUOTA 64
@@ -871,7 +873,7 @@ static enum hrtimer_restart tx_timer_func(struct hrtimer *timer)
 
 exit:
 	if (need_schedule) {
-		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
+		ktime_t ktime = ktime_set(0, mld->tx_period_ns);
 
 		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
 	}
@@ -928,7 +930,7 @@ static int tx_func(struct mem_link_device *mld, struct hrtimer *timer,
 
 exit:
 	if (need_schedule) {
-		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
+		ktime_t ktime = ktime_set(0, mld->tx_period_ns);
 
 		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
 
@@ -953,7 +955,7 @@ static inline void start_tx_timer(struct mem_link_device *mld,
 
 	spin_lock_irqsave(&mc->tx_timer_lock, flags);
 	if (!hrtimer_is_queued(timer)) {
-		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
+		ktime_t ktime = ktime_set(0, mld->tx_period_ns);
 
 		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
 	}
@@ -1109,7 +1111,7 @@ static enum hrtimer_restart sbd_tx_timer_func(struct hrtimer *timer)
 
 exit:
 	if (need_schedule) {
-		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
+		ktime_t ktime = ktime_set(0, mld->tx_period_ns);
 
 		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
 	}
@@ -1165,7 +1167,7 @@ static int sbd_tx_func(struct mem_link_device *mld, struct hrtimer *timer,
 
 exit:
 	if (need_schedule) {
-		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
+		ktime_t ktime = ktime_set(0, mld->tx_period_ns);
 
 		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
 		return -1;
@@ -1181,7 +1183,9 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 	struct modem_ctl *mc = mld->link_dev.mc;
 	bool need_schedule = false;
 	bool need_irq = false;
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	bool need_dit = false;
+#endif
 	unsigned long flags;
 	unsigned int count;
 	int ret, i;
@@ -1196,12 +1200,15 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 		}
 
 		do {
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 			if (dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx)) {
 				if (circ_empty(q->done_ptr, q->q_info->fore_ptr))
 					break;
 
 				need_dit = true;
-			} else {
+			} else
+#endif
+			{
 				count = circ_get_usage(q->q_info->num_desc,
 					q->done_ptr, q->q_info->fore_ptr);
 				if (count == 0)
@@ -1214,10 +1221,13 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 		} while (0);
 	}
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	/* irq will be raised after dit_kick() */
 	if (need_dit) {
 		dit_kick(DIT_DIR_TX, false);
-	} else if (need_irq) {
+	} else
+#endif
+	if (need_irq) {
 		spin_lock_irqsave(&mc->lock, flags);
 		if (ipc_active(mld))
 			send_ipc_irq(mld, mask2int(MASK_SEND_DATA));
@@ -1225,9 +1235,13 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 	}
 
 	if (need_schedule) {
-		ktime_t ktime = ktime_set(0, mld->tx_period_ms * NSEC_PER_MSEC);
+		spin_lock_irqsave(&mc->tx_timer_lock, flags);
+		if (!hrtimer_is_queued(timer)) {
+			ktime_t ktime = ktime_set(0, mld->tx_period_ns);
 
-		hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
+			hrtimer_start(timer, ktime, HRTIMER_MODE_REL);
+		}
+		spin_unlock_irqrestore(&mc->tx_timer_lock, flags);
 	}
 
 	return HRTIMER_NORESTART;
@@ -1275,7 +1289,9 @@ static int xmit_ipc_to_pktproc(struct mem_link_device *mld, struct sk_buff *skb)
 		goto exit;
 	}
 
+#if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	if (!dit_check_dir_use_queue(DIT_DIR_TX, q->q_idx))
+#endif
 		dev_consume_skb_any(skb);
 
 exit:
@@ -1473,14 +1489,7 @@ static int pass_skb_to_net(struct mem_link_device *mld, struct sk_buff *skb)
 	struct link_device *ld = &mld->link_dev;
 	struct skbuff_private *priv;
 	struct io_device *iod;
-	struct modem_ctl *mc = ld->mc;
 	int ret = 0;
-
-	if (unlikely(!cp_online(mc))) {
-		mif_err_limited("ERR! CP not online!, skb:%pK\n", skb);
-		dev_kfree_skb_any(skb);
-		return -EACCES;
-	}
 
 	priv = skbpriv(skb);
 	if (unlikely(!priv)) {
@@ -1516,6 +1525,7 @@ static int pass_skb_to_net(struct mem_link_device *mld, struct sk_buff *skb)
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_LINK_DEVICE_WITH_SBD_ARCH)
 static int rx_net_frames_from_rb(struct sbd_ring_buffer *rb, int budget,
 		int *work_done)
 {
@@ -1624,6 +1634,7 @@ static int sbd_ipc_rx_func_napi(struct link_device *ld, struct io_device *iod,
 	*work_done = rcvd;
 	return ret;
 }
+#endif //CONFIG_LINK_DEVICE_WITH_SBD_ARCH
 
 static int legacy_ipc_rx_func_napi(struct mem_link_device *mld, struct legacy_ipc_device *dev,
 		int budget, int *work_done)
@@ -2234,6 +2245,7 @@ exit:
 	return err;
 }
 
+#if IS_ENABLED(CONFIG_LINK_DEVICE_WITH_SBD_ARCH)
 static int sbd_link_rx_func_napi(struct sbd_link_device *sl, struct link_device *ld, int budget,
 		int *work_done)
 {
@@ -2262,6 +2274,7 @@ static int sbd_link_rx_func_napi(struct sbd_link_device *sl, struct link_device 
 	}
 	return ret;
 }
+#endif//CONFIG_LINK_DEVICE_WITH_SBD_ARCH
 
 static int legacy_link_rx_func_napi(struct mem_link_device *mld, int budget, int *work_done)
 {
@@ -2312,29 +2325,47 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 			mld_napi);
 	struct link_device *ld = &mld->link_dev;
 	struct modem_ctl *mc = ld->mc;
+#if IS_ENABLED(CONFIG_LINK_DEVICE_WITH_SBD_ARCH)
 	struct sbd_link_device *sl = &mld->sbd_link_dev;
+#endif
 	int total_ps_rcvd = 0;
 	int ps_rcvd = 0;
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	int i = 0;
-#endif
-	int ret = 1;
+	int ret = 0;
 	int total_budget = budget;
 	u32 qlen = 0;
+
+	mld->rx_poll_count++;
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	{
+		int i = 0;
+		for (i = 0; i < mld->pktproc.num_queue; i++) {
+			ret = mld->pktproc.q[i]->clean_rx_ring(mld->pktproc.q[i], budget, &ps_rcvd);
+			if ((ret == -EBUSY) || (ret == -ENOMEM)) {
+				goto keep_poll;
+			}
+
+			budget -= ps_rcvd;
+			total_ps_rcvd += ps_rcvd;
+			ps_rcvd = 0;
+		}
+	}
+#endif
 
 #if IS_ENABLED(CONFIG_MCU_IPC)
 	if (ld->interrupt_types == INTERRUPT_MAILBOX)
 		ret = cp_mbox_check_handler(CP_MBOX_IRQ_IDX_0, mld->irq_cp2ap_msg);
-#endif
+
 	if (IS_ERR_VALUE((unsigned long)ret)) {
 		mif_err_limited("mbox check irq fails: err: %d\n", ret);
 		goto dummy_poll_complete;
 	}
 
-	mld->rx_poll_count++;
-
-	if (ret) { /* if an irq is raised, take care of commands */
-		if (shmem_enqueue_snapshot(mld))
+	if (ret)
+#endif
+	{ /* if an irq is raised, take care of commands */
+		ret = shmem_enqueue_snapshot(mld);
+		if (ret != -ENOMSG && ret != 0)
 			goto dummy_poll_complete;
 
 		qlen = mld->msb_rxq.qlen;
@@ -2358,6 +2389,7 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 		}
 	}
 
+#if IS_ENABLED(CONFIG_LINK_DEVICE_WITH_SBD_ARCH)
 	if (sbd_active(&mld->sbd_link_dev)) {
 		ret = sbd_link_rx_func_napi(sl, ld, budget, &ps_rcvd);
 		if ((ret == -EBUSY) || (ret == -ENOMEM))
@@ -2370,7 +2402,9 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 		budget -= ps_rcvd;
 		total_ps_rcvd += ps_rcvd;
 		ps_rcvd = 0;
-	} else { /* legacy buffer */
+	} else
+#endif
+	{ /* legacy buffer */
 		ret = legacy_link_rx_func_napi(mld, budget, &ps_rcvd);
 		if ((ret == -EBUSY) || (ret == -ENOMEM))
 			goto keep_poll;
@@ -2378,25 +2412,6 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 		total_ps_rcvd += ps_rcvd;
 		ps_rcvd = 0;
 	}
-
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	if (pktproc_check_support(&mld->pktproc) &&
-			!mld->pktproc.use_exclusive_irq &&
-			mld->pktproc.use_napi) {
-		for (i = 0; i < mld->pktproc.num_queue; i++) {
-			if (!pktproc_check_active(&mld->pktproc, i))
-				continue;
-
-			ret = mld->pktproc.q[i]->clean_rx_ring(mld->pktproc.q[i], budget, &ps_rcvd);
-			if ((ret == -EBUSY) || (ret == -ENOMEM))
-				goto keep_poll;
-
-			budget -= ps_rcvd;
-			total_ps_rcvd += ps_rcvd;
-			ps_rcvd = 0;
-		}
-	}
-#endif
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
 	if (total_ps_rcvd)
@@ -2751,6 +2766,11 @@ static int shmem_enqueue_snapshot(struct mem_link_device *mld)
 		return -EINVAL;
 	}
 
+	if (unlikely(!cmd_valid(msb->snapshot.int2ap))) {
+		msb_free(msb);
+		return -ENOMSG;
+	}
+
 	msb_queue_tail(&mld->msb_rxq, msb);
 
 	return 0;
@@ -2759,10 +2779,6 @@ static int shmem_enqueue_snapshot(struct mem_link_device *mld)
 irqreturn_t shmem_irq_handler(int irq, void *data)
 {
 	struct mem_link_device *mld = (struct mem_link_device *)data;
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	struct pktproc_adaptor *ppa = &mld->pktproc;
-	int i;
-#endif
 
 	mld->rx_int_count++;
 	if (napi_schedule_prep(&mld->mld_napi)) {
@@ -2777,6 +2793,8 @@ irqreturn_t shmem_irq_handler(int irq, void *data)
 	if (pktproc_check_support(&mld->pktproc) &&
 			!mld->pktproc.use_exclusive_irq &&
 			!mld->pktproc.use_napi) {
+		struct pktproc_adaptor *ppa = &mld->pktproc;
+		int i;
 		for (i = 0; i < ppa->num_queue; i++) {
 			struct pktproc_queue *q = ppa->q[i];
 
@@ -3066,7 +3084,7 @@ static ssize_t tx_period_ms_show(struct device *dev,
 	struct modem_data *modem;
 
 	modem = (struct modem_data *)dev->platform_data;
-	return scnprintf(buf, PAGE_SIZE, "%d\n", modem->mld->tx_period_ms);
+	return scnprintf(buf, PAGE_SIZE, "%ld\n", modem->mld->tx_period_ns / NSEC_PER_MSEC);
 }
 
 static ssize_t tx_period_ms_store(struct device *dev,
@@ -3078,9 +3096,10 @@ static ssize_t tx_period_ms_store(struct device *dev,
 
 	modem = (struct modem_data *)dev->platform_data;
 
-	ret = kstrtouint(buf, 0, &modem->mld->tx_period_ms);
+	ret = kstrtouint(buf, 0, &modem->mld->tx_period_ns);
 	if (ret)
 		return -EINVAL;
+	modem->mld->tx_period_ns *= NSEC_PER_MSEC;
 
 	ret = count;
 	return ret;
@@ -4150,7 +4169,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	/* Link mem_link_device to modem_data */
 	modem->mld = mld;
 
-	mld->tx_period_ms = TX_PERIOD_MS;
+	mld->tx_period_ns = TX_PERIOD_MS * NSEC_PER_MSEC;
 
 	mld->pass_skb_to_net = pass_skb_to_net;
 	mld->pass_skb_to_demux = pass_skb_to_demux;
