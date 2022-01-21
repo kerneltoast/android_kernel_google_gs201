@@ -8,6 +8,7 @@
 
 #define PCIE_CH2HSI(ch)	((ch) + 1)
 
+extern void pcie_iommu_tlb_invalidate_all(int hsi_block_num);
 extern int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 			  int prot, int hsi_block_num);
 extern size_t pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num);
@@ -69,6 +70,7 @@ int cpif_pcie_iommu_init(struct pktproc_queue *q)
 
 void cpif_pcie_iommu_reset(struct pktproc_queue *q)
 {
+	struct modem_ctl *mc = dev_get_drvdata(q->ppa->dev);
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
 	struct cpif_pcie_iommu_ctrl *ioc = &q->ioc;
 	unsigned int usage, idx;
@@ -101,6 +103,7 @@ void cpif_pcie_iommu_reset(struct pktproc_queue *q)
 	}
 
 	/* Initialize */
+	pcie_iommu_tlb_invalidate_all(PCIE_CH2HSI(mc->pcie_ch_num));
 	if (ioc->pf_cache.va) {
 		__page_frag_cache_drain(virt_to_page(ioc->pf_cache.va),
 					ioc->pf_cache.pagecnt_bias);
