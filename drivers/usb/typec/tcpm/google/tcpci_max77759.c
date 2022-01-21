@@ -91,6 +91,10 @@ static bool modparam_conf_sbu;
 module_param_named(conf_sbu, modparam_conf_sbu, bool, 0644);
 MODULE_PARM_DESC(conf_sbu, "Configure sbu pins");
 
+static char boot_mode_string[64];
+module_param_string(mode, boot_mode_string, sizeof(boot_mode_string), 0440);
+MODULE_PARM_DESC(mode, "Android bootmode");
+
 static bool hooks_installed;
 
 static u32 partner_src_caps[PDO_MAX_OBJECTS];
@@ -833,6 +837,12 @@ static void process_power_status(struct max77759_plat *chip)
 		chip->vbus_present = 0;
 	logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
 	tcpm_vbus_change(tcpci->port);
+
+	/* TODO: remove this cc event b/211341677 */
+	if (!strncmp(boot_mode_string, "charger", strlen("charger")) && chip->vbus_present) {
+		dev_info(chip->dev, "WA: trigger cc event in charger mode");
+		tcpm_cc_change(tcpci->port);
+	}
 
 	/*
 	 * Enable data path when TCPC signals sink debug accesssory connected
