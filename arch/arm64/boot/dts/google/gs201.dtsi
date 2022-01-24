@@ -1611,6 +1611,17 @@
 		tmu_work_affinity = "0-7";
 	};
 
+	tmuctrl_6: AUR@100B0000 {
+		compatible = "samsung,gs201-tmu-v2";
+		reg = <0x0 0x100B0000 0x800>;
+		interrupts = <GIC_SPI IRQ_TMU_TMU_SUB_MISC IRQ_TYPE_LEVEL_HIGH>;
+		tmu_name = "AUR";
+		id = <6>;
+		ect_nouse;
+		#thermal-sensor-cells = <0>;
+		tmu_work_affinity = "0-7";
+	};
+
 	thermal_zones: thermal-zones {
 		big_thermal: BIG {
 			zone_name  = "BIG_THERMAL";
@@ -1935,6 +1946,55 @@
 				map0 {
 					trip = <&tpu_control_temp>;
 					cooling-device = <&tpu_cooling 0 0>;
+				};
+			};
+		};
+		aur_thermal: AUR {
+			zone_name  = "AUR_THERMAL";
+			polling-delay-passive = <0>;
+			polling-delay = <0>;
+			thermal-sensors = <&tmuctrl_6>;
+
+			trips {
+				aur_alert0: aur-alert0 {
+					temperature = <20000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				aur_alert1: aur-alert1 {
+					temperature = <76000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				aur_alert2: aur-alert2 {
+					temperature = <81000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				aur_alert3: aur-alert3 {
+					temperature = <86000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				aur_alert4: aur-alert4 {
+					temperature = <91000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				aur_alert5: aur-alert5 {
+					temperature = <96000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				aur_alert6: aur-alert6 {
+					temperature = <101000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "active";
+				};
+				aur_hot: aur-hot {
+					temperature = <115000>; /* millicelsius */
+					hysteresis = <5000>; /* millicelsius */
+					type = "hot";
 				};
 			};
 		};
