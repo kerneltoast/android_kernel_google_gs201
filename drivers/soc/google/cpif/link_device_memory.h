@@ -361,7 +361,8 @@ struct mem_link_device {
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	u8 __iomem *msi_reg_base;
 	int msi_irq_base;
-	int msi_irq_base_enabled;
+	bool msi_irq_wake;
+	bool msi_irq_enabled;
 #endif
 
 	u32 __iomem *srinfo_base;

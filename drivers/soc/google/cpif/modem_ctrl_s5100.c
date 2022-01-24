@@ -580,9 +580,58 @@ static int request_pcie_msi_int(struct link_device *ld,
 #endif
 
 	mld->msi_irq_base = base_irq;
-	mld->msi_irq_base_enabled = 1;
+	mld->msi_irq_enabled = true;
 
 	return base_irq;
+}
+
+static void set_pcie_msi_int(struct link_device *ld, bool enabled)
+{
+	struct mem_link_device *mld = to_mem_link_device(ld);
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+	unsigned int i;
+#endif
+
+	if (!mld->msi_irq_base)
+		return;
+
+	if (mld->msi_irq_enabled == enabled)
+		return;
+
+	if (enabled) {
+		int err;
+
+		enable_irq(mld->msi_irq_base);
+		/*
+		 * All of MSI IRQs for PktProc will be fired with msi_irq_base.
+		 * Do not need to call enable/disable_irq_wake for PktProc IRQs.
+		 */
+		err = enable_irq_wake(mld->msi_irq_base);
+		mld->msi_irq_wake = !err;
+	} else {
+		disable_irq(mld->msi_irq_base);
+		if (mld->msi_irq_wake) {
+			disable_irq_wake(mld->msi_irq_base);
+			mld->msi_irq_wake = false;
+		}
+	}
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	for (i = 0; i < ppa->num_queue; i++) {
+		struct pktproc_queue *q = ppa->q[i];
+
+		if (!q->irq)
+			continue;
+
+		if (enabled)
+			enable_irq(q->irq);
+		else
+			disable_irq(q->irq);
+	}
+#endif
+
+	mld->msi_irq_enabled = enabled;
 }
 
 static int register_pcie(struct link_device *ld)
@@ -1321,10 +1370,7 @@ static int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 		}
 	}
 
-	if (mld->msi_irq_base_enabled == 1) {
-		disable_irq(mld->msi_irq_base);
-		mld->msi_irq_base_enabled = 0;
-	}
+	set_pcie_msi_int(ld, false);
 
 	if (mc->device_reboot) {
 		mif_err("skip pci power off : device is rebooting..!!!\n");
@@ -1448,10 +1494,7 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 		mif_err("DBG: MSI sfr not set up, yet(s5100_pdev is NULL)");
 	}
 
-	if (mld->msi_irq_base_enabled == 0) {
-		enable_irq(mld->msi_irq_base);
-		mld->msi_irq_base_enabled = 1;
-	}
+	set_pcie_msi_int(ld, true);
 
 	if ((mc->s51xx_pdev != NULL) && mc->pcie_registered) {
 		/* DBG */
