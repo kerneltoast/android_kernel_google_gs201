@@ -300,10 +300,9 @@ static irqreturn_t irq_handler(int irq, void *data, u8 idx)
 		/* Minimize the amount of thermal update by only triggering
 		 * update every ONE_SECOND.
 		 */
-		if (bcl_dev->gra_tz[idx]) {
+		if (bcl_dev->gra_tz[idx])
 			thermal_zone_device_update(bcl_dev->gra_tz[idx],
 						   THERMAL_EVENT_UNSPECIFIED);
-		}
 	}
 	return IRQ_HANDLED;
 }
@@ -2074,6 +2073,8 @@ static ssize_t uvlo1_lvl_store(struct device *dev,
 	bcl_dev->bcl_lvl[UVLO1] = VD_BATTERY_VOLTAGE - value - THERMAL_HYST_LEVEL;
 	ret = bcl_dev->bcl_tz[UVLO1]->ops->set_trip_temp(bcl_dev->bcl_tz[UVLO1], 0,
 							 VD_BATTERY_VOLTAGE - value);
+	if (bcl_dev->bcl_tz[UVLO1])
+		thermal_zone_device_update(bcl_dev->bcl_tz[UVLO1], THERMAL_EVENT_UNSPECIFIED);
 	if (ret)
 		dev_err(bcl_dev->device, "Fail to set sys_uvlo1 trip temp\n");
 	return size;
@@ -2121,6 +2122,8 @@ static ssize_t uvlo2_lvl_store(struct device *dev,
 	bcl_dev->bcl_read_lvl[UVLO2] = VD_BATTERY_VOLTAGE - value - THERMAL_HYST_LEVEL;
 	ret = bcl_dev->bcl_tz[UVLO2]->ops->set_trip_temp(bcl_dev->bcl_tz[UVLO2], 0,
 							 VD_BATTERY_VOLTAGE - value);
+	if (bcl_dev->bcl_tz[UVLO2])
+		thermal_zone_device_update(bcl_dev->bcl_tz[UVLO2], THERMAL_EVENT_UNSPECIFIED);
 	if (ret)
 		dev_err(bcl_dev->device, "Fail to set sys_uvlo2 trip temp\n");
 	return size;
@@ -2164,6 +2167,8 @@ static ssize_t batoilo_lvl_store(struct device *dev,
 	bcl_dev->bcl_lvl[BATOILO] = value - THERMAL_HYST_LEVEL;
 	bcl_dev->bcl_read_lvl[BATOILO] = value - THERMAL_HYST_LEVEL;
 	ret = bcl_dev->bcl_tz[BATOILO]->ops->set_trip_temp(bcl_dev->bcl_tz[BATOILO], 0, value);
+	if (bcl_dev->bcl_tz[BATOILO])
+		thermal_zone_device_update(bcl_dev->bcl_tz[BATOILO], THERMAL_EVENT_UNSPECIFIED);
 	if (ret)
 		dev_err(bcl_dev->device, "Fail to set sys_uvlo2 trip temp\n");
 	return size;
@@ -2231,6 +2236,8 @@ static ssize_t smpl_lvl_store(struct device *dev,
 							     SMPL_BATTERY_VOLTAGE - val);
 	if (ret)
 		dev_err(bcl_dev->device, "Fail to set smpl_warn trip temp\n");
+	if (bcl_dev->gra_tz[SMPL_WARN])
+		thermal_zone_device_update(bcl_dev->gra_tz[SMPL_WARN], THERMAL_EVENT_UNSPECIFIED);
 
 	return size;
 
@@ -2284,6 +2291,8 @@ static int set_ocp_lvl(struct bcl_device *bcl_dev, u64 val, u8 addr, u8 pmic, u8
 			dev_err(bcl_dev->device, "Fail to set ocp_warn trip temp\n");
 	}
 	mutex_unlock(&bcl_dev->gra_irq_lock[id]);
+	if (bcl_dev->gra_tz[id])
+		thermal_zone_device_update(bcl_dev->gra_tz[id], THERMAL_EVENT_UNSPECIFIED);
 
 	return ret;
 }
