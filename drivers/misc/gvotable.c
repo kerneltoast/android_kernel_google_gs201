@@ -782,7 +782,7 @@ int gvotable_get_current_vote(struct gvotable_election *el, const void **vote)
 	ret = gvotable_get_current_result_unlocked(el, vote);
 	gvotable_unlock_result(el);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gvotable_get_current_vote);
 
@@ -814,7 +814,7 @@ int gvotable_copy_current_result(struct gvotable_election *el, void *vote,
 		memcpy(vote, tmp, vote_size);
 	gvotable_unlock_result(el);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gvotable_copy_current_result);
 
@@ -875,6 +875,16 @@ int gvotable_get_vote(struct gvotable_election *el, const char *reason,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gvotable_get_vote);
+
+int gvotable_get_int_vote(struct gvotable_election *el, const char *reason)
+{
+	void *ptr;
+	int ret;
+
+	ret = gvotable_get_vote(el, reason, &ptr);
+	return ret ? ret : (uintptr_t)ptr;
+}
+EXPORT_SYMBOL_GPL(gvotable_get_int_vote);
 
 /* Determine the reason is enabled */
 int gvotable_is_enabled(struct gvotable_election *el, const char *reason,

@@ -65,9 +65,27 @@ int gvotable_use_default(struct gvotable_election *el, bool default_is_enabled);
 
 int gvotable_cast_vote(struct gvotable_election *el, const char *reason,
 		       void *vote, bool enabled);
+static inline int gvotable_cast_int_vote(struct gvotable_election *el,
+					 const char *reason, int vote,
+					 bool enabled)
+{
+	return gvotable_cast_vote(el, reason, (void *)(long)vote, enabled);
+}
+static inline int gvotable_cast_long_vote(struct gvotable_election *el,
+					  const char *reason, long vote,
+					  bool enabled)
+{
+	return gvotable_cast_vote(el, reason, (void *)vote, enabled);
+}
+static inline int gvotable_cast_bool_vote(struct gvotable_election *el,
+					  const char *reason, bool vote)
+{
+	return gvotable_cast_vote(el, reason, 0, vote);
+}
 
 int gvotable_get_vote(struct gvotable_election *el, const char *reason,
 		      void **vote);
+int gvotable_get_int_vote(struct gvotable_election *el, const char *reason);
 
 int gvotable_is_enabled(struct gvotable_election *el, const char *reason,
 			bool *enabled);
