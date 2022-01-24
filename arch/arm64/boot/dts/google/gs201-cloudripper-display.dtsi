@@ -94,4 +94,16 @@
 		vci-supply = <&s_ldo6_reg>;
 		vddi-supply = <&s_bucka_reg>;
 	};
+	panel@5 {
+		compatible = "boe,nt37290";
+		label = "boe-nt37290";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		vddd-normal-microvolt = <CHEETAH_3HC4_VDDD_NORMAL_MICROVOLT>;
+		vddd-lp-microvolt = <CHEETAH_VDDD_LP_MICROVOLT>;
+		vci-supply = <&s_ldo6_reg>;
+		vddi-supply = <&s_bucka_reg>;
+	};
 };
