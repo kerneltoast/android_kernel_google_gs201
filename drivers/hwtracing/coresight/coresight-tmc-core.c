@@ -388,7 +388,7 @@ static int tmc_etr_setup_caps(struct device *parent, u32 devid, void *dev_caps)
 	struct tmc_drvdata *drvdata = dev_get_drvdata(parent);
 
 	if (!tmc_etr_has_non_secure_access(drvdata))
-		return -EACCES;
+		dev_dbg(parent, "non-secure access is disabled\n");
 
 	/* Set the unadvertised capabilities */
 	tmc_etr_init_caps(drvdata, (u32)(unsigned long)dev_caps);
