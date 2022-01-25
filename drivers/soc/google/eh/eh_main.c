@@ -393,11 +393,13 @@ static void init_compression_descriptor(struct eh_device *eh_dev)
 /*
  * - Primitive functions for Emerald Hill SW
  */
-static long eh_congestion_wait(long timeout)
+static long eh_congestion_wait(struct eh_device *eh_dev, unsigned long timeout)
 {
 	long ret;
 	DEFINE_WAIT(wait);
 	wait_queue_head_t *wqh = &eh_compress_wait;
+
+	atomic64_inc(&eh_dev->nr_stall);
 
 	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
 	ret = io_schedule_timeout(timeout);
@@ -419,7 +421,7 @@ static void request_to_sw_fifo(struct eh_device *eh_dev,
 	struct eh_sw_fifo *fifo = &eh_dev->sw_fifo;
 
 	while ((req = pool_alloc(&eh_dev->pool)) == NULL)
-		eh_congestion_wait(HZ/10);
+		eh_congestion_wait(eh_dev, HZ/10);
 
 	req->page = page;
 	req->priv = priv;
@@ -961,11 +963,38 @@ iounmap:
 	return ret;
 }
 
-static void eh_deinit(struct eh_device *eh_dev)
+#define EH_ATTR_RO(_name) \
+	static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
+
+static ssize_t nr_stall_show(struct kobject *kobj, struct kobj_attribute *attr,
+			  char *buf)
 {
-	eh_hw_deinit(eh_dev);
-	eh_sw_deinit(eh_dev);
+	struct eh_device *eh_dev = container_of(kobj, struct eh_device, kobj);
+
+	return sysfs_emit(buf, "%l\n", atomic64_read(&eh_dev->nr_stall));
 }
+EH_ATTR_RO(nr_stall);
+
+static struct attribute *eh_attrs[] = {
+	&nr_stall_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(eh);
+
+static void eh_kobj_release(struct kobject *kobj)
+{
+	struct eh_device *eh_dev = container_of(kobj, struct eh_device, kobj);
+
+	eh_sw_deinit(eh_dev);
+	eh_hw_deinit(eh_dev);
+	kfree(eh_dev);
+}
+
+static struct kobj_type eh_ktype = {
+	.release = eh_kobj_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_groups = eh_groups,
+};
 
 /* EmeraldHill initialization entry */
 static int eh_init(struct device *device, struct eh_device *eh_dev,
@@ -991,7 +1020,12 @@ static int eh_init(struct device *device, struct eh_device *eh_dev,
 		return ret;
 	}
 
-	return 0;
+	ret = kobject_init_and_add(&eh_dev->kobj, &eh_ktype,
+				   kernel_kobj, "%s", "eh");
+	if (ret)
+		kobject_put(&eh_dev->kobj);
+
+	return ret;
 }
 
 static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
@@ -1226,12 +1260,6 @@ disable_pm_runtime:
 	return ret;
 }
 
-void eh_remove(struct eh_device *eh_dev)
-{
-	eh_deinit(eh_dev);
-	kfree(eh_dev);
-}
-
 static int eh_of_remove(struct platform_device *pdev)
 {
 	struct eh_device *eh_dev = platform_get_drvdata(pdev);
@@ -1241,7 +1269,7 @@ static int eh_of_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	eh_remove(eh_dev);
+	kobject_put(&eh_dev->kobj);
 	return 0;
 }
 

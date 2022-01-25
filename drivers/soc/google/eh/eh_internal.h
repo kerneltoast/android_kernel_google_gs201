@@ -12,6 +12,7 @@
 #include "eh_regs.h"
 #include <linux/spinlock_types.h>
 #include <linux/wait.h>
+#include <linux/kobject.h>
 
 struct eh_completion {
 	void *priv;
@@ -40,6 +41,7 @@ struct eh_sw_fifo {
 };
 
 struct eh_device {
+	struct kobject kobj;
 	struct list_head eh_dev_list;
 
 	/* hardware characteristics */
@@ -109,5 +111,6 @@ struct eh_device {
 	struct eh_request_pool pool;
 	/* keep pending request */
 	struct eh_sw_fifo sw_fifo;
+	atomic64_t nr_stall;
 };
 #endif
