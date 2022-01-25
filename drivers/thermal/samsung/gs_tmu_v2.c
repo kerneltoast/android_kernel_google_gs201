@@ -56,7 +56,8 @@ enum tmu_type_t {
 	TMU_TYPE_GPU = 1,
 	TMU_TYPE_ISP = 2,
 	TMU_TYPE_TPU = 3,
-	TMU_TYPE_END = 4,
+	TMU_TYPE_AUR = 4,
+	TMU_TYPE_END = 5,
 };
 
 enum tmu_grp_idx_t {
@@ -66,7 +67,8 @@ enum tmu_grp_idx_t {
 	TZ_GPU = 3,
 	TZ_ISP = 4,
 	TZ_TPU = 5,
-	TZ_END = 6,
+	TZ_AUR = 6,
+	TZ_END = 7,
 };
 
 #if defined(CONFIG_SOC_GS101)
@@ -142,6 +144,8 @@ static struct thermal_zone_data tz_config[] = {
 			    TMU_P3_SENSOR_MASK | \
 			    TMU_P4_SENSOR_MASK | \
 			    TMU_P5_SENSOR_MASK)
+#define TZ_AUR_SENSOR_MASK (TMU_P14_SENSOR_MASK | \
+			    TMU_P15_SENSOR_MASK)
 
 static struct thermal_zone_data tz_config[] = {
 	[TZ_BIG] = {
@@ -167,6 +171,10 @@ static struct thermal_zone_data tz_config[] = {
 	[TZ_TPU] = {
 		.tmu_zone_id = TMU_SUB,
 		.sensors_mask = TZ_TPU_SENSOR_MASK,
+	},
+	[TZ_AUR] = {
+		.tmu_zone_id = TMU_SUB,
+		.sensors_mask = TZ_AUR_SENSOR_MASK,
 	},
 };
 #endif
