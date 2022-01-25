@@ -90,6 +90,8 @@
 		/* TODO (b/185767279): check the trigger & refclk pin usage. */
 
 		cirrus,bst-dcm-en = <0>;
+		cirrus,vibe-state;
+		cirrus,bst-expl-mode-disable;
 		status = "okay";
 
 		cs40l26_codec: cs40l26_codec@snd {
