@@ -132,13 +132,16 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 	/* Map the last page */
 	*map_cnt = 0;
 	if (ioc->map_page_va != ioc->pf_cache.va) {
-		unsigned long map_size;
+		unsigned long map_size, tailroom;
 		int ret;
 
 		if (!ioc->map_src_pa)
 			goto set_map;
 
 		map_size = page_size(virt_to_page(ioc->map_page_va));
+		tailroom = q->q_buff_pbase + q->q_buff_size - ioc->map_src_pa;
+		if (map_size > tailroom)
+			map_size = tailroom;
 
 		mif_debug("map idx:%u src_pa:0x%lX va:0x%p size:0x%lX\n",
 			  ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);

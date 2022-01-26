@@ -1830,6 +1830,11 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 	if (!ppa->use_netrx_mng) {
 		buff_size_by_q = ppa->buff_rgn_size / ppa->num_queue;
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		mif_info("Rounded down queue size from 0x%08x to 0x%08x\n",
+			 buff_size_by_q, rounddown(buff_size_by_q, SZ_4K));
+		buff_size_by_q = rounddown(buff_size_by_q, SZ_4K);
+#endif
 		ppa->buff_pbase = memaddr + ppa->buff_rgn_offset;
 		if (ppa->buff_rgn_cached) {
 			ppa->buff_vbase = phys_to_virt(ppa->buff_pbase);
