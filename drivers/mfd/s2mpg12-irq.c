@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
 #include <linux/gpio.h>
+#include <linux/wakeup_reason.h>
 #include <linux/mfd/samsung/s2mpg12.h>
 #include <linux/mfd/samsung/s2mpg12-register.h>
 
@@ -188,9 +189,13 @@ static void s2mpg12_report_irq(struct s2mpg12_dev *s2mpg12)
 		irq_reg[i] &= ~s2mpg12->irq_masks_cur[i];
 
 	/* Report */
-	for (i = 0; i < S2MPG12_IRQ_NR; i++)
-		if (irq_reg[s2mpg12_irqs[i].group] & s2mpg12_irqs[i].mask)
+	for (i = 0; i < S2MPG12_IRQ_NR; i++) {
+		if (irq_reg[s2mpg12_irqs[i].group] & s2mpg12_irqs[i].mask) {
 			handle_nested_irq(s2mpg12->irq_base + i);
+			log_threaded_irq_wakeup_reason(s2mpg12->irq_base + i,
+						       s2mpg12->irq);
+		}
+	}
 }
 
 static int s2mpg12_power_key_detection(struct s2mpg12_dev *s2mpg12)

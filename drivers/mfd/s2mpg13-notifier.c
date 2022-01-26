@@ -300,8 +300,11 @@ static int s2mpg13_notifier_handler(struct notifier_block *nb,
 		irq_reg_sub[i] &= ~s2mpg13->irq_masks_cur[i];
 
 	for (i = 0; i < S2MPG13_IRQ_NR; i++) {
-		if (irq_reg_sub[s2mpg13_irqs[i].group] & s2mpg13_irqs[i].mask)
+		if (irq_reg_sub[s2mpg13_irqs[i].group] & s2mpg13_irqs[i].mask) {
 			handle_nested_irq(s2mpg13->irq_base + i);
+			log_threaded_irq_wakeup_reason(s2mpg13->irq_base + i,
+						       s2mpg13->irq);
+		}
 	}
 
 	mutex_unlock(&s2mpg13->irqlock);
