@@ -606,8 +606,8 @@ static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 {
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
 	struct mem_link_device *mld = ld_to_mem_link_device(data->tpmon->ld);
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 #endif
 	unsigned int num_queue = 1;
@@ -630,25 +630,26 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 	tpmon_get_cpu_per_queue(val, q_cpu, num_queue, false);
 
 	for (i = 0; i < num_queue; i++) {
-		int q_irq = -1;
+		int q_irq = 0;
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 		if (ppa->use_napi)
 			pktproc_stop_napi_poll(ppa, i);
 
-		if (ppa->use_exclusive_irq)
-			q_irq = ppa->q[i]->irq;
+		q_irq = ppa->q[i]->irq;
+		if (q_irq && !ppa->use_exclusive_irq)
+			q_cpu[i] = data->extra_idx;
 #endif
 
-		mif_info("%s (q[%u] cpu:%u)\n", data->name, i, q_cpu[i]);
-		if (q_irq < 0) {
-			struct modem_ctl *mc = data->tpmon->ld->mc;
-
-			exynos_pcie_rc_set_affinity(mc->pcie_ch_num, q_cpu[i]);
-		} else {
+		if (q_irq) {
+			mif_info("%s (q[%u] cpu:%u)\n", data->name, i, q_cpu[i]);
 			irq_set_affinity_hint(q_irq, cpumask_of(q_cpu[i]));
 		}
 	}
+
+	/* The affinity of msi_irq_base is fixed, use the extra_idx */
+	if (mld->msi_irq_base)
+		exynos_pcie_rc_set_affinity(mc->pcie_ch_num, data->extra_idx);
 
 	kfree(q_cpu);
 }
