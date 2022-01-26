@@ -67,7 +67,6 @@
 
 		interrupt-names = "p9382_int";
 		idt,irq_gpio = <&gpa9 7 GPIO_ACTIVE_LOW>;
-		idt,gpio_qien = <&gpp27 3 GPIO_ACTIVE_HIGH>;
 		idt,has_wlc_dc = <0>;
 	};
 };
