@@ -55,6 +55,10 @@
 				/* Enable TRICKLE-DEFEND */
 				google,bd-trickle-enable;
 
+				/* record over temperature time */
+				google,temp-record-thr = <300 350 400>;
+				google,soc-record-thr = <90 90 95>;
+
 				#thermal-sensor-cells = <0>;
 				#cooling-cells = <2>;
 			};
