@@ -17,6 +17,7 @@
 #include <dt-bindings/soc/google/gs101-pm-qos.h>
 #include <dt-bindings/soc/google/debug-snapshot-def.h>
 #include "gs101-rmem.dtsi"
+#include "gs101-trusty.dtsi"
 #include "gs101-bigo.dtsi"
 #include "gs101-bts.dtsi"
 #include "gs101-cp-tm.dtsi"
