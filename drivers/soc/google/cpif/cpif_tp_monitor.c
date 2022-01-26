@@ -649,7 +649,7 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 
 	/* The affinity of msi_irq_base is fixed, use the extra_idx */
 	if (mld->msi_irq_base)
-		exynos_pcie_rc_set_affinity(mc->pcie_ch_num, data->extra_idx);
+		irq_set_affinity_hint(mld->msi_irq_base, cpumask_of(data->extra_idx));
 
 	kfree(q_cpu);
 }

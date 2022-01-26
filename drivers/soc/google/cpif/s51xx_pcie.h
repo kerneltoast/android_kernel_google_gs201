@@ -48,7 +48,6 @@ extern void exynos_pcie_set_perst_gpio(int ch_num, bool on);
 extern void exynos_pcie_set_ready_cto_recovery(int ch_num);
 /* not used: extern int exynos_pcie_gpio_onoff(int ch_num, int val); */
 /* not used(comment out): extern void exynos_pcie_msi_init_ext(int ch_num); */
-extern int exynos_pcie_rc_set_affinity(int ch_num, int affinity);
 /* ToDo: remove static inline */
 static inline int register_separated_msi_vector(int ch_num,
 						irq_handler_t handler, void *context,
