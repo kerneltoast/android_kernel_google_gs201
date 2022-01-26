@@ -6,7 +6,6 @@
  *
  */
 #include <dt-bindings/gpio/gpio.h>
-#include "gs101-common-trusty.dtsi"
 #include "gs201-common-audio.dtsi"
 #include "gs201-common-bluetooth.dtsi"
 #include "gs201-common-gps.dtsi"
