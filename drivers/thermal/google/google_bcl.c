@@ -668,7 +668,7 @@ static int google_bcl_miti_read_level(void *data, int *val, int id)
 {
 	struct bcl_device *bcl_dev = data;
 	int bcl_tz_cnt = bcl_dev->bcl_tz_cnt[id];
-	unsigned int bcl_lvl = bcl_dev->bcl_lvl[id];
+	unsigned int bcl_lvl = bcl_dev->bcl_read_lvl[id];
 
 	if ((bcl_tz_cnt != 0) && (bcl_tz_cnt < THERMAL_IRQ_COUNTER_LIMIT)) {
 		*val = bcl_lvl + THERMAL_HYST_LEVEL;
@@ -2102,7 +2102,8 @@ static ssize_t uvlo1_lvl_show(struct device *dev, struct device_attribute *attr,
 		return -EBUSY;
 	if (bcl_cb_uvlo1_read(bcl_dev, &uvlo1_lvl) < 0)
 		return -EINVAL;
-	bcl_dev->bcl_lvl[UVLO1] = VD_BATTERY_VOLTAGE - uvlo1_lvl - THERMAL_HYST_LEVEL;
+	bcl_dev->bcl_lvl[UVLO1] = VD_BATTERY_VOLTAGE - uvlo1_lvl;
+	bcl_dev->bcl_read_lvl[UVLO1] = VD_BATTERY_VOLTAGE - uvlo1_lvl - THERMAL_HYST_LEVEL;
 	return sysfs_emit(buf, "%dmV\n", uvlo1_lvl);
 }
 
@@ -2127,7 +2128,8 @@ static ssize_t uvlo1_lvl_store(struct device *dev,
 		return -EIO;
 	if (bcl_cb_uvlo1_write(bcl_dev, value) < 0)
 		return -EIO;
-	bcl_dev->bcl_lvl[UVLO1] = VD_BATTERY_VOLTAGE - value - THERMAL_HYST_LEVEL;
+	bcl_dev->bcl_lvl[UVLO1] = VD_BATTERY_VOLTAGE - value;
+	bcl_dev->bcl_read_lvl[UVLO1] = VD_BATTERY_VOLTAGE - value - THERMAL_HYST_LEVEL;
 	ret = bcl_dev->bcl_tz[UVLO1]->ops->set_trip_temp(bcl_dev->bcl_tz[UVLO1], 0,
 							 VD_BATTERY_VOLTAGE - value);
 	if (bcl_dev->bcl_tz[UVLO1])
@@ -2150,7 +2152,8 @@ static ssize_t uvlo2_lvl_show(struct device *dev, struct device_attribute *attr,
 		return -EBUSY;
 	if (bcl_cb_uvlo2_read(bcl_dev, &uvlo2_lvl) < 0)
 		return -EINVAL;
-	bcl_dev->bcl_lvl[UVLO2] = VD_BATTERY_VOLTAGE - uvlo2_lvl - THERMAL_HYST_LEVEL;
+	bcl_dev->bcl_lvl[UVLO2] = VD_BATTERY_VOLTAGE - uvlo2_lvl;
+	bcl_dev->bcl_read_lvl[UVLO2] = VD_BATTERY_VOLTAGE - uvlo2_lvl - THERMAL_HYST_LEVEL;
 	return sysfs_emit(buf, "%umV\n", uvlo2_lvl);
 }
 
@@ -2175,7 +2178,7 @@ static ssize_t uvlo2_lvl_store(struct device *dev,
 		return -EIO;
 	if (bcl_cb_uvlo2_write(bcl_dev, value) < 0)
 		return -EIO;
-	bcl_dev->bcl_lvl[UVLO2] = VD_BATTERY_VOLTAGE - value - THERMAL_HYST_LEVEL;
+	bcl_dev->bcl_lvl[UVLO2] = VD_BATTERY_VOLTAGE - value;
 	bcl_dev->bcl_read_lvl[UVLO2] = VD_BATTERY_VOLTAGE - value - THERMAL_HYST_LEVEL;
 	ret = bcl_dev->bcl_tz[UVLO2]->ops->set_trip_temp(bcl_dev->bcl_tz[UVLO2], 0,
 							 VD_BATTERY_VOLTAGE - value);
@@ -2221,7 +2224,7 @@ static ssize_t batoilo_lvl_store(struct device *dev,
 	}
 	if (bcl_cb_batoilo_write(bcl_dev, value) < 0)
 		return -EIO;
-	bcl_dev->bcl_lvl[BATOILO] = value - THERMAL_HYST_LEVEL;
+	bcl_dev->bcl_lvl[BATOILO] = value;
 	bcl_dev->bcl_read_lvl[BATOILO] = value - THERMAL_HYST_LEVEL;
 	ret = bcl_dev->bcl_tz[BATOILO]->ops->set_trip_temp(bcl_dev->bcl_tz[BATOILO], 0, value);
 	if (bcl_dev->bcl_tz[BATOILO])
@@ -3110,8 +3113,7 @@ static void google_bcl_intf_pmic_enable_timer(struct bcl_device *bcl_dev, int in
 	if (bcl_dev->bcl_tz_cnt[index] == 0) {
 		bcl_dev->bcl_tz_cnt[index] += 1;
 		if (bcl_dev->bcl_tz[index]) {
-			bcl_dev->bcl_read_lvl[index] = bcl_dev->bcl_lvl[index]
-					+ THERMAL_HYST_LEVEL;
+			bcl_dev->bcl_read_lvl[index] = bcl_dev->bcl_lvl[index];
 			thermal_zone_device_update(bcl_dev->bcl_tz[index],
 						   THERMAL_EVENT_UNSPECIFIED);
 		}
@@ -3135,13 +3137,13 @@ static int google_bcl_intf_pmic_work(struct bcl_device *bcl_dev, int idx)
 	}
 
 	if (vdroop_ok) {
+		bcl_dev->bcl_read_lvl[idx] = bcl_dev->bcl_lvl[idx] - THERMAL_HYST_LEVEL;
 		if (bcl_dev->bcl_tz_cnt[idx] != 0)
 			thermal_zone_device_update(bcl_dev->bcl_tz[idx],
 						   THERMAL_EVENT_UNSPECIFIED);
 		bcl_dev->bcl_tz_cnt[idx] = 0;
-		bcl_dev->bcl_read_lvl[idx] = bcl_dev->bcl_lvl[idx];
 	} else {
-		bcl_dev->bcl_read_lvl[idx] = bcl_dev->bcl_lvl[idx] + THERMAL_HYST_LEVEL;
+		bcl_dev->bcl_read_lvl[idx] = bcl_dev->bcl_lvl[idx];
 		mod_delayed_work(system_wq, irq_wq, msecs_to_jiffies(VD_DELAY));
 	}
 
@@ -3244,11 +3246,11 @@ static void google_set_intf_pmic_work(struct work_struct *work)
 	}
 	bcl_dev->batt_psy_initialized = false;
 
-	bcl_dev->bcl_lvl[UVLO1] = VD_BATTERY_VOLTAGE - uvlo1_lvl - THERMAL_HYST_LEVEL;
-	bcl_dev->bcl_lvl[UVLO2] = VD_BATTERY_VOLTAGE - uvlo2_lvl - THERMAL_HYST_LEVEL;
+	bcl_dev->bcl_lvl[UVLO1] = VD_BATTERY_VOLTAGE - uvlo1_lvl;
+	bcl_dev->bcl_lvl[UVLO2] = VD_BATTERY_VOLTAGE - uvlo2_lvl;
 	bcl_dev->bcl_lvl[BATOILO] = batoilo_lvl;
-	bcl_dev->bcl_read_lvl[UVLO1] = bcl_dev->bcl_lvl[UVLO1];
-	bcl_dev->bcl_read_lvl[UVLO2] = bcl_dev->bcl_lvl[UVLO2];
+	bcl_dev->bcl_read_lvl[UVLO1] = bcl_dev->bcl_lvl[UVLO1] - THERMAL_HYST_LEVEL;
+	bcl_dev->bcl_read_lvl[UVLO2] = bcl_dev->bcl_lvl[UVLO2] - THERMAL_HYST_LEVEL;
 	bcl_dev->bcl_read_lvl[BATOILO] = bcl_dev->bcl_lvl[BATOILO] - THERMAL_HYST_LEVEL;
 
 	bcl_dev->bcl_tz[UVLO1] = thermal_zone_of_sensor_register(bcl_dev->device, UVLO1, bcl_dev,
@@ -3499,6 +3501,7 @@ static int google_set_main_pmic(struct bcl_device *bcl_dev)
 	S2MPG1X_WRITE(MAIN, bcl_dev, ret, S2MPG12_PM_OFFSRC2, 0);
 	S2MPG1X_WRITE(MAIN, bcl_dev, ret, S2MPG12_PM_PWRONSRC, 0);
 #else
+	bcl_dev->main_pmic_i2c = main_dev->pmic;
 	/* clear S2MPG_10 information every boot */
 	/* see b/166671802#comment34 and b/195455000 */
 	S2MPG1X_READ(MAIN, bcl_dev, ret, S2MPG10_PM_OFFSRC, &val);

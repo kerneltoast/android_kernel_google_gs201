@@ -445,7 +445,8 @@
 				regulator-name = "S2MPG12_LDO16";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x30>;
 				schematic-name = "L16M_PCIE0";
 				subsys-name = "PCIE";
@@ -466,7 +467,8 @@
 				regulator-name = "S2MPG12_LDO18";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x32>;
 				schematic-name = "L18M_PCIE0";
 				subsys-name = "PCIE";
@@ -970,7 +972,8 @@
 				regulator-name = "S2MPG13_LDO3";
 				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1300000>;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x23>;
 				schematic-name = "L3S_PCIE1";
 				subsys-name = "PCIE";
@@ -1128,7 +1131,8 @@
 				regulator-name = "S2MPG13_LDO18";
 				regulator-min-microvolt = <1600000>;
 				regulator-max-microvolt = <1950000>;
-				regulator-initial-mode = <SEC_OPMODE_ON>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
 				channel-mux-selection = <0x32>;
 				schematic-name = "L18S_PCIE1";
 				subsys-name = "PCIE";

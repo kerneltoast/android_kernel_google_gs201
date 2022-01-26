@@ -353,8 +353,6 @@
 	phy-power-off = "false";
 	use-pcieon-sleep = "true";
 	ep-device-type = <EP_SAMSUNG_MODEM>;
-	vreg1-supply = <&m_ldo16_reg>;
-	vreg2-supply = <&m_ldo18_reg>;
 };
 
 &pcie_1 {	/* pcie ch1 used for the connection with WiFi on Slider */
@@ -367,8 +365,12 @@
 	max-link-speed = <LINK_SPEED_GEN2>;
 	ep-device-type = <EP_BCM_WIFI>;
 	pcie,wlan-gpio = <&gpp14 2 0x1 /* WLAN_EN */ >;
-	vreg1-supply = <&m_ldo17_reg>;
-	vreg2-supply = <&m_ldo19_reg>;
+};
+
+&aoc {
+	sensor_1v8-supply = <&s_ldo7_reg>;
+	sensor_3v3-supply = <&s_ldo6_reg>;
+	sensor_power_list = "sensor_1v8", "sensor_3v3";
 };
 
 &aoc {
