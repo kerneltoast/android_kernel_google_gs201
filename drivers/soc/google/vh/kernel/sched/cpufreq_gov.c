@@ -82,12 +82,9 @@ extern unsigned long cpu_util_cfs_group_mod(struct rq *rq);
 
 unsigned int map_scaling_freq(int cpu, unsigned int freq)
 {
-	struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
+	struct cpufreq_policy *policy = cpufreq_cpu_get_raw(cpu);
 
-	if (sg_cpu->sg_policy && sg_cpu->sg_policy->policy)
-		return clamp(freq, sg_cpu->sg_policy->policy->min, sg_cpu->sg_policy->policy->max);
-
-	return freq;
+	return policy ? clamp(freq, policy->min, policy->max) : freq;
 }
 
 /************************ Governor internals ***********************/
