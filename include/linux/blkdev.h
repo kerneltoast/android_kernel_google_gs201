@@ -1280,7 +1280,12 @@ extern struct blk_plug_cb *blk_check_plugged(blk_plug_cb_fn unplug,
 extern void blk_start_plug(struct blk_plug *);
 extern void blk_finish_plug(struct blk_plug *);
 
-void blk_flush_plug(struct blk_plug *plug, bool from_schedule);
+void __blk_flush_plug(struct blk_plug *plug, bool from_schedule);
+static inline void blk_flush_plug(struct blk_plug *plug, bool async)
+{
+	if (plug)
+		__blk_flush_plug(plug, async);
+}
 
 int blkdev_issue_flush(struct block_device *, gfp_t);
 long nr_blockdev_pages(void);
