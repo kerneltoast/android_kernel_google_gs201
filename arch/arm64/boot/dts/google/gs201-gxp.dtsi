@@ -43,4 +43,7 @@
 		gxp-debug-dump-region = <&gxp_debug_dump_reserved>;
 		gxp-scratchpad-region = <&gxp_scratchpad_reserved>;
 	};
+	gxp_cooling: gxp-cooling {
+		#cooling-cells = <2>;
+	};
 };
