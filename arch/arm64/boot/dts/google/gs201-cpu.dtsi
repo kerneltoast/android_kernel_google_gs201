@@ -363,4 +363,16 @@
 				  500000	300000 >;
 		};
 	};
+
+	pixel-em {
+		compatible = "google,pixel-em";
+		profile = "
+			cpu0 {
+			}
+			cpu4 {
+			}
+			cpu6 {
+			}
+		";
+	};
 };
