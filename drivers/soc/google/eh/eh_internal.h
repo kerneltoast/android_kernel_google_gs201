@@ -54,6 +54,9 @@ struct eh_device {
 	unsigned short fifo_index_mask;
 	unsigned short fifo_color_mask;
 
+	/* SW fifo queue to keep pending requests */
+	unsigned int sw_fifo_size;
+
 	/* cached copy of HW write index */
 	unsigned int write_index;
 

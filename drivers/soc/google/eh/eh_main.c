@@ -128,7 +128,7 @@ static void destroy_sw_fifo(struct eh_device *eh_dev)
 	}
 }
 
-static int create_sw_fifo(struct eh_device *eh_dev)
+static int create_sw_fifo(struct eh_device *eh_dev, int fifo_size)
 {
 	int i;
 	struct eh_request *req;
@@ -139,7 +139,7 @@ static int create_sw_fifo(struct eh_device *eh_dev)
 	spin_lock_init(&eh_dev->sw_fifo.lock);
 	INIT_LIST_HEAD(&eh_dev->sw_fifo.head);
 
-	for (i = 0; i < EH_SW_FIFO_SIZE; i++) {
+	for (i = 0; i < fifo_size; i++) {
 		req = kmalloc(sizeof(struct eh_request), GFP_KERNEL);
 		if (!req)
 			goto err;
@@ -147,6 +147,7 @@ static int create_sw_fifo(struct eh_device *eh_dev)
 	}
 	eh_dev->pool.count = i;
 	eh_dev->sw_fifo.count = 0;
+	eh_dev->sw_fifo_size = fifo_size;
 
 	return 0;
 err:
@@ -734,11 +735,12 @@ static int eh_comp_thread(void *data)
 }
 
 /* Initialize SW related stuff */
-static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
+static int eh_sw_init(struct eh_device *eh_dev, int error_irq,
+		      unsigned int fifo_size)
 {
 	int ret;
 
-	ret = create_sw_fifo(eh_dev);
+	ret = create_sw_fifo(eh_dev, fifo_size);
 	if (ret)
 		return ret;
 
@@ -1011,10 +1013,20 @@ static ssize_t nr_compressed_show(struct kobject *kobj,
 }
 EH_ATTR_RO(nr_compressed);
 
+static ssize_t sw_fifo_size_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	struct eh_device *eh_dev = container_of(kobj, struct eh_device, kobj);
+
+	return sysfs_emit(buf, "%u\n", eh_dev->sw_fifo_size);
+}
+EH_ATTR_RO(sw_fifo_size);
+
 static struct attribute *eh_attrs[] = {
 	&nr_stall_attr.attr,
 	&nr_run_attr.attr,
 	&nr_compressed_attr.attr,
+	&sw_fifo_size_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(eh);
@@ -1036,8 +1048,8 @@ static struct kobj_type eh_ktype = {
 
 /* EmeraldHill initialization entry */
 static int eh_init(struct device *device, struct eh_device *eh_dev,
-		   unsigned short fifo_size, phys_addr_t regs, int error_irq,
-		   unsigned short quirks)
+		   unsigned short fifo_size, unsigned int sw_fifo_size,
+		   phys_addr_t regs, int error_irq, unsigned short quirks)
 {
 	int ret;
 
@@ -1052,7 +1064,7 @@ static int eh_init(struct device *device, struct eh_device *eh_dev,
 	if (ret)
 		return ret;
 
-	ret = eh_sw_init(eh_dev, error_irq);
+	ret = eh_sw_init(eh_dev, error_irq, sw_fifo_size);
 	if (ret) {
 		eh_hw_deinit(eh_dev);
 		return ret;
@@ -1236,6 +1248,7 @@ static int eh_of_probe(struct platform_device *pdev)
 	int error_irq = 0;
 	unsigned short quirks = 0;
 	struct clk *clk;
+	int sw_fifo_size = EH_SW_FIFO_SIZE;
 
 	pr_info("starting probing\n");
 
@@ -1272,8 +1285,9 @@ static int eh_of_probe(struct platform_device *pdev)
 		goto put_disable_clk;
 	}
 
-	ret = eh_init(&pdev->dev, eh_dev, eh_default_fifo_size, mem->start,
-			 error_irq, quirks);
+	of_property_read_u32(pdev->dev.of_node, "eh,sw-fifo-size", &sw_fifo_size);
+	ret = eh_init(&pdev->dev, eh_dev, eh_default_fifo_size, sw_fifo_size,
+		      mem->start, error_irq, quirks);
 	if (ret)
 		goto free_ehdev;
 
