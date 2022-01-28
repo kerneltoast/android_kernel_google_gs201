@@ -674,15 +674,29 @@ static void eh_abort_incomplete_descriptors(struct eh_device *eh_dev)
 static int eh_comp_thread(void *data)
 {
 	struct eh_device *eh_dev = data;
+	DEFINE_WAIT(wait);
+	int nr_processed = 0;
 
 	current->flags |= PF_MEMALLOC;
 
 	while (!kthread_should_stop()) {
 		int ret;
 
-		wait_event_freezable(eh_dev->comp_wq,
-				(atomic_read(&eh_dev->nr_request) > 0) ||
-				!sw_fifo_empty(&eh_dev->sw_fifo));
+		prepare_to_wait(&eh_dev->comp_wq, &wait, TASK_IDLE);
+		if (atomic_read(&eh_dev->nr_request) == 0 &&
+		    sw_fifo_empty(&eh_dev->sw_fifo)) {
+			eh_dev->nr_compressed += nr_processed;
+			schedule();
+			nr_processed = 0;
+			/*
+			 * The condition check above is racy so the schedule
+			 * couldn't schedule out the process but it should be
+			 * rare and the stat doesn't need to be precise.
+			 */
+			eh_dev->nr_run++;
+		}
+		finish_wait(&eh_dev->comp_wq, &wait);
+
 		ret = eh_process_compress(eh_dev);
 		if (unlikely(ret < 0)) {
 			unsigned long error;
@@ -712,6 +726,8 @@ static int eh_comp_thread(void *data)
 
 		if (!fifo_full(eh_dev))
 			flush_sw_fifo(eh_dev);
+
+		nr_processed += ret;
 	}
 
 	return 0;
@@ -975,8 +991,30 @@ static ssize_t nr_stall_show(struct kobject *kobj, struct kobj_attribute *attr,
 }
 EH_ATTR_RO(nr_stall);
 
+static ssize_t nr_run_show(struct kobject *kobj,
+		struct kobj_attribute *attr,
+		char *buf)
+{
+	struct eh_device *eh_dev = container_of(kobj, struct eh_device, kobj);
+
+	return sysfs_emit(buf, "%lu\n", eh_dev->nr_run);
+}
+EH_ATTR_RO(nr_run);
+
+static ssize_t nr_compressed_show(struct kobject *kobj,
+		struct kobj_attribute *attr,
+		char *buf)
+{
+	struct eh_device *eh_dev = container_of(kobj, struct eh_device, kobj);
+
+	return sysfs_emit(buf, "%lu\n", eh_dev->nr_compressed);
+}
+EH_ATTR_RO(nr_compressed);
+
 static struct attribute *eh_attrs[] = {
 	&nr_stall_attr.attr,
+	&nr_run_attr.attr,
+	&nr_compressed_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(eh);

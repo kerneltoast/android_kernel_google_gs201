@@ -104,6 +104,11 @@ struct eh_device {
 
 	eh_cb_fn comp_callback;
 
+	/* how many compression request were processed */
+	unsigned long nr_compressed;
+	/* how many times the EH thread was running */
+	unsigned long nr_run;
+
 	/*
 	 * eh_request pool to avoid memory allocation when EH's HW queue
 	 * is full.
