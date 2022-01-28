@@ -54,6 +54,8 @@
 				google,bd-trickle-recharge-soc = <80>;
 				/* Enable TRICKLE-DEFEND */
 				google,bd-trickle-enable;
+				/* Battery virtual sensor */
+				google,batt-vs-tz-name = "batt_vs";
 
 				/* record over temperature time */
 				google,temp-record-thr = <300 350 400>;
