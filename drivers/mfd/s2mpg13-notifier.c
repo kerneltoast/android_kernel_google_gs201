@@ -329,63 +329,55 @@ void s2mpg13_call_notifier(void)
 }
 EXPORT_SYMBOL(s2mpg13_call_notifier);
 
-static int s2mpg13_unmask_interrupt(struct s2mpg13_dev *s2mpg13)
+static int s2mpg13_mask_inband_interrupts(struct s2mpg13_dev *s2mpg13)
 {
 	int ret;
-	/* unmask IRQM interrupt */
-	ret = s2mpg13_update_reg(s2mpg13->i2c, S2MPG13_COMMON_IBIM1,
-				 0x00, S2MPG13_IRQSRC_MASK);
-	if (ret)
-		return -EIO;
 
-	return 0;
+	/* mask IRQM interrupt (PM region interrupt) */
+	ret = s2mpg13_update_reg(s2mpg13->i2c, S2MPG13_COMMON_IBIM1,
+				S2MPG13_IRQSRC_MASK, S2MPG13_IRQSRC_MASK);
+
+	return ret;
+}
+
+static int s2mpg13_unmask_inband_interrupts(struct s2mpg13_dev *s2mpg13)
+{
+	int ret;
+
+	/* unmask IRQM interrupt (PM region interrupt) */
+	ret = s2mpg13_update_reg(s2mpg13->i2c, S2MPG13_COMMON_IBIM1,
+				0x00, S2MPG13_IRQSRC_MASK);
+
+	return ret;
 }
 
 static int s2mpg13_set_interrupt(struct s2mpg13_dev *s2mpg13)
 {
-	u8 i, val;
-	int ret;
+	int i;
 
-	/* Mask all the interrupt sources */
+	/* mask individual interrupt sources */
 	for (i = 0; i < S2MPG13_IRQ_GROUP_NR; i++) {
-		if (i < S2MPG13_IRQS_METER_INT1)
-			ret = s2mpg13_write_reg(s2mpg13->pmic, s2mpg13_mask_reg[i], 0xFF);
-		else
-			ret = s2mpg13_write_reg(s2mpg13->meter, s2mpg13_mask_reg[i], 0xFF);
+		u8 mask_reg = s2mpg13_mask_reg[i];
+		struct i2c_client *i2c = get_i2c(s2mpg13, i);
 
-		if (ret)
-			goto err;
+		s2mpg13->irq_masks_cur[i] = 0xFF;
+		s2mpg13->irq_masks_cache[i] = 0xFF;
+
+		if (mask_reg == S2MPG13_REG_INVALID || IS_ERR_OR_NULL(i2c))
+			continue;
+
+		s2mpg13_write_reg(i2c, s2mpg13_mask_reg[i], 0xFF);
 	}
 
-	ret = s2mpg13_update_reg(s2mpg13->i2c, S2MPG13_COMMON_IBIM1,
-				 S2MPG13_IRQSRC_MASK, S2MPG13_IRQSRC_MASK);
+	/* mask inband interrupts */
+	if (s2mpg13_mask_inband_interrupts(s2mpg13))
+		dev_err(s2mpg13->dev, "Mask ibi interrupt fail\n");
 
-	if (ret)
-		goto err;
-
-	/* Unmask interrupt sources */
-	ret = s2mpg13_unmask_interrupt(s2mpg13);
-	if (ret < 0) {
-		dev_err(s2mpg13->dev, "Unmask interrupt fail\n");
-		goto err;
-	}
-
-	/* Check unmask interrupt register */
-	for (i = 0; i < S2MPG13_IRQ_GROUP_NR; i++) {
-		if (i < S2MPG13_IRQS_METER_INT1)
-			ret = s2mpg13_read_reg(s2mpg13->pmic, s2mpg13_mask_reg[i], &val);
-		else
-			ret = s2mpg13_read_reg(s2mpg13->meter, s2mpg13_mask_reg[i], &val);
-
-		if (ret)
-			goto err;
-
-		dev_info(s2mpg13->dev, "INT%dM = 0x%02hhx\n", i + 1, val);
-	}
+	/* unmask inband interrupts */
+	if (s2mpg13_unmask_inband_interrupts(s2mpg13))
+		dev_err(s2mpg13->dev, "Unmask ibi interrupt fail\n");
 
 	return 0;
-err:
-	return -1;
 }
 
 static int s2mpg13_set_wqueue(struct s2mpg13_dev *s2mpg13)
