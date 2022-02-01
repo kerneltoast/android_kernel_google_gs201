@@ -10,3 +10,8 @@
 &pca9468_dc {
 	pca9468,input-current-limit = <2200000>;
 };
+
+&google_charger {
+	google,thermal-mitigation = <4300000 3680000 2300000 1000000>;
+	google,wlc-fcc-thermal-mitigation = <4300000 4300000 2300000 1150000 1000000>;
+};

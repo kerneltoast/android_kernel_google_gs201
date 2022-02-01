@@ -41,11 +41,8 @@
 
 				google,fv-max-uv = <4450000>;
 
-				google,thermal-mitigation = <4000000 3000000
-							2000000 1000000 500000>;
 				google,wlc-thermal-mitigation = <1100000 500000 250000 110000>;
-				google,wlc-fcc-thermal-limits = <4000000 3000000
-							2000000 1000000 500000>;
+				google,therm-wlc-overrides-fcc;
 
 				/* b/170700459 thresholds, updated in b/191070950 */
 				google,bd-resume-abs-temp = <280>;
@@ -65,6 +62,14 @@
 
 			google_bms {
 				nvmem = <&pack_bee>;
+			};
+
+			google_wlc_charger: google,wlc_charger {
+				#cooling-cells = <2>;
+			};
+
+			google_wlc_fcc_charger: google,wlc_fcc_charger {
+				#cooling-cells = <2>;
 			};
 
 		};
