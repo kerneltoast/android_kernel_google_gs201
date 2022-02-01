@@ -687,6 +687,8 @@ static int s2mpg12_meter_probe(struct platform_device *pdev)
 	s2mpg12_ext_meter_onoff(s2mpg12, false);
 
 #else
+	s2mpg12_meter_set_lpf_mode(s2mpg12, S2MPG1X_METER_POWER);
+
 	ret = mfd_add_devices(s2mpg12->dev, -1, s2mpg12_meter_devs,
 			      ARRAY_SIZE(s2mpg12_meter_devs), NULL, 0, NULL);
 	if (ret < 0) {

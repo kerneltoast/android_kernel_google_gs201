@@ -709,6 +709,8 @@ static int s2mpg13_meter_probe(struct platform_device *pdev)
 	s2mpg13_ext_meter_onoff(s2mpg13, false);
 
 #else
+	s2mpg13_meter_set_lpf_mode(s2mpg13, S2MPG1X_METER_POWER);
+
 	ret = mfd_add_devices(s2mpg13->dev, -1, s2mpg13_meter_devs,
 			      ARRAY_SIZE(s2mpg13_meter_devs), NULL, 0, NULL);
 	if (ret < 0) {
