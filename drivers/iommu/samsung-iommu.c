@@ -495,8 +495,15 @@ static sysmmu_pte_t *alloc_lv2entry(struct samsung_sysmmu_domain *domain,
 				    atomic_t *pgcounter)
 {
 	if (lv1ent_section(sent)) {
-		WARN(1, "trying mapping on %#08x mapped with 1MiB page", iova);
+		WARN(1, "Trying to install second level page table for va %#010x over valid 1MB descriptor: %#010x",
+		     iova, *sent);
 		return ERR_PTR(-EADDRINUSE);
+	}
+
+	if (!(lv1ent_page(sent) || *sent == 0)) {
+		pr_crit("Found invalid first level page descriptor %#010x when trying to map va %#010x",
+			*sent, iova);
+		BUG();
 	}
 
 	if (lv1ent_unmapped(sent)) {
@@ -538,13 +545,15 @@ static int lv1set_section(struct samsung_sysmmu_domain *domain,
 	sysmmu_pte_t *pent_to_free = NULL;
 
 	if (lv1ent_section(sent)) {
-		WARN(1, "Trying mapping 1MB@%#08x on valid FLPD", iova);
+		WARN(1, "Trying to map 1MB@%#010x over valid 1MB descriptor: %#010x",
+		     iova, *sent);
 		return -EADDRINUSE;
 	}
 
 	if (lv1ent_page(sent)) {
-		if (WARN_ON(atomic_read(pgcnt) != 0)) {
-			WARN(1, "Trying mapping 1MB@%#08x on valid SLPD", iova);
+		if (atomic_read(pgcnt) != 0) {
+			WARN(1, "Trying to map 1MB@%#010x over base address of second level page table: %#010x",
+			     iova, *sent);
 			return -EADDRINUSE;
 		}
 
