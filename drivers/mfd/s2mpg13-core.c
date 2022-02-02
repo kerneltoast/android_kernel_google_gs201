@@ -348,16 +348,18 @@ static int s2mpg13_i2c_probe(struct i2c_client *i2c,
 	}
 
 	ret = s2mpg13_notifier_init(s2mpg13);
-	if (ret < 0)
+	if (ret) {
 		dev_err(s2mpg13->dev, "s2mpg13_notifier_init fail\n");
+		goto err_w_lock;
+	}
 
 	ret = mfd_add_devices(s2mpg13->dev, -1, s2mpg13_devs,
 			      ARRAY_SIZE(s2mpg13_devs), NULL, 0, NULL);
-	if (ret < 0)
+	if (ret)
 		goto err_mfd;
 
 	ret = device_init_wakeup(s2mpg13->dev, pdata->wakeup);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(s2mpg13->dev, "device_init_wakeup fail(%d)\n", ret);
 		goto err_mfd;
 	}

@@ -118,8 +118,8 @@ struct s2mpg13_dev {
 
 	/* mutex for s2mpg13 irq handling */
 	struct mutex irqlock;
-	int irq_masks_cur[S2MPG13_IRQ_GROUP_NR];
-	int irq_masks_cache[S2MPG13_IRQ_GROUP_NR];
+	u8 irq_masks_cur[S2MPG13_IRQ_GROUP_NR];
+	u8 irq_masks_cache[S2MPG13_IRQ_GROUP_NR];
 
 	/* Work queue */
 	struct workqueue_struct *irq_wqueue;

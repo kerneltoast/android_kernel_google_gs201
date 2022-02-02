@@ -358,8 +358,8 @@ static irqreturn_t s2mpg13_spmic_thermal_irq(int irq, void *data)
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
 		if ((chip->sensor[i].ot_irq == irq) || (chip->sensor[i].ut_irq == irq)) {
-			dev_info_ratelimited(dev, "PMIC_THERM[%d] IRQ, %d\n", i,
-					     irq);
+			dev_info_ratelimited(dev, "PMIC_THERM[%d] IRQ, %d ot_irq:%d\n", i,
+					     irq, (chip->sensor[i].ot_irq == irq));
 			thermal_zone_device_update(chip->sensor[i].tzd,
 						   THERMAL_EVENT_UNSPECIFIED);
 			return IRQ_HANDLED;
