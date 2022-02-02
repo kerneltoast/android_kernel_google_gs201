@@ -258,4 +258,10 @@ config SYSRQ_HOOK
 	help
 	Modules for sysrq hooks.
 
+config PKVM_S2MPU
+	tristate "S2MPU driver compatible with pKVM"
+	default n
+	help
+	This module is a driver for the stage-2 IOMMU controlled by hypervisor.
+
 endmenu
