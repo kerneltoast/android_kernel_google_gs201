@@ -16,24 +16,38 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/power_supply.h>
 #include <linux/usb/tcpm.h>
 
 #include "../tcpci.h"
 #include "tcpci_max77759.h"
 
 #define POGO_TIMEOUT_MS 10000
+#define POGO_USB_CAPABLE_THRESHOLD_UV 10500000
+#define POGO_USB_RETRY_THRESHOLD_UV 7000000
+#define POGO_USB_RETRY_COUNT 10
+#define POGO_USB_RETRY_INTEREVAL_MS 100
+#define POGO_PSY_DEBOUNCE_MS 50
+
+enum pogo_event_type {
+	/* Reported when docking status changes */
+	EVENT_DOCKING,
+	/* Enable USB-C data, when pogo usb data is active */
+	EVENT_MOVE_DATA_TO_USB,
+	/* Retry reading power supply voltage to detect dock type */
+	EVENT_RETRY_READ_VOLTAGE,
+	/* Reported when data over USB-C is enabled/disabled */
+	EVENT_DATA_ACTIVE_CHANGED,
+};
 
 static bool modparam_force_usb;
 module_param_named(force_usb, modparam_force_usb, bool, 0644);
 MODULE_PARM_DESC(force_usb, "Force enabling usb path over pogo");
 
 struct pogo_event {
-	struct kthread_work work;
+	struct kthread_delayed_work work;
 	struct pogo_transport *pogo_transport;
-	/* Pogo connection is capable of usb transport. */
-	bool pogo_usb_capable;
-	/* Enable USB-C data, when pogo usb data is active */
-	bool move_data_to_usb;
+	enum pogo_event_type event_type;
 };
 
 struct pogo_transport {
@@ -50,36 +64,98 @@ struct pogo_transport {
 	/* When true, both pogo and usb-c have equal priority. */
 	bool equal_priority;
 	struct kthread_worker *wq;
+	/* To read voltage at the pogo pins */
+	struct power_supply *pogo_psy;
+	/* Retry when voltage is less than POGO_USB_RETRY_THRESHOLD_UV */
+	unsigned int retry_count;
+	/*
+	 * To overcome transients, check once before not enabling pogo usb
+	 * when voltage is greater than POGO_USB_RETRY_THRESHOLD_UV and
+	 * lesser than POGO_USB_CAPABLE_THRESHOLD_UV.
+	 */
+	bool likely_usb_not_capable;
 };
+
+static void pogo_transport_event(struct pogo_transport *pogo_transport,
+				 enum pogo_event_type event_type, int delay_ms);
 
 static void update_pogo_transport(struct kthread_work *work)
 {
-	struct pogo_event *event = container_of(work, struct pogo_event, work);
+	struct pogo_event *event =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct pogo_event, work);
 	struct pogo_transport *pogo_transport = event->pogo_transport;
 	struct max77759_plat *chip = pogo_transport->chip;
 	int ret;
+	union power_supply_propval voltage_now = {0};
+	bool docked = !gpio_get_value(pogo_transport->pogo_gpio);
 
-	mutex_lock(&chip->data_path_lock);
-	pogo_transport->pogo_usb_capable = event->pogo_usb_capable;
+	ret = power_supply_get_property(pogo_transport->pogo_psy, POWER_SUPPLY_PROP_VOLTAGE_NOW,
+					&voltage_now);
+	if (ret) {
+		dev_err(pogo_transport->dev, "%s voltage now read err: %d\n", __func__, ret);
+		goto free;
+	}
+
+	if (event->event_type == EVENT_DOCKING || event->event_type == EVENT_RETRY_READ_VOLTAGE) {
+		if (docked) {
+			dev_info(pogo_transport->dev, "%s voltage_now:%d\n", __func__,
+				 voltage_now.intval);
+			if (voltage_now.intval >= POGO_USB_CAPABLE_THRESHOLD_UV) {
+				pogo_transport->pogo_usb_capable = true;
+			} else if (voltage_now.intval <= POGO_USB_RETRY_THRESHOLD_UV) {
+				dev_info(pogo_transport->dev, "%s retry count:%d\n", __func__,
+					 pogo_transport->retry_count);
+				if (pogo_transport->retry_count < POGO_USB_RETRY_COUNT) {
+					pogo_transport->retry_count++;
+					pogo_transport_event(pogo_transport,
+							     EVENT_RETRY_READ_VOLTAGE,
+							     POGO_USB_RETRY_INTEREVAL_MS);
+				}
+				goto free;
+			} else {
+				/*
+				 * Retry to avoid transients, ideally rise time should not
+				 * be more than 30ms.
+				 */
+				if (!pogo_transport->likely_usb_not_capable) {
+					pogo_transport_event(pogo_transport,
+							     EVENT_RETRY_READ_VOLTAGE,
+							     POGO_USB_RETRY_INTEREVAL_MS);
+					pogo_transport->likely_usb_not_capable = true;
+					goto free;
+				} else {
+					pogo_transport->pogo_usb_capable = false;
+				}
+			}
+		} else {
+			/* Clear retry count when un-docked */
+			pogo_transport->retry_count = 0;
+			pogo_transport->pogo_usb_capable = false;
+			pogo_transport->likely_usb_not_capable = false;
+		}
+	}
+
 	dev_info(pogo_transport->dev,
-		 "%s force_usb:%d pogo_usb:%d pogo_usb_active:%d data_active:%d move_data_to_usb:%d",
+		 "%s event:%d force_usb:%d pogo_usb:%d pogo_usb_active:%d data_active:%d voltage_now:%d\n",
 		 __func__,
+		 event->event_type,
 		 modparam_force_usb ? 1 : 0,
 		 pogo_transport->pogo_usb_capable ? 1 : 0,
 		 pogo_transport->pogo_usb_active ? 1 : 0,
 		 chip->data_active ? 1 : 0,
-		 event->move_data_to_usb ? 1 : 0);
+		 voltage_now.intval);
 
+	mutex_lock(&chip->data_path_lock);
 	if (modparam_force_usb) {
 		goto exit;
 	} else if (pogo_transport->pogo_usb_capable && !pogo_transport->pogo_usb_active) {
 		/*
 		 * Pogo treated with same priority as USB-C, hence skip enabling
 		 * pogo usb as USB-C is active.
-		 * TODO: requeue when data_active is false;
 		 */
 		if (chip->data_active && pogo_transport->equal_priority) {
-			dev_info(pogo_transport->dev, "usb active, skipping enable pogo usb");
+			dev_info(pogo_transport->dev, "usb active, skipping enable pogo usb\n");
 			goto exit;
 		}
 		data_alt_path_active(chip, true);
@@ -100,7 +176,8 @@ static void update_pogo_transport(struct kthread_work *work)
 		logbuffer_log(chip->log, "%s: %s turning on host for Pogo", __func__, ret < 0 ?
 			      "Failed" : "Succeeded");
 		pogo_transport->pogo_usb_active = true;
-	} else if ((!pogo_transport->pogo_usb_capable || event->move_data_to_usb) &&
+	} else if ((!pogo_transport->pogo_usb_capable ||
+		    event->event_type == EVENT_MOVE_DATA_TO_USB) &&
 		   pogo_transport->pogo_usb_active) {
 		ret = extcon_set_state_sync(chip->extcon, EXTCON_USB_HOST, 0);
 		logbuffer_log(chip->log, "%s: %s turning off host for Pogo", __func__, ret < 0 ?
@@ -115,10 +192,12 @@ static void update_pogo_transport(struct kthread_work *work)
 exit:
 	mutex_unlock(&chip->data_path_lock);
 	kobject_uevent(&pogo_transport->dev->kobj, KOBJ_CHANGE);
+free:
 	devm_kfree(pogo_transport->dev, event);
 }
 
-static void pogo_transport_event(struct pogo_transport *pogo_transport, bool move_data_to_usb)
+static void pogo_transport_event(struct pogo_transport *pogo_transport,
+				 enum pogo_event_type event_type, int delay_ms)
 {
 	struct pogo_event *evt;
 
@@ -127,14 +206,10 @@ static void pogo_transport_event(struct pogo_transport *pogo_transport, bool mov
 		logbuffer_log(pogo_transport->log, "POGO: Dropping event");
 		return;
 	}
-	kthread_init_work(&evt->work, update_pogo_transport);
+	kthread_init_delayed_work(&evt->work, update_pogo_transport);
 	evt->pogo_transport = pogo_transport;
-	evt->pogo_usb_capable = !gpio_get_value(pogo_transport->pogo_gpio);
-	if (move_data_to_usb)
-		evt->move_data_to_usb = true;
-	else
-		kobject_uevent(&pogo_transport->dev->kobj, KOBJ_CHANGE);
-	kthread_queue_work(pogo_transport->wq, &evt->work);
+	evt->event_type = event_type;
+	kthread_mod_delayed_work(pogo_transport->wq, &evt->work, msecs_to_jiffies(delay_ms));
 }
 
 static irqreturn_t pogo_irq(int irq, void *dev_id)
@@ -142,8 +217,13 @@ static irqreturn_t pogo_irq(int irq, void *dev_id)
 	struct pogo_transport *pogo_transport = dev_id;
 
 	logbuffer_log(pogo_transport->log, "Pogo threaded irq running");
-	/* Signal pogo status change event */
-	pogo_transport_event(pogo_transport, false);
+	/*
+	 * Signal pogo status change event.
+	 * Debounce on docking to differentiate between different docks by
+	 * reading power supply voltage.
+	 */
+	pogo_transport_event(pogo_transport, EVENT_DOCKING,
+			     !gpio_get_value(pogo_transport->pogo_gpio) ? POGO_PSY_DEBOUNCE_MS : 0);
 	return IRQ_HANDLED;
 }
 
@@ -152,7 +232,7 @@ static void data_active_changed(void *data)
 	struct pogo_transport *pogo_transport = data;
 
 	logbuffer_log(pogo_transport->log, "data active changed");
-	pogo_transport_event(pogo_transport, false);
+	pogo_transport_event(pogo_transport, EVENT_DATA_ACTIVE_CHANGED, 0);
 }
 
 static irqreturn_t pogo_isr(int irq, void *dev_id)
@@ -180,14 +260,16 @@ static int init_pogo_alert_gpio(struct pogo_transport *pogo_transport)
 	ret = devm_gpio_request(pogo_transport->dev, pogo_transport->pogo_gpio,
 				"pogo-transport-status");
 	if (ret) {
-		dev_err(pogo_transport->dev, "failed to request pogo-transport-status gpio, ret:%d",
+		dev_err(pogo_transport->dev,
+			"failed to request pogo-transport-status gpio, ret:%d\n",
 			ret);
 		return ret;
 	}
 
 	ret = gpio_direction_input(pogo_transport->pogo_gpio);
 	if (ret) {
-		dev_err(pogo_transport->dev, "failed set pogo-transport-status as input, ret:%d",
+		dev_err(pogo_transport->dev,
+			"failed set pogo-transport-status as input, ret:%d\n",
 			ret);
 		return ret;
 	}
@@ -226,14 +308,14 @@ static int init_pogo_alert_gpio(struct pogo_transport *pogo_transport)
 	ret = devm_gpio_request(pogo_transport->dev, pogo_transport->pogo_data_mux_gpio,
 				"pogo-transport-sel");
 	if (ret) {
-		dev_err(pogo_transport->dev, "failed to request pogo-transport-sel gpio, ret:%d",
+		dev_err(pogo_transport->dev, "failed to request pogo-transport-sel gpio, ret:%d\n",
 			ret);
 		goto disable_irq;
 	}
 
 	ret = gpio_direction_output(pogo_transport->pogo_data_mux_gpio, 0);
 	if (ret) {
-		dev_err(pogo_transport->dev, "failed set pogo-transport-sel as output, ret:%d",
+		dev_err(pogo_transport->dev, "failed set pogo-transport-sel as output, ret:%d\n",
 			ret);
 		goto disable_irq;
 	}
@@ -254,9 +336,10 @@ static int pogo_transport_probe(struct platform_device *pdev)
 {
 	struct pogo_transport *pogo_transport;
 	int ret = 0;
-	struct device_node *data_np;
+	struct device_node *data_np, *dn;
 	struct i2c_client *data_client;
 	struct max77759_plat *chip;
+	char *pogo_psy_name;
 
 	data_np = of_parse_phandle(pdev->dev.of_node, "data-phandle", 0);
 	if (!data_np) {
@@ -301,10 +384,31 @@ static int pogo_transport_probe(struct platform_device *pdev)
 		goto unreg_logbuffer;
 	}
 
+	dn = dev_of_node(pogo_transport->dev);
+	if (!dn) {
+		dev_err(pogo_transport->dev, "of node not found\n");
+		ret = -EINVAL;
+		goto destroy_worker;
+	}
+
+	pogo_psy_name = (char *)of_get_property(dn, "pogo-psy-name", NULL);
+	if (!pogo_psy_name) {
+		dev_err(pogo_transport->dev, "pogo-psy-name not set\n");
+		ret = -EINVAL;
+		goto destroy_worker;
+	}
+
+	pogo_transport->pogo_psy = power_supply_get_by_name(pogo_psy_name);
+	if (IS_ERR_OR_NULL(pogo_transport->pogo_psy)) {
+		dev_err(pogo_transport->dev, "pogo psy not up\n");
+		ret = -EPROBE_DEFER;
+		goto destroy_worker;
+	}
+
 	ret = init_pogo_alert_gpio(pogo_transport);
 	if (ret) {
 		logbuffer_log(pogo_transport->log, "init_pogo_alert_gpio error:%d\n", ret);
-		goto destroy_worker;
+		goto psy_put;
 	}
 
 	register_data_active_callback(data_active_changed, pogo_transport);
@@ -313,6 +417,8 @@ static int pogo_transport_probe(struct platform_device *pdev)
 	of_node_put(data_np);
 	return 0;
 
+psy_put:
+	power_supply_put(pogo_transport->pogo_psy);
 destroy_worker:
 	kthread_destroy_worker(pogo_transport->wq);
 unreg_logbuffer:
@@ -330,6 +436,7 @@ static int pogo_transport_remove(struct platform_device *pdev)
 
 	disable_irq_wake(pogo_transport->pogo_irq);
 	devm_free_irq(pogo_transport->dev, pogo_transport->pogo_irq, pogo_transport);
+	power_supply_put(pogo_transport->pogo_psy);
 	kthread_destroy_worker(pogo_transport->wq);
 	logbuffer_unregister(pogo_transport->log);
 
@@ -367,7 +474,7 @@ static ssize_t move_data_to_usb_store(struct device *dev, struct device_attribut
 	if (enable != 1)
 		return -EINVAL;
 
-	pogo_transport_event(pogo_transport, true);
+	pogo_transport_event(pogo_transport, EVENT_MOVE_DATA_TO_USB, 0);
 
 	return size;
 }
