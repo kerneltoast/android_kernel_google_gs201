@@ -575,7 +575,8 @@ void enable_data_path_locked(struct max77759_plat *chip)
 		dev_info(chip->dev, "TCPM_DEBUG %s turning on %s", ret < 0 ? "Failed" : "Succeeded",
 			 chip->data_role == TYPEC_HOST ? "Host" : "Device");
 		chip->data_active = true;
-		(*data_active_callback)(data_active_payload);
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 		chip->active_data_role = chip->data_role;
 	} else if (chip->data_active && (!chip->attached || !enable_data)) {
 		ret = extcon_set_state_sync(chip->extcon, chip->active_data_role == TYPEC_HOST ?
@@ -585,7 +586,8 @@ void enable_data_path_locked(struct max77759_plat *chip)
 		dev_info(chip->dev, "TCPM_DEBUG %s turning off %s", ret < 0 ? "Failed" :
 			 "Succeeded", chip->active_data_role == TYPEC_HOST ? "Host" : "Device");
 		chip->data_active = false;
-		(*data_active_callback)(data_active_payload);
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 		if  (chip->active_data_role == TYPEC_HOST) {
 			ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_DISCONNECT);
 			logbuffer_log(chip->log, "Turning off dp switches %s", ret < 0 ? "fail" :
@@ -1442,7 +1444,8 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 			      chip->active_data_role == TYPEC_HOST ? "Host"
 			      : "Device");
 		chip->data_active = false;
-		(*data_active_callback)(data_active_payload);
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 
 		if  (chip->active_data_role == TYPEC_HOST) {
 			ret = max77759_write8(chip->data.regmap, TCPC_VENDOR_USBSW_CTRL,
@@ -1657,7 +1660,8 @@ static ssize_t force_device_mode_on_write(struct file *file, const char __user *
 			      "Failed" : "Succeeded", chip->active_data_role == TYPEC_HOST ?
 			      "Host" : "Device");
 		chip->data_active = false;
-		(*data_active_callback)(data_active_payload);
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 	}
 
 	if (result && !chip->data_active) {
@@ -1665,7 +1669,8 @@ static ssize_t force_device_mode_on_write(struct file *file, const char __user *
 		logbuffer_log(chip->log, "%s: %s turning on device", __func__, ret < 0 ? "Failed" :
 			      "Succeeded");
 		chip->data_active = !ret;
-		(*data_active_callback)(data_active_payload);
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 		chip->active_data_role = TYPEC_DEVICE;
 
 	} else if (!result) {
