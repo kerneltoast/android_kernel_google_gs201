@@ -8,6 +8,7 @@
 #include <linux/ipv6.h>
 #include "modem_prj.h"
 #include "modem_utils.h"
+#include "modem_ctrl.h"
 #include "link_device_memory.h"
 #include "cpif_tp_monitor.h"
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
@@ -607,6 +608,7 @@ static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 {
 	struct mem_link_device *mld = ld_to_mem_link_device(data->tpmon->ld);
+	struct modem_ctl *mc = data->tpmon->ld->mc;
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	struct pktproc_adaptor *ppa = &mld->pktproc;
 #endif
@@ -637,21 +639,25 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 			pktproc_stop_napi_poll(ppa, i);
 
 		q_irq = ppa->q[i]->irq;
-		if (q_irq && !ppa->use_exclusive_irq)
+#endif
+
+		if (!q_irq)
+			break;
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+		if (!ppa->use_exclusive_irq)
 			q_cpu[i] = data->extra_idx;
 #endif
 
-		if (q_irq) {
-			mif_info("%s (q[%u] cpu:%u)\n", data->name, i, q_cpu[i]);
-			irq_set_affinity_hint(q_irq, cpumask_of(q_cpu[i]));
-		}
+		mif_info("%s (q[%u] cpu:%u)\n", data->name, i, q_cpu[i]);
+		mld->msi_irq_q_cpu[i] = q_cpu[i];
 	}
 
-	/* The affinity of msi_irq_base is fixed, use the extra_idx */
-	if (mld->msi_irq_base)
-		irq_set_affinity_hint(mld->msi_irq_base, cpumask_of(data->extra_idx));
-
 	kfree(q_cpu);
+
+	/* The affinity of msi_irq_base is fixed, use the extra_idx */
+	mld->msi_irq_base_cpu = data->extra_idx;
+	s5100_set_pcie_irq_affinity(mc);
 }
 #endif
 

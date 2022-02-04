@@ -1536,6 +1536,38 @@ exit:
 	return 0;
 }
 
+void s5100_set_pcie_irq_affinity(struct modem_ctl *mc)
+{
+	struct link_device *ld = get_current_link(mc->iod);
+	struct mem_link_device *mld = to_mem_link_device(ld);
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+#endif
+	unsigned int num_queue = 1;
+	unsigned int i;
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	if (ppa->use_exclusive_irq)
+		num_queue = ppa->num_queue;
+#endif
+
+	for (i = 0; i < num_queue; i++) {
+		int q_irq = 0;
+
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+		q_irq = ppa->q[i]->irq;
+#endif
+
+		if (!q_irq)
+			break;
+
+		irq_set_affinity_hint(q_irq, cpumask_of(mld->msi_irq_q_cpu[i]));
+	}
+
+	if (mld->msi_irq_base)
+		irq_set_affinity_hint(mld->msi_irq_base, cpumask_of(mld->msi_irq_base_cpu));
+}
+
 int s5100_set_outbound_atu(struct modem_ctl *mc, struct cp_btl *btl, loff_t *pos, u32 map_size)
 {
 	int ret = 0;
@@ -1584,6 +1616,8 @@ static int resume_cp(struct modem_ctl *mc)
 	if (!mc)
 		return 0;
 
+	s5100_set_pcie_irq_affinity(mc);
+
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 
 	if (!mc->s2mpu)
@@ -1601,6 +1635,7 @@ static int resume_cp(struct modem_ctl *mc)
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE], 1, 0);
 	mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE], true);
 #endif
+
 	return 0;
 }
 

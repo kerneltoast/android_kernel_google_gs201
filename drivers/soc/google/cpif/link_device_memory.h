@@ -363,6 +363,8 @@ struct mem_link_device {
 	int msi_irq_base;
 	bool msi_irq_wake;
 	bool msi_irq_enabled;
+	u32 msi_irq_base_cpu;
+	u32 msi_irq_q_cpu[PKTPROC_MAX_QUEUE];
 #endif
 
 	u32 __iomem *srinfo_base;
