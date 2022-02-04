@@ -74,10 +74,31 @@ struct pogo_transport {
 	 * lesser than POGO_USB_CAPABLE_THRESHOLD_UV.
 	 */
 	bool likely_usb_not_capable;
+	/* To signal userspace extcon observer */
+	struct extcon_dev *extcon;
+};
+
+static const unsigned int pogo_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_DOCK,
 };
 
 static void pogo_transport_event(struct pogo_transport *pogo_transport,
 				 enum pogo_event_type event_type, int delay_ms);
+
+static void update_extcon_dev(struct pogo_transport *pogo_transport, bool docked, bool usb_capable)
+{
+	int ret;
+
+	ret = extcon_set_state_sync(pogo_transport->extcon, EXTCON_USB, usb_capable ? 1 : 0);
+	if (ret)
+		dev_err(pogo_transport->dev, "%s Failed to %s EXTCON_USB\n", __func__,
+			usb_capable ? "set" : "clear");
+	ret = extcon_set_state_sync(pogo_transport->extcon, EXTCON_DOCK, docked ? 1 : 0);
+	if (ret)
+		dev_err(pogo_transport->dev, "%s Failed to %s EXTCON_DOCK\n", __func__,
+			docked ? "set" : "clear");
+}
 
 static void update_pogo_transport(struct kthread_work *work)
 {
@@ -103,6 +124,7 @@ static void update_pogo_transport(struct kthread_work *work)
 				 voltage_now.intval);
 			if (voltage_now.intval >= POGO_USB_CAPABLE_THRESHOLD_UV) {
 				pogo_transport->pogo_usb_capable = true;
+				update_extcon_dev(pogo_transport, true, true);
 			} else if (voltage_now.intval <= POGO_USB_RETRY_THRESHOLD_UV) {
 				dev_info(pogo_transport->dev, "%s retry count:%d\n", __func__,
 					 pogo_transport->retry_count);
@@ -126,6 +148,7 @@ static void update_pogo_transport(struct kthread_work *work)
 					goto free;
 				} else {
 					pogo_transport->pogo_usb_capable = false;
+					update_extcon_dev(pogo_transport, true, false);
 				}
 			}
 		} else {
@@ -133,6 +156,7 @@ static void update_pogo_transport(struct kthread_work *work)
 			pogo_transport->retry_count = 0;
 			pogo_transport->pogo_usb_capable = false;
 			pogo_transport->likely_usb_not_capable = false;
+			update_extcon_dev(pogo_transport, false, false);
 		}
 	}
 
@@ -405,6 +429,20 @@ static int pogo_transport_probe(struct platform_device *pdev)
 		goto destroy_worker;
 	}
 
+	pogo_transport->extcon = devm_extcon_dev_allocate(pogo_transport->dev, pogo_extcon_cable);
+	if (IS_ERR(pogo_transport->extcon)) {
+		dev_err(pogo_transport->dev, "error allocating extcon: %ld\n",
+			PTR_ERR(pogo_transport->extcon));
+		ret = PTR_ERR(pogo_transport->extcon);
+		goto psy_put;
+	}
+
+	ret = devm_extcon_dev_register(pogo_transport->dev, pogo_transport->extcon);
+	if (ret < 0) {
+		dev_err(chip->dev, "failed to register extcon device:%d\n", ret);
+		goto psy_put;
+	}
+
 	ret = init_pogo_alert_gpio(pogo_transport);
 	if (ret) {
 		logbuffer_log(pogo_transport->log, "init_pogo_alert_gpio error:%d\n", ret);
@@ -452,15 +490,6 @@ static ssize_t _name##_show(struct device *dev, struct device_attribute *attr, c
 static DEVICE_ATTR_RO(_name)
 POGO_TRANSPORT_RO_ATTR(equal_priority);
 POGO_TRANSPORT_RO_ATTR(pogo_usb_active);
-POGO_TRANSPORT_RO_ATTR(pogo_usb_capable);
-
-static ssize_t pogo_docked_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct pogo_transport *pogo_transport  = dev_get_drvdata(dev);
-
-	return sysfs_emit(buf, "%d\n", !gpio_get_value(pogo_transport->pogo_gpio));
-}
-static DEVICE_ATTR_RO(pogo_docked);
 
 static ssize_t move_data_to_usb_store(struct device *dev, struct device_attribute *attr,
 				      const char *buf, size_t size)
@@ -483,9 +512,7 @@ static DEVICE_ATTR_WO(move_data_to_usb);
 static struct attribute *pogo_transport_attrs[] = {
 	&dev_attr_move_data_to_usb.attr,
 	&dev_attr_equal_priority.attr,
-	&dev_attr_pogo_docked.attr,
 	&dev_attr_pogo_usb_active.attr,
-	&dev_attr_pogo_usb_capable.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(pogo_transport);
