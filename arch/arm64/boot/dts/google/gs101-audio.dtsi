@@ -248,7 +248,7 @@
 			};
 
 			dai_fe_ep5_tx: fe_ep5_tx {
-				dai-name = "audio_capture4";
+				dai-name = "ultrasonic_capture";
 				stream-name = "EP5 capture";
 				id = <IDX_EP5_TX>;
 				dynamic;
@@ -698,6 +698,19 @@
 				usefixup;
 				cpu {
 					sound-dai = <&aud_aoc_path INTERNAL_MIC_TX>;
+				};
+			};
+
+			dai_be_internal_mic_us_tx: be_internal_mic_us_tx {
+				dai-name = "INTERNAL_MIC_US_TX Capture";
+				stream-name = "INTERNAL_MIC_US_TX Capture";
+				id = <INTERNAL_MIC_US_TX>;
+				capture;
+				no-pcm;
+				useops;
+				usefixup;
+				cpu {
+					sound-dai = <&aud_aoc_path INTERNAL_MIC_US_TX>;
 				};
 			};
 
