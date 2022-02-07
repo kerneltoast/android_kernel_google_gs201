@@ -3201,6 +3201,8 @@ static void google_bcl_batoilo_irq_work(struct work_struct *work)
 
 void google_bcl_irq_changed(struct bcl_device *bcl_dev, int index)
 {
+	if (!bcl_dev)
+		return;
 	atomic_inc(&bcl_dev->bcl_cnt[index]);
 	ocpsmpl_read_stats(bcl_dev, &bcl_dev->bcl_stats[index], bcl_dev->batt_psy);
 	if (bcl_dev->bcl_tz_cnt[index] == 0)
