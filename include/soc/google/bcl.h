@@ -90,8 +90,6 @@ struct bcl_device {
 	atomic_t bcl_cnt[MITI_SENSOR_MAX];
 	int bcl_tz_cnt[MITI_SENSOR_MAX];
 
-	void *iodev;
-
 	int trip_high_temp;
 	int trip_low_temp;
 	int trip_val;
