@@ -3,4 +3,3 @@ blocklist sec_touch
 blocklist uwb_desense.ko
 blocklist uwb-hal.ko
 blocklist uwbcore.ko
-blocklist gxp.ko
