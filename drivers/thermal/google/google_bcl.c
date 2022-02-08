@@ -266,6 +266,8 @@ static void ocpsmpl_read_stats(struct bcl_device *bcl_dev,
 	union power_supply_propval ret = {0};
 	int err = 0;
 
+	if (!psy)
+		return;
 	dst->_time = ktime_to_ms(ktime_get());
 	err = power_supply_get_property(psy, POWER_SUPPLY_PROP_CAPACITY, &ret);
 	if (err < 0)
