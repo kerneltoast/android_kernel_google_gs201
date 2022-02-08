@@ -359,7 +359,7 @@
 						iod,format = <IPC_RAW>;
 						iod,io_type = <IODEV_IPC>;
 						iod,link_type = <LINKDEV_PCIE>;
-						iod,attrs = <(0x0)>;
+						iod,attrs = <(IO_ATTR_STATE_RESET_NOTI)>;
 					};
 					io_device_4 {
 						iod,name = "umts_loopback";
