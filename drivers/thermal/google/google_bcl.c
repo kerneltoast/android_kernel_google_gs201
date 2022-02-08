@@ -3728,7 +3728,6 @@ static int google_bcl_probe(struct platform_device *pdev)
 	if (!bcl_dev)
 		return -ENOMEM;
 	bcl_dev->device = &pdev->dev;
-	bcl_dev->iodev = dev_get_drvdata(pdev->dev.parent);
 
 	INIT_DELAYED_WORK(&bcl_dev->init_work, google_set_intf_pmic_work);
 	platform_set_drvdata(pdev, bcl_dev);
