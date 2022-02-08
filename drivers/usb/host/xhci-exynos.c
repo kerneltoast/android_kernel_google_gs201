@@ -274,6 +274,7 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 	int port, i;
 	int bInterfaceClass = 0;
 	bool ap_suspend_enabled = false;
+	bool audio_detected;
 
 	if (udev->bus->root_hub == udev) {
 		dev_dbg(ddev, "this dev is a root hub\n");
@@ -297,6 +298,7 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 		dev_dbg(ddev, "%s, class = %d, speed = %d\n",
 			__func__, udev->descriptor.bDeviceClass,
 						udev->speed);
+		audio_detected = false;
 		dev_dbg(ddev, "udev = %pK, state = %d\n", udev, udev->state);
 		if (udev && udev->state == USB_STATE_CONFIGURED) {
 			if (!dev->config->interface[0])
@@ -309,6 +311,7 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 				for (i = 0; i < config->desc.bNumInterfaces; i++) {
 					desc = &config->intf_cache[i]->altsetting->desc;
 					if (desc->bInterfaceClass == USB_CLASS_AUDIO) {
+						audio_detected = true;
 						udev->do_remote_wakeup =
 							(udev->config->desc.bmAttributes &
 								USB_CONFIG_ATT_WAKEUP) ? 1 : 0;
@@ -318,7 +321,8 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 					}
 				}
 
-				if (udev->do_remote_wakeup == 1) {
+				/* do_remote_wakeup may be also set in drivers/usb/core/driver.c */
+				if (udev->do_remote_wakeup == 1 && audio_detected) {
 					device_init_wakeup(ddev, 1);
 					usb_enable_autosuspend(dev);
 					trace_android_vh_sound_usb_support_cpu_suspend(udev, 0,
