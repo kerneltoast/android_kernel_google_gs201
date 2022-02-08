@@ -282,10 +282,10 @@
 						boost_name = "IRQ_0";
 						target = <TPMON_TARGET_IRQ_PCIE>;
 						extra_idx = <0>;
-						level = <0 5>;
+						level = <0x04 0x20>;
 
 						boost0 {
-							enable = <0>;
+							enable = <1>;
 							measure = <TPMON_MEASURE_TP>;
 							proto = <TPMON_PROTO_ALL>;
 							boost_threshold = <500>;
@@ -297,7 +297,7 @@
 						boost_name = "IRQ_DIT";
 						target = <TPMON_TARGET_IRQ_DIT>;
 						extra_idx = <0>;
-						level = <2 5>;
+						level = <0x04 0x20>;
 
 						boost0 {
 							enable = <0>;
