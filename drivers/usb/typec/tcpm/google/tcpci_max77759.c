@@ -35,6 +35,7 @@
 #include "usb_psy.h"
 
 #define TCPCI_MODE_VOTER	"TCPCI"
+#define LIMIT_SINK_VOTER	"LIMIT_SINK_CURRENT_VOTER"
 
 #define TCPC_RECEIVE_BUFFER_COUNT_OFFSET                0
 #define TCPC_RECEIVE_BUFFER_FRAME_TYPE_OFFSET           1
@@ -90,6 +91,10 @@ static bool modparam_conf_sbu;
 module_param_named(conf_sbu, modparam_conf_sbu, bool, 0644);
 MODULE_PARM_DESC(conf_sbu, "Configure sbu pins");
 
+static char boot_mode_string[64];
+module_param_string(mode, boot_mode_string, sizeof(boot_mode_string), 0440);
+MODULE_PARM_DESC(mode, "Android bootmode");
+
 static bool hooks_installed;
 
 static u32 partner_src_caps[PDO_MAX_OBJECTS];
@@ -97,6 +102,10 @@ static unsigned int nr_partner_src_caps;
 spinlock_t g_caps_lock;
 
 static unsigned int sink_discovery_delay_ms;
+
+/* Callback for data_active changes */
+void (*data_active_callback)(void *data_active_payload);
+void *data_active_payload;
 
 struct tcpci {
 	struct device *dev;
@@ -260,6 +269,76 @@ static ssize_t contaminant_detection_status_show(struct device *dev, struct devi
 }
 static DEVICE_ATTR_RO(contaminant_detection_status);
 
+static ssize_t usb_limit_sink_enable_show(struct device *dev, struct device_attribute *attr,
+					  char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return sysfs_emit(buf, "%u\n", chip->limit_sink_enable);
+};
+
+/* usb_limit_sink_current has to be set before usb_limit_sink_enable is invoked */
+static ssize_t usb_limit_sink_enable_store(struct device *dev, struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	bool enable;
+	int ret;
+
+	if (kstrtobool(buf, &enable) < 0)
+		return -EINVAL;
+
+	if (enable) {
+		ret = gvotable_cast_vote(chip->usb_icl_el, LIMIT_SINK_VOTER,
+					 (void *)(long)chip->limit_sink_current, true);
+		if (ret < 0) {
+			dev_err(chip->dev, "Cannot set sink current %d uA (%d)\n",
+				chip->limit_sink_current, ret);
+			goto exit;
+		}
+	} else {
+		ret = gvotable_cast_vote(chip->usb_icl_el, LIMIT_SINK_VOTER, 0, false);
+		if (ret < 0) {
+			dev_err(chip->dev, "Cannot unvote for sink current (%d)\n", ret);
+			goto exit;
+		}
+	}
+
+	chip->limit_sink_enable = enable;
+
+exit:
+	return count;
+}
+static DEVICE_ATTR_RW(usb_limit_sink_enable);
+
+static ssize_t usb_limit_sink_current_show(struct device *dev, struct device_attribute *attr,
+					   char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return sysfs_emit(buf, "%u\n", chip->limit_sink_current);
+};
+
+/* limit_sink_current will not be updated if limit_sink_enable is already enabled */
+static ssize_t usb_limit_sink_current_store(struct device *dev, struct device_attribute *attr,
+					    const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	/* Never accept current over 3A */
+	if (val > 3000000)
+		return -EINVAL;
+
+	chip->limit_sink_current = val;
+
+	return count;
+}
+static DEVICE_ATTR_RW(usb_limit_sink_current);
+
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
 	&dev_attr_bc12_enabled,
@@ -268,8 +347,17 @@ static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_contaminant_detection,
 	&dev_attr_contaminant_detection_status,
 	&dev_attr_cc_toggle_enable,
+	&dev_attr_usb_limit_sink_enable,
+	&dev_attr_usb_limit_sink_current,
 	NULL
 };
+
+void register_data_active_callback(void (*callback)(void *data_active_payload), void *data)
+{
+	data_active_callback = callback;
+	data_active_payload = data;
+}
+EXPORT_SYMBOL_GPL(register_data_active_callback);
 
 #ifdef CONFIG_GPIOLIB
 static int ext_bst_en_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
@@ -564,6 +652,8 @@ void enable_data_path_locked(struct max77759_plat *chip)
 		dev_info(chip->dev, "TCPM_DEBUG %s turning on %s", ret < 0 ? "Failed" : "Succeeded",
 			 chip->data_role == TYPEC_HOST ? "Host" : "Device");
 		chip->data_active = true;
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 		chip->active_data_role = chip->data_role;
 	} else if (chip->data_active && (!chip->attached || !enable_data)) {
 		ret = extcon_set_state_sync(chip->extcon, chip->active_data_role == TYPEC_HOST ?
@@ -573,6 +663,8 @@ void enable_data_path_locked(struct max77759_plat *chip)
 		dev_info(chip->dev, "TCPM_DEBUG %s turning off %s", ret < 0 ? "Failed" :
 			 "Succeeded", chip->active_data_role == TYPEC_HOST ? "Host" : "Device");
 		chip->data_active = false;
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 		if  (chip->active_data_role == TYPEC_HOST) {
 			ret = max77759_write8(regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_DISCONNECT);
 			logbuffer_log(chip->log, "Turning off dp switches %s", ret < 0 ? "fail" :
@@ -745,6 +837,12 @@ static void process_power_status(struct max77759_plat *chip)
 		chip->vbus_present = 0;
 	logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
 	tcpm_vbus_change(tcpci->port);
+
+	/* TODO: remove this cc event b/211341677 */
+	if (!strncmp(boot_mode_string, "charger", strlen("charger")) && chip->vbus_present) {
+		dev_info(chip->dev, "WA: trigger cc event in charger mode");
+		tcpm_cc_change(tcpci->port);
+	}
 
 	/*
 	 * Enable data path when TCPC signals sink debug accesssory connected
@@ -1429,6 +1527,8 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 			      chip->active_data_role == TYPEC_HOST ? "Host"
 			      : "Device");
 		chip->data_active = false;
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 
 		if  (chip->active_data_role == TYPEC_HOST) {
 			ret = max77759_write8(chip->data.regmap, TCPC_VENDOR_USBSW_CTRL,
@@ -1643,6 +1743,8 @@ static ssize_t force_device_mode_on_write(struct file *file, const char __user *
 			      "Failed" : "Succeeded", chip->active_data_role == TYPEC_HOST ?
 			      "Host" : "Device");
 		chip->data_active = false;
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 	}
 
 	if (result && !chip->data_active) {
@@ -1650,6 +1752,8 @@ static ssize_t force_device_mode_on_write(struct file *file, const char __user *
 		logbuffer_log(chip->log, "%s: %s turning on device", __func__, ret < 0 ? "Failed" :
 			      "Succeeded");
 		chip->data_active = !ret;
+		if (data_active_callback)
+			(*data_active_callback)(data_active_payload);
 		chip->active_data_role = TYPEC_DEVICE;
 
 	} else if (!result) {
@@ -2069,6 +2173,14 @@ static int max77759_probe(struct i2c_client *client,
 	if (IS_ERR_OR_NULL(chip->usb_icl_proto_el)) {
 		dev_err(&client->dev, "TCPCI: USB ICL PROTO EL get failed:%ld",
 			PTR_ERR(chip->usb_icl_proto_el));
+		ret = -ENODEV;
+		goto unreg_notifier;
+	}
+
+	chip->usb_icl_el = gvotable_election_get_handle(USB_ICL_EL);
+	if (IS_ERR_OR_NULL(chip->usb_icl_el)) {
+		dev_err(&client->dev, "TCPCI: USB ICL EL get failed:%ld",
+			PTR_ERR(chip->usb_icl_el));
 		ret = -ENODEV;
 		goto unreg_notifier;
 	}

@@ -1157,10 +1157,25 @@ static int get_cpu_policy_num(unsigned int dm_id)
 
 static unsigned int get_random_rate(unsigned int dm_id)
 {
-	unsigned int random, index;
+	unsigned int random, index, upper, lower;
 
 	random = get_random_int();
-	index = random % dvfs_test->dm[dm_id]->size;
+
+	if (mbox->dvfs->is_given_range) {
+		upper = mbox->dvfs->upper_bound;
+		lower = mbox->dvfs->lower_bound;
+
+		if (lower == upper)
+			index = lower;
+		else
+			index = (random % (upper - lower + 1)) + lower;
+
+		if (index >= dvfs_test->dm[dm_id]->size)
+			index = dvfs_test->dm[dm_id]->size - 1;
+	} else {
+		index = random % dvfs_test->dm[dm_id]->size;
+	}
+
 	return dvfs_test->dm[dm_id]->table[index].freq;
 }
 
@@ -1371,7 +1386,7 @@ static void acpm_dvfs_stats_dump(void)
 	}
 }
 
-static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
+static int dvfs_latency_stats_setting(struct acpm_info *acpm, u64 subcmd)
 {
 	unsigned int domain = (unsigned int)subcmd;
 	static unsigned int pre_set_rate;
@@ -1435,18 +1450,65 @@ static int acpm_dvfs_test_setting(struct acpm_info *acpm, u64 subcmd)
 	return 0;
 }
 
-static int debug_acpm_dvfs_test_set(void *data, u64 val)
+static int debug_dvfs_latency_stats_set(void *data, u64 val)
 {
 	struct acpm_info *acpm = (struct acpm_info *)data;
 
-	return acpm_dvfs_test_setting(acpm, val);
+	return dvfs_latency_stats_setting(acpm, val);
+}
+
+static void acpm_acpm_mbox_dvfs(bool start)
+{
+	if (start) {
+		acpm_mbox_test_init();
+		queue_delayed_work_on(get_random_for_type(CPU_ID),
+				      mbox->dvfs->mbox_stress_trigger_wq,
+				      &mbox->dvfs->mbox_stress_trigger_wk,
+				      msecs_to_jiffies(STRESS_TRIGGER_DELAY));
+	} else {
+		if (mbox->wq_init_done)
+			cancel_delayed_work_sync(&mbox->dvfs->mbox_stress_trigger_wk);
+	}
+}
+
+static int acpm_mbox_dvfs_setting(struct acpm_info *acpm, u64 subcmd)
+{
+	unsigned int temp;
+
+	mbox->dvfs->lower_bound = ((u32)subcmd >> 8) & 0xFF;
+	mbox->dvfs->upper_bound = (u32)subcmd & 0xFF;
+
+	if (mbox->dvfs->lower_bound > mbox->dvfs->upper_bound) {
+		temp = mbox->dvfs->lower_bound;
+		mbox->dvfs->lower_bound = mbox->dvfs->upper_bound;
+		mbox->dvfs->upper_bound = temp;
+	}
+
+	if (subcmd == 0xFFFF) {
+		acpm_acpm_mbox_dvfs(false);
+		mbox->dvfs->is_given_range = false;
+	} else {
+		mbox->dvfs->is_given_range = true;
+		acpm_acpm_mbox_dvfs(true);
+	}
+
+	return 0;
+}
+
+static int debug_acpm_mbox_dvfs_set(void *data, u64 val)
+{
+	struct acpm_info *acpm = (struct acpm_info *)data;
+
+	return acpm_mbox_dvfs_setting(acpm, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_mbox_test_fops,
 			debug_acpm_mbox_test_get, debug_acpm_mbox_test_set,
 			"0x%016llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_dvfs_test_fops, NULL,
-			debug_acpm_dvfs_test_set, "0x%016llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_dvfs_latency_stats_fops, NULL,
+			debug_dvfs_latency_stats_set, "0x%016llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_mbox_dvfs_fops, NULL,
+			debug_acpm_mbox_dvfs_set, "0x%016llx\n");
 
 static void acpm_test_debugfs_init(struct acpm_mbox_test *mbox)
 {
@@ -1455,8 +1517,10 @@ static void acpm_test_debugfs_init(struct acpm_mbox_test *mbox)
 	den_mbox = debugfs_lookup("acpm_framework", NULL);
 	debugfs_create_file("acpm_mbox_test", 0644, den_mbox, mbox,
 			    &debug_acpm_mbox_test_fops);
-	debugfs_create_file("acpm_dvfs_test", 0644, den_mbox, mbox,
-			    &debug_acpm_dvfs_test_fops);
+	debugfs_create_file("dvfs_latency_stats", 0644, den_mbox, mbox,
+			    &debug_dvfs_latency_stats_fops);
+	debugfs_create_file("acpm_mbox_dvfs", 0644, den_mbox, mbox,
+			    &debug_acpm_mbox_dvfs_fops);
 }
 
 static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,

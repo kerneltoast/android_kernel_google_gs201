@@ -30,7 +30,10 @@ MODULE_PARM_DESC(force_usb, "Force enabling usb path over pogo");
 struct pogo_event {
 	struct kthread_work work;
 	struct pogo_transport *pogo_transport;
-	bool pogo_active;
+	/* Pogo connection is capable of usb transport. */
+	bool pogo_usb_capable;
+	/* Enable USB-C data, when pogo usb data is active */
+	bool move_data_to_usb;
 };
 
 struct pogo_transport {
@@ -40,8 +43,12 @@ struct pogo_transport {
 	int pogo_gpio;
 	int pogo_irq;
 	int pogo_data_mux_gpio;
+	/* When true, Usb data active over pogo pins. */
 	bool pogo_usb_active;
-	bool pogo_active;
+	/* When true, Pogo connection is capable of usb transport. */
+	bool pogo_usb_capable;
+	/* When true, both pogo and usb-c have equal priority. */
+	bool equal_priority;
 	struct kthread_worker *wq;
 };
 
@@ -53,17 +60,28 @@ static void update_pogo_transport(struct kthread_work *work)
 	int ret;
 
 	mutex_lock(&chip->data_path_lock);
-	pogo_transport->pogo_active = event->pogo_active;
-	dev_info(pogo_transport->dev, "%s force_usb:%d pogo_usb:%d pogo_usb_active:%d data_active:%d",
+	pogo_transport->pogo_usb_capable = event->pogo_usb_capable;
+	dev_info(pogo_transport->dev,
+		 "%s force_usb:%d pogo_usb:%d pogo_usb_active:%d data_active:%d move_data_to_usb:%d",
 		 __func__,
 		 modparam_force_usb ? 1 : 0,
-		 pogo_transport->pogo_active ? 1 : 0,
+		 pogo_transport->pogo_usb_capable ? 1 : 0,
 		 pogo_transport->pogo_usb_active ? 1 : 0,
-		 chip->data_active ? 1 : 0);
+		 chip->data_active ? 1 : 0,
+		 event->move_data_to_usb ? 1 : 0);
 
 	if (modparam_force_usb) {
 		goto exit;
-	} else if (pogo_transport->pogo_active && !pogo_transport->pogo_usb_active) {
+	} else if (pogo_transport->pogo_usb_capable && !pogo_transport->pogo_usb_active) {
+		/*
+		 * Pogo treated with same priority as USB-C, hence skip enabling
+		 * pogo usb as USB-C is active.
+		 * TODO: requeue when data_active is false;
+		 */
+		if (chip->data_active && pogo_transport->equal_priority) {
+			dev_info(pogo_transport->dev, "usb active, skipping enable pogo usb");
+			goto exit;
+		}
 		data_alt_path_active(chip, true);
 		if (chip->data_active) {
 			ret = extcon_set_state_sync(chip->extcon,
@@ -82,7 +100,8 @@ static void update_pogo_transport(struct kthread_work *work)
 		logbuffer_log(chip->log, "%s: %s turning on host for Pogo", __func__, ret < 0 ?
 			      "Failed" : "Succeeded");
 		pogo_transport->pogo_usb_active = true;
-	} else if (!pogo_transport->pogo_active && pogo_transport->pogo_usb_active) {
+	} else if ((!pogo_transport->pogo_usb_capable || event->move_data_to_usb) &&
+		   pogo_transport->pogo_usb_active) {
 		ret = extcon_set_state_sync(chip->extcon, EXTCON_USB_HOST, 0);
 		logbuffer_log(chip->log, "%s: %s turning off host for Pogo", __func__, ret < 0 ?
 			      "Failed" : "Succeeded");
@@ -95,27 +114,45 @@ static void update_pogo_transport(struct kthread_work *work)
 	}
 exit:
 	mutex_unlock(&chip->data_path_lock);
+	kobject_uevent(&pogo_transport->dev->kobj, KOBJ_CHANGE);
 	devm_kfree(pogo_transport->dev, event);
+}
+
+static void pogo_transport_event(struct pogo_transport *pogo_transport, bool move_data_to_usb)
+{
+	struct pogo_event *evt;
+
+	evt = devm_kzalloc(pogo_transport->dev, sizeof(*evt), GFP_KERNEL);
+	if (!evt) {
+		logbuffer_log(pogo_transport->log, "POGO: Dropping event");
+		return;
+	}
+	kthread_init_work(&evt->work, update_pogo_transport);
+	evt->pogo_transport = pogo_transport;
+	evt->pogo_usb_capable = !gpio_get_value(pogo_transport->pogo_gpio);
+	if (move_data_to_usb)
+		evt->move_data_to_usb = true;
+	else
+		kobject_uevent(&pogo_transport->dev->kobj, KOBJ_CHANGE);
+	kthread_queue_work(pogo_transport->wq, &evt->work);
 }
 
 static irqreturn_t pogo_irq(int irq, void *dev_id)
 {
 	struct pogo_transport *pogo_transport = dev_id;
-	struct pogo_event *evt;
 
 	logbuffer_log(pogo_transport->log, "Pogo threaded irq running");
-
-	evt = devm_kzalloc(pogo_transport->dev, sizeof(*evt), GFP_KERNEL);
-	if (!evt) {
-		logbuffer_log(pogo_transport->log, "POGO: Dropping event");
-		return IRQ_HANDLED;
-	}
-	kthread_init_work(&evt->work, update_pogo_transport);
-	evt->pogo_transport = pogo_transport;
-	evt->pogo_active = !gpio_get_value(pogo_transport->pogo_gpio);
-	kthread_queue_work(pogo_transport->wq, &evt->work);
-
+	/* Signal pogo status change event */
+	pogo_transport_event(pogo_transport, false);
 	return IRQ_HANDLED;
+}
+
+static void data_active_changed(void *data)
+{
+	struct pogo_transport *pogo_transport = data;
+
+	logbuffer_log(pogo_transport->log, "data active changed");
+	pogo_transport_event(pogo_transport, false);
 }
 
 static irqreturn_t pogo_isr(int irq, void *dev_id)
@@ -201,6 +238,8 @@ static int init_pogo_alert_gpio(struct pogo_transport *pogo_transport)
 		goto disable_irq;
 	}
 
+	pogo_transport->equal_priority = of_property_read_bool(pogo_transport->dev->of_node,
+							       "equal-priority");
 	return 0;
 
 disable_irq:
@@ -268,6 +307,7 @@ static int pogo_transport_probe(struct platform_device *pdev)
 		goto destroy_worker;
 	}
 
+	register_data_active_callback(data_active_changed, pogo_transport);
 	dev_info(&pdev->dev, "force usb:%d\n", modparam_force_usb ? 1 : 0);
 	put_device(&data_client->dev);
 	of_node_put(data_np);
@@ -296,6 +336,53 @@ static int pogo_transport_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#define POGO_TRANSPORT_RO_ATTR(_name)                                                           \
+static ssize_t _name##_show(struct device *dev, struct device_attribute *attr, char *buf)       \
+{                                                                                               \
+	struct pogo_transport *pogo_transport  = dev_get_drvdata(dev);                          \
+	return sysfs_emit(buf, "%d\n", pogo_transport->_name);                                  \
+}                                                                                               \
+static DEVICE_ATTR_RO(_name)
+POGO_TRANSPORT_RO_ATTR(equal_priority);
+POGO_TRANSPORT_RO_ATTR(pogo_usb_active);
+POGO_TRANSPORT_RO_ATTR(pogo_usb_capable);
+
+static ssize_t pogo_docked_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct pogo_transport *pogo_transport  = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", !gpio_get_value(pogo_transport->pogo_gpio));
+}
+static DEVICE_ATTR_RO(pogo_docked);
+
+static ssize_t move_data_to_usb_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t size)
+{
+	struct pogo_transport *pogo_transport = dev_get_drvdata(dev);
+	u8 enable;
+
+	if (kstrtou8(buf, 0, &enable))
+		return -EINVAL;
+
+	if (enable != 1)
+		return -EINVAL;
+
+	pogo_transport_event(pogo_transport, true);
+
+	return size;
+}
+static DEVICE_ATTR_WO(move_data_to_usb);
+
+static struct attribute *pogo_transport_attrs[] = {
+	&dev_attr_move_data_to_usb.attr,
+	&dev_attr_equal_priority.attr,
+	&dev_attr_pogo_docked.attr,
+	&dev_attr_pogo_usb_active.attr,
+	&dev_attr_pogo_usb_capable.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(pogo_transport);
+
 static const struct of_device_id pogo_transport_of_match[] = {
 	{.compatible = "pogo-transport"},
 	{},
@@ -307,6 +394,7 @@ static struct platform_driver pogo_transport_driver = {
 		   .name = "pogo-transport",
 		   .owner = THIS_MODULE,
 		   .of_match_table = pogo_transport_of_match,
+		   .dev_groups = pogo_transport_groups,
 		   },
 	.probe = pogo_transport_probe,
 	.remove = pogo_transport_remove,

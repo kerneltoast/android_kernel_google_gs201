@@ -170,9 +170,6 @@ struct exynos_ufs {
 	u8 enable_cmd_log;
 	struct pixel_cmd_log cmd_log;
 
-	/* security_out write counter */
-	u32 security_out_wc;
-
 	/* Used to enable WB on all write requests */
 	bool always_use_wb;
 };

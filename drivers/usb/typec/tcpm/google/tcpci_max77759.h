@@ -32,6 +32,7 @@ struct max77759_plat {
 	struct power_supply *usb_psy;
 	struct max77759_contaminant *contaminant;
 	struct gvotable_election *usb_icl_proto_el;
+	struct gvotable_election *usb_icl_el;
 	struct gvotable_election *charger_mode_votable;
 	bool vbus_enabled;
 	/* Data role notified to the data stack */
@@ -69,6 +70,10 @@ struct max77759_plat {
 	/* 0:active_low 1:active_high */
 	bool in_switch_gpio_active_high;
 	bool first_toggle;
+	/* Set true to vote "limit_sink_current" on USB ICL */
+	bool limit_sink_enable;
+	/* uA */
+	unsigned int limit_sink_current;
 
 	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
 	u8 debug_acc_connected:1;
@@ -176,4 +181,5 @@ enum tcpm_psy_online_states {
 
 void enable_data_path_locked(struct max77759_plat *chip);
 void data_alt_path_active(struct max77759_plat *chip, bool active);
+void register_data_active_callback(void (*callback)(void *data_active_payload), void *data);
 #endif /* __TCPCI_MAX77759_H */
