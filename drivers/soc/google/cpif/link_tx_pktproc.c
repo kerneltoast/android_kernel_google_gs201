@@ -31,6 +31,9 @@ static int pktproc_send_pkt_to_cp(struct pktproc_queue_ul *q, struct sk_buff *sk
 		return -EACCES;
 	}
 
+	/* avoid race with the done_ptr disordering */
+	smp_rmb();
+
 	space = circ_get_space(q->num_desc, q->done_ptr, q_info->rear_ptr);
 	if (space < 1) {
 		mif_err_limited("NOSPC Queue[%d] num_desc:%d fore:%d done:%d rear:%d\n",
