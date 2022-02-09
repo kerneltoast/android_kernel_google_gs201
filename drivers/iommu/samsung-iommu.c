@@ -14,6 +14,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
+#include <soc/google/pkvm-s2mpu.h>
+
 #include "samsung-iommu.h"
 
 #define FLPD_SHAREABLE_FLAG	BIT(6)
@@ -1524,6 +1526,14 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq, ret, err = 0;
 	unsigned int i;
+
+	if (IS_ENABLED(CONFIG_PKVM_S2MPU)) {
+		ret = pkvm_s2mpu_of_link(dev);
+		if (ret == -EAGAIN)
+			return -EPROBE_DEFER;
+		else if (ret)
+			return ret;
+	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
