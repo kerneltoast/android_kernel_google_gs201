@@ -566,6 +566,7 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 	struct task_struct *p, *t;
 	enum uclamp_id clamp_id;
 	pid_t pid;
+	const struct cred *cred, *tcred;
 
 	if (kstrtoint(buf, 0, &pid) || pid <= 0)
 		return -EINVAL;
@@ -578,6 +579,19 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 	}
 
 	get_task_struct(p);
+
+	cred = current_cred();
+	tcred = get_task_cred(p);
+	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
+	    !uid_eq(cred->euid, tcred->uid) &&
+	    !uid_eq(cred->euid, tcred->suid) &&
+	    !ns_capable(tcred->user_ns, CAP_SYS_NICE)) {
+		put_cred(tcred);
+		put_task_struct(p);
+		rcu_read_unlock();
+		return -EACCES;
+	}
+	put_cred(tcred);
 
 	switch (vta) {
 	case VTA_TASK_GROUP:
