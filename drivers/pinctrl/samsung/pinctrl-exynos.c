@@ -425,7 +425,7 @@ static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
 	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	u32 bit = 0;
 
-	bit = bank->eint_num + irqd->hwirq;
+	bit = bank->eint_num + irqd->hwirq + bank->wake_mask_bit_offset;
 	if (!on)
 		exynos_eint_wake_mask_bitmap[BIT_WORD(bit)] |= BIT_MASK(bit);
 	else

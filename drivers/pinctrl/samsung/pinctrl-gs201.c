@@ -40,15 +40,16 @@
 		.name		= id			\
 	}
 
-#define EXYNOS9_PIN_BANK_EINTW(types, pins, reg, id, offs, fltcon_offs)	\
-	{						\
-		.type		= &types,		\
-		.pctl_offset	= reg,			\
-		.nr_pins	= pins,			\
-		.eint_type	= EINT_TYPE_WKUP,	\
-		.eint_offset	= offs,			\
-		.fltcon_offset	= fltcon_offs,		\
-		.name		= id			\
+#define EXYNOS9_PIN_BANK_EINTW_GS201(types, pins, reg, id, offs, fltcon_offs, wake_bit_offset)	\
+	{							\
+		.type			= &types,		\
+		.pctl_offset		= reg,			\
+		.nr_pins		= pins,			\
+		.eint_type		= EINT_TYPE_WKUP,	\
+		.eint_offset		= offs,			\
+		.fltcon_offset		= fltcon_offs,		\
+		.name			= id,			\
+		.wake_mask_bit_offset	= wake_bit_offset	\
 	}
 
 /* bank type for non-alive type
@@ -70,22 +71,22 @@ static struct samsung_pin_bank_type bank_type_7 = {
 
 /* pin banks of gs201 pin-controller (ALIVE) */
 static struct samsung_pin_bank_data gs201_pin_alive[] = {
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0x0, "gpa0", 0x00, 0x00),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 7, 0x20, "gpa1", 0x04, 0x08),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 4, 0x40, "gpa2", 0x08, 0x10),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 4, 0x60, "gpa3", 0x0c, 0x14),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 4, 0x80, "gpa4", 0x10, 0x18),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 7, 0xa0, "gpa5", 0x14, 0x1c),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0xc0, "gpa9", 0x18, 0x24),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 2, 0xe0, "gpa10", 0x1c, 0x2c),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 8, 0x0, "gpa0", 0x00, 0x00, 0),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 7, 0x20, "gpa1", 0x04, 0x08, 0),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 4, 0x40, "gpa2", 0x08, 0x10, 0),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 4, 0x60, "gpa3", 0x0c, 0x14, 1),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 4, 0x80, "gpa4", 0x10, 0x18, 1),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 7, 0xa0, "gpa5", 0x14, 0x1c, 1),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 8, 0xc0, "gpa9", 0x18, 0x24, 1),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 2, 0xe0, "gpa10", 0x1c, 0x2c, 1),
 };
 
 /* pin banks of gs201 pin-controller (FAR_ALIVE) */
 static struct samsung_pin_bank_data gs201_pin_far_alive[] = {
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0x0, "gpa6", 0x00, 0x00),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 4, 0x20, "gpa7", 0x04, 0x08),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 8, 0x40, "gpa8", 0x08, 0x0c),
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 2, 0x60, "gpa11", 0x0c, 0x14),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 8, 0x0, "gpa6", 0x00, 0x00, 1),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 4, 0x20, "gpa7", 0x04, 0x08, 1),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 8, 0x40, "gpa8", 0x08, 0x0c, 1),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 2, 0x60, "gpa11", 0x0c, 0x14, 1),
 };
 
 /* pin banks of gs201 pin-controller (GSACORE) */
@@ -97,7 +98,7 @@ static struct samsung_pin_bank_data gs201_pin_gsacore[] = {
 
 /* pin banks of gs201 pin-controller (GSACTRL) */
 static struct samsung_pin_bank_data gs201_pin_gsactrl[] = {
-	EXYNOS9_PIN_BANK_EINTW(bank_type_7, 6, 0x0, "gps3", 0x00, 0x00),
+	EXYNOS9_PIN_BANK_EINTW_GS201(bank_type_7, 6, 0x0, "gps3", 0x00, 0x00, 1),
 };
 
 /* pin banks of gs201 pin-controller (PERIC0) */

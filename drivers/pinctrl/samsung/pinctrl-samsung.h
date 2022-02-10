@@ -115,6 +115,7 @@ struct samsung_pin_bank_type {
  * @eint_mask: bit mask of pins which support EINT function.
  * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
  * @fltcon_offset: SoC-specific EINT filter control register offset of bank.
+ * @wake_mask_bit_offset: SoC-specific wake mask bit offset of bank.
  * @name: name to be prefixed for each pin in this pin bank.
  */
 struct samsung_pin_bank_data {
@@ -128,6 +129,7 @@ struct samsung_pin_bank_data {
 	u32		eint_offset;
 	u32		eint_num;
 	u32		fltcon_offset;
+	u8		wake_mask_bit_offset;
 	const char	*name;
 };
 
@@ -143,6 +145,7 @@ struct samsung_pin_bank_data {
  * @eint_mask: bit mask of pins which support EINT function.
  * @eint_offset: SoC-specific EINT register or interrupt offset of bank.
  * @fltcon_offset: SoC-specific EINT filter control register offset of bank.
+ * @wake_mask_bit_offset: SoC-specific offset of wake-mask bits of bank.
  * @name: name to be prefixed for each pin in this pin bank.
  * @pin_base: starting pin number of the bank.
  * @soc_priv: per-bank private data for SoC-specific code.
@@ -167,6 +170,7 @@ struct samsung_pin_bank {
 	u32		eint_offset;
 	u32		eint_num;
 	u32		fltcon_offset;
+	u8		wake_mask_bit_offset;
 	unsigned long	eint_disabled;
 	const char	*name;
 
