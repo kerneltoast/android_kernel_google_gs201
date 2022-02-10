@@ -455,6 +455,8 @@ static void pixel_ufs_crypto_restore_keys(void *unused, struct ufs_hba *hba,
 	if (*err)
 		dev_err(ufs->dev, "kdn: failed to restore keys; err=%d\n",
 			*err);
+	else
+		dev_info(ufs->dev, "kdn: restored keys\n");
 }
 
 void pixel_ufs_crypto_resume(struct ufs_hba *hba)
