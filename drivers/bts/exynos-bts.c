@@ -21,6 +21,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/suspend.h>
 #include <soc/google/cal-if.h>
+#include <trace/events/power.h>
 #include <dt-bindings/soc/google/gs-bts.h>
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 #include <soc/google/exynos_pm_qos.h>
@@ -112,6 +113,9 @@ static void bts_calc_bw(void)
 		   "BW: T:%.8u R:%.8u W:%.8u P:%.8u RT:%.8u MIF:%.8u BUS1:%.8u INT:%.8u\n",
 		   btsdev->total_bw, total_read, total_write, btsdev->peak_bw, rt_bw,
 		   mif_freq, bus1_freq, int_freq);
+
+	trace_clock_set_rate("BTS_mif_freq", mif_freq, raw_smp_processor_id());
+	trace_clock_set_rate("BTS_int_freq", int_freq, raw_smp_processor_id());
 
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 	exynos_pm_qos_update_request(&exynos_mif_qos, mif_freq);
@@ -287,6 +291,7 @@ int bts_update_bw(unsigned int index, struct bts_bw bw)
 {
 	struct bts_bw *bts_bw = btsdev->bts_bw;
 	unsigned int total_bw;
+	char trace_name[32];
 
 	if (index >= btsdev->num_bts) {
 		dev_err(btsdev->dev,
@@ -310,6 +315,17 @@ int bts_update_bw(unsigned int index, struct bts_bw bw)
 	if (bts_bw[index].is_rt)
 		bts_bw[index].rt = bw.rt;
 	spin_unlock(&btsdev->lock);
+
+	if(trace_clock_set_rate_enabled()) {
+		scnprintf(trace_name, sizeof(trace_name), "BTS_%s_rd_bw", bts_bw[index].name);
+		trace_clock_set_rate(trace_name, bts_bw[index].read, raw_smp_processor_id());
+		scnprintf(trace_name, sizeof(trace_name), "BTS_%s_wr_bw", bts_bw[index].name);
+		trace_clock_set_rate(trace_name, bts_bw[index].write, raw_smp_processor_id());
+		scnprintf(trace_name, sizeof(trace_name), "BTS_%s_rt_bw", bts_bw[index].name);
+		trace_clock_set_rate(trace_name, bts_bw[index].rt, raw_smp_processor_id());
+		scnprintf(trace_name, sizeof(trace_name), "BTS_%s_peak_bw", bts_bw[index].name);
+		trace_clock_set_rate(trace_name, bts_bw[index].peak, raw_smp_processor_id());
+	}
 
 	BTSDBG_LOG(btsdev->dev,
 		   "%s R: %.8u W: %.8u P: %.8u RT: %.8u\n",
@@ -348,6 +364,8 @@ int bts_add_scenario(unsigned int index)
 			btsdev->top_scen = index;
 			for (i = 0; i < btsdev->num_bts; i++)
 				bts_set(btsdev->top_scen, i);
+			trace_clock_set_rate("BTS_scenario", btsdev->top_scen,
+					     raw_smp_processor_id());
 		}
 	}
 
@@ -397,6 +415,8 @@ int bts_del_scenario(unsigned int index)
 			}
 			for (i = 0; i < btsdev->num_bts; i++)
 				bts_set(btsdev->top_scen, i);
+			trace_clock_set_rate("BTS_scenario", btsdev->top_scen,
+					     raw_smp_processor_id());
 		}
 	}
 
