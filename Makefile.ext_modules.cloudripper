@@ -48,6 +48,8 @@ touch/focaltech/ft3658: | touch/common
 
 touch/sec: | touch/common
 
+touch/synaptics: | touch/common
+
 aoc/alsa: | aoc
 
 aoc/usb: | aoc/alsa aoc
