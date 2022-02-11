@@ -281,7 +281,7 @@
 					tpmon_irq_affinity_0 {
 						boost_name = "IRQ_0";
 						target = <TPMON_TARGET_IRQ_PCIE>;
-						extra_idx = <0>;
+						extra_idx = <3>;
 						level = <0x04 0x20>;
 
 						boost0 {
