@@ -565,6 +565,15 @@ int gsa_sjtag_end_session(struct device *gsa, u32 *status)
 }
 EXPORT_SYMBOL_GPL(gsa_sjtag_end_session);
 
+/*
+ *  External image authentication interface
+ */
+int gsa_authenticate_image(struct device *gsa, dma_addr_t img_meta, phys_addr_t img_body)
+{
+	return gsa_send_load_img_cmd(gsa, GSA_MB_CMD_AUTH_IMG, img_meta, img_body);
+}
+EXPORT_SYMBOL_GPL(gsa_authenticate_image);
+
 /********************************************************************/
 
 static int gsa_probe(struct platform_device *pdev)
