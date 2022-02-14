@@ -848,7 +848,7 @@ bool dwc3_otg_check_usb_suspend(struct dwc3_exynos *exynos)
 		msleep(20);
 	} while (wait_counter < DWC3_EXYNOS_MAX_WAIT_COUNT);
 
-	return (wait_counter < DWC3_EXYNOS_MAX_WAIT_COUNT) ? true : false;
+	return wait_counter < DWC3_EXYNOS_MAX_WAIT_COUNT;
 }
 
 static int dwc3_otg_reboot_notify(struct notifier_block *nb, unsigned long event, void *buf)
