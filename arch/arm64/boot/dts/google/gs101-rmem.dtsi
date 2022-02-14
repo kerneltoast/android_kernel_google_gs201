@@ -141,11 +141,5 @@
 			compatible = "exynos,seclog";
 			reg = <0 SECLOG_LOG_BUF_BASE SECLOG_LOG_BUF_TOTAL_SIZE>;
 		};
-
-		mfc_fw_rmem: mfc_fw_rmem {
-			compatible = "samsung,exynos-mfc";
-			size = <0x200000>;
-			alignment = <0x0 0x00010000>;
-		};
 	};
 };
