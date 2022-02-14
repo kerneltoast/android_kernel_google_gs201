@@ -744,27 +744,7 @@ int mfc_alloc_firmware(struct mfc_core *core)
 		goto err_reserve_iova;
 	}
 
-	if (!core->drm_fw_buf.daddr) {
-		core->drm_fw_buf.daddr = secure_iova_alloc(core->drm_fw_buf.size,
-				EXYNOS_SECBUF_PROT_ALIGNMENTS);
-		if (!core->drm_fw_buf.daddr) {
-			mfc_core_err("DRM F/W buffer can not get IOVA!\n");
-			goto err_reserve_iova_secure;
-		}
-	}
-
 	MFC_TRACE_CORE("DRM F/W base %pad\n", &core->drm_fw_buf.daddr);
-	if (core->drm_fw_buf.daddr != MFC_SECURE_FW_BASE) {
-		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
-				"DRM F/W buffer(%pad) should be the lowest addr\n",
-				&core->drm_fw_buf.daddr);
-		mfc_core_err("%s", core->crash_info);
-		MFC_TRACE_CORE("%s", core->crash_info);
-		secure_iova_free(core->drm_fw_buf.daddr, core->drm_fw_buf.size);
-		core->drm_fw_buf.daddr = 0;
-		call_dop(core, dump_and_stop_debug_mode, core);
-		goto err_reserve_iova_secure;
-	}
 
 	mfc_core_change_fw_state(core, 1, MFC_FW_ALLOC, 1);
 	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: %pad(vaddr: %pK paddr:%pap), size: %08zu\n",
@@ -777,10 +757,6 @@ int mfc_alloc_firmware(struct mfc_core *core)
 
 	return 0;
 
-#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-err_reserve_iova_secure:
-	mfc_mem_special_buf_free(dev, &core->drm_fw_buf);
-#endif
 err_reserve_iova:
 	mfc_core_change_fw_state(core, 0, MFC_FW_ALLOC, 0);
 	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);
@@ -811,11 +787,20 @@ int mfc_load_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf,
 	/*  This adds to clear with '0' for firmware memory except code region. */
 	mfc_core_debug(4, "[F/W] memset before memcpy for %s fw\n",
 			fw_buf->buftype == MFCBUF_NORMAL_FW ? "normal" : "secure");
-	memset((fw_buf->vaddr + fw_size), 0, (fw_buf->size - fw_size));
-	memcpy(fw_buf->vaddr, fw_data, fw_size);
 
-	/* cache flush for memcpy by CPU */
-	dma_sync_sgtable_for_device(core->device, fw_buf->sgt, DMA_TO_DEVICE);
+	/*
+	 * In MFCBUF_DRM_FW case, FW is loaded by LDFW. Morever, memory region
+	 * is protected, i.e. can't be accessed by Linux.
+	 */
+	if (fw_buf->buftype == MFCBUF_NORMAL_FW) {
+		memset((fw_buf->vaddr + fw_size), 0, (fw_buf->size - fw_size));
+		memcpy(fw_buf->vaddr, fw_data, fw_size);
+
+		/* cache flush for memcpy by CPU */
+		dma_sync_sgtable_for_device(core->device, fw_buf->sgt,
+					    DMA_TO_DEVICE);
+	}
+
 	mfc_core_debug(4, "[F/W] cache flush for %s FW region\n",
 			fw_buf->buftype == MFCBUF_NORMAL_FW ? "normal" : "secure");
 
@@ -906,9 +891,6 @@ int mfc_release_firmware(struct mfc_core *core)
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	/* free Secure-DVA region */
-	if (core->drm_fw_buf.daddr)
-		secure_iova_free(core->drm_fw_buf.daddr, core->drm_fw_buf.size);
-	core->drm_fw_buf.daddr = 0;
 	mfc_mem_special_buf_free(core->dev, &core->drm_fw_buf);
 #endif
 

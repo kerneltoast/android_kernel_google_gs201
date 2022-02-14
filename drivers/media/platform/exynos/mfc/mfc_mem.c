@@ -68,86 +68,6 @@ void mfc_mem_cleanup_user_shared_handle(struct mfc_ctx *ctx,
 	handle->fd = -1;
 }
 
-static int mfc_mem_fw_alloc(struct mfc_dev *dev, struct mfc_special_buf *special_buf)
-{
-	struct device_node *rmem_np;
-	struct reserved_mem *rmem;
-	struct page *fw_pages;
-	phys_addr_t fw_paddr;
-	int ret;
-
-	rmem_np = of_parse_phandle(dev->device->of_node, "memory-region", 0);
-	if (!rmem_np) {
-		mfc_dev_err("memory-region node not found");
-		goto err_reserved_mem_lookup;
-	}
-
-	rmem = of_reserved_mem_lookup(rmem_np);
-	of_node_put(rmem_np);
-	if (!rmem) {
-		mfc_dev_err("reserved mem lookup handle not found");
-		goto err_reserved_mem_lookup;
-	}
-
-	special_buf->sgt = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
-	if (!special_buf->sgt) {
-		mfc_dev_err("Failed to allocate with kmalloc\n");
-		goto err_kmalloc;
-	}
-
-	ret = sg_alloc_table(special_buf->sgt, 1, GFP_KERNEL);
-	if (ret) {
-		mfc_dev_err("Failed to allocate sg_table\n");
-		goto err_sg_alloc;
-	}
-
-	if (special_buf->size > rmem->size - dev->fw_rmem_offset) {
-		mfc_dev_err("No space left in memory region reserved for firmware\n");
-		goto err_no_space;
-	}
-
-	/* calculate physical address for each MFC F/W */
-	fw_paddr = rmem->base + dev->fw_rmem_offset;
-	fw_pages = phys_to_page(fw_paddr);
-	sg_set_page(special_buf->sgt->sgl, fw_pages, special_buf->size, 0);
-
-	/* Next physical address for new F/W */
-	dev->fw_rmem_offset += special_buf->size;
-
-	/* update physical address to special_buf struct */
-	special_buf->paddr = fw_paddr;
-
-	/* get the kernel virtual address */
-	special_buf->vaddr = phys_to_virt(special_buf->paddr);
-
-	return 0;
-
-err_no_space:
-	sg_free_table(special_buf->sgt);
-err_sg_alloc:
-	kfree(special_buf->sgt);
-	special_buf->sgt = NULL;
-err_kmalloc:
-err_reserved_mem_lookup:
-	return -ENOMEM;
-
-}
-
-static void mfc_mem_fw_free(struct mfc_dev *dev, struct mfc_special_buf *special_buf)
-{
-	if (dev->fw_rmem_offset >= special_buf->size)
-		dev->fw_rmem_offset -= special_buf->size;
-
-	if (special_buf->sgt) {
-		sg_free_table(special_buf->sgt);
-		kfree(special_buf->sgt);
-	}
-	special_buf->sgt = NULL;
-	special_buf->dma_buf = NULL;
-	special_buf->attachment = NULL;
-	special_buf->vaddr = NULL;
-}
-
 static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 		struct mfc_special_buf *special_buf)
 {
@@ -155,6 +75,9 @@ static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 	const char *heapname;
 
 	switch (special_buf->buftype) {
+	case MFCBUF_DRM_FW:
+		heapname = "mfc_fw-secure";
+		break;
 	case MFCBUF_NORMAL_FW:
 	case MFCBUF_NORMAL:
 		heapname = "system-uncached";
@@ -205,7 +128,9 @@ static int mfc_mem_dma_heap_alloc(struct mfc_dev *dev,
 		goto err_daddr;
 	}
 
-	if (special_buf->buftype != MFCBUF_DRM) {
+	/* Can't map secure memory */
+	if ((special_buf->buftype != MFCBUF_DRM) &&
+	    (special_buf->buftype != MFCBUF_DRM_FW)) {
 		special_buf->vaddr = dma_buf_vmap(special_buf->dma_buf);
 		if (IS_ERR(special_buf->vaddr)) {
 			mfc_dev_err("Failed to get vaddr (err 0x%p)\n",
@@ -265,8 +190,6 @@ int mfc_mem_special_buf_alloc(struct mfc_dev *dev,
 
 	switch (special_buf->buftype) {
 	case MFCBUF_DRM_FW:
-		ret = mfc_mem_fw_alloc(dev, special_buf);
-		break;
 	case MFCBUF_NORMAL_FW:
 	case MFCBUF_DRM:
 	case MFCBUF_NORMAL:
@@ -284,8 +207,6 @@ void mfc_mem_special_buf_free(struct mfc_dev *dev, struct mfc_special_buf *speci
 {
 	switch (special_buf->buftype) {
 	case MFCBUF_DRM_FW:
-		mfc_mem_fw_free(dev, special_buf);
-		break;
 	case MFCBUF_NORMAL_FW:
 	case MFCBUF_DRM:
 	case MFCBUF_NORMAL:
