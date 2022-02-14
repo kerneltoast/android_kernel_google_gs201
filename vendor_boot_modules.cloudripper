@@ -100,6 +100,7 @@ memlat-devfreq.ko
 nitrous.ko
 odpm.ko
 p9221.ko
+panel-samsung-ana6707.ko
 panel-samsung-drv.ko
 panel-samsung-emul.ko
 panel-samsung-s6e3fc3.ko
