@@ -6,6 +6,13 @@
 #ifndef __ACPM_MBOX_TEST_H__
 #define __ACPM_MBOX_TEST_H__
 #include <soc/google/pt.h>
+#if defined(CONFIG_SOC_GS101)
+#include <dt-bindings/clock/gs101.h>
+#include <dt-bindings/soc/google/gs101-devfreq.h>
+#elif defined(CONFIG_SOC_GS201)
+#include <dt-bindings/clock/gs201.h>
+#include <dt-bindings/soc/google/gs201-devfreq.h>
+#endif
 
 enum tz_id {
 	TZ_BIG = 0,
@@ -41,6 +48,12 @@ enum acpm_dvfs_test_commands {
 	ACPM_DVFS_TEST_CPUCL0,
 	ACPM_DVFS_TEST_CPUCL1,
 	ACPM_DVFS_TEST_CPUCL2,
+	ACPM_DVFS_TEST_G3D,
+	ACPM_DVFS_TEST_G3DL2,
+	ACPM_DVFS_TEST_TPU,
+	ACPM_DVFS_TEST_INTCAM,
+	ACPM_DVFS_TEST_TNR,
+	ACPM_DVFS_TEST_CAM,
 	ACPM_DVFS_TEST_RESULT,
 	ACPM_DVFS_CMD_MAX,
 };
@@ -51,6 +64,12 @@ enum domains {
 	DVFS_CPUCL0,
 	DVFS_CPUCL1,
 	DVFS_CPUCL2,
+	DVFS_G3D,		/*not support */
+	DVFS_G3DL2,		/*not support */
+	DVFS_TPU,		/*not support */
+	DVFS_INTCAM,
+	DVFS_TNR,
+	DVFS_CAM,
 	NUM_OF_DVFS_DOMAINS,
 };
 
@@ -306,34 +325,88 @@ struct stats_scale {
 };
 
 #define MICRO_SEC               1000
-#define TIME_SCALES             10
+#define TIME_SCALES             12
 
 struct stats_scale buckets[TIME_SCALES] = { { 0, 0 }, { 1, 0 }, { 10, 0 },
-{ 20, 0 }, { 40, 0 }, { 60, 0 }, { 80, 0 },
-{ 100, 0 }, { 1000, 0 }, { 10000, 0 }
+{ 30, 0 }, { 50, 0 }, { 100, 0 }, { 200, 0 }, { 300, 0 },
+{ 400, 0 }, { 500, 0 }, { 1000, 0 }, { 2000, 0 }
 };				/* in us */
 
 struct acpm_dvfs_domains {
 	char *name;
 	struct stats_scale *scales;
+	unsigned int cal_id;
+	unsigned int devfreq_id;
+	unsigned int cpu_policy_id;
 };
 
-static struct acpm_dvfs_domains gs101_dvfs_domains[] = {
+static struct acpm_dvfs_domains dvfs_dm_list[] = {
 	[DVFS_MIF] = {
 		      .name = "MIF",
+		      .cal_id = ACPM_DVFS_MIF,
+		      .devfreq_id = DEVFREQ_MIF,
+		      .cpu_policy_id = -1,
 		       },
 	[DVFS_INT] = {
 		      .name = "INT",
+		      .cal_id = ACPM_DVFS_INT,
+		      .devfreq_id = DEVFREQ_INT,
+		      .cpu_policy_id = -1,
 		       },
 	[DVFS_CPUCL0] = {
 			 .name = "CPUCL0",
+			 .cal_id = ACPM_DVFS_CPUCL0,
+			 .devfreq_id = -1,
+			 .cpu_policy_id = CPUCL0_POLICY,
 			  },
 	[DVFS_CPUCL1] = {
 			 .name = "CPUCL1",
+			 .cal_id = ACPM_DVFS_CPUCL1,
+			 .devfreq_id = -1,
+			 .cpu_policy_id = CPUCL1_POLICY,
 			  },
 	[DVFS_CPUCL2] = {
 			 .name = "CPUCL2",
+			 .cal_id = ACPM_DVFS_CPUCL2,
+			 .devfreq_id = -1,
+			 .cpu_policy_id = CPUCL2_POLICY,
 			  },
+	[DVFS_G3D] = {
+		      .name = "G3D",
+		      .cal_id = ACPM_DVFS_G3D,
+		      .devfreq_id = -1,
+		      .cpu_policy_id = -1,
+		       },
+	[DVFS_G3DL2] = {
+			.name = "G3DL2",
+			.cal_id = ACPM_DVFS_G3DL2,
+			.devfreq_id = -1,
+			.cpu_policy_id = -1,
+			 },
+	[DVFS_TPU] = {
+		      .name = "TPU",
+		      .cal_id = ACPM_DVFS_TPU,
+		      .devfreq_id = -1,
+		      .cpu_policy_id = -1,
+		       },
+	[DVFS_INTCAM] = {
+			 .name = "INTCAM",
+			 .cal_id = ACPM_DVFS_INTCAM,
+			 .devfreq_id = DEVFREQ_INTCAM,
+			 .cpu_policy_id = -1,
+			  },
+	[DVFS_TNR] = {
+		      .name = "TNR",
+		      .cal_id = ACPM_DVFS_TNR,
+		      .devfreq_id = DEVFREQ_TNR,
+		      .cpu_policy_id = -1,
+		       },
+	[DVFS_CAM] = {
+		      .name = "CAM",
+		      .cal_id = ACPM_DVFS_CAM,
+		      .devfreq_id = DEVFREQ_CAM,
+		      .cpu_policy_id = -1,
+		       },
 };
 
 struct acpm_dvfs_dm {
@@ -342,6 +415,8 @@ struct acpm_dvfs_dm {
 	unsigned int min_freq;
 	unsigned int size;
 	unsigned int total_cycle_cnt;
+	unsigned int devfreq_id;
+	unsigned int cpu_policy_id;
 	struct dvfs_frequency_table *table;
 	struct acpm_dvfs_test_stats *stats;
 	struct stats_scale *scales;
@@ -399,8 +474,7 @@ static int acpm_dvfs_set_cpufreq(unsigned int dm_id, unsigned int rate,
 				 int cycle);
 static int acpm_dvfs_set_devfreq(unsigned int dm_id, unsigned int rate,
 				 int cycle);
-static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int cal_id,
-				  int dm_id);
+static int init_domain_freq_table(struct acpm_dvfs_test *dvfs, int dm_id);
 static unsigned int get_random_rate(unsigned int dm_id);
 static int dvfs_freq_table_init(void);
 static int acpm_pmic_ctrlist_stress(void);
