@@ -105,6 +105,15 @@
 		dma-heap,alignment = <0x10000>;
 		status = "disabled";
 	};
+
+	mfc_fw_dma_heap {
+		compatible = "samsung,dma-heap-carveout";
+		memory-region = <&mfc_fw>;
+		dma-heap,name = "mfc_fw";
+		dma-heap,secure;
+		dma-heap,protection_id = <2>;
+		dma-heap,alignment = <0x10000>;
+	};
 };
 
 &reserved_memory {
@@ -212,5 +221,11 @@
 			       <0x8 0x80000000 0x80000000>,
 			       <0x0 0x80000000 0x80000000>;
 		status = "disabled";
+	};
+
+	mfc_fw: mfc_fw {
+		size = <0x210000>;
+		alloc-ranges = <0x0 0x80000000 0x80000000>;
+		alignment = <0x0 0x00010000>;
 	};
 };
