@@ -37,16 +37,25 @@ static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id
 
 static struct uclamp_se uclamp_default[UCLAMP_CNT];
 
-#define SET_TASK_GROUP_STORE(__grp, __vg)						      \
+#define SET_VENDOR_GROUP_STORE(__grp, __vg)						      \
 		static ssize_t set_task_group_##__grp##_store (struct kobject *kobj,	      \
 							       struct kobj_attribute *attr,   \
 							       const char *buf, size_t count) \
 		{									      \
-			int ret = update_vendor_task_attribute(buf, VTA_GROUP, __vg);	      \
+			int ret = update_vendor_group_attribute(buf, VTA_TASK_GROUP, __vg);   \
 			return ret ?: count;						      \
 		}									      \
 		static struct kobj_attribute set_task_group_##__grp##_attribute =	      \
-							__ATTR_WO(set_task_group_##__grp);
+							__ATTR_WO(set_task_group_##__grp);    \
+		static ssize_t set_proc_group_##__grp##_store (struct kobject *kobj,	      \
+							       struct kobj_attribute *attr,   \
+							       const char *buf, size_t count) \
+		{									      \
+			int ret = update_vendor_group_attribute(buf, VTA_PROC_GROUP, __vg);   \
+			return ret ?: count;						      \
+		}									      \
+		static struct kobj_attribute set_proc_group_##__grp##_attribute =	      \
+							__ATTR_WO(set_proc_group_##__grp);
 
 
 #define VENDOR_GROUP_BOOL_ATTRIBUTE(__grp, __attr, __vg)				      \
@@ -54,7 +63,7 @@ static struct uclamp_se uclamp_default[UCLAMP_CNT];
 						       struct kobj_attribute *attr,char *buf) \
 		{									      \
 			struct vendor_group_property *gp = get_vendor_group_property(__vg);   \
-			return scnprintf(buf, PAGE_SIZE, "%s\n",			\
+			return scnprintf(buf, PAGE_SIZE, "%s\n",			      \
 					gp->__attr==true? "true":"false");		      \
 		}									      \
 		static ssize_t __grp##_##__attr##_store (struct kobject *kobj,		      \
@@ -76,13 +85,13 @@ static struct uclamp_se uclamp_default[UCLAMP_CNT];
 						       struct kobj_attribute *attr,char *buf) \
 		{									      \
 			struct vendor_group_property *gp = get_vendor_group_property(__vg);   \
-			return scnprintf(buf, PAGE_SIZE, "%u\n",	gp->__attr);	\
+			return scnprintf(buf, PAGE_SIZE, "%u\n",	gp->__attr);	      \
 		}									      \
 		static ssize_t __grp##_##__attr##_store (struct kobject *kobj,		      \
 							 struct kobj_attribute *attr,	      \
 							 const char *buf, size_t count)	      \
 		{									      \
-			unsigned int val;					\
+			unsigned int val;					              \
 			struct vendor_group_property *gp = get_vendor_group_property(__vg);   \
 			if (kstrtouint(buf, 10, &val))					      \
 				return -EINVAL;						      \
@@ -550,13 +559,12 @@ static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id
 	rcu_read_unlock();
 }
 
-static int update_vendor_task_attribute(const char *buf,
-					enum vendor_task_attribute vta, unsigned int val)
+static int update_vendor_group_attribute(const char *buf, enum vendor_group_attribute vta,
+					 unsigned int val)
 {
 	struct vendor_task_struct *vp;
-	struct task_struct *p;
+	struct task_struct *p, *t;
 	enum uclamp_id clamp_id;
-
 	pid_t pid;
 
 	if (kstrtoint(buf, 0, &pid) || pid <= 0)
@@ -570,36 +578,45 @@ static int update_vendor_task_attribute(const char *buf,
 	}
 
 	get_task_struct(p);
-	vp = get_vendor_task_struct(p);
 
 	switch (vta) {
-	case VTA_GROUP:
+	case VTA_TASK_GROUP:
+		vp = get_vendor_task_struct(p);
 		vp->group = val;
 		for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
 			uclamp_update_active(p, clamp_id);
 		break;
+	case VTA_PROC_GROUP:
+		for_each_thread(p, t) {
+			vp = get_vendor_task_struct(t);
+			vp->group = val;
+			for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
+				uclamp_update_active(t, clamp_id);
+		}
+		break;
 	default:
 		break;
 	}
-	rcu_read_unlock();
 
 	put_task_struct(p);
+	rcu_read_unlock();
 
 	return 0;
 }
 
-SET_TASK_GROUP_STORE(ta, VG_TOPAPP);
-SET_TASK_GROUP_STORE(fg, VG_FOREGROUND);
-SET_TASK_GROUP_STORE(sys, VG_SYSTEM);
-SET_TASK_GROUP_STORE(cam, VG_CAMERA);
-SET_TASK_GROUP_STORE(cam_power, VG_CAMERA_POWER);
-SET_TASK_GROUP_STORE(bg, VG_BACKGROUND);
-SET_TASK_GROUP_STORE(sysbg, VG_SYSTEM_BACKGROUND);
-SET_TASK_GROUP_STORE(nnapi, VG_NNAPI_HAL);
-SET_TASK_GROUP_STORE(rt, VG_RT);
-SET_TASK_GROUP_STORE(dex2oat, VG_DEX2OAT);
-SET_TASK_GROUP_STORE(ota, VG_OTA);
-SET_TASK_GROUP_STORE(sf, VG_SF);
+SET_VENDOR_GROUP_STORE(ta, VG_TOPAPP);
+SET_VENDOR_GROUP_STORE(fg, VG_FOREGROUND);
+// VG_SYSTEM is default setting so set to VG_SYSTEM is essentially clear vendor group
+SET_VENDOR_GROUP_STORE(sys, VG_SYSTEM);
+SET_VENDOR_GROUP_STORE(cam, VG_CAMERA);
+SET_VENDOR_GROUP_STORE(cam_power, VG_CAMERA_POWER);
+SET_VENDOR_GROUP_STORE(bg, VG_BACKGROUND);
+SET_VENDOR_GROUP_STORE(sysbg, VG_SYSTEM_BACKGROUND);
+SET_VENDOR_GROUP_STORE(nnapi, VG_NNAPI_HAL);
+SET_VENDOR_GROUP_STORE(rt, VG_RT);
+SET_VENDOR_GROUP_STORE(dex2oat, VG_DEX2OAT);
+SET_VENDOR_GROUP_STORE(ota, VG_OTA);
+SET_VENDOR_GROUP_STORE(sf, VG_SF);
 
 static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "cam_power", "bg", "sys_bg",
 				       "nnapi", "rt", "dex2oat", "ota", "sf"};
@@ -637,16 +654,6 @@ static int dump_task_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static ssize_t clear_group_store(struct kobject *kobj,
-				 struct kobj_attribute *attr,
-				 const char *buf, size_t count)
-{
-	int ret = update_vendor_task_attribute(buf, VTA_GROUP, VG_SYSTEM);
-
-	return ret ?: count;
-}
-static struct kobj_attribute clear_group_attribute = __ATTR_WO(clear_group);
 
 static ssize_t uclamp_threshold_show(struct kobject *kobj,
 					struct kobj_attribute *attr,
@@ -1000,7 +1007,7 @@ static struct attribute *attrs[] = {
 	&sf_group_throttle_attribute.attr,
 	&sf_uclamp_min_attribute.attr,
 	&sf_uclamp_max_attribute.attr,
-	// Vendor task attributes
+	// Vendor group attributes
 	&set_task_group_ta_attribute.attr,
 	&set_task_group_fg_attribute.attr,
 	&set_task_group_sys_attribute.attr,
@@ -1013,7 +1020,18 @@ static struct attribute *attrs[] = {
 	&set_task_group_dex2oat_attribute.attr,
 	&set_task_group_ota_attribute.attr,
 	&set_task_group_sf_attribute.attr,
-	&clear_group_attribute.attr,
+	&set_proc_group_ta_attribute.attr,
+	&set_proc_group_fg_attribute.attr,
+	&set_proc_group_sys_attribute.attr,
+	&set_proc_group_cam_attribute.attr,
+	&set_proc_group_cam_power_attribute.attr,
+	&set_proc_group_bg_attribute.attr,
+	&set_proc_group_sysbg_attribute.attr,
+	&set_proc_group_nnapi_attribute.attr,
+	&set_proc_group_rt_attribute.attr,
+	&set_proc_group_dex2oat_attribute.attr,
+	&set_proc_group_ota_attribute.attr,
+	&set_proc_group_sf_attribute.attr,
 	// Uclamp stats
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	&uclamp_stats_attribute.attr,
