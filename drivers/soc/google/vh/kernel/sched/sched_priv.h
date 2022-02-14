@@ -56,8 +56,9 @@ struct uclamp_stats {
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 				      unsigned long cap, int cpu);
 
-enum vendor_task_attribute {
-	VTA_GROUP,
+enum vendor_group_attribute {
+	VTA_TASK_GROUP,
+	VTA_PROC_GROUP,
 };
 
 struct vendor_task_group_struct {

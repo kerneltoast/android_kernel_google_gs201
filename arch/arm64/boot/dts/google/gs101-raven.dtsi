@@ -21,3 +21,4 @@
 #include "gs101-raviole-usecases.dtsi"
 #include "gs101-raven-charging.dtsi"
 #include "gs101-raven-bluetooth.dtsi"
+#include "gs101-faceauth-dma-heap.dtsi"
