@@ -570,6 +570,7 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	dbg_snapshot_set_item_enable("log_kevents", false);
 	dbg_snapshot_dump_panic(kernel_panic_msg, strlen(kernel_panic_msg));
 	dbg_snapshot_report_reason(DSS_SIGN_PANIC);
+	dbg_snapshot_warm_reboot_reg(DSS_WARM_REBOOT_SET);
 	for_each_possible_cpu(cpu) {
 		if (cpu_is_offline(cpu))
 			dbg_snapshot_set_core_power_stat(DSS_SIGN_DEAD, cpu);
@@ -633,13 +634,16 @@ static int dbg_snapshot_restart_handler(struct notifier_block *nb,
 	if (dss_desc.in_warm) {
 		dev_emerg(dss_desc.dev, "warm reset\n");
 		dbg_snapshot_report_reason(DSS_SIGN_WARM_REBOOT);
+		dbg_snapshot_warm_reboot_reg(DSS_WARM_REBOOT_SET);
 		dbg_snapshot_dump_task_info();
 	} else if (dss_desc.in_reboot) {
 		dev_emerg(dss_desc.dev, "normal reboot starting\n");
 		dbg_snapshot_report_reason(DSS_SIGN_NORMAL_REBOOT);
+		dbg_snapshot_warm_reboot_reg(DSS_WARM_REBOOT_UNSET);
 	} else {
 		dev_emerg(dss_desc.dev, "emergency restart\n");
 		dbg_snapshot_report_reason(DSS_SIGN_EMERGENCY_REBOOT);
+		dbg_snapshot_warm_reboot_reg(DSS_WARM_REBOOT_SET);
 		dbg_snapshot_dump_task_info();
 	}
 
