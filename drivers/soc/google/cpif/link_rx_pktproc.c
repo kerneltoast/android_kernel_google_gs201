@@ -270,10 +270,11 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 
 	mif_info("Unmap buffer from %d to %d\n", q->done_ptr, *q->fore_ptr);
 	while (*q->fore_ptr != q->done_ptr) {
-		if (ppa->buff_rgn_cached && !ppa->use_hw_iocc &&
-			q->dma_addr[q->done_ptr])
+		if (ppa->buff_rgn_cached && !ppa->use_hw_iocc && q->dma_addr[q->done_ptr]) {
 			dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
 					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
+			q->dma_addr[q->done_ptr] = 0;
+		}
 		desc[q->done_ptr].cp_data_paddr = 0;
 		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 	}
@@ -302,10 +303,11 @@ static int pktproc_clear_data_addr_without_bm(struct pktproc_queue *q)
 
 	mif_info("Unmap all buffers\n");
 	for (i = 0; i < q->num_desc; i++) {
-		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc &&
-			q->dma_addr[i])
+		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc && q->dma_addr[i]) {
 			dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[i],
 					q->ppa->max_packet_size, DMA_FROM_DEVICE, 0);
+			q->dma_addr[i] = 0;
+		}
 	}
 	memset(desc, 0, q->desc_size);
 
@@ -353,6 +355,7 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 			if (dma_mapping_error(ppa->dev, q->dma_addr[fore])) {
 				mif_err_limited("dma_map_single_attrs() failed\n");
+				q->dma_addr[fore] = 0;
 				spin_unlock_irqrestore(&q->lock, flags);
 				return -ENOMEM;
 			}
@@ -457,6 +460,7 @@ dma_map:
 						     q->ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 			if (dma_mapping_error(q->ppa->dev, q->dma_addr[fore])) {
 				mif_err_limited("dma_map_single_attrs() failed\n");
+				q->dma_addr[fore] = 0;
 				spin_unlock_irqrestore(&q->lock, flags);
 				return -ENOMEM;
 			}
@@ -565,9 +569,11 @@ static u8 *get_packet_vaddr(struct pktproc_queue *q, struct pktproc_desc_sktbuf 
 
 	ret += ppa->skb_padding_size;
 
-	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc)
+	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
 		dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
 					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
+		q->dma_addr[q->done_ptr] = 0;
+	}
 
 	return ret;
 }
