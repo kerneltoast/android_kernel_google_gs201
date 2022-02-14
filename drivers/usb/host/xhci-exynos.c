@@ -90,7 +90,18 @@ int xhci_exynos_bus_suspend(struct usb_hcd *hcd)
 
 	if (hcd == xhci->main_hcd &&
 	    xhci_exynos->port_state == PORT_USB2) {
-		ret_phy = exynos_usbdrd_phy_vendor_set(xhci_exynos->phy_usb2, 1, 0);
+		struct usb_device *child_udev;
+		bool enable_rewa_irq = true;
+		/* We only need to find the first child for now. */
+		child_udev = usb_hub_find_child(udev, 1);
+		/* TODO: maintain a list of udev to disable conn and rewa irq */
+		if (child_udev && (child_udev->descriptor.idVendor == 0x18d1 &&
+				   child_udev->descriptor.idProduct == 0x9480)) {
+			dev_dbg(xhci_exynos->dev, "%s: disable conn and rewa irq\n", __func__);
+			enable_rewa_irq = false;
+		}
+
+		ret_phy = exynos_usbdrd_phy_vendor_set(xhci_exynos->phy_usb2, enable_rewa_irq, 0);
 		if (ret_phy)
 			dev_info(xhci_exynos->dev, "phy vendor set fail\n");
 
@@ -322,7 +333,10 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 				}
 
 				/* do_remote_wakeup may be also set in drivers/usb/core/driver.c */
-				if (udev->do_remote_wakeup == 1 && audio_detected) {
+				if ((udev->do_remote_wakeup == 1 && audio_detected) ||
+				    /* TODO: maintain a list of udev to force auto suspend */
+				    (udev->descriptor.idVendor == 0x18d1 &&
+				     udev->descriptor.idProduct == 0x9480)) {
 					device_init_wakeup(ddev, 1);
 					usb_enable_autosuspend(dev);
 					trace_android_vh_sound_usb_support_cpu_suspend(udev, 0,
