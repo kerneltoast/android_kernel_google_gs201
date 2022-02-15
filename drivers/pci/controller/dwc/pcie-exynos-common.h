@@ -315,7 +315,7 @@ struct exynos_pcie {
 };
 
 #define PCIE_MAX_SEPA_IRQ_NUM	(5)
-#define PCIE_START_SEP_MSI_VEC	(2)
+#define PCIE_START_SEP_MSI_VEC	(1)
 #define PCIE_MSI_MAX_VEC_NUM	(32)
 
 struct separated_msi_vector {

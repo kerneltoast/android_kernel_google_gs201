@@ -3799,6 +3799,33 @@ static const char *sep_irq_name[PCIE_MAX_SEPA_IRQ_NUM] = {
 	"exynos-pcie-msi0", "exynos-pcie-msi1", "exynos-pcie-msi2",
 	"exynos-pcie-msi3", "exynos-pcie-msi4" };
 
+static irqreturn_t exynos_pcie_msi1_handler(int irq, void *arg)
+{
+	struct pcie_port *pp = arg;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	struct device *dev = pci->dev;
+	int ch_num = exynos_pcie->ch_num;
+	struct separated_msi_vector *msi_vec = &sep_msi_vec[ch_num][1];
+	int vec_num = 1;
+
+	/* Clear MSI interrupt */
+	exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS +
+			(vec_num * MSI_REG_CTRL_BLOCK_SIZE), 4, 0x1);
+
+	if (!msi_vec->is_used) {
+		dev_info(dev, "Unexpected separated MSI1 interrupt!");
+		goto clear_irq;
+	}
+
+	if (msi_vec->msi_irq_handler != NULL)
+		msi_vec->msi_irq_handler(irq, msi_vec->context);
+
+clear_irq:
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t exynos_pcie_msi2_handler(int irq, void *arg)
 {
 	struct pcie_port *pp = arg;
@@ -3880,9 +3907,9 @@ clear_irq:
 	return IRQ_HANDLED;
 }
 
-irqreturn_t (*msi_handler[PCIE_MAX_SEPA_IRQ_NUM])(int, void *) = {
-	NULL, NULL, exynos_pcie_msi2_handler, exynos_pcie_msi3_handler,
-	exynos_pcie_msi4_handler };
+irqreturn_t (*msi_handler[PCIE_MAX_SEPA_IRQ_NUM])(int , void *) = {
+	NULL, exynos_pcie_msi1_handler,  exynos_pcie_msi2_handler,
+	exynos_pcie_msi3_handler, exynos_pcie_msi4_handler };
 
 int register_separated_msi_vector(int ch_num, irq_handler_t handler, void *context,
 		int *irq_num)
