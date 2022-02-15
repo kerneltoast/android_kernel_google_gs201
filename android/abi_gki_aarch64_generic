@@ -900,6 +900,7 @@
   get_random_u32
   get_sg_io_hdr
   __get_task_comm
+  get_task_cred
   get_thermal_instance
   get_unused_fd_flags
   get_user_pages
@@ -1320,6 +1321,7 @@
   noop_llseek
   nr_cpu_ids
   nr_irqs
+  ns_capable
   nsec_to_clock_t
   ns_to_timespec64
   __num_online_cpus
@@ -1583,6 +1585,7 @@
   proto_unregister
   pskb_expand_head
   __pskb_pull_tail
+  __put_cred
   put_device
   put_disk
   __put_page
@@ -1954,6 +1957,7 @@
   snd_soc_runtime_set_dai_fmt
   snd_soc_unregister_card
   snd_soc_unregister_component
+  snd_vendor_set_ops
   snprintf
   soc_device_register
   sock_alloc_send_skb
@@ -2105,6 +2109,7 @@
   time64_to_tm
   topology_set_thermal_pressure
   _totalram_pages
+  touch_softlockup_watchdog
   __trace_bprintk
   trace_event_buffer_commit
   trace_event_buffer_reserve
