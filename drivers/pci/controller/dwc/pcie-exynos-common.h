@@ -314,6 +314,17 @@ struct exynos_pcie {
 	int phy_control;
 };
 
+#define PCIE_MAX_SEPA_IRQ_NUM	(5)
+#define PCIE_START_SEP_MSI_VEC	(2)
+#define PCIE_MSI_MAX_VEC_NUM	(32)
+
+struct separated_msi_vector {
+	int is_used;
+	int irq;
+	void *context;
+	irq_handler_t msi_irq_handler;
+};
+
 #define PCIE_EXYNOS_OP_READ(base, type)						\
 static inline type exynos_##base##_read(struct exynos_pcie *pcie, u32 reg)	\
 {										\
