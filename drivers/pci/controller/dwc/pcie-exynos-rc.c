@@ -3708,6 +3708,24 @@ int exynos_pcie_rc_set_affinity(int ch_num, int affinity)
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_affinity);
 
+int exynos_pcie_rc_set_enable_wake(struct irq_data *data, unsigned int enable)
+{
+	int ret = 0;
+	struct pcie_port *pp = data->parent_data->domain->host_data;
+
+	if (pp == NULL) {
+		pr_err("Warning: exynos_pcie_rc_set_enable_wake: not exist pp\n");
+		return -EINVAL;
+	}
+
+	if (enable)
+		ret = enable_irq_wake(pp->irq);
+	else
+		ret = disable_irq_wake(pp->irq);
+
+	return ret;
+}
+
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 static void __maybe_unused exynos_pcie_rc_set_tpoweron(struct pcie_port *pp, int max)
 {
@@ -4016,6 +4034,7 @@ skip_sep_request_irq:
 		msi_domain = pp->msi_domain;
 		msi_domain_info = (struct msi_domain_info *)msi_domain->host_data;
 		msi_domain_info->chip->irq_set_affinity = exynos_pcie_msi_set_affinity;
+		msi_domain_info->chip->irq_set_wake = exynos_pcie_rc_set_enable_wake;
 		if (exynos_pcie->ep_device_type == EP_QC_WIFI) {
 			msi_domain_info->chip->irq_mask = pci_msi_mask_irq;
 			msi_domain_info->chip->irq_unmask = pci_msi_unmask_irq;
