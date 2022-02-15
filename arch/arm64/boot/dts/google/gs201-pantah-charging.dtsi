@@ -14,8 +14,10 @@
 			google_cpm: google,cpm {
 				status = "okay";
 				compatible = "google,cpm";
-				google,chg-power-supplies = "main-charger",
-							    "pca94xx-mains";
+				#cooling-cells = <2>;
+
+				google,chg-power-supplies = "main-charger",	// out-0
+							    "pca94xx-mains";	// out-1
 
 				/* S2MPG12X01 -> GPIO_1 -> CHARGE_PUMP_EN */
 				google,dc-en = <&s2mpg12_gpio 1 0>;
@@ -25,9 +27,26 @@
 				google,dc_limit-vbatt = <4350000>;
 				google,dc_limit-vbatt_min = <3400000>;
 
-				google,tcpm-power-supply = <&max77759tcpc>;
-				google,wlc_dc-power-supply = "wireless";
+				google,tcpm-power-supply = <&max77759tcpc>;	// in=0
+				google,wlc_dc-power-supply = "wireless";	// in=1
 				google,pps-awake;
+
+				/* google,mdis_in =  &max77759tcpc, "wireless" */
+				/* google,mdis_out = "main-charger", "pca94xx-mains"; */
+
+				// thermal budgets
+				google,mdis-thermal-mitigation =
+					<3000 2500 2000 1500 1000 500>;
+				// source ONLINE selection criteria
+				google,mdis-out-sel-online = <1 2>;
+				// PD+main-charger, WLC+main-charger
+				google,mdis-out0-limits =
+					<5000000 4000000 2500000 1000000 500000 100000
+					 1100000  500000  250000  100000      0      0>;
+				// PPS_CP+pca94xx-mains, // WLC_CP+pca94xx-mains
+				google,mdis-out1-limits =
+					<5000000 4500000 4000000 3500000 3000000     0
+					 5000000 4300000 3900000 3000000 2000000     0>;
 			};
 
 			google_charger: google,charger {
@@ -69,6 +88,10 @@
 			};
 
 			google_wlc_fcc_charger: google,wlc_fcc_charger {
+				#cooling-cells = <2>;
+			};
+
+			google_mdis_charger: google,mdis_charger {
 				#cooling-cells = <2>;
 			};
 
