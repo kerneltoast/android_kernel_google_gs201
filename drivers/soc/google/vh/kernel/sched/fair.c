@@ -23,7 +23,7 @@ extern unsigned int vendor_sched_util_post_init_scale;
 static struct vendor_group_property vg[VG_MAX];
 
 unsigned int sched_capacity_margin[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD};
+			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD };
 static unsigned long scale_freq[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
 
@@ -658,8 +658,9 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 {
 	struct root_domain *rd;
 	struct perf_domain *pd;
-	cpumask_t idle_fit, idle_unfit, unimportant_fit, unimportant_unfit, max_spare_cap,
-		  candidates;
+	cpumask_t idle_fit = { CPU_BITS_NONE }, idle_unfit = { CPU_BITS_NONE },
+		  unimportant_fit = { CPU_BITS_NONE }, unimportant_unfit = { CPU_BITS_NONE },
+		  max_spare_cap = { CPU_BITS_NONE }, candidates = { CPU_BITS_NONE };
 	int i, weight, best_energy_cpu = -1, this_cpu = smp_processor_id();
 	long cur_energy, best_energy = LONG_MAX;
 	unsigned long spare_cap, target_max_spare_cap = 0;
@@ -670,16 +671,10 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	bool idle_target_found = false, importance_target_found = false;
 	bool prefer_idle = get_prefer_idle(p), prefer_high_cap = get_prefer_high_cap(p);
 	unsigned long capacity, wake_util, group_capacity, wake_group_util, cpu_importance;
-	long pd_max_spare_cap;
+	unsigned long pd_max_spare_cap;
 	int pd_max_spare_cap_cpu, pd_best_idle_cpu;
 	int most_spare_cap_cpu = -1;
 	struct cpuidle_state *idle_state;
-
-	cpumask_clear(&idle_fit);
-	cpumask_clear(&idle_unfit);
-	cpumask_clear(&unimportant_fit);
-	cpumask_clear(&unimportant_unfit);
-	cpumask_clear(&max_spare_cap);
 
 	rd = cpu_rq(this_cpu)->rd;
 
@@ -689,7 +684,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 		goto out;
 
 	for (; pd; pd = pd->next) {
-		pd_max_spare_cap = LONG_MIN;
+		pd_max_spare_cap = 0;
 		pd_best_exit_lat = UINT_MAX;
 		pd_max_spare_cap_cpu = -1;
 		pd_best_idle_cpu = -1;
@@ -710,7 +705,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 					   arch_scale_cpu_capacity(i));
 			wake_group_util = group_util_without(i, p, group_capacity);
 			task_fits = task_fits_capacity(p, i, sync_boost);
-			spare_cap = min(capacity - wake_util, group_capacity - wake_group_util);
+			spare_cap = min_t(unsigned long, capacity - wake_util,
+					  group_capacity - wake_group_util);
 			group_overutilize = group_overutilized(i, task_group(p));
 			exit_lat = 0;
 
