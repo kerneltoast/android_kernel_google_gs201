@@ -193,6 +193,11 @@ struct sjtag_dev_state {
 	enum sjtag_cmd_kernel_status cmd_kstatus;
 };
 
+static int safe_read_buff(char *ptr, const char *oob_ptr)
+{
+	return (ptr >= oob_ptr ? -1 : (unsigned char)*ptr);
+}
+
 static void reverse_bytes(char *startptr, size_t length)
 {
 	int temp;
@@ -517,22 +522,33 @@ static ssize_t preauth_show(struct device *dev, struct device_attribute *dev_att
 }
 static DEVICE_ATTR_RO(preauth);
 
-static u32 parse_asn1_length(char **pptr)
+static int parse_asn1_length(char **pptr, const char *oob_ptr)
 {
-	u32 short_len;
-	u32 long_len = 0;
+	int buff_byte;
+	u32 len_cnt, block_len;
 
-	short_len = *(*pptr)++;
-	if (!(short_len & 0x80))
-		return short_len;
+	buff_byte = safe_read_buff((*pptr)++, oob_ptr);
+	if (buff_byte < 0)
+		return -1;
 
-	short_len &= 0x7f;
-	while (short_len--) {
-		long_len <<= 8;
-		long_len |= *(*pptr)++;
+	if (!(buff_byte & 0x80)) {
+		block_len = buff_byte;		/* Actual block length */
+	} else {
+		len_cnt = buff_byte & 0x7f;	/* Length of the block length value */
+		block_len = 0;
+		while (len_cnt--) {
+			buff_byte = safe_read_buff((*pptr)++, oob_ptr);
+			if (buff_byte < 0)
+				return -1;
+			block_len <<= 8;
+			block_len |= buff_byte;
+		}
 	}
 
-	return long_len;
+	if (*pptr + block_len > oob_ptr)
+		return -1;
+
+	return block_len;
 }
 
 static ssize_t auth_store(struct device *dev, struct device_attribute *dev_attr,
@@ -546,11 +562,11 @@ static ssize_t auth_store(struct device *dev, struct device_attribute *dev_attr,
 	char *exchange_buff;
 	struct sig_auth_tok_t *sig_auth_tok;
 	int ipc_rc;
-	int len;
+	int len, block_len;
 	char *sigptr;
 	char *destptr;
 	int section, byte;
-	u32 block_len;
+	const char *oob_ptr;
 
 	if (dss_header_base == 0)
 		return -ENODEV;
@@ -581,6 +597,7 @@ static ssize_t auth_store(struct device *dev, struct device_attribute *dev_attr,
 		dev_err(dev, "%s: Invalid sig payload\n", file_op);
 		return -EINVAL;
 	}
+	oob_ptr = wbuff + len;
 
 	/* Start building the payload with the access parameters */
 	sig_auth_tok = (struct sig_auth_tok_t *)exchange_buff;
@@ -595,29 +612,25 @@ static ssize_t auth_store(struct device *dev, struct device_attribute *dev_attr,
 	sigptr = wbuff;
 	destptr = sig_auth_tok->sig;
 
-	if (*sigptr++ != SJTAG_SIG_ASN1_TAG_SEQUENCE) {
-		dev_err(dev, "%s: Invalid sig payload type tag\n", file_op);
+	if (safe_read_buff(sigptr++, oob_ptr) != SJTAG_SIG_ASN1_TAG_SEQUENCE) {
+		dev_err(dev, "%s: Incorrect sig payload type tag\n", file_op);
 		return -EINVAL;
 	}
-	block_len = parse_asn1_length(&sigptr);
-	if (block_len > len - (sigptr - wbuff)) {
-		dev_err(dev, "%s: Inconsistent sig payload size\n", file_op);
+	block_len = parse_asn1_length(&sigptr, oob_ptr);
+	if (block_len < 0) {
+		dev_err(dev, "%s: Incorrect sig payload size\n", file_op);
 		return -EINVAL;
 	}
 
 	for (section = 0; section < 2; section++) {
 		/* Parse the section header */
-		if (*sigptr++ != SJTAG_SIG_ASN1_TAG_INTEGER) {
-			dev_err(dev, "%s: Invalid sig section type tag\n", file_op);
+		if (safe_read_buff(sigptr++, oob_ptr) != SJTAG_SIG_ASN1_TAG_INTEGER) {
+			dev_err(dev, "%s: Incorrect sig section type tag\n", file_op);
 			return -EINVAL;
 		}
-		block_len = parse_asn1_length(&sigptr);
-		if (block_len > SJTAG_SIG_MAX_SECTION_SIZE) {
-			dev_err(dev, "%s: Invalid sig section size\n", file_op);
-			return -EINVAL;
-		}
-		if (block_len > len - (sigptr - wbuff)) {
-			dev_err(dev, "%s: Inconsistent sig section size\n", file_op);
+		block_len = parse_asn1_length(&sigptr, oob_ptr);
+		if (block_len < 0 || block_len > SJTAG_SIG_MAX_SECTION_SIZE) {
+			dev_err(dev, "%s: Incorrect sig section size\n", file_op);
 			return -EINVAL;
 		}
 
