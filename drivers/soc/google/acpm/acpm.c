@@ -294,6 +294,14 @@ void exynos_acpm_reboot(void)
 }
 EXPORT_SYMBOL_GPL(exynos_acpm_reboot);
 
+void acpm_prepare_reboot(void)
+{
+	acpm_ipc_set_waiting_mode(BUSY_WAIT);
+
+	acpm_stop_log_and_dumpram();
+}
+EXPORT_SYMBOL_GPL(acpm_prepare_reboot);
+
 static int acpm_probe(struct platform_device *pdev)
 {
 	struct acpm_info *acpm;
