@@ -35,14 +35,43 @@
 	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 };
 
+&spi17_bus {
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
+&pinctrl_0 {
+	spi17_bus_off: spi17-bus-off {
+		samsung,pins = "gpa4-0", "gpa4-1", "gpa4-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-val = <0>;
+	};
+	spi17_cs_on: spi17-cs-on {
+		samsung,pins = "gpa4-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-val = <1>;
+	};
+	spi17_cs_off: spi17-cs-off {
+		samsung,pins = "gpa4-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-val = <0>;
+	};
+};
+
 &spi_17 {
 	/* XAPM_USI0 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 	status = "okay";
 	cs-gpios = <&gpa4 3 GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi17_bus &spi17_cs &ese2_spi_rst>;
 
 	ese2: ese@0 {
 		compatible = "st,st33spi";
@@ -50,10 +79,15 @@
 		spi-max-frequency = <8000000>;
 		esereset-gpio = <&gph0 4 GPIO_ACTIVE_HIGH>;
 		power_mode = "ST33";
+		pinctrl-names = "default","on","off";
+		pinctrl-0 = <&spi17_bus_off &spi17_cs_off &ese2_spi_rst>;
+		pinctrl-1 = <&spi17_bus &spi17_cs_on &ese2_spi_rst>;
+		pinctrl-2 = <&spi17_bus_off &spi17_cs_off &ese2_spi_rst>;
 
 		controller-data {
 			cs-gpio = <&gpa4 3 GPIO_ACTIVE_HIGH>;
 			cs-clock-delay = <10>;
+			cs-init-state = <0>;
 			samsung,spi-chip-select-mode = <0>;
 		};
 	};
