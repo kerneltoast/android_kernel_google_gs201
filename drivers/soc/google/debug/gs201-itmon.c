@@ -1038,7 +1038,7 @@ static void itmon_enable_addr_detect(struct itmon_dev *itmon,
 	__raw_writel(tmp | val, node->regs + offset
 				+ REG_PROT_CHK_START_END_ADDR_UPPER);
 
-	log_dev_dbg(itmon->dev, "ITMON - %s addr detect  enabled\n", node->name);
+	dev_dbg(itmon->dev, "ITMON - %s addr detect  enabled\n", node->name);
 }
 
 static void itmon_enable_prot_chk(struct itmon_dev *itmon,
@@ -1054,7 +1054,7 @@ static void itmon_enable_prot_chk(struct itmon_dev *itmon,
 
 	__raw_writel(val, node->regs + offset + REG_PROT_CHK_CTL);
 
-	log_dev_dbg(itmon->dev, "ITMON - %s hw_assert enabled\n", node->name);
+	dev_dbg(itmon->dev, "ITMON - %s hw_assert enabled\n", node->name);
 }
 
 static void itmon_enable_err_report(struct itmon_dev *itmon,
@@ -1091,8 +1091,8 @@ static void itmon_enable_err_report(struct itmon_dev *itmon,
 	/* enable interrupt */
 	__raw_writel(enabled, node->regs + offset + REG_INT_MASK);
 
-	log_dev_dbg(itmon->dev,
-		    "ITMON - %s error reporting enabled\n", node->name);
+	dev_dbg(itmon->dev,
+		"ITMON - %s error reporting enabled\n", node->name);
 }
 
 static void itmon_enable_timeout(struct itmon_dev *itmon,
@@ -1113,7 +1113,7 @@ static void itmon_enable_timeout(struct itmon_dev *itmon,
 		__raw_writel(enabled,
 			     node->regs + offset + REG_TMOUT_FRZ_EN);
 	}
-	log_dev_dbg(itmon->dev, "ITMON - %s timeout enabled\n", node->name);
+	dev_dbg(itmon->dev, "ITMON - %s timeout enabled\n", node->name);
 }
 
 static void itmon_init(struct itmon_dev *itmon, bool enabled)
@@ -1137,7 +1137,7 @@ static void itmon_init(struct itmon_dev *itmon, bool enabled)
 			if (node[j].addr_detect_enabled)
 				itmon_enable_addr_detect(itmon, &node[j], true);
 
-			log_dev_dbg(itmon->dev, "ITMON - %s init -\n", node[j].name);
+			dev_dbg(itmon->dev, "ITMON - %s init -\n", node[j].name);
 		}
 	}
 }
