@@ -21,7 +21,10 @@
 		idt,max_vout_mv = <19500>;
 		idt,has_wlc_dc = <1>;
 		/* Enable */
+		idt,gpio_wlc_en = <&s2mpg10_gpio 2 GPIO_ACTIVE_HIGH>;
 		idt,gpio_qi_vbus_en = <&s2mpg10_gpio 2 GPIO_ACTIVE_HIGH>;
+		idt,gpio_qien = <&gpp27 3 GPIO_ACTIVE_LOW>;
+
 		/* CSP */
 		idt,fuel-gauge = <&max77759_fg>;
 		/* Defender */
