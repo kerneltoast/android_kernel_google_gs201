@@ -290,13 +290,17 @@ static ssize_t ipc_write(struct file *filp, const char __user *data,
 		unsigned int alloc_size;
 		int ret;
 
+		if (check_add_overflow(remains, headroom, &alloc_size))
+			alloc_size = SZ_2K;
+
 		switch (ld->protocol) {
 		case PROTOCOL_SIPC:
-			alloc_size = min_t(unsigned int, remains + headroom,
-				iod->max_tx_size ?: remains + headroom);
+			if (iod->max_tx_size)
+				alloc_size = min_t(unsigned int, alloc_size,
+					iod->max_tx_size);
 			break;
 		case PROTOCOL_SIT:
-			alloc_size = min_t(unsigned int, remains + headroom, SZ_2K);
+			alloc_size = min_t(unsigned int, alloc_size, SZ_2K);
 			break;
 		default:
 			mif_err("protocol error %d\n", ld->protocol);

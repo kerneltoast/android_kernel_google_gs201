@@ -474,8 +474,13 @@ static ssize_t bootdump_write(struct file *filp, const char __user *data,
 
 	while (copied < cnt) {
 		remains = cnt - copied;
-		alloc_size = min_t(unsigned int, remains + headroom,
-			iod->max_tx_size ?: remains + headroom);
+
+		if (check_add_overflow(remains, headroom, &alloc_size))
+			alloc_size = SZ_2K;
+
+		if (iod->max_tx_size)
+			alloc_size = min_t(unsigned int, alloc_size,
+				iod->max_tx_size);
 
 		/* Calculate tailroom for padding size */
 		if (iod->link_header && ld->aligned)
