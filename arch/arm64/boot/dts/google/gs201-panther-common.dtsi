@@ -32,3 +32,4 @@
 #include "gs201-panther-charging.dtsi"
 #include "gs201-panther-wcharger.dtsi"
 #include "gs201-panther-usb.dtsi"
+#include "gs201-pantah-pmic.dtsi"

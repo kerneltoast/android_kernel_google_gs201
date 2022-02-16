@@ -884,7 +884,7 @@
 				regulator-initial-mode = <SEC_OPMODE_ON>;
 				channel-mux-selection = <0xA>;
 				schematic-name = "S10S_LLDO3";
-				subsys-name = "DDR";
+				subsys-name = "LDO";
 				buck_rail;
 				channel-en-byte-offset = <1>;
 				channel-en-index = <0x2>;
@@ -1315,7 +1315,7 @@
 				};
 
 				ch24: channel@11 {
-					rail-name = "LDO22S";
+					rail-name = "LDO15S";
 					channel_enabled;
 				};
 			};
