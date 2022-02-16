@@ -673,6 +673,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	long pd_max_spare_cap;
 	int pd_max_spare_cap_cpu, pd_best_idle_cpu;
 	int most_spare_cap_cpu = -1;
+	struct cpuidle_state *idle_state;
 
 	cpumask_clear(&idle_fit);
 	cpumask_clear(&idle_unfit);
@@ -713,8 +714,11 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 			group_overutilize = group_overutilized(i, task_group(p));
 			exit_lat = 0;
 
-			if (is_idle && idle_get_state(cpu_rq(i)))
-				exit_lat = idle_get_state(cpu_rq(i))->exit_latency;
+			if (is_idle) {
+				idle_state = idle_get_state(cpu_rq(i));
+				if (idle_state)
+					exit_lat = idle_state->exit_latency;
+			}
 
 			trace_sched_cpu_util(i, is_idle, exit_lat, cpu_importance, cpu_util(i),
 					       capacity, wake_util, group_capacity, wake_group_util,
@@ -862,8 +866,11 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	for_each_cpu(i, &candidates) {
 		exit_lat = 0;
 
-		if (cpu_is_idle(i) && idle_get_state(cpu_rq(i)))
-			exit_lat = idle_get_state(cpu_rq(i))->exit_latency;
+		if (cpu_is_idle(i)) {
+			idle_state = idle_get_state(cpu_rq(i));
+			if (idle_state)
+				exit_lat = idle_state->exit_latency;
+		}
 
 		cur_energy = compute_energy(p, i, pd);
 
