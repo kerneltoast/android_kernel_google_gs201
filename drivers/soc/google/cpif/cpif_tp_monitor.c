@@ -922,7 +922,7 @@ void tpmon_add_rx_bytes(struct sk_buff *skb)
 	default:
 		mif_err_limited("Non IPv4/IPv6 packet:0x%x\n",
 			ip_hdr(skb)->version);
-		return;
+		break;
 	}
 
 	spin_lock_irqsave(&tpmon->lock, flags);
