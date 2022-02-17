@@ -1577,7 +1577,7 @@
 				bypass = <0>;
 				arqos = <0x4>;
 				awqos = <0x4>;
-				rmo = <0x20>;
+				rmo = <0x40>;
 				wmo = <0x20>;
 				qurgent_on = <0>;
 				blocking_on = <0>;
