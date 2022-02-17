@@ -44,12 +44,6 @@ void cpif_pcie_iommu_enable_regions(struct mem_link_device *mld)
 		}
 	}
 
-	/* Also setup AoC window for voice calls */
-	ret = pcie_iommu_map(shm_get_vss_base(), shm_get_vss_base(),
-			     shm_get_vss_size(), 0, 1);
-	mif_info("pcie iommu AoC addr:0x%08lx size:0x%08x ret:%d\n",
-		 shm_get_vss_base(), shm_get_vss_size(), ret);
-
 	enabled_region = true;
 }
 
