@@ -528,10 +528,6 @@ static int request_pcie_msi_int(struct link_device *ld,
 	struct device *dev = &pdev->dev;
 	struct modem_ctl *mc = ld->mc;
 	int irq_offset = 0;
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	struct pktproc_adaptor *ppa = &mld->pktproc;
-	unsigned int i;
-#endif
 
 	mif_info("Request MSI interrupt\n");
 
@@ -559,22 +555,21 @@ static int request_pcie_msi_int(struct link_device *ld,
 	irq_offset++;
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
-	for (i = 0; i < ppa->num_queue; i++) {
-		struct pktproc_queue *q = ppa->q[i];
+	if (mld->pktproc.use_exclusive_irq) {
+		struct pktproc_adaptor *ppa = &mld->pktproc;
+		unsigned int i;
 
-		if (mld->pktproc.use_exclusive_irq)
-			ret = register_separated_msi_vector(mc->pcie_ch_num,
-							    q->irq_handler, q, &q->irq);
-		else
-			ret = register_separated_msi_vector(mc->pcie_ch_num,
-							    shmem_irq_handler, mld, &q->irq);
+		for (i = 0; i < ppa->num_queue; i++) {
+			struct pktproc_queue *q = ppa->q[i];
 
-		if (ret < 0) {
-			mif_err("register_separated_msi_vector for pktproc q[%d] err:%d\n", i, ret);
-			q->irq = 0;
-			/* Allow an error if !use_exclusive_irq */
-			if (mld->pktproc.use_exclusive_irq)
+			ret = register_separated_msi_vector(mc->pcie_ch_num, q->irq_handler, q,
+							    &q->irq);
+			if (ret < 0) {
+				mif_err("register_separated_msi_vector for pktproc q[%u] err:%d\n",
+					i, ret);
+				q->irq = 0;
 				return -EIO;
+			}
 		}
 	}
 #endif
