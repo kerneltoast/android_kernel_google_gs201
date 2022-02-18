@@ -55,6 +55,8 @@
 	focaltech,max-touch-number = <10>;
 	focaltech,display-coords = <0 0 1079 2399>;
 	focaltech,panel_map = <&sdc_s6e3fc3_p10 0>;
+	focaltech,rx_ch_num = <34>;
+	focaltech,tx_ch_num = <16>;
 
 	pinctrl-1 = <&ts_spi_bus_sleep &ts_spi_cs_sleep &ts_irq_sleep>;
 
