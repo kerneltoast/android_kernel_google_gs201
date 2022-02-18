@@ -201,4 +201,5 @@ static inline void pixel_ufs_crypto_resume(struct ufs_hba *hba)
 {
 }
 #endif /* !CONFIG_SCSI_UFS_CRYPTO */
+extern u32 gs_chipid_get_revision(void);
 #endif /* _UFS_EXYNOS_H_ */
