@@ -1219,13 +1219,18 @@ void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int pr
 	/* prefer prev cpu */
 	if (cpu_active(prev_cpu) && cpu_is_idle(prev_cpu) && task_fits_capacity(p, prev_cpu,
 	     sync_boost) && !group_overutilized(cpu, task_group(p))) {
-		struct cpuidle_state *idle = idle_get_state(cpu_rq(prev_cpu));
+		struct cpuidle_state *idle_state;
 		unsigned int exit_lat = UINT_MAX;
+
+		rcu_read_lock();
+		idle_state = idle_get_state(cpu_rq(prev_cpu));
 
 		if (sched_cpu_idle(prev_cpu))
 			exit_lat = 0;
-		else if (idle)
-			exit_lat = idle->exit_latency;
+		else if (idle_state)
+			exit_lat = idle_state->exit_latency;
+
+		rcu_read_unlock();
 
 		if (exit_lat <= C1_EXIT_LATENCY) {
 			prefer_prev = true;
