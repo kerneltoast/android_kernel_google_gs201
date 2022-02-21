@@ -64,7 +64,9 @@ struct gs_chipid_info {
 #define GS201_SOC_ID		0x09855000
 #define SOC_MASK		0xFFFFF000
 #define SOC_MASK_V2		0x00FFFFFF
-#define SOC_TYPE_MASK		0x0000000F
+#define SOC_TYPE_MASK		0x000000FF
+#define GS201_TYPE_MASK 	0x00F00000
+#define GS201_TYPE_SHIFT	20
 #define LOTID_MASK		0x001FFFFF
 #define REV_MASK		0xF
 
@@ -94,6 +96,15 @@ static const char *product_id_to_name(unsigned int product_id)
 }
 
 static const struct gs_chipid_variant drv_data_gs101 = {
+	.product_ver = 1,
+	.unique_id_reg = 0x04,
+	.rev_reg = 0x10,
+	.main_rev_bit = 0,
+	.sub_rev_bit = 16,
+	.dvfs_version_reg = 0x900C,
+};
+
+static const struct gs_chipid_variant drv_data_gs201 = {
 	.product_ver = 1,
 	.unique_id_reg = 0x04,
 	.rev_reg = 0x10,
@@ -316,6 +327,9 @@ static void gs_chipid_get_chipid_info(void __iomem *reg)
 	case 1:
 	default:
 		gs_soc_info.product_id = val & SOC_MASK;
+		if (gs_soc_info.product_id == GS201_SOC_ID)
+			val |= (readl_relaxed(reg + data->rev_reg)
+				& GS201_TYPE_MASK) >> GS201_TYPE_SHIFT;
 		gs_soc_info.type = val & SOC_TYPE_MASK;
 		break;
 	}
@@ -430,7 +444,7 @@ static const struct of_device_id of_gs_chipid_ids[] = {
 	 },
 	{
 	 .compatible = "google,gs201-chipid",
-	 .data = &drv_data_gs101,
+	 .data = &drv_data_gs201,
 	},
 	{},
 };
