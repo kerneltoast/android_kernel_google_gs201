@@ -50,7 +50,7 @@
 #define GF_SPIDEV_NAME "goodix,fingerprint"
 /* device name after register in character */
 #define GF_DEV_NAME "goodix_fp"
-#define GF_INPUT_NAME "qwerty" /* "goodix_fp" */
+#define GF_INPUT_NAME "goodix_fingerprint"
 
 #define CHRD_DRIVER_NAME "goodix_fp_spi"
 #define CLASS_NAME "goodix_fp"

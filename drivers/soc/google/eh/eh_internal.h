@@ -12,6 +12,7 @@
 #include "eh_regs.h"
 #include <linux/spinlock_types.h>
 #include <linux/wait.h>
+#include <linux/kobject.h>
 
 struct eh_completion {
 	void *priv;
@@ -21,7 +22,26 @@ struct eh_completion {
 
 #define EH_QUIRK_IGNORE_GCTRL_RESET BIT(0)
 
+struct eh_request {
+	struct page *page;
+	void *priv;
+	struct list_head list;
+};
+
+struct eh_request_pool {
+	struct list_head head;
+	int count;
+	spinlock_t lock;
+};
+
+struct eh_sw_fifo {
+	struct list_head head;
+	int count;
+	spinlock_t lock;
+};
+
 struct eh_device {
+	struct kobject kobj;
 	struct list_head eh_dev_list;
 
 	/* hardware characteristics */
@@ -33,6 +53,9 @@ struct eh_device {
 	unsigned short fifo_size;
 	unsigned short fifo_index_mask;
 	unsigned short fifo_color_mask;
+
+	/* SW fifo queue to keep pending requests */
+	unsigned int sw_fifo_size;
 
 	/* cached copy of HW write index */
 	unsigned int write_index;
@@ -83,5 +106,19 @@ struct eh_device {
 	atomic_t nr_request;
 
 	eh_cb_fn comp_callback;
+
+	/* how many compression request were processed */
+	unsigned long nr_compressed;
+	/* how many times the EH thread was running */
+	unsigned long nr_run;
+
+	/*
+	 * eh_request pool to avoid memory allocation when EH's HW queue
+	 * is full.
+	 */
+	struct eh_request_pool pool;
+	/* keep pending request */
+	struct eh_sw_fifo sw_fifo;
+	atomic64_t nr_stall;
 };
 #endif
