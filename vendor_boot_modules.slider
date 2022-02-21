@@ -198,6 +198,7 @@ usbc_cooling_dev.ko
 vh_cgroup.ko
 vh_fs.ko
 vh_i2c.ko
+vh_mm.ko
 vh_preemptirq_long.ko
 vh_sched.ko
 vh_thermal.ko
