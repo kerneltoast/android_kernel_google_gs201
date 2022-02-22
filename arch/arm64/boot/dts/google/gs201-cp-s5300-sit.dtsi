@@ -146,8 +146,8 @@
 				 * by reserved mem size
 				 */
 
-				pktproc_dl_info_rgn_cached = <0>;
-				pktproc_dl_desc_rgn_cached = <0>;
+				pktproc_dl_info_rgn_cached = <1>;
+				pktproc_dl_desc_rgn_cached = <1>;
 				pktproc_dl_buff_rgn_cached = <1>;
 
 				/* 0:ringbuf mode, 1:sktbuf mode */
@@ -155,7 +155,7 @@
 				pktproc_dl_num_queue = <1>;
 				pktproc_dl_use_exclusive_irq = <0>;
 				/* H/W IO cache coherency */
-				pktproc_dl_use_hw_iocc = <0>;
+				pktproc_dl_use_hw_iocc = <1>;
 				pktproc_dl_max_packet_size = <1628>;
 				pktproc_dl_use_dedicated_baaw = <0>;
 
@@ -171,10 +171,10 @@
 				pktproc_ul_num_queue = <2>;
 				pktproc_ul_max_packet_size = <2048>;
 				pktproc_ul_hiprio_ack_only = <1>;
-				pktproc_ul_info_rgn_cached = <0>;
-				pktproc_ul_desc_rgn_cached = <0>;
-				pktproc_ul_buff_rgn_cached = <0>;
-				pktproc_ul_use_hw_iocc = <0>; /* H/W IO cache coherency */
+				pktproc_ul_info_rgn_cached = <1>;
+				pktproc_ul_desc_rgn_cached = <1>;
+				pktproc_ul_buff_rgn_cached = <1>;
+				pktproc_ul_use_hw_iocc = <1>; /* H/W IO cache coherency */
 
 				/* TPMON: CP throughput monitor */
 				cpif_tpmon {
@@ -464,7 +464,7 @@
 						region,rmem = <0>;
 						region,offset = <0x00000000>;
 						region,size = <0x00800000>;
-						region,cached = <0>;
+						region,cached = <1>;
 					};
 					msi {
 						region,name = "MSI";
