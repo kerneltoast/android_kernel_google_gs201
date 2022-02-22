@@ -587,7 +587,8 @@
 			"tnr_ssmt_d5",
 			"tnr_ssmt_d6",
 			"tnr_ssmt_d7",
-			"tnr_qch";
+			"tnr_qch",
+			"tnr_sysreg";
 
 		clocks = <&clock UMUX_CLKCMU_TNR_NOC>;
 		clock-names = "UMUX_CLKCMU_TNR_NOC";
