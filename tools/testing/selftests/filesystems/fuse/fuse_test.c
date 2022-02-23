@@ -524,12 +524,14 @@ static int bpf_test_redact_readdir(const char *mount_dir)
 				bool is_dot;
 
 				fuse_dirent_in = (struct fuse_dirent *) dirs_in;
-				is_dot = !strcmp(fuse_dirent_in->name, ".") ||
-					 !strcmp(fuse_dirent_in->name, "..");
+				is_dot = (fuse_dirent_in->namelen == 1 &&
+						!strncmp(fuse_dirent_in->name, ".", 1)) ||
+					 (fuse_dirent_in->namelen == 2 &&
+						!strncmp(fuse_dirent_in->name, "..", 2));
 
 				dir_ent_len = FUSE_DIRENT_ALIGN(
 					sizeof(*fuse_dirent_in) +
-					fuse_dirent_in->namelen + 1);
+					fuse_dirent_in->namelen);
 
 				if (dirs_in + dir_ent_len < bytes_in + res)
 					next = (struct fuse_dirent *)
@@ -538,7 +540,7 @@ static int bpf_test_redact_readdir(const char *mount_dir)
 				if (!skip || is_dot) {
 					memcpy(dirs_out, fuse_dirent_in,
 					       sizeof(struct fuse_dirent) +
-					       fuse_dirent_in->namelen + 1);
+					       fuse_dirent_in->namelen);
 					length_out += dir_ent_len;
 				}
 				again = ((skip && !is_dot) && next);
@@ -1076,6 +1078,14 @@ static int bpf_test_xattr(const char *mount_dir)
 	TESTEQUAL(xattr_size, xattr_size_ret);
 	TESTEQUAL(strcmp(xattr_value, xattr_value_ret), 0);
 
+	TESTSYSCALL(s_removexattr(s_path(s(mount_dir), s(file_name)), xattr_name));
+	TESTEQUAL(bpf_test_trace("removexattr"), 0);
+
+	TESTEQUAL(s_getxattr(s_path(s(mount_dir), s(file_name)), xattr_name,
+			       xattr_value_ret, sizeof(xattr_value_ret),
+			       &xattr_size_ret), -1);
+	TESTEQUAL(errno, ENODATA);
+
 	TESTSYSCALL(s_unlink(s_path(s(mount_dir), s(file_name))));
 	TESTEQUAL(bpf_test_trace("unlink"), 0);
 	TESTEQUAL(s_stat(s_path(s(ft_src), s(file_name)), &st), -1);
@@ -1412,6 +1422,34 @@ out:
 	return result;
 }
 
+static int bpf_test_statfs(const char *mount_dir)
+{
+	int result = TEST_FAILURE;
+	int src_fd = -1;
+	int bpf_fd = -1;
+	int fuse_dev = -1;
+	int fd = -1;
+	struct statfs st;
+
+	TEST(src_fd = open(ft_src, O_DIRECTORY | O_RDONLY | O_CLOEXEC),
+	     src_fd != -1);
+	TESTEQUAL(install_elf_bpf("test_bpf.bpf", "test_trace",
+				  &bpf_fd, NULL, NULL), 0);
+	TESTEQUAL(mount_fuse(mount_dir, bpf_fd, src_fd, &fuse_dev), 0);
+
+	TESTSYSCALL(s_statfs(s(mount_dir), &st));
+	TESTEQUAL(bpf_test_trace("statfs"), 0);
+	TESTEQUAL(st.f_type, 0x65735546);
+	result = TEST_SUCCESS;
+out:
+	close(fd);
+	umount(mount_dir);
+	close(fuse_dev);
+	close(bpf_fd);
+	close(src_fd);
+	return result;
+}
+
 static int parse_options(int argc, char *const *argv)
 {
 	signed char c;
@@ -1514,6 +1552,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(mmap_test),
 		MAKE_TEST(readdir_perms_test),
 		MAKE_TEST(inotify_test),
+		MAKE_TEST(bpf_test_statfs),
 	};
 #undef MAKE_TEST
 
