@@ -634,4 +634,7 @@ enum S2MPG13_IBIM2_REGION {
 
 #define S2MPG13_METER_EN_MASK		BIT(0)
 
+/* MT TRIM register for enabling NTC channels */
+#define S2MPG13_MT_TRIM_NTC_EN_REG		0x34
+
 #endif /* __LINUX_MFD_S2MPG13_REGISTER_H */

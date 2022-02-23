@@ -23,6 +23,8 @@
 
 #define GTHERM_CHAN_NUM 8
 #define SENSOR_WAIT_SLEEP_MS 50
+#define NTC_UPDATE_MIN_DELAY_US 100
+#define NTC_UPDATE_MAX_DELAY_US 10000
 
 struct s2mpg13_spmic_thermal_sensor {
 	struct s2mpg13_spmic_thermal_chip *chip;
@@ -36,13 +38,16 @@ struct s2mpg13_spmic_thermal_sensor {
 
 struct s2mpg13_spmic_thermal_chip {
 	struct device *dev;
-	struct i2c_client *i2c;
+	struct i2c_client *meter_i2c;
+	struct i2c_client *mt_trim_i2c;
+	struct mutex adc_chan_lock;
 	struct s2mpg13_dev *iodev;
 	struct s2mpg13_spmic_thermal_sensor sensor[GTHERM_CHAN_NUM];
 	u8 adc_chan_en;
 	struct kobject *kobjs[GTHERM_CHAN_NUM];
 	struct kthread_worker *wq;
 	struct kthread_delayed_work wait_sensor_work;
+	bool sensors_ready;
 };
 
 /**
@@ -142,7 +147,7 @@ static int s2mpg13_spmic_thermal_read_raw(struct s2mpg13_spmic_thermal_sensor *s
 	u8 data_buf[S2MPG13_METER_NTC_BUF];
 	u8 reg = S2MPG13_METER_LPF_DATA_NTC0_1 + S2MPG13_METER_NTC_BUF * s->adc_chan;
 
-	int ret = s2mpg13_bulk_read(s2mpg13_spmic_thermal->i2c, reg, S2MPG13_METER_NTC_BUF,
+	int ret = s2mpg13_bulk_read(s2mpg13_spmic_thermal->meter_i2c, reg, S2MPG13_METER_NTC_BUF,
 								data_buf);
 	if (ret)
 		return ret;
@@ -157,33 +162,95 @@ static int s2mpg13_spmic_thermal_read_raw(struct s2mpg13_spmic_thermal_sensor *s
 }
 
 /*
+ * Configure NTC channels in thermistor engine.
+ */
+static int s2mpg13_spmic_set_ntc_channels(
+	struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_thermal, u8 adc_ch_en)
+{
+	int ret = 0;
+	struct device *dev = s2mpg13_spmic_thermal->dev;
+	struct i2c_client *meter_i2c = s2mpg13_spmic_thermal->meter_i2c;
+	struct i2c_client *mt_trim_i2c = s2mpg13_spmic_thermal->mt_trim_i2c;
+
+	/* workaround suggested in b/200582715 for NTC channel update */
+	ret = s2mpg13_write_reg(mt_trim_i2c, S2MPG13_MT_TRIM_COMMON2, 0x00);
+	if (ret)
+		goto err;
+
+	usleep_range(NTC_UPDATE_MIN_DELAY_US, NTC_UPDATE_MAX_DELAY_US);
+	ret = s2mpg13_write_reg(mt_trim_i2c, S2MPG13_MT_TRIM_COMMON2, 0x80);
+	if (ret)
+		goto err;
+
+	usleep_range(NTC_UPDATE_MIN_DELAY_US, NTC_UPDATE_MAX_DELAY_US);
+	ret = s2mpg13_write_reg(meter_i2c, S2MPG13_METER_CTRL3, 0x00);
+	if (ret)
+		goto err;
+
+	usleep_range(NTC_UPDATE_MIN_DELAY_US, NTC_UPDATE_MAX_DELAY_US);
+	ret = s2mpg13_write_reg(mt_trim_i2c, S2MPG13_MT_TRIM_COMMON2, 0x00);
+	if (ret)
+		goto err;
+
+	usleep_range(NTC_UPDATE_MIN_DELAY_US, NTC_UPDATE_MAX_DELAY_US);
+	ret = s2mpg13_write_reg(mt_trim_i2c, S2MPG13_MT_TRIM_COMMON2, 0x80);
+	if (ret)
+		goto err;
+
+	usleep_range(NTC_UPDATE_MIN_DELAY_US, NTC_UPDATE_MAX_DELAY_US);
+	ret = s2mpg13_write_reg(meter_i2c, S2MPG13_METER_CTRL3, adc_ch_en);
+	if (ret)
+		goto err;
+
+	msleep(SENSOR_WAIT_SLEEP_MS);
+
+	dev_info(dev, "Set NTC channels (adc_ch_en : 0x%x\n)", adc_ch_en);
+	return ret;
+
+err:
+	s2mpg13_write_reg(meter_i2c, S2MPG13_METER_CTRL3, 0x00);
+	dev_err(dev, "Failed to set NTC channels (adc_ch_en : 0x%x\n)", adc_ch_en);
+	return ret;
+}
+
+/*
  * Get temperature for given tz.
  */
 static int s2mpg13_spmic_thermal_get_temp(void *data, int *temp)
 {
 	struct s2mpg13_spmic_thermal_sensor *s = data;
 	struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_thermal = s->chip;
-	int emul_temp;
 	int raw, ret = 0;
 	u8 mask = 0x1;
 	u8 data_buf[S2MPG13_METER_NTC_BUF];
 	u8 reg = S2MPG13_METER_LPF_DATA_NTC0_1 +
 		 S2MPG13_METER_NTC_BUF * s->adc_chan;
 
-	emul_temp = s->emul_temperature;
-	if (emul_temp) {
-		*temp = emul_temp;
-		return 0;
+	if (!s2mpg13_spmic_thermal->sensors_ready)
+		return -EAGAIN;
+
+	mutex_lock(&s2mpg13_spmic_thermal->adc_chan_lock);
+	if (s->emul_temperature)
+		goto emul_temp_exit;
+
+	if (!(s2mpg13_spmic_thermal->adc_chan_en & (mask << s->adc_chan))) {
+		ret = -EIO;
+		goto err_exit;
 	}
 
-	if (!(s2mpg13_spmic_thermal->adc_chan_en & (mask << s->adc_chan)))
-		return -EIO;
-
-	ret = s2mpg13_bulk_read(s2mpg13_spmic_thermal->i2c, reg,
+	ret = s2mpg13_bulk_read(s2mpg13_spmic_thermal->meter_i2c, reg,
 				S2MPG13_METER_NTC_BUF, data_buf);
 	raw = data_buf[0] + ((data_buf[1] & 0xf) << 8);
 	*temp = s2mpg13_map_volt_temp(raw);
 
+	mutex_unlock(&s2mpg13_spmic_thermal->adc_chan_lock);
+	return ret;
+
+emul_temp_exit:
+	*temp = s->emul_temperature;
+
+err_exit:
+	mutex_unlock(&s2mpg13_spmic_thermal->adc_chan_lock);
 	return ret;
 }
 
@@ -199,6 +266,9 @@ static int s2mpg13_spmic_thermal_set_trips(void *data, int low_temp,
 	int emul_temp, low_volt, high_volt, ret = 0;
 	u8 low_raw, high_raw;
 
+	if (!s2mpg13_spmic_thermal->sensors_ready)
+		return -EAGAIN;
+
 	/* Set threshold to extreme value when emul_temp set */
 	emul_temp = s->emul_temperature;
 	if (emul_temp) {
@@ -208,14 +278,14 @@ static int s2mpg13_spmic_thermal_set_trips(void *data, int low_temp,
 
 	low_volt = s2mpg13_map_temp_volt(low_temp);
 	low_raw = low_volt >> 4 & 0xFF;
-	ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->i2c,
+	ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->meter_i2c,
 				S2MPG13_METER_NTC_UT_WARN0 + s->adc_chan, low_raw);
 	if (ret)
 		return ret;
 
 	high_volt = s2mpg13_map_temp_volt(high_temp);
 	high_raw = high_volt >> 4 & 0xFF;
-	ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->i2c,
+	ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->meter_i2c,
 				S2MPG13_METER_NTC_OT_WARN0 + s->adc_chan, high_raw);
 	if (ret)
 		return ret;
@@ -238,7 +308,7 @@ s2mpg13_spmic_thermal_set_hot_trip(struct s2mpg13_spmic_thermal_sensor *s, int t
 	if (temp == THERMAL_TEMP_INVALID)
 		return -EINVAL;
 
-	ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->i2c,
+	ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->meter_i2c,
 						S2MPG13_METER_NTC_OT_FAULT0 + s->adc_chan, raw);
 	dev_info(dev, "Set sensor %d hot trip(mdegC):%d, ret:%d\n", s->adc_chan, temp, ret);
 
@@ -254,6 +324,9 @@ static int s2mpg13_spmic_thermal_set_trip_temp(void *data, int trip, int temp)
 	struct s2mpg13_spmic_thermal_sensor *s = data;
 	const struct thermal_trip *trip_points;
 	int ret = 0;
+
+	if (!s->chip->sensors_ready)
+		return -EAGAIN;
 
 	trip_points = of_thermal_get_trip_points(s->tzd);
 	if (!trip_points)
@@ -274,31 +347,40 @@ static int s2mpg13_spmic_thermal_set_trip_temp(void *data, int trip, int temp)
 static int s2mpg13_spmic_thermal_set_emul_temp(void *data, int temp)
 {
 	struct s2mpg13_spmic_thermal_sensor *sensor = data;
-	int ret;
+	int ret = 0;
 	u8 value, mask = 0x1;
 
+	if (!sensor->chip->sensors_ready)
+		return -EAGAIN;
+
+	mutex_lock(&sensor->chip->adc_chan_lock);
 	if (sensor->chip->adc_chan_en & (mask << sensor->adc_chan)) {
-		ret = s2mpg13_read_reg(sensor->chip->i2c, S2MPG13_METER_CTRL3, &value);
+		ret = s2mpg13_read_reg(sensor->chip->meter_i2c, S2MPG13_METER_CTRL3, &value);
 		if (ret)
-			return ret;
+			goto err;
 
 		if (temp)
 			value &= ~(mask << sensor->adc_chan);
 		else
 			value |= mask << sensor->adc_chan;
 
-		ret = s2mpg13_write_reg(sensor->chip->i2c, S2MPG13_METER_CTRL3, value);
+		ret = s2mpg13_spmic_set_ntc_channels(sensor->chip, value);
 		if (ret)
-			return ret;
+			goto err;
 	}
 	sensor->emul_temperature = temp;
-	return 0;
+
+err:
+	mutex_unlock(&sensor->chip->adc_chan_lock);
+	return ret;
 }
 
 static void
 s2mpg13_spmic_thermal_init(struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_thermal)
 {
 	int i;
+
+	mutex_init(&s2mpg13_spmic_thermal->adc_chan_lock);
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
 		s2mpg13_spmic_thermal->sensor[i].chip = s2mpg13_spmic_thermal;
@@ -378,7 +460,14 @@ static void s2mpg13_spmic_thermal_wait_sensor(struct kthread_work *work)
 		container_of(work, struct s2mpg13_spmic_thermal_chip, wait_sensor_work.work);
 	struct device *dev = s2mpg13_spmic_thermal->dev;
 	u8 mask = 0x1;
+	u8 adc_chan_en = s2mpg13_spmic_thermal->adc_chan_en;
 	int raw, ret, i, j = 64000 / SENSOR_WAIT_SLEEP_MS;
+
+	mutex_lock(&s2mpg13_spmic_thermal->adc_chan_lock);
+	ret = s2mpg13_spmic_set_ntc_channels(s2mpg13_spmic_thermal, adc_chan_en);
+	if (ret)
+		goto err;
+	mutex_unlock(&s2mpg13_spmic_thermal->adc_chan_lock);
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
 		if (!(s2mpg13_spmic_thermal->adc_chan_en & mask))
@@ -399,6 +488,14 @@ static void s2mpg13_spmic_thermal_wait_sensor(struct kthread_work *work)
 		thermal_zone_device_update(s2mpg13_spmic_thermal->sensor[i].tzd,
 					   THERMAL_EVENT_UNSPECIFIED);
 	}
+
+	s2mpg13_spmic_thermal->sensors_ready = true;
+	return;
+
+err:
+	dev_err(dev, "Failed to set NTC channels during initialization\n");
+	s2mpg13_spmic_thermal->adc_chan_en = 0x00;
+	mutex_unlock(&s2mpg13_spmic_thermal->adc_chan_lock);
 }
 
 /*
@@ -471,36 +568,6 @@ static int s2mpg13_spmic_thermal_get_dt_data(struct platform_device *pdev,
 	return 0;
 }
 
-/*
- * Enable NTC thermistor engine.
- */
-static int
-s2mpg13_spmic_set_enable(struct s2mpg13_spmic_thermal_chip *s2mpg13_spmic_thermal,
-		       bool on)
-{
-	int ret = 0;
-	struct device *dev = s2mpg13_spmic_thermal->dev;
-
-	if (on) {
-		ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->i2c,
-					S2MPG13_METER_CTRL3,
-					s2mpg13_spmic_thermal->adc_chan_en);
-
-		if (ret) {
-			dev_err(dev, "Cannot enable NTC engine\n");
-		} else {
-			dev_info(dev, "Enabled NTC channels: 0x%x\n",
-				 s2mpg13_spmic_thermal->adc_chan_en);
-		}
-	} else {
-		ret = s2mpg13_write_reg(s2mpg13_spmic_thermal->i2c,
-					S2MPG13_METER_CTRL3, 0x00);
-		if (ret)
-			dev_err(dev, "Cannot disable NTC\n");
-	}
-	return ret;
-}
-
 static ssize_t
 adc_chan_en_show(struct device *dev, struct device_attribute *devattr,
 		 char *buf)
@@ -510,7 +577,12 @@ adc_chan_en_show(struct device *dev, struct device_attribute *devattr,
 	int ret;
 	u8 value;
 
-	ret = s2mpg13_read_reg(chip->i2c, S2MPG13_METER_CTRL3, &value);
+	if (!chip->sensors_ready)
+		return -EAGAIN;
+
+	mutex_lock(&chip->adc_chan_lock);
+	ret = s2mpg13_read_reg(chip->meter_i2c, S2MPG13_METER_CTRL3, &value);
+	mutex_unlock(&chip->adc_chan_lock);
 
 	return ret ? ret : sysfs_emit(buf, "0x%02X\n", value);
 }
@@ -524,15 +596,20 @@ adc_chan_en_store(struct device *dev, struct device_attribute *devattr,
 	struct s2mpg13_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
 	u8 value, mask = 0x1;
 
+	if (!chip->sensors_ready)
+		return -EAGAIN;
+
 	ret = sscanf(buf, "%hhx", &value);
 	if (ret != 1)
 		return -EINVAL;
 
-	ret = s2mpg13_write_reg(chip->i2c, S2MPG13_METER_CTRL3, value);
+	mutex_lock(&chip->adc_chan_lock);
+	ret = s2mpg13_spmic_set_ntc_channels(chip, value);
 	if (ret)
-		return ret;
+		goto err;
 
 	chip->adc_chan_en = value;
+	mutex_unlock(&chip->adc_chan_lock);
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
 		if (chip->adc_chan_en & mask)
@@ -542,6 +619,11 @@ adc_chan_en_store(struct device *dev, struct device_attribute *devattr,
 	}
 
 	return count;
+
+err:
+	chip->adc_chan_en = 0x00;
+	mutex_unlock(&chip->adc_chan_lock);
+	return ret;
 }
 
 static DEVICE_ATTR_RW(adc_chan_en);
@@ -579,8 +661,10 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 	}
 
 	chip->dev = dev;
-	chip->i2c = iodev->meter;
+	chip->meter_i2c = iodev->meter;
+	chip->mt_trim_i2c = iodev->mt_trim;
 	chip->iodev = iodev;
+	chip->sensors_ready = false;
 	ret = s2mpg13_spmic_thermal_get_dt_data(pdev, chip);
 	if (ret) {
 		dev_err(dev, "s2mpg13_spmic_thermal get dt data failed\n");
@@ -597,15 +681,9 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 	s2mpg13_spmic_thermal_init(chip);
 
 	/* Set sampling rate */
-	s2mpg13_update_reg(chip->i2c, S2MPG13_METER_CTRL1,
+	s2mpg13_update_reg(chip->meter_i2c, S2MPG13_METER_CTRL1,
 			   NTC_0P15625HZ << NTC_SAMP_RATE_SHIFT,
 			   NTC_SAMP_RATE_MASK);
-
-	ret = s2mpg13_spmic_set_enable(chip, true);
-	if (ret) {
-		dev_err(dev, "Failed to enable NTC engine\n");
-		goto fail;
-	}
 
 	ret = s2mpg13_spmic_thermal_register_tzd(chip);
 	if (ret) {
@@ -668,7 +746,7 @@ free_irq_tz:
 		devm_free_irq(&pdev->dev, chip->sensor[i].ut_irq, chip);
 	}
 disable_ntc:
-	s2mpg13_spmic_set_enable(chip, false);
+	s2mpg13_spmic_set_ntc_channels(chip, 0x00);
 fail:
 	return ret;
 }
@@ -677,7 +755,10 @@ static int s2mpg13_spmic_thermal_remove(struct platform_device *pdev)
 {
 	struct s2mpg13_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
 
-	s2mpg13_spmic_set_enable(chip, false);
+	mutex_lock(&chip->adc_chan_lock);
+	s2mpg13_spmic_set_ntc_channels(chip, 0x00);
+	chip->adc_chan_en = 0x00;
+	mutex_unlock(&chip->adc_chan_lock);
 
 	return 0;
 }
