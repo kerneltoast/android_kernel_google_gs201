@@ -233,6 +233,10 @@ struct exynos_pcie {
 	u32			elbi_base_physical_addr;
 	u32			phy_base_physical_addr;
 	u32			ia_base_physical_addr;
+	u32			ep_l1ss_cap_off;
+	u32			ep_link_ctrl_off;
+	u32			ep_l1ss_ctrl1_off;
+	u32			ep_l1ss_ctrl2_off;
 	unsigned int		pci_cap[48];
 	unsigned int		pci_ext_cap[48];
 	struct regmap		*pmureg;
