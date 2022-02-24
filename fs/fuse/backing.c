@@ -191,7 +191,8 @@ void *fuse_open_finalize(struct fuse_args *fa,
 	struct fuse_file *ff = file->private_data;
 	struct fuse_open_out *foo = fa->out_args[0].value;
 
-	ff->fh = foo->fh;
+	if (ff)
+		ff->fh = foo->fh;
 	return 0;
 }
 
@@ -339,8 +340,10 @@ void *fuse_create_open_finalize(
 	struct fuse_entry_out *feo = fa->out_args[0].value;
 	struct fuse_open_out *foo = fa->out_args[1].value;
 
-	fi->nodeid = feo->nodeid;
-	ff->fh = foo->fh;
+	if (fi)
+		fi->nodeid = feo->nodeid;
+	if (ff)
+		ff->fh = foo->fh;
 	return 0;
 }
 
@@ -657,6 +660,39 @@ int fuse_setxattr_backing(struct fuse_args *fa, struct dentry *dentry,
 void *fuse_setxattr_finalize(struct fuse_args *fa, struct dentry *dentry,
 			     const char *name, const void *value, size_t size,
 			     int flags)
+{
+	return NULL;
+}
+
+int fuse_removexattr_initialize(struct fuse_args *fa,
+				struct fuse_dummy_io *unused,
+				struct dentry *dentry, const char *name)
+{
+	*fa = (struct fuse_args) {
+		.nodeid = get_fuse_inode(dentry->d_inode)->nodeid,
+		.opcode = FUSE_REMOVEXATTR,
+		.in_numargs = 1,
+		.in_args[0] = (struct fuse_in_arg) {
+			.size = strlen(name) + 1,
+			.value = name,
+		},
+	};
+
+	return 0;
+}
+
+int fuse_removexattr_backing(struct fuse_args *fa,
+			     struct dentry *dentry, const char *name)
+{
+	struct path *backing_path =
+		&get_fuse_dentry(dentry)->backing_path;
+
+	/* TODO account for changes of the name by prefilter */
+	return vfs_removexattr(backing_path->dentry, name);
+}
+
+void *fuse_removexattr_finalize(struct fuse_args *fa,
+				struct dentry *dentry, const char *name)
 {
 	return NULL;
 }
@@ -1750,6 +1786,56 @@ void *fuse_setattr_finalize(struct fuse_args *fa,
 	return NULL;
 }
 
+int fuse_statfs_initialize(
+		struct fuse_args *fa, struct fuse_statfs_out *fso,
+		struct dentry *dentry, struct kstatfs *buf)
+{
+	*fso = (struct fuse_statfs_out) {0};
+	*fa = (struct fuse_args) {
+		.nodeid = get_node_id(d_inode(dentry)),
+		.opcode = FUSE_STATFS,
+		.out_numargs = 1,
+		.out_numargs = 1,
+		.out_args[0].size = sizeof(fso),
+		.out_args[0].value = fso,
+	};
+
+	return 0;
+}
+
+int fuse_statfs_backing(
+		struct fuse_args *fa,
+		struct dentry *dentry, struct kstatfs *buf)
+{
+	int err = 0;
+	struct path backing_path;
+	struct fuse_statfs_out *fso = fa->out_args[0].value;
+
+	get_fuse_backing_path(dentry, &backing_path);
+	if (!backing_path.dentry)
+		return -EBADF;
+	err = vfs_statfs(&backing_path, buf);
+	path_put(&backing_path);
+	buf->f_type = FUSE_SUPER_MAGIC;
+
+	//TODO Provide postfilter opportunity to modify
+	if (!err)
+		convert_statfs_to_fuse(&fso->st, buf);
+
+	return err;
+}
+
+void *fuse_statfs_finalize(
+		struct fuse_args *fa,
+		struct dentry *dentry, struct kstatfs *buf)
+{
+	struct fuse_statfs_out *fso = fa->out_args[0].value;
+
+	if (!fa->error_in)
+		convert_fuse_statfs(buf, &fso->st);
+	return NULL;
+}
+
 int fuse_get_link_initialize(struct fuse_args *fa, struct fuse_dummy_io *unused,
 		struct inode *inode, struct dentry *dentry,
 		struct delayed_call *callback, const char **out)
@@ -1952,7 +2038,7 @@ static int filldir(struct dir_context *ctx, const char *name, int namelen,
 		.type = d_type,
 	};
 
-	strcpy(fd->name, name);
+	memcpy(fd->name, name, namelen);
 	ec->offset += FUSE_DIRENT_SIZE(fd);
 
 	return 0;
