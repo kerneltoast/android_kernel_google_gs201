@@ -737,14 +737,25 @@ int mfc_alloc_firmware(struct mfc_core *core)
 			core->fw_buf.size);
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
-	core->drm_fw_buf.buftype = MFCBUF_DRM_FW;
-	core->drm_fw_buf.size = core->fw_buf.size;
-	if (mfc_mem_special_buf_alloc(dev, &core->drm_fw_buf)) {
-		mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
-		goto err_reserve_iova;
+	if (!core->drm_fw_buf.daddr) {
+		core->drm_fw_buf.buftype = MFCBUF_DRM_FW;
+		core->drm_fw_buf.size = core->fw_buf.size;
+		if (mfc_mem_special_buf_alloc(dev, &core->drm_fw_buf)) {
+			mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
+			goto err_reserve_iova;
+		}
 	}
 
 	MFC_TRACE_CORE("DRM F/W base %pad\n", &core->drm_fw_buf.daddr);
+	if (core->drm_fw_buf.daddr != MFC_SECURE_FW_BASE) {
+		snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
+				"DRM F/W buffer(%pad) should be the lowest addr\n",
+				&core->drm_fw_buf.daddr);
+		mfc_core_err("%s", core->crash_info);
+		MFC_TRACE_CORE("%s", core->crash_info);
+		call_dop(core, dump_and_stop_debug_mode, core);
+		goto err_reserve_iova_secure;
+	}
 
 	mfc_core_change_fw_state(core, 1, MFC_FW_ALLOC, 1);
 	mfc_core_info("[MEMINFO][F/W] MFC-%d FW DRM: %pad(vaddr: %pK paddr:%pap), size: %08zu\n",
@@ -757,6 +768,10 @@ int mfc_alloc_firmware(struct mfc_core *core)
 
 	return 0;
 
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+err_reserve_iova_secure:
+	mfc_mem_special_buf_free(dev, &core->drm_fw_buf);
+#endif
 err_reserve_iova:
 	mfc_core_change_fw_state(core, 0, MFC_FW_ALLOC, 0);
 	iommu_unmap(core->domain, fw_buf->daddr, fw_buf->map_size);

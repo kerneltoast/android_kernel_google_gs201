@@ -688,7 +688,11 @@ static int mfc_core_probe(struct platform_device *pdev)
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	/* allocate Secure-DVA region */
+	core->drm_fw_buf.buftype = MFCBUF_DRM_FW;
 	core->drm_fw_buf.size = dev->variant->buf_size->firmware_code;
+	if (mfc_mem_special_buf_alloc(dev, &core->drm_fw_buf)) {
+		mfc_core_err("[F/W] Allocating DRM firmware buffer failed\n");
+	}
 #endif
 
 	/* vOTF 1:1 mapping */
@@ -742,6 +746,9 @@ static int mfc_core_probe(struct platform_device *pdev)
 	return 0;
 
 err_alloc_debug:
+#if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
+	mfc_mem_special_buf_free(dev, &core->drm_fw_buf);
+#endif
 	iommu_unregister_device_fault_handler(&pdev->dev);
 err_sysmmu_fault_handler:
 	destroy_workqueue(core->butler_wq);
