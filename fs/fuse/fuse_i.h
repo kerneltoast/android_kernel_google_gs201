@@ -33,6 +33,9 @@
 #include <linux/pid_namespace.h>
 #include <linux/refcount.h>
 #include <linux/user_namespace.h>
+#include <linux/statfs.h>
+
+#define FUSE_SUPER_MAGIC 0x65735546
 
 /** Default max number of pages that can be used in a single read request */
 #define FUSE_DEFAULT_MAX_PAGES_PER_REQ 32
@@ -541,6 +544,7 @@ struct fuse_fs_context {
 	bool no_force_umount:1;
 	bool legacy_opts_show:1;
 	bool dax:1;
+	bool no_daemon:1;
 	unsigned int max_read;
 	unsigned int blksize;
 	const char *subtype;
@@ -788,6 +792,9 @@ struct fuse_conn {
 
 	/** Passthrough mode for read/write IO */
 	unsigned int passthrough:1;
+
+	/** BPF Only, no Daemon running */
+	unsigned int no_daemon:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
@@ -1476,6 +1483,14 @@ void *fuse_setxattr_finalize(struct fuse_args *fa, struct dentry *dentry,
 			     const char *name, const void *value, size_t size,
 			     int flags);
 
+int fuse_removexattr_initialize(struct fuse_args *fa,
+				struct fuse_dummy_io *unused,
+				struct dentry *dentry, const char *name);
+int fuse_removexattr_backing(struct fuse_args *fa,
+			     struct dentry *dentry, const char *name);
+void *fuse_removexattr_finalize(struct fuse_args *fa,
+				struct dentry *dentry, const char *name);
+
 int fuse_file_read_iter_initialize(
 		struct fuse_args *fa, struct fuse_read_in *fri,
 		struct kiocb *iocb, struct iov_iter *to);
@@ -1558,6 +1573,13 @@ int fuse_setattr_backing(struct fuse_args *fa,
 		struct dentry *dentry, struct iattr *attr, struct file *file);
 void *fuse_setattr_finalize(struct fuse_args *fa,
 		struct dentry *dentry, struct iattr *attr, struct file *file);
+
+int fuse_statfs_initialize(struct fuse_args *fa, struct fuse_statfs_out *fso,
+		struct dentry *dentry, struct kstatfs *buf);
+int fuse_statfs_backing(struct fuse_args *fa,
+		struct dentry *dentry, struct kstatfs *buf);
+void *fuse_statfs_finalize(struct fuse_args *fa,
+		struct dentry *dentry, struct kstatfs *buf);
 
 int fuse_get_link_initialize(struct fuse_args *fa, struct fuse_dummy_io *dummy,
 		struct inode *inode, struct dentry *dentry,
@@ -1698,6 +1720,33 @@ static inline int finalize_attr(struct inode *inode, struct fuse_attr_out *outar
 			fuse_fillattr(inode, &outarg->attr, stat);
 	}
 	return err;
+}
+
+static inline void convert_statfs_to_fuse(struct fuse_kstatfs *attr, struct kstatfs *stbuf)
+{
+	attr->bsize   = stbuf->f_bsize;
+	attr->frsize  = stbuf->f_frsize;
+	attr->blocks  = stbuf->f_blocks;
+	attr->bfree   = stbuf->f_bfree;
+	attr->bavail  = stbuf->f_bavail;
+	attr->files   = stbuf->f_files;
+	attr->ffree   = stbuf->f_ffree;
+	attr->namelen = stbuf->f_namelen;
+	/* fsid is left zero */
+}
+
+static inline void convert_fuse_statfs(struct kstatfs *stbuf, struct fuse_kstatfs *attr)
+{
+	stbuf->f_type    = FUSE_SUPER_MAGIC;
+	stbuf->f_bsize   = attr->bsize;
+	stbuf->f_frsize  = attr->frsize;
+	stbuf->f_blocks  = attr->blocks;
+	stbuf->f_bfree   = attr->bfree;
+	stbuf->f_bavail  = attr->bavail;
+	stbuf->f_files   = attr->files;
+	stbuf->f_ffree   = attr->ffree;
+	stbuf->f_namelen = attr->namelen;
+	/* fsid is left zero */
 }
 
 #ifdef CONFIG_FUSE_BPF
