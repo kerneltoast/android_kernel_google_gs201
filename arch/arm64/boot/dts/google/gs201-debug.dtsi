@@ -302,12 +302,13 @@
 		pmu-burnin-ctrl = <0x3cd0>;
 		sel-scanmode-bit = <25>;
 		dbgsel-sw-bit = <4>;
-		blk-list = "AOC", "AOCCORE", "BO", "BOCORE", "BUS0", "BUS1",
-			   "BUS2", "CMU", "CORE", "CPUCL0", "CLUSTER0", "CSIS",
+		blk-list = "AOC", "AOCCORE", "AUR", "AURCORE", "BO", "BOCORE",
+			   "CMU", "CPUCL0", "CLUSTER0", "CSIS",
 			   "DISP", "DNS", "DPU", "EH", "G2D", "G3AA",
 			   "G3D", "GPU", "GDC", "GSA", "HSI0", "HSI1",
-			   "HSI2", "IPP", "ITP", "MCSC", "MFC", "MIF1",
-			   "MIF2", "MIF3", "PDP", "PERIC0", "PERIC1", "TNR",
+			   "HSI2", "IPP", "ITP", "MCSC", "MFC", "MIF0", "MIF1",
+			   "MIF2", "MIF3", "NOCL0", "NOCL1A", "NOCL1B", "NOCL2A",
+			   "PDP", "PERIC0", "PERIC1", "TNR",
 			   "TPU", "TPUCORE", "SLC0", "SLC1", "SLC2", "SLC3";
 		status = "ok";
 	};
