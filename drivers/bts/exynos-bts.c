@@ -42,6 +42,7 @@
 	} while (0)
 
 static bool btsdbg_log;
+static unsigned int vc_num_total;
 
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 static struct exynos_pm_qos_request exynos_mif_qos;
@@ -1154,6 +1155,87 @@ static ssize_t exynos_bts_log_write(struct file *file,
 	return buf_size;
 }
 
+static int exynos_bts_vc_open_show(struct seq_file *buf, void *d)
+{
+	struct bts_info info;
+	int ret, i;
+	unsigned int value, vc_num = 0;
+
+	for (i = 0; i < btsdev->num_bts; i++) {
+		info = btsdev->bts_list[i];
+		if (!info.va_base || !info.ops->get_vc)
+			continue;
+
+		spin_lock(&btsdev->lock);
+		ret = info.ops->get_vc(info.va_base, &value);
+		spin_unlock(&btsdev->lock);
+
+		if (ret) {
+			pr_warn("%s: get_vc failed. err=(%d)\n",
+				__func__, ret);
+			continue;
+		}
+
+		seq_printf(buf, "[%d] %s:   \t0x%.8X\n",
+			   vc_num, info.name, value);
+		vc_num++;
+	}
+
+	return 0;
+}
+
+static int exynos_bts_vc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, exynos_bts_vc_open_show, inode->i_private);
+}
+
+static ssize_t exynos_bts_vc_write(struct file *file,
+				    const char __user *user_buf, size_t count,
+				    loff_t *ppos)
+{
+	struct bts_info info;
+	char buf[16];
+	ssize_t buf_size;
+
+	int i, ret;
+	unsigned int value, vc_num, cnt;
+
+	buf_size = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf,
+					  count);
+	if (buf_size < 0)
+		return buf_size;
+
+	buf[buf_size] = '\0';
+
+	ret = sscanf(buf, "%8X %d\n", &value, &vc_num);
+	if (ret != 2) {
+		pr_err("%s: sscanf failed. We need 2 input. <VALUE VC_NUM> count=(%d)\n",
+		       __func__, ret);
+		return -EINVAL;
+	}
+
+	if (vc_num >= vc_num_total) {
+		pr_err("%s: vc_num=%d out of range\n", __func__, vc_num);
+		return -EINVAL;
+	}
+
+	cnt = 0;
+	for (i = 0; i < btsdev->num_bts; i++) {
+		info = btsdev->bts_list[i];
+		if (!info.va_base)
+			continue;
+		if (!info.ops->set_vc)
+			continue;
+		if (cnt == vc_num)
+			break;
+		cnt++;
+	}
+
+	info.ops->set_vc(info.va_base, value);
+
+	return buf_size;
+}
+
 static const struct file_operations debug_bts_hwstatus_fops = {
 	.open = exynos_bts_hwstatus_open,
 	.read = seq_read,
@@ -1223,6 +1305,14 @@ static const struct file_operations debug_bts_log_fops = {
 	.release = single_release,
 };
 
+static const struct file_operations debug_bts_vc_fops = {
+	.open = exynos_bts_vc_open,
+	.read = seq_read,
+	.write = exynos_bts_vc_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 int exynos_bts_debugfs_init(void)
 {
 	struct dentry *den;
@@ -1243,6 +1333,7 @@ int exynos_bts_debugfs_init(void)
 	debugfs_create_file("log", 0440, den, NULL, &debug_bts_log_fops);
 	debugfs_create_file("bw", 0440, den, NULL, &debug_bts_bw_fops);
 	debugfs_create_file("bw_hist", 0440, den, NULL, &debug_bts_bw_hist_fops);
+	debugfs_create_file("vc", 0440, den, NULL, &debug_bts_vc_fops);
 
 	return 0;
 }
@@ -1522,7 +1613,6 @@ static int bts_parse_data(struct device_node *np, struct bts_device *data)
 			}
 		}
 
-		info[i].name = child_np->name;
 		info[i].status = of_device_is_available(child_np);
 
 		/* Parsing bts-type */
@@ -1532,6 +1622,16 @@ static int bts_parse_data(struct device_node *np, struct bts_device *data)
 			ret = -EEXIST;
 			goto err;
 		}
+
+		if (info[i].type == INTERNAL_BTS) {
+			ret = of_property_read_string(child_np, "vc-string", &info[i].name);
+			if (ret) {
+				dev_err(data->dev, "failed to get vc-string\n");
+				goto err;
+			}
+			vc_num_total++;
+		} else
+			info[i].name = child_np->name;
 
 		/* Register operation function */
 		ret = register_btsops(&info[i]);

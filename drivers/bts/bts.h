@@ -115,6 +115,8 @@ struct bts_ops {
 	int (*get_urgent)(void __iomem *va, struct bts_stat *stat);
 	int (*set_blocking)(void __iomem *va, struct bts_stat *stat);
 	int (*get_blocking)(void __iomem *va, struct bts_stat *stat);
+	int (*set_vc)(void __iomem *va, unsigned int value);
+	int (*get_vc)(void __iomem *va, unsigned int *value);
 };
 
 /**

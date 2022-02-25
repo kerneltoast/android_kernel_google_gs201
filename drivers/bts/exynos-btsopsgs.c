@@ -648,6 +648,30 @@ static int get_scibts(void __iomem *base, struct bts_stat *stat)
 }
 
 /****************************************************************
+ *›     ›       ›       int bts ops functions›  ›       ›       *
+ ****************************************************************/
+static int set_intvc(void __iomem *base, unsigned int value)
+{
+	if (!base)
+		return -ENODATA;
+
+	__raw_writel(value, base);
+
+	return 0;
+}
+
+static int get_intvc(void __iomem *base, unsigned int *value)
+{
+	if (!base)
+		return -ENODATA;
+
+	*value = __raw_readl(base);
+
+	return 0;
+}
+
+
+/****************************************************************
  *			register ops functions			*
  ****************************************************************/
 int register_btsops(struct bts_info *info)
@@ -671,6 +695,8 @@ int register_btsops(struct bts_info *info)
 		info->ops->get_urgent = get_ipbts_urgent;
 		info->ops->set_blocking = set_ipbts_blocking;
 		info->ops->get_blocking = get_ipbts_blocking;
+		info->ops->set_vc = NULL;
+		info->ops->get_vc = NULL;
 		break;
 	case TREX_BTS:
 		info->ops->init_bts = init_trexbts;
@@ -684,6 +710,8 @@ int register_btsops(struct bts_info *info)
 		info->ops->get_urgent = NULL;
 		info->ops->set_blocking = NULL;
 		info->ops->get_blocking = NULL;
+		info->ops->set_vc = NULL;
+		info->ops->get_vc = NULL;
 		break;
 	case SCI_BTS:
 		info->ops->init_bts = init_sciqfull;
@@ -697,6 +725,8 @@ int register_btsops(struct bts_info *info)
 		info->ops->get_urgent = NULL;
 		info->ops->set_blocking = NULL;
 		info->ops->get_blocking = NULL;
+		info->ops->set_vc = NULL;
+		info->ops->get_vc = NULL;
 		break;
 	case SMC_BTS:
 		info->ops->init_bts = init_smcqbusy;
@@ -710,6 +740,8 @@ int register_btsops(struct bts_info *info)
 		info->ops->get_urgent = NULL;
 		info->ops->set_blocking = NULL;
 		info->ops->get_blocking = NULL;
+		info->ops->set_vc = NULL;
+		info->ops->get_vc = NULL;
 		break;
 	case BUSC_BTS:
 		info->ops->init_bts = init_qmax;
@@ -723,6 +755,8 @@ int register_btsops(struct bts_info *info)
 		info->ops->get_urgent = NULL;
 		info->ops->set_blocking = NULL;
 		info->ops->get_blocking = NULL;
+		info->ops->set_vc = NULL;
+		info->ops->get_vc = NULL;
 		break;
 	case DREX_BTS:
 		info->ops->init_bts = NULL;
@@ -736,6 +770,8 @@ int register_btsops(struct bts_info *info)
 		info->ops->get_urgent = NULL;
 		info->ops->set_blocking = NULL;
 		info->ops->get_blocking = NULL;
+		info->ops->set_vc = NULL;
+		info->ops->get_vc = NULL;
 		break;
 	case INTERNAL_BTS:
 		info->ops->init_bts = NULL;
@@ -749,6 +785,8 @@ int register_btsops(struct bts_info *info)
 		info->ops->get_urgent = NULL;
 		info->ops->set_blocking = NULL;
 		info->ops->get_blocking = NULL;
+		info->ops->set_vc = set_intvc;
+		info->ops->get_vc = get_intvc;
 		break;
 	default:
 		break;
