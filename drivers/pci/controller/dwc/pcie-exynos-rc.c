@@ -2832,10 +2832,12 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 #if IS_ENABLED(CONFIG_GS_S2MPU) || IS_ENABLED(CONFIG_EXYNOS_PCIE_IOMMU)
 			if (exynos_pcie->s2mpu || exynos_pcie->use_sysmmu) {
-				set_dma_ops(&exynos_pcie->ep_pci_dev->dev, &pcie_dma_ops);
-				dev_info(dev, "Wifi DMA operations are changed\n");
-				memcpy(&fake_dma_dev, exynos_pcie->pci->dev,
-				       sizeof(fake_dma_dev));
+				if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
+					set_dma_ops(&exynos_pcie->ep_pci_dev->dev, &pcie_dma_ops);
+					dev_info(dev, "Wifi DMA operations are changed\n");
+					memcpy(&fake_dma_dev, exynos_pcie->pci->dev,
+					       sizeof(fake_dma_dev));
+				}
 			}
 #endif
 
@@ -3013,13 +3015,13 @@ static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp)
 {
 	int domain_num;
 	struct pci_bus *ep_pci_bus;
-	static struct pci_dev *ep_pci_dev;
+	struct pci_dev *ep_pci_dev;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	u32 val;
 
-	if (ep_pci_dev)
-		return ep_pci_dev;
+	if (exynos_pcie->ep_pci_dev)
+		return exynos_pcie->ep_pci_dev;
 
 	/* Get EP vendor/device ID to get pci_dev structure */
 	domain_num = exynos_pcie->pci_dev->bus->domain_nr;
