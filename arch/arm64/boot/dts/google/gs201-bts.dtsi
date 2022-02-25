@@ -98,6 +98,80 @@
 			bts-type = <SMC_BTS>;
 		};
 
+		/* TREX_VC_NUM */
+		bts_vc_num_0 {
+			reg = <0x0 0x1EA81000 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "gsa, cssys, aoc, alive";
+		};
+		bts_vc_num_1 {
+			reg = <0x0 0x1EA81004 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "na, na, hsi1, hs10";
+		};
+		bts_vc_num_2 {
+			reg = <0x0 0x1F601000 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "dns, csis1, csis0, bo";
+		};
+		bts_vc_num_3 {
+			reg = <0x0 0x1F601004 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "g2d0, dpu2, dpu1, dpu0";
+		};
+		bts_vc_num_4 {
+			reg = <0x0 0x1F601008 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "gdc0, g3aa, g2d2, g2d1";
+		};
+		bts_vc_num_5 {
+			reg = <0x0 0x1F60100C 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "ipp, hsi2, gdc2, gdc1";
+		};
+		bts_vc_num_6 {
+			reg = <0x0 0x1F601010 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "mfc0, mcsc2, mcsc1, mcsc0";
+		};
+		bts_vc_num_7 {
+			reg = <0x0 0x1F601014 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "tnr1, tnr0, misc, mfc1";
+		};
+		bts_vc_num_8 {
+			reg = <0x0 0x1F601018 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "na, tnr4, tnr3, tnr2";
+		};
+		bts_vc_num_9 {
+			reg = <0x0 0x20511000 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "gpu1, gpu0, aur1, aur0";
+		};
+		bts_vc_num_10 {
+			reg = <0x0 0x20511004 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "tpu, gpummu, gpu3, gpu2";
+		};
+		bts_vc_num_11 {
+			reg = <0x0 0x1E501000 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "cpu3, cpu2, cpu1, cpu0";
+		};
+
 		/* TREX_D_NOCL2A */
 		bts_nocl2a_0 {
 			reg = <0x0 0x1F5B2000 0x100>;
