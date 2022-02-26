@@ -38,7 +38,6 @@ struct plugin_s2d_info {
 	int dbgsel_sw;
 	bool arraydump_done;
 	int blk_count;
-	bool *blk_en;
 	const char **blk_names;
 };
 
@@ -63,7 +62,7 @@ void adv_tracer_s2d_scandump(void)
 
 int adv_tracer_s2d_arraydump(void)
 {
-	struct adv_tracer_ipc_cmd cmd;
+	struct adv_tracer_ipc_cmd cmd = { 0 };
 	int ret = 0;
 	u32 cpu_mask;
 
@@ -95,12 +94,11 @@ end:
 
 static int adv_tracer_s2d_get_enable(void)
 {
-	struct adv_tracer_ipc_cmd cmd;
+	struct adv_tracer_ipc_cmd cmd = { 0 };
 	int ret = 0;
 
 	cmd.cmd_raw.cmd = eS2D_IPC_CMD_GET_ENABLE;
-	ret = adv_tracer_ipc_send_data(plugin_s2d.s2d_dev->id,
-			(struct adv_tracer_ipc_cmd *)&cmd);
+	ret = adv_tracer_ipc_send_data(plugin_s2d.s2d_dev->id, &cmd);
 	if (ret < 0) {
 		dev_err(plugin_s2d.dev, "ipc can't get enable\n");
 		return ret;
@@ -112,7 +110,7 @@ static int adv_tracer_s2d_get_enable(void)
 
 static int adv_tracer_s2d_set_enable(int en)
 {
-	struct adv_tracer_ipc_cmd cmd;
+	struct adv_tracer_ipc_cmd cmd = { 0 };
 	int ret = 0;
 
 	cmd.cmd_raw.cmd = eS2D_IPC_CMD_SET_ENABLE;
@@ -126,15 +124,40 @@ static int adv_tracer_s2d_set_enable(int en)
 	return 0;
 }
 
-bool adv_tracer_s2d_get_blk_by_idx(unsigned int index)
+static int adv_tracer_s2d_get_all_blk(unsigned long *p_blocks)
 {
-	if (index < plugin_s2d.blk_count)
-		return plugin_s2d.blk_en[index];
+	struct adv_tracer_ipc_cmd cmd = { 0 };
+	int ret = 0;
 
-	return false;
+	cmd.cmd_raw.cmd = eS2D_IPC_CMD_GET_ALL_BLK;
+	ret = adv_tracer_ipc_send_data(plugin_s2d.s2d_dev->id, &cmd);
+	if (ret < 0) {
+		dev_err(plugin_s2d.dev, "cannot get blk list\n");
+		return ret;
+	}
+
+	*p_blocks = (unsigned long)cmd.buffer[2] << 32 | cmd.buffer[1];
+
+	return 0;
 }
 
-bool adv_tracer_s2d_get_blk_by_name(const char *name)
+int adv_tracer_s2d_get_blk_by_idx(unsigned int index)
+{
+	unsigned long blocks;
+	int ret;
+
+	if (index >= plugin_s2d.blk_count)
+		return -EINVAL;
+
+	ret = adv_tracer_s2d_get_all_blk(&blocks);
+
+	if (ret)
+		return ret;
+
+	return !!(blocks & BIT(index));
+}
+
+int adv_tracer_s2d_get_blk_by_name(const char *name)
 {
 	unsigned int i;
 
@@ -143,18 +166,17 @@ bool adv_tracer_s2d_get_blk_by_name(const char *name)
 			return adv_tracer_s2d_get_blk_by_idx(i);
 	}
 
-	return false;
+	return -EINVAL;
 }
 
 int adv_tracer_s2d_set_blk_by_idx(bool enabled, unsigned int index)
 {
-	struct adv_tracer_ipc_cmd cmd;
+	struct adv_tracer_ipc_cmd cmd = { 0 };
 	int ret = 0;
 
 	if (index >= plugin_s2d.blk_count)
 		return -EINVAL;
 
-	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd_raw.cmd = eS2D_IPC_CMD_SET_BLK;
 	cmd.buffer[1] = enabled;
 	cmd.buffer[2] = index;
@@ -166,10 +188,12 @@ int adv_tracer_s2d_set_blk_by_idx(bool enabled, unsigned int index)
 		return ret;
 	}
 
-	if (cmd.cmd_raw.ret_err)
-		return -EINVAL;
-
-	plugin_s2d.blk_en[index] = enabled;
+	if (cmd.cmd_raw.ret_err) {
+		dev_err(plugin_s2d.dev, "%sabling %s blk rejected\n",
+			enabled ? "en" : "dis",
+			plugin_s2d.blk_names[index]);
+		return -EPERM;
+	}
 
 	return 0;
 }
@@ -188,11 +212,9 @@ int adv_tracer_s2d_set_blk_by_name(bool enabled, const char *name)
 
 int adv_tracer_s2d_set_all_blk(bool en)
 {
-	struct adv_tracer_ipc_cmd cmd;
-	unsigned int i;
+	struct adv_tracer_ipc_cmd cmd = { 0 };
 	int ret = 0;
 
-	memset(&cmd, 0, sizeof(cmd));
 	cmd.cmd_raw.cmd = eS2D_IPC_CMD_SET_ALL_BLK;
 	cmd.buffer[1] = en;
 	ret = adv_tracer_ipc_send_data(plugin_s2d.s2d_dev->id, &cmd);
@@ -200,36 +222,6 @@ int adv_tracer_s2d_set_all_blk(bool en)
 		dev_err(plugin_s2d.dev, "cannot set all blk\n");
 		return ret;
 	}
-
-	if (cmd.cmd_raw.ret_err)
-		return -EINVAL;
-
-	for (i = 0; i < plugin_s2d.blk_count; i++)
-		plugin_s2d.blk_en[i] = en;
-
-	return 0;
-}
-
-int adv_tracer_s2d_get_all_blk(void)
-{
-	struct adv_tracer_ipc_cmd cmd;
-	int ret = 0;
-	unsigned long i, bits;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.cmd_raw.cmd = eS2D_IPC_CMD_GET_ALL_BLK;
-	ret = adv_tracer_ipc_send_data(plugin_s2d.s2d_dev->id, &cmd);
-	if (ret < 0) {
-		dev_err(plugin_s2d.dev, "cannot get blk list\n");
-		return ret;
-	}
-
-	bits = (unsigned long)cmd.buffer[1] |
-		(unsigned long)cmd.buffer[2] << 32;
-	for_each_set_bit(i, &bits, plugin_s2d.blk_count)
-		plugin_s2d.blk_en[i] = true;
-	for_each_clear_bit(i, &bits, plugin_s2d.blk_count)
-		plugin_s2d.blk_en[i] = false;
 
 	return 0;
 }
@@ -362,10 +354,17 @@ static ssize_t print_all_block_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	unsigned int i, sz = 0;
+	unsigned long blocks;
+	int ret;
+
+	ret = adv_tracer_s2d_get_all_blk(&blocks);
+
+	if (ret)
+		return ret;
 
 	for (i = 0; i < plugin_s2d.blk_count; i++) {
 		sz += scnprintf(buf + sz, PAGE_SIZE - sz, "[%02u : %3s] %s\n",
-				i, plugin_s2d.blk_en[i] ? "on" : "off",
+				i, blocks & BIT(i) ? "on" : "off",
 				plugin_s2d.blk_names[i]);
 	}
 
@@ -415,17 +414,6 @@ static int adv_tracer_s2d_dt_init(struct platform_device *pdev)
 
 	of_property_read_string_array(node, "blk-list",
 			plugin_s2d.blk_names, plugin_s2d.blk_count);
-
-	plugin_s2d.blk_en = devm_kcalloc(&pdev->dev, plugin_s2d.blk_count,
-			sizeof(bool), GFP_KERNEL);
-	if (!plugin_s2d.blk_en) {
-		devm_kfree(&pdev->dev, plugin_s2d.blk_names);
-		plugin_s2d.blk_names = NULL;
-		dev_err(&pdev->dev, "cannot allocate mem for blk enable\n");
-		return -ENOMEM;
-	}
-
-	adv_tracer_s2d_get_all_blk();
 
 	return 0;
 }
