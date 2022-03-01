@@ -426,9 +426,9 @@ void exynos_ehld_event_raw_update_allcpu(void)
 
 static void print_ehld_header(void)
 {
-	ehld_info(1, "--------------------------------------------------------------------------\n");
-	ehld_info(1, "      Exynos Early Lockup Detector Information\n\n");
-	ehld_info(1, "      CPU    NUM     TIME                 Value                PC\n\n");
+	ehld_err(1, "--------------------------------------------------------------------------\n");
+	ehld_err(1, "      Exynos Early Lockup Detector Information\n\n");
+	ehld_err(1, "      CPU    NUM     TIME                 Value                PC\n\n");
 }
 
 void exynos_ehld_event_raw_dump(unsigned int cpu, bool header)
@@ -446,12 +446,12 @@ void exynos_ehld_event_raw_dump(unsigned int cpu, bool header)
 	data = &ctrl->data;
 	for (i = 0; i < NUM_TRACE; i++) {
 		count = ++data->data_ptr % NUM_TRACE;
-		ehld_info(1, "      %03u    %03d     %015llu      %#015llx      %#016llx(%pS)\n",
+		ehld_err(1, "      %03u    %03d     %015llu      %#015llx      %#016llx(%pS)\n",
 					cpu, i + 1, data->time[count], data->event[count],
 					data->pmpcsr[count], (void *)data->pmpcsr[count]);
 	}
 	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
-	ehld_info(1, "--------------------------------------------------------------------------\n");
+	ehld_err(1, "--------------------------------------------------------------------------\n");
 }
 
 void exynos_ehld_event_raw_dump_allcpu(void)
