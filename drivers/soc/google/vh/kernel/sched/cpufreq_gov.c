@@ -265,10 +265,13 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 				   unsigned int next_freq)
 {
+	bool ignore_rate_limit = sg_policy->need_freq_update;
+	sg_policy->need_freq_update = false;
+
 	if (sg_policy->next_freq == next_freq)
 		return false;
 
-	if (sugov_up_down_rate_limit(sg_policy, time, next_freq)) {
+	if (!ignore_rate_limit && sugov_up_down_rate_limit(sg_policy, time, next_freq)) {
 		/* Restore cached freq as next_freq is not changed */
 		sg_policy->cached_raw_freq = sg_policy->prev_cached_raw_freq;
 		return false;
@@ -348,9 +351,9 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
 		return sg_policy->next_freq;
 
-	sg_policy->need_freq_update = false;
 	sg_policy->prev_cached_raw_freq = sg_policy->cached_raw_freq;
 	sg_policy->cached_raw_freq = freq;
+
 	return cpufreq_driver_resolve_freq(policy, freq);
 }
 
