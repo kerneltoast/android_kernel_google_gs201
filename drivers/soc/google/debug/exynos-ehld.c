@@ -249,8 +249,8 @@ static enum hrtimer_restart ehld_value_raw_hrtimer_fn(struct hrtimer *hrtimer)
 		return HRTIMER_NORESTART;
 	}
 
-	exynos_ehld_do_policy();
 	exynos_ehld_value_raw_update(cpu);
+	exynos_ehld_do_policy();
 
 	ehld_info(0, "@%s: cpu%u hrtimer is running\n", __func__, cpu);
 
