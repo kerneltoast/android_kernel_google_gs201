@@ -47,6 +47,7 @@
 				   "synaptics.img",
 				   "synaptics_b.img";
 	synaptics,touch_offload_id = /bits/ 8 <'c' '1' '0' '0'>;
+	synaptics,udfps-coords = <720 2360>;
 
 	controller-data {
 		cs-gpio = <&gpp20 3 0>;
