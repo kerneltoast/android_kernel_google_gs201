@@ -879,11 +879,20 @@ static int exynos_ehld_setup(void)
 	return ret;
 }
 
+static unsigned long noehld = 0;
+module_param(noehld, ulong, 0664);
+MODULE_PARM_DESC(noehld, "disable EHLD by setting noehld=1");
+
 static int ehld_probe(struct platform_device *pdev)
 {
 	int err, val;
 	unsigned int cpu;
 	u32 online_mask = 0;
+
+	if (noehld == 1) {
+		ehld_info(1, "ehld: disabled by module parameter: noehld=1\n");
+		return 0;
+	}
 
 	err = exynos_ehld_init_dt(pdev->dev.of_node);
 	if (err) {
