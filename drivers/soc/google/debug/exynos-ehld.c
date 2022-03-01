@@ -622,7 +622,21 @@ static int exynos_ehld_c2_pm_exit_notifier(struct notifier_block *self,
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
 		exynos_ehld_cpu_online(cpu);
-		dbg_snapshot_set_core_pmu_val(EHLD_VAL_PM_POST, cpu);
+		/*
+		 * When a CPU core exits PM, we cannot use a constant value
+		 * (EHLD_VAL_PM_POST or zero) here as the wake-up value.
+		 * This is because CPU enters and exits PM frequently, and
+		 * debug core keeps observing the core PMU value frequently.
+		 * A single constant value will look like the core is stuck.
+		 *
+		 * Instead, need to show progress. In the optimal world, we
+		 * would just pull the PMU retired instruction counter here,
+		 * just like the hrtimer callback does. But experimentation
+		 * shows that PMU returns zero rather frequently here.
+		 *
+		 * Thus, we will need to use CPU clock as the initial value.
+		 */
+		dbg_snapshot_set_core_pmu_val(cpu_clock(cpu), cpu);
 		break;
 	case CPU_CLUSTER_PM_ENTER:
 		break;
