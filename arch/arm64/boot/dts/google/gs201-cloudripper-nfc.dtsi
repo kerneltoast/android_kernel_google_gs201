@@ -12,7 +12,8 @@
 &pinctrl_6 {
 	nfc_rst: nfc-rst {
 		samsung,pins = "gph1-5";
-		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 	};
 	nfc_pidle: nfc-pidle {
 		samsung,pins = "gph0-5";
