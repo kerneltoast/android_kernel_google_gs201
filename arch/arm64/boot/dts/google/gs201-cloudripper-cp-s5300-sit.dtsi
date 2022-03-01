@@ -59,7 +59,7 @@
 	s5100_cp2ap_cp_wrst_n: s5100_cp2ap_cp_wrst_n {
 		samsung,pins = "gpa0-2";
 		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 	};
 
 	s5100_ap2cp_pm_wrst_n: s5100_ap2cp_pm_wrst_n {
@@ -79,12 +79,12 @@
 	s5100_cp2ap_phone_active: s5100_cp2ap_phone_active {
 		samsung,pins = "gpa8-4";
 		samsung,pin-function = <0xf>;
-		samsung,pin-pud = <0>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 	};
 
 	s5100_cp2ap_cp_ps_hold: s5100_cp2ap_cp_ps_hold {
 		samsung,pins = "gpa8-2";
-		samsung,pin-pud = <0>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 	};
 };
 
