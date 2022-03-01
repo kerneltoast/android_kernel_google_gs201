@@ -877,8 +877,12 @@ static int __exynos_ufs_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 
-	if (status == PRE_CHANGE)
+	if (status == PRE_CHANGE) {
+		/* TODO: should check enabling runtime PM later. */
+		if (pm_op == UFS_RUNTIME_PM)
+			return -EINVAL;
 		return 0;
+	}
 
 	if (!IS_C_STATE_ON(ufs) ||
 	    ufs->h_state != H_HIBERN8)
