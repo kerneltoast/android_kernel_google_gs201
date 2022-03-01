@@ -16,6 +16,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi5_bus &spi5_cs_func>;
 
+	dma-mode;
+	dmas = <&pdma0 10 &pdma0 11>;
+	swap-mode = <1> ;
+
 	bcm4775@0 {
 		compatible = "ssp,bcm4775";
 		reg = <0>;
