@@ -55,6 +55,11 @@ config VH_FS
         depends on VH_KERNEL
         default m
 
+config VH_MM
+        tristate "Vendor hooks for Memory Management"
+        depends on VH_KERNEL
+        default m
+
 config VH_CGROUP
         tristate "Vendor hooks for cgroup"
         depends on VH_KERNEL
