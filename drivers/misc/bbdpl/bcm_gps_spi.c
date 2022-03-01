@@ -661,7 +661,7 @@ int bcm_spi_sync(struct bcm_spi_priv *priv, void *tx_buf,
 	xfer.len = len;
 	xfer.tx_buf = tx_buf;
 	xfer.rx_buf = rx_buf;
-	xfer.bits_per_word = 8; /*bits_per_word;*/
+	xfer.bits_per_word = bits_per_word;
 
 	/* Sync */
 	pk_log(priv, "w", (unsigned char *)xfer.tx_buf, len);
