@@ -268,7 +268,7 @@ static struct iommu_domain *samsung_sysmmu_domain_alloc(unsigned int type)
 		goto err_pgtable;
 
 	domain->lv2entcnt = kcalloc(NUM_LV1ENTRIES, sizeof(*domain->lv2entcnt),
-				    GFP_KERNEL);
+				    GFP_KERNEL|__GFP_RETRY_MAYFAIL);
 	if (!domain->lv2entcnt)
 		goto err_counter;
 
