@@ -968,9 +968,8 @@ static void gvotable_add_ballot(struct gvotable_election *el,
 	el->num_votes++;
 }
 
-static int gvotable_recast_ballot(struct gvotable_election *el,
-				  const char *reason,
-				  bool enabled)
+int gvotable_recast_ballot(struct gvotable_election *el, const char *reason,
+			   bool enabled)
 {
 	struct ballot *ballot;
 	int ret;
@@ -1003,6 +1002,7 @@ static int gvotable_recast_ballot(struct gvotable_election *el,
 	gvotable_unlock_callback(el);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(gvotable_recast_ballot);
 
 #define gvotable_ballot_size_ok(size) ((size) <= sizeof(void *))
 
