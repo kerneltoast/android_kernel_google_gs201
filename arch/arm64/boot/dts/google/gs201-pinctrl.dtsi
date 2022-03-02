@@ -955,6 +955,8 @@
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
 			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 		};
 		uart15_bus_single: uart15-bus {
 		       samsung,pins = "gpp24-0", "gpp24-1",

@@ -99,7 +99,9 @@
 
 &hsi2c13_bus {
 	samsung,pins = "gpp25-0", "gpp25-1";
-	samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 };
 
 &hsi2c_15 {
