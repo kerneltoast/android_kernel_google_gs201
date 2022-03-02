@@ -611,6 +611,7 @@
 
 	etf0: etf@25004000 {
 		compatible = "arm,coresight-tmc", "arm,primecell";
+		arm,primecell-periphid = <0x001bb961>;
 		reg = <0 0x25004000 0x1000>;
 
 		coresight-name = "coresight-etf0";
@@ -637,6 +638,7 @@
 
 	etf1: etf@25005000 {
 		compatible = "arm,coresight-tmc", "arm,primecell";
+		arm,primecell-periphid = <0x001bb961>;
 		reg = <0 0x25005000 0x1000>;
 
 		coresight-name = "coresight-etf1";
@@ -663,6 +665,7 @@
 
 	etr: etr@2500a000 {
 		compatible = "arm,coresight-tmc", "arm,primecell";
+		arm,primecell-periphid = <0x001bb961>;
 		reg = <0 0x2500a000 0x1000>;
 
 		coresight-name = "coresight-etr";
