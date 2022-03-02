@@ -328,8 +328,8 @@ static irqreturn_t cp_active_handler(int irq, void *data)
 	if (ld->crash_reason.type == CRASH_REASON_NONE)
 		ld->crash_reason.type = CRASH_REASON_CP_ACT_CRASH;
 
-	mif_info("Set s5100_cp_reset_required to false\n");
 	mc->s5100_cp_reset_required = false;
+	mif_info("Set s5100_cp_reset_required to %u\n", mc->s5100_cp_reset_required);
 
 	if (old_state != new_state) {
 		mif_err("new_state = %s\n", cp_state_str(new_state));
@@ -762,6 +762,16 @@ static void gpio_power_offon_cp(struct modem_ctl *mc)
 #endif
 }
 
+static void gpio_power_wreset_cp(struct modem_ctl *mc)
+{
+#if !IS_ENABLED(CONFIG_CP_WRESET_WA)
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 0, 50);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 0, 50);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 1, 50);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 1, 50);
+#endif
+}
+
 static int power_on_cp(struct modem_ctl *mc)
 {
 	struct link_device *ld = get_current_link(mc->iod);
@@ -892,16 +902,10 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 #endif
 
 	mif_info("s5100_cp_reset_required:%d\n", mc->s5100_cp_reset_required);
-	if (mc->s5100_cp_reset_required) {
+	if (mc->s5100_cp_reset_required)
 		gpio_power_offon_cp(mc);
-	} else {
-#if !IS_ENABLED(CONFIG_CP_WRESET_WA)
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 0, 50);
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 0, 50);
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 1, 50);
-		mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 1, 50);
-#endif
-	}
+	else
+		gpio_power_wreset_cp(mc);
 
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE], 1, 0);
 	print_mc_state(mc);

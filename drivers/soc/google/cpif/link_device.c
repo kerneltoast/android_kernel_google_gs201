@@ -154,15 +154,14 @@ static void handle_no_cp_crash_ack(struct timer_list *t)
 	struct link_device *ld = &mld->link_dev;
 	struct modem_ctl *mc = ld->mc;
 
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE) && IS_ENABLED(CONFIG_CP_WRESET_WA)
 	if (ld->link_type == LINKDEV_PCIE) {
-		if (mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_CP_ACTIVE], true) == 0) {
-			mif_info("Set s5100_cp_reset_required to FALSE\n");
+		if (mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_CP_ACTIVE], true) == 0)
 			mc->s5100_cp_reset_required = false;
-		} else {
-			mif_info("Set s5100_cp_reset_required to TRUE\n");
+		else
 			mc->s5100_cp_reset_required = true;
-		}
+
+		mif_info("Set s5100_cp_reset_required to %u\n", mc->s5100_cp_reset_required);
 	}
 #endif
 
@@ -678,15 +677,14 @@ static void cmd_crash_exit_handler(struct mem_link_device *mld)
 	else
 		mif_err("%s<-%s: ERR! CP_CRASH_EXIT\n", ld->name, mc->name);
 
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE) && IS_ENABLED(CONFIG_CP_WRESET_WA)
 	if (ld->link_type == LINKDEV_PCIE) {
-		if (mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_CP_ACTIVE], true) == 0) {
-			mif_info("Set s5100_cp_reset_required to FALSE\n");
+		if (mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_CP_ACTIVE], true) == 0)
 			mc->s5100_cp_reset_required = false;
-		} else {
-			mif_info("Set s5100_cp_reset_required to TRUE\n");
+		else
 			mc->s5100_cp_reset_required = true;
-		}
+
+		mif_info("Set s5100_cp_reset_required to %u\n", mc->s5100_cp_reset_required);
 	}
 #endif
 
