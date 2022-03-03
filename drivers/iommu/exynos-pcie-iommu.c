@@ -195,6 +195,7 @@ static void __sysmmu_enable_nocount(struct sysmmu_drvdata *drvdata, int pcie_vid
 		ctrl_val |= VID_CFG_SHAREABLE | VID_CFG_SHAREABLE_OVRD;
 		writel(ctrl_val, drvdata->sfrbase + REG_MMU_CFG_VID(pcie_vid));
 	}
+	__sysmmu_tlb_invalidate_all(drvdata->sfrbase, pcie_vid);
 }
 
 static void __sysmmu_disable_nocount(struct sysmmu_drvdata *drvdata, int pcie_vid)
