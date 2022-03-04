@@ -611,6 +611,9 @@
 				power-down-seq-delays-us =
 					<0
 					 0>;
+
+				/* Thread priority */
+				periodic-io-thread-priority = <99>;
 			};
 
 			/* Ois lc898128 for gn1*/
@@ -660,6 +663,9 @@
 					<5000
 					 0
 					 0>;
+
+				/* Thread priority */
+				periodic-io-thread-priority = <99>;
 			};
 
 			flash0: flash@0 {
