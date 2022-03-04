@@ -841,7 +841,7 @@ int s2mpg12_ocp_warn(struct s2mpg12_pmic *s2mpg12,
 	if (ret)
 		pr_err("i2c write error setting b3m_soft_ocp_warn\n");
 
-	val = (pdata->b10_ocp_warn_en << S2MPG12_OCP_WARN_EN_SHIFT) |
+	val = (pdata->b10_soft_ocp_warn_en << S2MPG12_OCP_WARN_EN_SHIFT) |
 	      (pdata->b10_soft_ocp_warn_cnt << S2MPG12_OCP_WARN_CNT_SHIFT) |
 	      (pdata->b10_soft_ocp_warn_dvs_mask
 	       << S2MPG12_OCP_WARN_DVS_MASK_SHIFT) |
