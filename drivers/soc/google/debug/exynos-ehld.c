@@ -287,11 +287,23 @@ void ehld_tick_sched_timer(void)
 	ehld_info(0, "@%s: cpu%u hrtimer is running\n", __func__, cpu);
 }
 
+static void exynos_ehld_start_cpu_hrtimer(void *data)
+{
+	struct hrtimer *hrtimer = (struct hrtimer *)data;
+	u64 interval = ehld_main.dbgc.interval * 1000 * 1000;
+
+	hrtimer_start(hrtimer, ns_to_ktime(interval), HRTIMER_MODE_REL_PINNED);
+}
+
 static int exynos_ehld_start_cpu(unsigned int cpu)
 {
 	struct exynos_ehld_ctrl *ctrl = per_cpu_ptr(&ehld_ctrl, cpu);
 	struct perf_event *event = ctrl->event;
 	struct hrtimer *hrtimer = &ctrl->hrtimer;
+
+	/* during resume, need to handle cpu 0 here from cpu 1 context */
+	if (ehld_main.suspending && cpu == 1)
+		exynos_ehld_start_cpu(0);
 
 	if (!event) {
 		event = perf_event_create_kernel_counter(&exynos_ehld_attr,
@@ -310,9 +322,6 @@ static int exynos_ehld_start_cpu(unsigned int cpu)
 		perf_event_enable(event);
 	}
 
-	if (ctrl->ehld_running)
-		return 0;
-
 	ctrl->ehld_running = 1;
 	ehld_info(1, "@%s: cpu%u ehld running\n", __func__, cpu);
 
@@ -325,7 +334,10 @@ static int exynos_ehld_start_cpu(unsigned int cpu)
 		ehld_info(1, "@%s: cpu%u ehld running with hrtimer\n", __func__, cpu);
 		hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		hrtimer->function = ehld_value_raw_hrtimer_fn;
-		hrtimer_start(hrtimer, ns_to_ktime(interval), HRTIMER_MODE_REL_PINNED);
+		if (ehld_main.suspending && cpu == 0)
+			smp_call_function_single(0, exynos_ehld_start_cpu_hrtimer, hrtimer, 0);
+		else
+			hrtimer_start(hrtimer, ns_to_ktime(interval), HRTIMER_MODE_REL_PINNED);
 	} else {
 		ehld_info(1, "@%s: cpu%u ehld running with tick-timer\n", __func__, cpu);
 	}
@@ -338,6 +350,10 @@ static int exynos_ehld_stop_cpu(unsigned int cpu)
 	struct exynos_ehld_ctrl *ctrl = per_cpu_ptr(&ehld_ctrl, cpu);
 	struct perf_event *event;
 	struct hrtimer *hrtimer = &ctrl->hrtimer;
+
+	/* during suspend, need to handle cpu 0 here from cpu 1 context */
+	if (ehld_main.suspending && cpu == 1)
+		exynos_ehld_stop_cpu(0);
 
 	dbg_snapshot_set_core_pmu_val(EHLD_VAL_PM, cpu);
 
@@ -601,8 +617,6 @@ static int exynos_ehld_c2_pm_enter_notifier(struct notifier_block *self,
 	case CPU_PM_EXIT:
 		break;
 	case CPU_CLUSTER_PM_ENTER:
-		if (cpu == 0 && ehld_main.suspending)
-			exynos_ehld_stop_cpu(cpu);
 		break;
 	case CPU_CLUSTER_PM_ENTER_FAILED:
 	case CPU_CLUSTER_PM_EXIT:
@@ -642,8 +656,6 @@ static int exynos_ehld_c2_pm_exit_notifier(struct notifier_block *self,
 		break;
 	case CPU_CLUSTER_PM_ENTER_FAILED:
 	case CPU_CLUSTER_PM_EXIT:
-		if (cpu == 0 && ehld_main.suspending)
-			exynos_ehld_start_cpu(cpu);
 		break;
 	}
 	return NOTIFY_OK;
