@@ -301,8 +301,19 @@ err_pgtable:
 static void samsung_sysmmu_domain_free(struct iommu_domain *dom)
 {
 	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
+	int i;
 
 	iommu_put_dma_cookie(dom);
+
+	for (i = 0; i < NUM_LV1ENTRIES; i++) {
+		sysmmu_pte_t *sent = domain->page_table + i;
+
+		if (lv1ent_page(sent)) {
+			phys_addr_t base = lv2table_base(sent);
+
+			kmem_cache_free(slpt_cache, phys_to_virt(base));
+		}
+	}
 	kmem_cache_free(flpt_cache, domain->page_table);
 	kfree(domain->lv2entcnt);
 	kfree(domain);
