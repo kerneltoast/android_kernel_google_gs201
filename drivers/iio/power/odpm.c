@@ -26,19 +26,7 @@
 #include <linux/iio/configfs.h>
 #include <linux/iio/sysfs.h>
 
-#include <linux/mfd/samsung/s2mpg1x-meter.h>
-
-#if IS_ENABLED(CONFIG_SOC_GS101)
-#include <linux/mfd/samsung/s2mpg10-meter.h>
-#include <linux/mfd/samsung/s2mpg11-meter.h>
-#include <linux/mfd/samsung/s2mpg10.h>
-#include <linux/mfd/samsung/s2mpg11.h>
-#elif IS_ENABLED(CONFIG_SOC_GS201)
-#include <linux/mfd/samsung/s2mpg12-meter.h>
-#include <linux/mfd/samsung/s2mpg13-meter.h>
-#include <linux/mfd/samsung/s2mpg12.h>
-#include <linux/mfd/samsung/s2mpg13.h>
-#endif
+#include <soc/google/odpm.h>
 
 #define ODPM_PRINT_ESTIMATED_CLOCK_SKEW 0
 
@@ -69,20 +57,6 @@
 #define ODPM_SAMPLING_FREQ_CHAR_LEN_MAX 20
 
 #if IS_ENABLED(CONFIG_SOC_GS101)
-#define _SWITCH_METER_FUNC_VOID(infop, func, args...)                          \
-	do {                                                                   \
-		switch ((infop)->chip.hw_id) {                                 \
-		case ID_S2MPG10:                                               \
-			s2mpg10_##func(args);                                  \
-			break;                                                 \
-		case ID_S2MPG11:                                               \
-			s2mpg11_##func(args);                                  \
-			break;                                                 \
-		case ID_COUNT:                                                 \
-			break;                                                 \
-		}                                                              \
-	} while (0)
-
 #define _SWITCH_METER_FUNC(infop, ret, func, args...)                          \
 	do {                                                                   \
 		switch ((info)->chip.hw_id) {                                  \
@@ -99,20 +73,6 @@
 #endif
 
 #if IS_ENABLED(CONFIG_SOC_GS201)
-#define _SWITCH_METER_FUNC_VOID(infop, func, args...)                          \
-	do {                                                                   \
-		switch ((infop)->chip.hw_id) {                                 \
-		case ID_S2MPG12:                                               \
-			s2mpg12_##func(args);                                  \
-			break;                                                 \
-		case ID_S2MPG13:                                               \
-			s2mpg13_##func(args);                                  \
-			break;                                                 \
-		case ID_COUNT:                                                 \
-			break;                                                 \
-		}                                                              \
-	} while (0)
-
 #define _SWITCH_METER_FUNC(infop, ret, func, args...)	                       \
 	do {						                       \
 		switch ((infop)->chip.hw_id) {		                       \
@@ -130,102 +90,6 @@
 
 #define SWITCH_METER_FUNC(info, ret, func, args...) \
 	_SWITCH_METER_FUNC(info, ret, func, info->meter, args)
-#define SWITCH_METER_FUNC_VOID(info, func, args...) \
-	_SWITCH_METER_FUNC_VOID(info, func, info->meter, args)
-
-#define ODPM_CHANNEL_MAX S2MPG1X_METER_CHANNEL_MAX
-#define ODPM_BUCK_EN_BYTES S2MPG1X_METER_BUCKEN_BUF
-
-enum odpm_rail_type {
-	ODPM_RAIL_TYPE_REGULATOR_LDO,
-	ODPM_RAIL_TYPE_REGULATOR_BUCK,
-	ODPM_RAIL_TYPE_SHUNT,
-};
-
-enum odpm_sampling_rate_type {
-	ODPM_SAMPLING_RATE_INTERNAL,
-	ODPM_SAMPLING_RATE_EXTERNAL,
-	ODPM_SAMPLING_RATE_ALL,
-};
-
-struct odpm_rail_data {
-	/* Config */
-	const char *name;
-	const char *schematic_name;
-	const char *subsys_name;
-	enum odpm_rail_type type;
-	u32 mux_select;
-
-	/* Buck specific */
-	int channel_en_byte_offset;
-
-	/* External rail specific config */
-	u32 shunt_uohms;
-
-	/* Bucks and external rails */
-	u8 channel_en_index;
-
-	/* Data */
-	u64 acc_power_uW_sec_cached;
-	u64 measurement_stop_ms;
-	u64 measurement_start_ms_cached;
-
-	bool disable_in_sleep;
-};
-
-struct odpm_chip {
-	/* Config */
-	const char *name;
-	enum s2mpg1x_id hw_id;
-	int hw_rev;
-	u32 max_refresh_time_ms;
-
-	int num_rails;
-	struct odpm_rail_data *rails;
-
-	const u32 *sampling_rate_int_uhz;
-	int sampling_rate_int_count;
-	const u32 *sampling_rate_ext_uhz;
-	int sampling_rate_ext_count;
-
-	s2mpg1x_int_samp_rate int_config_sampling_rate_i;
-	s2mpg1x_ext_samp_rate ext_config_sampling_rate_i;
-
-	/* Data */
-	u64 acc_timestamp_ms;
-	s2mpg1x_int_samp_rate int_sampling_rate_i;
-	s2mpg1x_ext_samp_rate ext_sampling_rate_i;
-
-	bool rx_ext_config_confirmation;
-};
-
-struct odpm_channel_data {
-	int rail_i;
-	bool enabled;
-
-	u64 measurement_start_ms;
-	u64 acc_power_uW_sec;
-};
-
-/**
- * dynamic struct odpm_info
- */
-struct odpm_info {
-	struct odpm_chip chip;
-	void *meter; /* Parent meter device data */
-	struct i2c_client *i2c;
-	struct mutex *meter_lock; /* Meter lock */
-	struct mutex lock; /* Global HW lock */
-
-	struct odpm_channel_data channels[ODPM_CHANNEL_MAX];
-
-	struct workqueue_struct *work_queue;
-	struct work_struct work_refresh;
-	struct timer_list timer_refresh;
-
-	u64 last_poll_ktime_boot_ns;
-	bool sleeping;
-};
 
 /**
  * IIO driver specific channel configurations
@@ -375,16 +239,20 @@ static int odpm_io_update_bucken_enable_bits(struct odpm_info *info,
 					    ODPM_BUCK_EN_BYTES);
 }
 
-static void odpm_id_get_lpf_data(struct odpm_info *info, u32 *data)
+static void odpm_io_set_lpf_mode(struct odpm_info *info, s2mpg1x_meter_mode mode)
 {
-	SWITCH_METER_FUNC_VOID(info, meter_read_lpf_data_reg, data);
+	s2mpg1x_meter_set_lpf_mode(info->chip.hw_id, info->i2c, mode);
+}
+
+static void odpm_io_get_lpf_data(struct odpm_info *info, u32 *data)
+{
+	s2mpg1x_meter_read_lpf_data_reg(info->chip.hw_id, info->i2c, data);
 }
 
 static int odpm_io_write_lpf_reg(struct odpm_info *info,
 				 int ch, u8 data)
 {
-	return s2mpg1x_meter_set_lpf_coefficient(info->chip.hw_id, info->i2c,
-						 ch, data);
+	return s2mpg1x_meter_set_lpf_coefficient(info->chip.hw_id, info->i2c, ch, data);
 }
 
 int odpm_configure_chip(struct odpm_info *info)
@@ -791,41 +659,58 @@ static int odpm_parse_dt(struct device *dev, struct odpm_info *info)
 }
 
 /**
- * @brief Return the specific rail's power/bit resolution
+ * @brief Return the specific rail's milli unit/bit resolution
  *
- * @return u32 - the rail resolution in iq30 in mW/bit. Will return 0 if the
- *	resolution doesn't exist.
+ * @return u32 - the rail resolution in iq30 is in milli unit/bit. Will return 0 if
+ *	the resolution doesn't exist.
  */
-static u32 odpm_get_resolution_mW_iq30(struct odpm_info *info, int rail_i)
+static u32 odpm_get_resolution_milli_iq30(struct odpm_info *info, int rail_i,
+					  s2mpg1x_meter_mode mode)
 {
 	u32 ret = 0;
 
 	switch (info->chip.rails[rail_i].type) {
 	case ODPM_RAIL_TYPE_REGULATOR_BUCK:
 	case ODPM_RAIL_TYPE_REGULATOR_LDO:
-	default: {
-		_SWITCH_METER_FUNC(info, ret, muxsel_to_power_resolution,
-				   info->chip.rails[rail_i].mux_select);
+	default:
+		if (mode == S2MPG1X_METER_CURRENT)
+			_SWITCH_METER_FUNC(info, ret,
+					   muxsel_to_current_resolution,
+					   info->chip.rails[rail_i].mux_select);
+		else
+			_SWITCH_METER_FUNC(info, ret,
+					   muxsel_to_power_resolution,
+					   info->chip.rails[rail_i].mux_select);
 
-	} break;
-	case ODPM_RAIL_TYPE_SHUNT: {
-		u64 resolution_W_iq60;
+		break;
+	case ODPM_RAIL_TYPE_SHUNT:
+		{
+			u64 raw_unit_iq60;
 
-		/* Losing a fraction of resolution performing u64 divisions,
-		 * as there is no support for 128 bit divisions
-		 */
-		resolution_W_iq60 = ((u64)EXTERNAL_RESOLUTION_VRAIL *
-				     (u64)EXTERNAL_RESOLUTION_VSHUNT *
-				     (u64)EXTERNAL_RESOLUTION_TRIM) /
-				    info->chip.rails[rail_i].shunt_uohms;
+			/* Losing a fraction of resolution performing u64 divisions,
+			 * as there is no support for 128 bit divisions
+			 */
+			if (mode == S2MPG1X_METER_CURRENT)
+				raw_unit_iq60 = ((u64)EXTERNAL_RESOLUTION_VSHUNT) /
+						info->chip.rails[rail_i].shunt_uohms;
+			else
+				raw_unit_iq60 = ((u64)EXTERNAL_RESOLUTION_VRAIL *
+						(u64)EXTERNAL_RESOLUTION_VSHUNT *
+						(u64)EXTERNAL_RESOLUTION_TRIM) /
+						info->chip.rails[rail_i].shunt_uohms;
 
-		/* Scale back to iq30 (with conversion to mW) */
-		ret = _IQ30_to_int(resolution_W_iq60 * 1000);
-
-	} break;
+			/* Scale back to iq30 (with conversion to milli) */
+			ret = _IQ30_to_int(raw_unit_iq60 * 1000);
+		}
+		break;
 	}
 
 	return ret;
+}
+
+static u32 odpm_get_resolution_mW_iq30(struct odpm_info *info, int rail_i)
+{
+	return odpm_get_resolution_milli_iq30(info, rail_i, S2MPG1X_METER_POWER);
 }
 
 static u64 odpm_calculate_uW_sec(struct odpm_info *info, int rail_i,
@@ -1229,8 +1114,8 @@ static void odpm_print_new_sampling_rate(struct odpm_info *info, int ret,
 
 static void odpm_set_sampling_rate(struct odpm_info *info,
 				   enum odpm_sampling_rate_type type,
-		s2mpg1x_int_samp_rate int_sampling_rate_i,
-		s2mpg1x_ext_samp_rate ext_sampling_rate_i)
+				   s2mpg1x_int_samp_rate int_sampling_rate_i,
+				   s2mpg1x_ext_samp_rate ext_sampling_rate_i)
 {
 	int ret = 0;
 
@@ -1602,48 +1487,77 @@ static ssize_t measurement_stop_show(struct device *dev,
 	return count;
 }
 
-static ssize_t power_lpf_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+void odpm_get_lpf_values(struct odpm_info *info, s2mpg1x_meter_mode mode,
+			 u64 micro_unit[ODPM_CHANNEL_MAX])
+{
+	int ch;
+	u32 data[ODPM_CHANNEL_MAX];
+	const int samp_rate = info->chip.int_sampling_rate_i;
+	u32 acquisition_time_us = s2mpg1x_meter_get_acquisition_time_us(samp_rate);
+
+	odpm_io_set_lpf_mode(info, mode);
+	usleep_range(acquisition_time_us, acquisition_time_us + 100);
+	odpm_io_get_lpf_data(info, data);
+
+	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
+
+		const int rail_i = info->channels[ch].rail_i;
+
+		u32 milli_res_iq30 = odpm_get_resolution_milli_iq30(info, rail_i, mode);
+		u32 rail_data = data[ch]; /* 21-bits */
+
+		u64 milli_unit_iq30 = (u64)rail_data * milli_res_iq30;
+		/*
+		 * As the data is max 21 bits, we can convert to micro without
+		 * possible overflow (2^(32-21) = 2048, 2048 > 1000).
+		 */
+		u64 micro_unit_iq30 = milli_unit_iq30 * 1000;
+
+		micro_unit[ch] = (u32)_IQ30_to_int(micro_unit_iq30);
+	}
+}
+EXPORT_SYMBOL_GPL(odpm_get_lpf_values);
+
+static ssize_t odpm_show_lpf_values(struct device *dev,
+				    struct device_attribute *attr, char *buf,
+				    s2mpg1x_meter_mode mode)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct odpm_info *info = iio_priv(indio_dev);
 	ssize_t count = 0;
 	int ch;
-	u32 data[ODPM_CHANNEL_MAX];
+	u64 micro_unit[ODPM_CHANNEL_MAX];
 
 	mutex_lock(&info->lock);
-	odpm_id_get_lpf_data(info, data);
+	odpm_get_lpf_values(info, mode, micro_unit);
 
-	/**
-	 * Output format:
-	 * t=<Measurement timestamp, ms>
-	 * CH<N>[<Schematic name>], <LPF power, uW>
-	 */
 	count += scnprintf(buf + count, PAGE_SIZE - count, "t=%lld\n",
 			   to_ms(ktime_get_boottime_ns()));
 
 	for (ch = 0; ch < ODPM_CHANNEL_MAX; ch++) {
 		int rail_i = info->channels[ch].rail_i;
-		u32 reso_mW_iq30 = odpm_get_resolution_mW_iq30(info, rail_i);
-		u32 rail_data = data[ch]; /* 21-bits */
-
-		u64 mW_iq30 = (u64)rail_data * reso_mW_iq30;
-		/* As the data is max 21 bits, we can convert to uW without
-		 * possible overflow (2^(32-21) = 2048, 2048 > 1000).
-		 */
-		u64 uW_iq30 = mW_iq30 * 1000;
-
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				   "CH%d[%s], %lld\n", ch,
 				   info->chip.rails[rail_i].schematic_name,
-				   _IQ30_to_int(uW_iq30));
+				   micro_unit[ch]);
 	}
+	mutex_lock(&info->lock);
 
-	mutex_unlock(&info->lock);
 	return count;
 }
 
-static ssize_t power_lpf_store(struct device *dev,
+/*
+ * Output format:
+ * t=<Measurement timestamp, ms>
+ * CH<N>[<Schematic name>], <LPF power, uW>
+ */
+static ssize_t lpf_power_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	return odpm_show_lpf_values(dev, attr, buf, S2MPG1X_METER_POWER);
+}
+
+static ssize_t lpf_power_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
@@ -1668,6 +1582,24 @@ static ssize_t power_lpf_store(struct device *dev,
 	return count;
 }
 
+/*
+ * Output format:
+ * t=<Measurement timestamp, ms>
+ * CH<N>[<Schematic name>], <LPF current, uA>
+ */
+static ssize_t lpf_current_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	return odpm_show_lpf_values(dev, attr, buf, S2MPG1X_METER_CURRENT);
+}
+
+static ssize_t lpf_current_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	return lpf_power_store(dev, attr, buf, count);
+}
+
 static IIO_DEVICE_ATTR_RW(ext_sampling_rate, 0);
 static IIO_DEVICE_ATTR_RW(sampling_rate, 0);
 static IIO_DEVICE_ATTR_RO(energy_value, 0);
@@ -1675,7 +1607,8 @@ static IIO_DEVICE_ATTR_RO(available_rails, 0);
 static IIO_DEVICE_ATTR_RW(enabled_rails, 0);
 static IIO_DEVICE_ATTR_RO(measurement_start, 0);
 static IIO_DEVICE_ATTR_RO(measurement_stop, 0);
-static IIO_DEVICE_ATTR_RW(power_lpf, 0);
+static IIO_DEVICE_ATTR_RW(lpf_power, 0);
+static IIO_DEVICE_ATTR_RW(lpf_current, 0);
 
 /**
  * TODO(stayfan): b/156109194
@@ -1693,7 +1626,8 @@ static struct attribute *odpm_custom_attributes[] = {
 	ODPM_DEV_ATTR(sampling_rate),	 ODPM_DEV_ATTR(ext_sampling_rate),
 	ODPM_DEV_ATTR(energy_value),	 ODPM_DEV_ATTR(available_rails),
 	ODPM_DEV_ATTR(enabled_rails),	 ODPM_DEV_ATTR(measurement_start),
-	ODPM_DEV_ATTR(measurement_stop), ODPM_DEV_ATTR(power_lpf),
+	ODPM_DEV_ATTR(measurement_stop), ODPM_DEV_ATTR(lpf_power),
+	ODPM_DEV_ATTR(lpf_current),
 	NULL
 };
 
@@ -1785,7 +1719,9 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 	case ID_S2MPG10: {
 		struct s2mpg10_meter *meter = info->meter;
 		struct s2mpg10_dev *pmic = dev_get_drvdata(meter->dev->parent);
+		struct s2mpg10_platform_data *pdata = dev_get_platdata(pmic->dev);
 
+		pdata->meter = info;
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
 		info->meter_lock = &meter->meter_lock;
@@ -1793,6 +1729,9 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 	case ID_S2MPG11: {
 		struct s2mpg11_meter *meter = info->meter;
 		struct s2mpg11_dev *pmic = dev_get_drvdata(meter->dev->parent);
+		struct s2mpg11_platform_data *pdata = dev_get_platdata(pmic->dev);
+
+		pdata->meter = info;
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
@@ -1802,6 +1741,9 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 	case ID_S2MPG12: {
 		struct s2mpg12_meter *meter = info->meter;
 		struct s2mpg12_dev *pmic = dev_get_drvdata(meter->dev->parent);
+		struct s2mpg12_platform_data *pdata = dev_get_platdata(pmic->dev);
+
+		pdata->meter = info;
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
@@ -1810,6 +1752,9 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 	case ID_S2MPG13: {
 		struct s2mpg13_meter *meter = info->meter;
 		struct s2mpg13_dev *pmic = dev_get_drvdata(meter->dev->parent);
+		struct s2mpg13_platform_data *pdata = dev_get_platdata(pmic->dev);
+
+		pdata->meter = info;
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;

@@ -37,7 +37,7 @@ static struct mfd_cell s2mpg11_meter_devs[] = {
 };
 #endif
 
-static u64 muxsel_to_current_resolution(s2mpg1x_meter_muxsel m)
+u32 s2mpg11_muxsel_to_current_resolution(s2mpg1x_meter_muxsel m)
 {
 	switch (m) {
 	case MUXSEL_NONE:
@@ -90,6 +90,7 @@ static u64 muxsel_to_current_resolution(s2mpg1x_meter_muxsel m)
 		return INVALID_RESOLUTION;
 	}
 }
+EXPORT_SYMBOL_GPL(s2mpg11_muxsel_to_current_resolution);
 
 u32 s2mpg11_muxsel_to_power_resolution(s2mpg1x_meter_muxsel m)
 {
@@ -255,34 +256,6 @@ int s2mpg11_meter_set_muxsel(struct s2mpg11_meter *s2mpg11, int channel,
 }
 EXPORT_SYMBOL_GPL(s2mpg11_meter_set_muxsel);
 
-static void s2mpg11_meter_set_lpf_mode(struct s2mpg11_meter *s2mpg11,
-				       s2mpg1x_meter_mode mode)
-{
-	switch (mode) {
-	case S2MPG1X_METER_POWER:
-		s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_METER_CTRL5, 0x00);
-		break;
-	case S2MPG1X_METER_CURRENT:
-		s2mpg11_write_reg(s2mpg11->i2c, S2MPG11_METER_CTRL5, 0xFF);
-		break;
-	}
-}
-
-void s2mpg11_meter_read_lpf_data_reg(struct s2mpg11_meter *s2mpg11, u32 *data)
-{
-	int i;
-	u8 buf[S2MPG1X_METER_LPF_BUF];
-	u8 reg = S2MPG11_METER_LPF_DATA_CH0_1; /* first lpf data register */
-
-	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
-		s2mpg11_bulk_read(s2mpg11->i2c, reg, S2MPG1X_METER_LPF_BUF,
-				  buf);
-		data[i] = buf[0] + (buf[1] << 8) + ((buf[2] & 0x1F) << 16);
-		reg += S2MPG1X_METER_LPF_BUF;
-	}
-}
-EXPORT_SYMBOL_GPL(s2mpg11_meter_read_lpf_data_reg);
-
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 static ssize_t s2mpg11_muxsel_table_show(struct device *dev,
 					 struct device_attribute *attr,
@@ -384,8 +357,10 @@ static ssize_t s2mpg11_lpf_current_show(struct device *dev,
 
 	mutex_lock(&s2mpg11->meter_lock);
 
-	s2mpg11_meter_set_lpf_mode(s2mpg11, S2MPG1X_METER_CURRENT);
-	s2mpg11_meter_read_lpf_data_reg(s2mpg11, s2mpg11->lpf_data);
+	s2mpg1x_meter_set_lpf_mode(ID_S2MPG11, s2mpg11->i2c,
+				   S2MPG1X_METER_CURRENT);
+	s2mpg1x_meter_read_lpf_data_reg(ID_S2MPG11, s2mpg11->i2c,
+					s2mpg11->lpf_data);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg1x_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
@@ -394,7 +369,7 @@ static ssize_t s2mpg11_lpf_current_show(struct device *dev,
 						      muxsel_to_str(muxsel),
 						      "(mA)",
 						      s2mpg11->lpf_data[i],
-						      muxsel_to_current_resolution(muxsel),
+						      s2mpg11_muxsel_to_current_resolution(muxsel),
 						      1);
 	}
 	mutex_unlock(&s2mpg11->meter_lock);
@@ -410,8 +385,10 @@ static ssize_t s2mpg11_lpf_power_show(struct device *dev,
 
 	mutex_lock(&s2mpg11->meter_lock);
 
-	s2mpg11_meter_set_lpf_mode(s2mpg11, S2MPG1X_METER_POWER);
-	s2mpg11_meter_read_lpf_data_reg(s2mpg11, s2mpg11->lpf_data);
+	s2mpg1x_meter_set_lpf_mode(ID_S2MPG11, s2mpg11->i2c,
+				   S2MPG1X_METER_POWER);
+	s2mpg1x_meter_read_lpf_data_reg(ID_S2MPG11, s2mpg11->i2c,
+					s2mpg11->lpf_data);
 
 	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
 		s2mpg1x_meter_muxsel muxsel = s2mpg11->chg_mux_sel[i];
@@ -446,7 +423,8 @@ static ssize_t s2mpg11_acc_current_show(struct device *dev,
 
 		count += s2mpg1x_meter_format_channel(buf, count, i,
 			muxsel_to_str(muxsel), "(mA)",
-			acc_data[i], muxsel_to_current_resolution(muxsel),
+			acc_data[i],
+			s2mpg11_muxsel_to_current_resolution(muxsel),
 			acc_count);
 	}
 
@@ -586,8 +564,6 @@ static int s2mpg11_meter_probe(struct platform_device *pdev)
 	s2mpg11_ext_meter_onoff(s2mpg11, false);
 
 #else
-	s2mpg11_meter_set_lpf_mode(s2mpg11, S2MPG1X_METER_POWER);
-
 	ret = mfd_add_devices(s2mpg11->dev, -1, s2mpg11_meter_devs,
 			      ARRAY_SIZE(s2mpg11_meter_devs), NULL, 0, NULL);
 	if (ret < 0) {

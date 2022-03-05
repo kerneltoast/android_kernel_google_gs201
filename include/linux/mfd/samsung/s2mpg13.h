@@ -87,6 +87,8 @@ struct s2mpg13_platform_data {
 	unsigned int buck_ocp_ctrl5;
 	unsigned int buck_ocp_ctrl6;
 	unsigned int buck_ocp_ctrl7;
+
+	void *meter;
 };
 
 struct s2mpg13_dev {

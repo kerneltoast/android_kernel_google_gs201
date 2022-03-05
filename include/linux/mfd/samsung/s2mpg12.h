@@ -123,6 +123,8 @@ struct s2mpg12_platform_data {
 	int cap_sel;
 	int osc_xin;
 	int osc_xout;
+
+	void *meter;
 };
 
 struct s2mpg12_dev {

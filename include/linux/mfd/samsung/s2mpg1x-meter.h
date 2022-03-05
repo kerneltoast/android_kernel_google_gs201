@@ -23,6 +23,8 @@ typedef enum {
 	ADDRESS_ACC_MODE,
 	ADDRESS_ACC_DATA,
 	ADDRESS_ACC_COUNT,
+	ADDRESS_LPF_MODE,
+	ADDRESS_LPF_DATA,
 	ADDRESS_COUNT,
 } address_t;
 
@@ -41,6 +43,11 @@ static const int ADDRESS_AT[ADDRESS_COUNT][ID_COUNT] = {
 		S2MPG10_METER_ACC_COUNT_1,
 		S2MPG11_METER_ACC_COUNT_1
 	},
+	[ADDRESS_LPF_MODE] = { S2MPG10_METER_CTRL4, S2MPG11_METER_CTRL5 },
+	[ADDRESS_LPF_DATA] = {
+		S2MPG10_METER_LPF_DATA_CH0_1,
+		S2MPG11_METER_LPF_DATA_CH0_1
+	},
 };
 #elif IS_ENABLED(CONFIG_SOC_GS201)
 static const int ADDRESS_AT[ADDRESS_COUNT][ID_COUNT] = {
@@ -56,6 +63,11 @@ static const int ADDRESS_AT[ADDRESS_COUNT][ID_COUNT] = {
 	[ADDRESS_ACC_COUNT] = {
 		S2MPG12_METER_ACC_COUNT_1,
 		S2MPG13_METER_ACC_COUNT_1
+	},
+	[ADDRESS_LPF_MODE] = { S2MPG12_METER_CTRL6, S2MPG13_METER_CTRL6 },
+	[ADDRESS_LPF_DATA] = {
+		S2MPG12_METER_LPF_DATA_CH0_1,
+		S2MPG13_METER_LPF_DATA_CH0_1
 	},
 };
 #endif
@@ -93,6 +105,25 @@ static const u32 s2mpg1x_int_acquisition_time_us[S2MPG1X_INT_FREQ_COUNT] = {
 };
 #endif
 
+static inline int s2mpg1x_meter_get_acquisition_time_us(s2mpg1x_int_samp_rate samp_rate)
+{
+#if IS_ENABLED(CONFIG_SOC_GS101)
+	/* Based on the s2mpg1x datasheets, (40 us * channel count) is the
+	 * maximum time required for acquisition of all samples across all
+	 * channels.
+	 */
+	return (40 * S2MPG1X_METER_CHANNEL_MAX);
+#elif IS_ENABLED(CONFIG_SOC_GS201)
+	/* The internal data and sample count are not updated at the same timing
+	 * on Pro due to the duty cycling function, and the ASYNC_RD will depend
+	 * on internal sampling rate.
+	 * So at least waiting for internal rail to complete a sampling will be
+	 * necessary to prevent the mismatch of irregular timing. (b/209886118)
+	 */
+	return s2mpg1x_int_acquisition_time_us[samp_rate];
+#endif
+}
+
 #if IS_ENABLED(CONFIG_SOC_GS101)
 #define ACQUISITION_TIME_DIVISOR 1
 #elif IS_ENABLED(CONFIG_SOC_GS201)
@@ -107,22 +138,8 @@ static inline int s2mpg1x_meter_set_async_blocking(enum s2mpg1x_id id,
 	int ret;
 	u8 reg = ADDRESS_AT[ADDRESS_CTRL2][id];
 
-#if IS_ENABLED(CONFIG_SOC_GS101)
-	/* Based on the s2mpg1x datasheets, (40 us * channel count) is the
-	 * maximum time required for acquisition of all samples across all
-	 * channels.
-	 */
-	const u32 acquisition_time_us = (40 * S2MPG1X_METER_CHANNEL_MAX);
-#elif IS_ENABLED(CONFIG_SOC_GS201)
-	/* The internal data and sample count are not updated at the same timing
-	 * on Pro due to the duty cycling function, and the ASYNC_RD will depend
-	 * on internal sampling rate.
-	 * So at least waiting for internal rail to complete a sampling will be
-	 * necessary to prevent the mismatch of irregular timing. (b/209886118)
-	 */
 	const u32 acquisition_time_us =
-		s2mpg1x_int_acquisition_time_us[samp_rate];
-#endif
+		s2mpg1x_meter_get_acquisition_time_us(samp_rate);
 	const u32 min_acquisition_time_us = acquisition_time_us /
 		ACQUISITION_TIME_DIVISOR;
 	int acquisition_delay_count = 0;
@@ -237,29 +254,48 @@ static inline const u32 *s2mpg1x_meter_get_ext_samping_rate_table(void)
 	return s2mpg1x_ext_sample_rate_uhz;
 }
 
-static inline void s2mpg1x_meter_set_acc_mode(enum s2mpg1x_id id,
-					      struct i2c_client *i2c,
-					      s2mpg1x_meter_mode mode)
+static inline void s2mpg1x_meter_set_mode(enum s2mpg1x_id id,
+					  struct i2c_client *i2c,
+					  s2mpg1x_meter_mode mode,
+					  bool is_acc_mode) // else lpf
+
 {
-	address_t acc_mode = ADDRESS_ACC_MODE;
+	address_t mode_addr = ADDRESS_ACC_MODE;
+
+	if (!is_acc_mode)
+		mode_addr = ADDRESS_LPF_MODE;
 
 	switch (mode) {
 	case S2MPG1X_METER_POWER:
-		s2mpg1x_write_reg(id, i2c, ADDRESS_AT[acc_mode][id], 0x00);
+		s2mpg1x_write_reg(id, i2c, ADDRESS_AT[mode_addr][id], 0x00);
 #if IS_ENABLED(CONFIG_SOC_GS201)
-		s2mpg1x_update_reg(id, i2c, ADDRESS_AT[acc_mode][id] + 1, 0x00,
+		s2mpg1x_update_reg(id, i2c, ADDRESS_AT[mode_addr][id] + 1, 0x00,
 				   /* mask= */ 0x0F);
 #endif
 		break;
 
 	case S2MPG1X_METER_CURRENT:
-		s2mpg1x_write_reg(id, i2c, ADDRESS_AT[acc_mode][id], 0xFF);
+		s2mpg1x_write_reg(id, i2c, ADDRESS_AT[mode_addr][id], 0xFF);
 #if IS_ENABLED(CONFIG_SOC_GS201)
-		s2mpg1x_update_reg(id, i2c, ADDRESS_AT[acc_mode][id] + 1, 0x0F,
+		s2mpg1x_update_reg(id, i2c, ADDRESS_AT[mode_addr][id] + 1, 0x0F,
 				   /* mask= */ 0x0F);
 #endif
 		break;
 	}
+}
+
+static inline void s2mpg1x_meter_set_acc_mode(enum s2mpg1x_id id,
+					      struct i2c_client *i2c,
+					      s2mpg1x_meter_mode mode)
+{
+	s2mpg1x_meter_set_mode(id, i2c, mode, /* is_acc_mode= */ true);
+}
+
+static inline void s2mpg1x_meter_set_lpf_mode(enum s2mpg1x_id id,
+					      struct i2c_client *i2c,
+					      s2mpg1x_meter_mode mode)
+{
+	s2mpg1x_meter_set_mode(id, i2c, mode, /* is_acc_mode= */ false);
 }
 
 static inline void s2mpg1x_meter_read_acc_data_reg(enum s2mpg1x_id id,
@@ -286,12 +322,31 @@ static inline void s2mpg1x_meter_read_acc_count(enum s2mpg1x_id id,
 						struct i2c_client *i2c,
 						u32 *count)
 {
-	u8 data[S2MPG1X_METER_COUNT_BUF]; /* ACC_COUNT is 20-bit data */
+	u8 data[S2MPG1X_METER_COUNT_BUF];
+	u8 reg = ADDRESS_AT[ADDRESS_ACC_COUNT][id]; /* first count register */
 
-	s2mpg1x_bulk_read(id, i2c, ADDRESS_AT[ADDRESS_ACC_COUNT][id],
-			  S2MPG1X_METER_COUNT_BUF, data);
+	s2mpg1x_bulk_read(id, i2c, reg, S2MPG1X_METER_COUNT_BUF, data);
 
+	/* ACC_COUNT is 20-bit data */
 	*count = (data[0] << 0) | (data[1] << 8) | ((data[2] & 0x0F) << 16);
+}
+
+static inline void s2mpg1x_meter_read_lpf_data_reg(enum s2mpg1x_id id,
+						   struct i2c_client *i2c,
+						   u32 *data)
+{
+	int i;
+	u8 buf[S2MPG1X_METER_LPF_BUF];
+	u8 reg = ADDRESS_AT[ADDRESS_LPF_DATA][id]; /* first lpf data register */
+
+	for (i = 0; i < S2MPG1X_METER_CHANNEL_MAX; i++) {
+		s2mpg1x_bulk_read(id, i2c, reg, S2MPG1X_METER_LPF_BUF, buf);
+
+		/* LPF is 21-bit data */
+		data[i] = buf[0] + (buf[1] << 8) + ((buf[2] & 0x1F) << 16);
+
+		reg += S2MPG1X_METER_LPF_BUF;
+	}
 }
 
 /**

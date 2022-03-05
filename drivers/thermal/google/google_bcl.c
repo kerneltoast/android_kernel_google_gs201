@@ -38,6 +38,7 @@
 #endif
 #include <linux/regulator/pmic_class.h>
 #include <soc/google/bcl.h>
+#include <soc/google/odpm.h>
 #include <soc/google/exynos-pm.h>
 #include <soc/google/exynos-pmu-if.h>
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -3073,6 +3074,7 @@ static int google_set_sub_pmic(struct bcl_device *bcl_dev)
 		return -ENODEV;
 	}
 	pdata_sub = dev_get_platdata(sub_dev->dev);
+	bcl_dev->sub_odpm = pdata_sub->meter;
 	bcl_dev->sub_pmic_i2c = sub_dev->pmic;
 	bcl_dev->sub_dev = sub_dev->dev;
 	bcl_dev->gra_lvl[OCP_WARN_GPU] = B2S_UPPER_LIMIT - THERMAL_HYST_LEVEL -
@@ -3482,6 +3484,7 @@ static int google_set_main_pmic(struct bcl_device *bcl_dev)
 		return -ENODEV;
 	}
 	pdata_main = dev_get_platdata(main_dev->dev);
+	bcl_dev->main_odpm = pdata_main->meter;
 	/* request smpl_warn interrupt */
 	if (!gpio_is_valid(pdata_main->smpl_warn_pin)) {
 		dev_err(bcl_dev->device, "smpl_warn GPIO NOT VALID\n");

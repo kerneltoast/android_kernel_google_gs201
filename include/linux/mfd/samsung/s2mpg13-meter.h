@@ -34,6 +34,7 @@ int s2mpg13_meter_set_muxsel(struct s2mpg13_meter *s2mpg13, int channel,
 int s2mpg13_meter_onoff(struct s2mpg13_meter *s2mpg13, bool onoff);
 int s2mpg13_ext_meter_onoff(struct s2mpg13_meter *s2mpg13, bool onoff);
 u32 s2mpg13_muxsel_to_power_resolution(s2mpg1x_meter_muxsel m);
+u32 s2mpg13_muxsel_to_current_resolution(s2mpg1x_meter_muxsel m);
 void s2mpg13_meter_read_lpf_data_reg(struct s2mpg13_meter *s2mpg13,
 				     u32 *data);
 

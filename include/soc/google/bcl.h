@@ -80,6 +80,8 @@ struct bcl_device {
 	struct device *main_dev;
 	struct device *sub_dev;
 	struct device *mitigation_dev;
+	struct odpm_info *main_odpm;
+	struct odpm_info *sub_odpm;
 	void __iomem *base_mem[5];
 	void __iomem *sysreg_cpucl0;
 	struct power_supply *batt_psy;
