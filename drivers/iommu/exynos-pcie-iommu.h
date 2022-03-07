@@ -365,6 +365,7 @@ struct sysmmu_drvdata {
 	struct exynos_iommu_domain *domain; /* iommu domain for this iovmm */
 	int use_tlb_pinning;
 	int pcie_use_iocc;
+	int ignore_tlb_inval;
 
 	spinlock_t mmu_ctrl_lock; /* Global Register Control lock */
 	int hsi_block_num;

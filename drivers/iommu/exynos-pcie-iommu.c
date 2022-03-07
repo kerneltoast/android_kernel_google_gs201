@@ -50,6 +50,41 @@ static u32 wrong_pf_cnt;
 static struct history_buff pcie_map_history, pcie_unmap_history;
 #endif
 
+void pcie_iommu_tlb_invalidate_all(int hsi_block_num)
+{
+	int pcie_vid = g_sysmmu_drvdata[hsi_block_num]->pcie_vid;
+
+	if (g_sysmmu_drvdata[hsi_block_num] == NULL) {
+		pr_err("[%s] PCIe SysMMU feature is disabled!!!\n", __func__);
+		return ;
+	}
+
+	if (!is_sysmmu_active(g_sysmmu_drvdata[hsi_block_num])) /* SKIP invalidation */
+		return;
+
+	writel(0x1, g_sysmmu_drvdata[hsi_block_num]->sfrbase + REG_MMU_FLUSH_VID(pcie_vid));
+}
+EXPORT_SYMBOL_GPL(pcie_iommu_tlb_invalidate_all);
+
+void pcie_iommu_tlb_invalidate_range(dma_addr_t iova, size_t size, int hsi_block_num)
+{
+	void * __iomem sfrbase = g_sysmmu_drvdata[hsi_block_num]->sfrbase;
+	int pcie_vid = g_sysmmu_drvdata[hsi_block_num]->pcie_vid;
+	u32 start_addr, end_addr;
+
+	if (!is_sysmmu_active(g_sysmmu_drvdata[hsi_block_num])) /* SKIP invalidation */
+		return;
+
+	start_addr = (iova >> 4) & 0xffffff00;
+	writel_relaxed(start_addr, sfrbase + REG_FLUSH_RANGE_START_VID(pcie_vid));
+
+	end_addr = ((iova + size - 1) >> 4) & 0xffffff00;
+	writel_relaxed(end_addr, sfrbase + REG_FLUSH_RANGE_END_VID(pcie_vid));
+
+	writel(0x1, sfrbase + REG_MMU_FLUSH_RANGE_VID(pcie_vid));
+}
+EXPORT_SYMBOL_GPL(pcie_iommu_tlb_invalidate_range);
+
 static inline void pgtable_flush(void *vastart, void *vaend)
 {
 	/* __dma_flush_area(vastart, vaend - vastart); */
@@ -665,7 +700,6 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 
 		*sent = mk_lv1ent_page(virt_to_phys(pent));
 		pgtable_flush(sent, sent + 1);
-		pgtable_flush(pent, pent + NUM_LV2ENTRIES);
 		atomic_set(pgcounter, NUM_LV2ENTRIES);
 		kmemleak_ignore(pent);
 	}
@@ -955,8 +989,6 @@ int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 		if (alloc_counter > max_req_cnt)
 			max_req_cnt = alloc_counter;
 		ret = exynos_iommu_map(iova, paddr, pgsize, prot, domain);
-		exynos_sysmmu_tlb_invalidate(iova, pgsize, pcie_vid,
-					     hsi_block_num);
 #if IS_ENABLED(CONFIG_PCIE_IOMMU_HISTORY_LOG)
 		add_history_buff(&pcie_map_history, paddr, orig_paddr,
 				 changed_size, orig_size);
@@ -967,6 +999,10 @@ int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 		iova += pgsize;
 		paddr += pgsize;
 		size -= pgsize;
+	}
+	if (!g_sysmmu_drvdata[hsi_block_num]->ignore_tlb_inval) {
+		exynos_sysmmu_tlb_invalidate(orig_iova, orig_size, pcie_vid,
+				hsi_block_num);
 	}
 	spin_unlock_irqrestore(&domain->pgtablelock, flags);
 
@@ -1040,8 +1076,6 @@ size_t pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num)
 
 		alloc_counter--;
 		unmapped_page = exynos_iommu_unmap(iova, pgsize, domain);
-		exynos_sysmmu_tlb_invalidate(iova, pgsize, pcie_vid,
-					     hsi_block_num);
 #if IS_ENABLED(CONFIG_PCIE_IOMMU_HISTORY_LOG)
 		add_history_buff(&pcie_unmap_history, iova, orig_iova,
 				 size, orig_size);
@@ -1055,7 +1089,10 @@ size_t pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num)
 		iova += unmapped_page;
 		unmapped += unmapped_page;
 	}
-
+	if (!g_sysmmu_drvdata[hsi_block_num]->ignore_tlb_inval) {
+		exynos_sysmmu_tlb_invalidate(orig_iova, orig_size, pcie_vid,
+				hsi_block_num);
+	}
 	spin_unlock_irqrestore(&domain->pgtablelock, flags);
 
 	pr_debug("UNMAPPED : req 0x%lx(0x%lx) size 0x%zx(0x%zx)\n",
@@ -1110,6 +1147,15 @@ static int __init sysmmu_parse_dt(struct device *sysmmu,
 		}
 	} else {
 		drvdata->use_tlb_pinning = false;
+	}
+
+	/* Set ignore tlb inval */
+	if (of_property_read_u32(sysmmu->of_node, "ignore-tlb-inval", &val)) {
+		dev_info(sysmmu, "There is NO ignore tlb inval, so set default value(0)\n");
+		drvdata->ignore_tlb_inval = 0;
+	}
+	else {
+		drvdata->ignore_tlb_inval = val;
 	}
 
 	return 0;
