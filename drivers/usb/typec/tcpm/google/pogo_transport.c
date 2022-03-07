@@ -324,7 +324,7 @@ static int init_pogo_alert_gpio(struct pogo_transport *pogo_transport)
 							       "pogo-transport-sel", 0);
 	if (pogo_transport->pogo_data_mux_gpio < 0) {
 		dev_err(pogo_transport->dev, "Pogo sel gpio not found ret:%d\n",
-			pogo_transport->pogo_gpio);
+			pogo_transport->pogo_data_mux_gpio);
 		ret = pogo_transport->pogo_data_mux_gpio;
 		goto disable_irq;
 	}
