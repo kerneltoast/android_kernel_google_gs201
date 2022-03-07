@@ -229,7 +229,7 @@ static void simulate_low_memory(char *arg)
 
 static void simulate_softlockup(char *arg)
 {
-	pr_crit("called!\n");
+	pr_crit("called on CPU %u!\n", smp_processor_id());
 
 	local_irq_disable();
 	preempt_disable();
