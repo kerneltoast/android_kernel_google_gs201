@@ -1537,27 +1537,19 @@ void s5100_set_pcie_irq_affinity(struct modem_ctl *mc)
 	struct mem_link_device *mld = to_mem_link_device(ld);
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	struct pktproc_adaptor *ppa = &mld->pktproc;
-#endif
 	unsigned int num_queue = 1;
 	unsigned int i;
 
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
 	if (ppa->use_exclusive_irq)
 		num_queue = ppa->num_queue;
-#endif
 
 	for (i = 0; i < num_queue; i++) {
-		int q_irq = 0;
-
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-		q_irq = ppa->q[i]->irq;
-#endif
-
-		if (!q_irq)
+		if (!ppa->q[i]->irq)
 			break;
 
-		irq_set_affinity_hint(q_irq, cpumask_of(mld->msi_irq_q_cpu[i]));
+		irq_set_affinity_hint(ppa->q[i]->irq, cpumask_of(mld->msi_irq_q_cpu[i]));
 	}
+#endif
 
 	if (mld->msi_irq_base)
 		irq_set_affinity_hint(mld->msi_irq_base, cpumask_of(mld->msi_irq_base_cpu));

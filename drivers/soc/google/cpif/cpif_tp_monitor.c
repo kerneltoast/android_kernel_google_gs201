@@ -611,10 +611,10 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 	struct modem_ctl *mc = data->tpmon->ld->mc;
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	struct pktproc_adaptor *ppa = &mld->pktproc;
-#endif
 	unsigned int num_queue = 1;
 	unsigned int i;
 	u32 val, *q_cpu;
+#endif
 
 	if (!data->enable)
 		return;
@@ -622,7 +622,6 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
 	if (ppa->use_exclusive_irq)
 		num_queue = ppa->num_queue;
-#endif
 
 	q_cpu = kzalloc(sizeof(u32) * num_queue, GFP_KERNEL);
 	if (!q_cpu)
@@ -632,28 +631,21 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 	tpmon_get_cpu_per_queue(val, q_cpu, num_queue, false);
 
 	for (i = 0; i < num_queue; i++) {
-		int q_irq = 0;
-
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
 		if (ppa->use_napi)
 			pktproc_stop_napi_poll(ppa, i);
 
-		q_irq = ppa->q[i]->irq;
-#endif
-
-		if (!q_irq)
+		if (!ppa->q[i]->irq)
 			break;
 
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
 		if (!ppa->use_exclusive_irq)
 			q_cpu[i] = data->extra_idx;
-#endif
 
 		mif_info("%s (q[%u] cpu:%u)\n", data->name, i, q_cpu[i]);
 		mld->msi_irq_q_cpu[i] = q_cpu[i];
 	}
 
 	kfree(q_cpu);
+#endif
 
 	/* The affinity of msi_irq_base is fixed, use the extra_idx */
 	mld->msi_irq_base_cpu = data->extra_idx;
