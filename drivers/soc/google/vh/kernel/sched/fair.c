@@ -268,8 +268,14 @@ static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
  */
 static inline bool get_prefer_idle(struct task_struct *p)
 {
-	return vg[get_vendor_task_struct(p)->group].prefer_idle ||
-	       get_vendor_task_struct(p)->prefer_idle ;
+	// For group based prefer_idle vote, filter our smaller or low prio or
+	// have throttled uclamp.max settings
+	// Ignore all checks, if the prefer_idle is from per-task API.
+	return (vg[get_vendor_task_struct(p)->group].prefer_idle &&
+		task_util_est(p) >= vendor_sched_uclamp_threshold &&
+		p->prio <= DEFAULT_PRIO &&
+		uclamp_eff_value(p, UCLAMP_MAX) == SCHED_CAPACITY_SCALE) ||
+			get_vendor_task_struct(p)->prefer_idle;
 }
 
 static inline bool get_prefer_high_cap(struct task_struct *p)
@@ -674,8 +680,9 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	int i, weight, best_energy_cpu = -1, this_cpu = smp_processor_id();
 	long cur_energy, best_energy = LONG_MAX;
 	unsigned long spare_cap, target_max_spare_cap = 0;
-	unsigned long task_importance = uclamp_eff_value(p, UCLAMP_MIN) +
-					uclamp_eff_value(p, UCLAMP_MAX);
+	unsigned long task_importance =
+			((p->prio <= DEFAULT_PRIO) ? uclamp_eff_value(p, UCLAMP_MIN) : 0) +
+			uclamp_eff_value(p, UCLAMP_MAX);
 	unsigned int exit_lat, pd_best_exit_lat, best_exit_lat;
 	bool is_idle, group_overutilize, task_fits;
 	bool idle_target_found = false, importance_target_found = false;
@@ -1006,6 +1013,19 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 
 	value = uc_req.value;
 	value = clamp(value, max(tg_min, vnd_min),  min(tg_max, vnd_max));
+
+	// For uclamp min, if task has a valid per-task setting that is lower than or equal to its
+	// group value, increase the final uclamp value by 1. This would have effect only on
+	// importance metrics which is used in task placement, and little effect on cpufreq.
+	if (clamp_id == UCLAMP_MIN && uc_req.value <= max(tg_min, vnd_min) && uc_req.user_defined
+		&& value < SCHED_CAPACITY_SCALE)
+		value = value + 1;
+
+	// For low prio unthrottled task, reduce its uclamp.max by 1 which
+	// would affect task importance in cpu_rq thus affect task placement.
+	// It should have no effect in cpufreq.
+	if (clamp_id == UCLAMP_MAX && p->prio > DEFAULT_PRIO)
+		value = min_t(unsigned int, SCHED_CAPACITY_SCALE - 1, value);
 
 	uc_req.value = value;
 	uc_req.bucket_id = get_bucket_id(value);
