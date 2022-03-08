@@ -27,6 +27,7 @@
 #define POGO_USB_RETRY_THRESHOLD_UV 7000000
 #define POGO_USB_RETRY_COUNT 10
 #define POGO_USB_RETRY_INTEREVAL_MS 100
+#define POGO_LIKELY_USB_NOT_CAPABLE_MS 250
 #define POGO_PSY_DEBOUNCE_MS 50
 
 enum pogo_event_type {
@@ -140,11 +141,13 @@ static void update_pogo_transport(struct kthread_work *work)
 				/*
 				 * Retry to avoid transients, ideally rise time should not
 				 * be more than 30ms.
+				 * Fuel gauge ADC which read's VBYP has a
+				 * sampling period of ~176ms.
 				 */
 				if (!pogo_transport->likely_usb_not_capable) {
 					pogo_transport_event(pogo_transport,
 							     EVENT_RETRY_READ_VOLTAGE,
-							     POGO_USB_RETRY_INTEREVAL_MS);
+							     POGO_LIKELY_USB_NOT_CAPABLE_MS);
 					pogo_transport->likely_usb_not_capable = true;
 					goto free;
 				} else {
