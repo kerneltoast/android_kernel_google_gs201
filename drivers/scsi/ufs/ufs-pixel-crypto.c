@@ -37,6 +37,7 @@
 #include "ufshcd.h"
 #include "ufshcd-crypto.h"
 #include "ufs-exynos.h"
+#include "ufs-pixel-fips.h"
 
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/ufshcd.h>
@@ -51,6 +52,8 @@ static void pixel_ufs_crypto_restore_keys(void *unused, struct ufs_hba *hba,
 static void pixel_ufs_crypto_fill_prdt(void *unused, struct ufs_hba *hba,
 				       struct ufshcd_lrb *lrbp,
 				       unsigned int segments, int *err);
+
+static int pixel_ufs_register_fips_self_test(void);
 
 #define CRYPTO_DATA_UNIT_SIZE 4096
 
@@ -373,6 +376,10 @@ static int pixel_ufs_crypto_init_hw_keys_mode(struct ufs_hba *hba)
 	if (err)
 		return err;
 
+	err = pixel_ufs_register_fips_self_test();
+	if (err)
+		return err;
+
 	/* Advertise crypto support to ufshcd-core. */
 	hba->caps |= UFSHCD_CAP_CRYPTO;
 
@@ -530,3 +537,37 @@ static void pixel_ufs_crypto_fill_prdt(void *unused, struct ufs_hba *hba,
 	 */
 	lrbp->crypto_key_slot = -1;
 }
+
+#if IS_ENABLED(CONFIG_SCSI_UFS_PIXEL_FIPS140)
+static void pixel_ufs_ise_self_test(void *data, struct ufs_hba *hba)
+{
+	/*
+	 * This SMC call sets USEOTPKEY bit to 1 in FMPSECURITY0 register. This
+	 * causes incoming encryption keys to be XOR'ed with EFUSE key per
+	 * section 1.4.3.3 of UFS Link Manual, a functionality needed by the UFS
+	 * CMVP self test.
+	 */
+	if (exynos_smc(SMC_CMD_FMP_USE_OTP_KEY, 0, SMU_EMBEDDED, 1))
+		panic("SMC_CMD_FMP_USE_OTP_KEY(0) failed");
+
+	if (ufs_pixel_fips_verify(hba))
+		panic("FMP self test failed");
+
+	/*
+	 * This SMC call sets USEOTPKEY bit back to 0 in FMPSECURITY0 register.
+	 */
+	if (exynos_smc(SMC_CMD_FMP_USE_OTP_KEY, 0, SMU_EMBEDDED, 0))
+		panic("SMC_CMD_FMP_USE_OTP_KEY(1) failed");
+}
+
+static int pixel_ufs_register_fips_self_test(void)
+{
+	return register_trace_android_rvh_ufs_complete_init(
+		pixel_ufs_ise_self_test, NULL);
+}
+#else
+static int pixel_ufs_register_fips_self_test(void)
+{
+	return 0;
+}
+#endif
