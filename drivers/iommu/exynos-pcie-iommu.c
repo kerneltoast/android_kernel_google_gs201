@@ -596,13 +596,17 @@ static int lv1set_section(struct exynos_iommu_domain *domain,
 }
 
 static int lv2set_page(sysmmu_pte_t *pent, phys_addr_t paddr, size_t size,
-		       int prot, atomic_t *pgcnt)
+		       int prot, atomic_t *pgcnt, int hsi_block_num)
 {
 	bool shareable = !!(prot & IOMMU_CACHE);
 
 	if (size == SPAGE_SIZE) {
 		if (!lv2ent_fault(pent)) {
 			sysmmu_pte_t *refcnt_buf;
+
+			if(hsi_block_num == 1) {
+				pr_err("sysmmu(CP) lv2set_page: paddr: 0x%llx, size: 0x%lx, pent: 0x%x\n", paddr, size, *pent);
+			}
 
 			/* Duplicated IOMMU map 4KB */
 			refcnt_buf = pent + NUM_LV2ENTRIES;
@@ -743,7 +747,7 @@ static size_t iommu_pgsize(unsigned long addr_merge, size_t size,
 
 static int exynos_iommu_map(unsigned long l_iova, phys_addr_t paddr,
 			    size_t size, int prot,
-			    struct exynos_iommu_domain *domain)
+			    struct exynos_iommu_domain *domain, int hsi_block_num)
 {
 	sysmmu_pte_t *entry;
 	sysmmu_iova_t iova = (sysmmu_iova_t)l_iova;
@@ -768,7 +772,7 @@ static int exynos_iommu_map(unsigned long l_iova, phys_addr_t paddr,
 			ret = PTR_ERR(pent);
 		else
 			ret = lv2set_page(pent, paddr, size, prot,
-					  &domain->lv2entcnt[lv1ent_offset(iova)]);
+					  &domain->lv2entcnt[lv1ent_offset(iova)], hsi_block_num);
 	}
 
 	if (ret)
@@ -1057,7 +1061,7 @@ int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 		alloc_counter++;
 		if (alloc_counter > max_req_cnt)
 			max_req_cnt = alloc_counter;
-		ret = exynos_iommu_map(iova, paddr, pgsize, prot, domain);
+		ret = exynos_iommu_map(iova, paddr, pgsize, prot, domain, hsi_block_num);
 #if IS_ENABLED(CONFIG_PCIE_IOMMU_HISTORY_LOG)
 		add_history_buff(&pcie_map_history, paddr, orig_paddr,
 				 changed_size, orig_size);
