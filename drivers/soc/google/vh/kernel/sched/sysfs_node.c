@@ -37,6 +37,7 @@ static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id
 
 static struct uclamp_se uclamp_default[UCLAMP_CNT];
 unsigned int pmu_poll_time_ms = 10;
+bool pmu_poll_enabled;
 extern void pmu_poll_enable(void);
 extern void pmu_poll_disable(void);
 
@@ -914,6 +915,13 @@ static ssize_t pmu_poll_time_store(struct kobject *kobj,
 
 static struct kobj_attribute pmu_poll_time_attribute = __ATTR_RW(pmu_poll_time);
 
+static ssize_t pmu_poll_enable_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return sysfs_emit(buf, "%s\n", pmu_poll_enabled ? "true" : "false");
+}
+
 static ssize_t pmu_poll_enable_store(struct kobject *kobj,
 					struct kobj_attribute *attr,
 					const char *buf, size_t count)
@@ -923,6 +931,9 @@ static ssize_t pmu_poll_enable_store(struct kobject *kobj,
 	if (kstrtobool(buf, &enable))
 		return -EINVAL;
 
+	if (pmu_poll_enabled == enable)
+		return count;
+
 	if (enable)
 		pmu_poll_enable();
 	else
@@ -931,7 +942,7 @@ static ssize_t pmu_poll_enable_store(struct kobject *kobj,
 	return count;
 }
 
-static struct kobj_attribute pmu_poll_enable_attribute = __ATTR_WO(pmu_poll_enable);
+static struct kobj_attribute pmu_poll_enable_attribute = __ATTR_RW(pmu_poll_enable);
 
 static ssize_t uclamp_fork_reset_set_store(struct kobject *kobj,
 					      struct kobj_attribute *attr,
