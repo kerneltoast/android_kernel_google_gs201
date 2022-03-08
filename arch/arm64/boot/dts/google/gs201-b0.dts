@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * GS201 SoC silicon revision B0
+ *
+ * Copyright 2020-2022 Google LLC.
+ *
+ */
+
+/dts-v1/;
+/ {
+	/* soc revision info */
+	/* The bootloader combines the value 0x09855000 of the product id
+	 * register with the value 0x1 of the major revision register before it
+	 * compares the combined value with the first word of the soc_id
+	 * property.
+	 */
+	soc_id = <0x09855001 0x00000000>;
+};
+
+#include "gs201.dtsi"
+
+&mfc {
+	ip_ver = <0x15060000>;
+	/* FW base security ctrl */
+	security_ctrl = <1>;
+};
+&mfc_core0 {
+	ip_ver = <0x15060000>;
+};
+
+&bts_smc0 {
+	reg = <0x0 0x2084F258 0x4>;
+};
+&bts_smc1 {
+	reg = <0x0 0x2094F258 0x4>;
+};
+&bts_smc2 {
+	reg = <0x0 0x20A4F258 0x4>;
+};
+&bts_smc3 {
+	reg = <0x0 0x20B4F258 0x4>;
+};

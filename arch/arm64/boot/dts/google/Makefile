@@ -57,6 +57,7 @@ gs101-dpm-userdebug.dtbo-base := gs101-b0.dtb
 
 dtb-$(CONFIG_SOC_GS201) += \
         gs201-a0.dtb \
+        gs201-b0.dtb \
 
 soc-dtbo-$(CONFIG_SOC_GS201) += \
 	gs201-dpm-eng.dtbo \
