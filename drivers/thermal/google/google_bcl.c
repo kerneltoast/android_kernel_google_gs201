@@ -289,17 +289,56 @@ static bool is_subsystem_on(unsigned int addr)
 	return true;
 }
 
+static int bcl_odpm_map(int id)
+{
+#if IS_ENABLED(CONFIG_SOC_GS201) || IS_ENABLED(CONFIG_SOC_GS101)
+	switch (id) {
+	case OCP_WARN_GPU:
+	case SOFT_OCP_WARN_GPU:
+		return BUCK4;
+	case OCP_WARN_TPU:
+	case SOFT_OCP_WARN_TPU:
+		return BUCK10;
+	case OCP_WARN_CPUCL1:
+	case SOFT_OCP_WARN_CPUCL1:
+		return BUCK3;
+	case OCP_WARN_CPUCL2:
+	case SOFT_OCP_WARN_CPUCL2:
+	default:
+		return BUCK2;
+	}
+#endif
+	return BUCK2;
+}
+
 static int triggered_read_level(void *data, int *val, int id)
 {
 	struct bcl_device *bcl_dev = data;
+	u64 micro_unit[ODPM_CHANNEL_MAX];
+	u64 odpm_current = 0;
 
-	if ((bcl_dev->gra_tz_cnt[id] != 0) &&
+	if ((id == OCP_WARN_GPU) || (id == SOFT_OCP_WARN_GPU)) {
+		mutex_lock(&bcl_dev->sub_odpm->lock);
+		odpm_get_lpf_values(bcl_dev->sub_odpm, S2MPG1X_METER_CURRENT, micro_unit);
+		odpm_current = micro_unit[bcl_odpm_map(id)] / 1000;
+		mutex_unlock(&bcl_dev->sub_odpm->lock);
+	} else {
+		mutex_lock(&bcl_dev->main_odpm->lock);
+		odpm_get_lpf_values(bcl_dev->main_odpm, S2MPG1X_METER_CURRENT, micro_unit);
+		odpm_current = micro_unit[bcl_odpm_map(id)] / 1000;
+		mutex_unlock(&bcl_dev->main_odpm->lock);
+	}
+
+	*val = bcl_dev->gra_lvl[id];
+	if ((bcl_dev->gra_tz_cnt[id] == 0) ||
 	    (bcl_dev->gra_tz_cnt[id] < THERMAL_IRQ_COUNTER_LIMIT)) {
+		bcl_dev->gra_tz_cnt[id] = 0;
+		return 0;
+	}
+	if ((id == SMPL_WARN) || odpm_current > (bcl_dev->gra_lvl[id] >> 1) ||
+	    bcl_dev->gra_tz_cnt[id] == 1) {
 		*val = bcl_dev->gra_lvl[id] + THERMAL_HYST_LEVEL;
 		bcl_dev->gra_tz_cnt[id] += 1;
-	} else {
-		*val = bcl_dev->gra_lvl[id];
-		bcl_dev->gra_tz_cnt[id] = 0;
 	}
 	return 0;
 }
@@ -354,8 +393,9 @@ static irqreturn_t irq_handler(int irq, void *data, u8 idx)
 	}
 	if (bcl_dev->gra_tz_cnt[idx] == 0) {
 		bcl_dev->gra_tz_cnt[idx] += 1;
-		queue_delayed_work(system_wq, &bcl_dev->gra_irq_work[idx],
-				   msecs_to_jiffies(ONE_SECOND));
+		if (idx == SMPL_WARN)
+			queue_delayed_work(system_wq, &bcl_dev->gra_irq_work[idx],
+					   msecs_to_jiffies(ONE_SECOND));
 
 		/* Minimize the amount of thermal update by only triggering
 		 * update every ONE_SECOND.
@@ -392,14 +432,6 @@ static const struct thermal_zone_of_device_ops google_smpl_warn_ops = {
 	.get_temp = smpl_warn_read_voltage,
 };
 
-static void google_cpu1_warn_work(struct work_struct *work)
-{
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  gra_irq_work[OCP_WARN_CPUCL1].work);
-
-	bcl_dev->gra_tz_cnt[OCP_WARN_CPUCL1] = 0;
-}
-
 static irqreturn_t google_cpu1_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
@@ -416,14 +448,6 @@ static int ocp_cpu1_read_current(void *data, int *val)
 static const struct thermal_zone_of_device_ops google_ocp_cpu1_ops = {
 	.get_temp = ocp_cpu1_read_current,
 };
-
-static void google_cpu2_warn_work(struct work_struct *work)
-{
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  gra_irq_work[OCP_WARN_CPUCL2].work);
-
-	bcl_dev->gra_tz_cnt[OCP_WARN_CPUCL2] = 0;
-}
 
 static irqreturn_t google_cpu2_ocp_warn_irq_handler(int irq, void *data)
 {
@@ -442,14 +466,6 @@ static const struct thermal_zone_of_device_ops google_ocp_cpu2_ops = {
 	.get_temp = ocp_cpu2_read_current,
 };
 
-static void google_soft_cpu1_warn_work(struct work_struct *work)
-{
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  gra_irq_work[SOFT_OCP_WARN_CPUCL1].work);
-
-	bcl_dev->gra_tz_cnt[SOFT_OCP_WARN_CPUCL1] = 0;
-}
-
 static irqreturn_t google_soft_cpu1_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
@@ -466,14 +482,6 @@ static int soft_ocp_cpu1_read_current(void *data, int *val)
 static const struct thermal_zone_of_device_ops google_soft_ocp_cpu1_ops = {
 	.get_temp = soft_ocp_cpu1_read_current,
 };
-
-static void google_soft_cpu2_warn_work(struct work_struct *work)
-{
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  gra_irq_work[SOFT_OCP_WARN_CPUCL2].work);
-
-	bcl_dev->gra_tz_cnt[SOFT_OCP_WARN_CPUCL2] = 0;
-}
 
 static irqreturn_t google_soft_cpu2_ocp_warn_irq_handler(int irq, void *data)
 {
@@ -492,14 +500,6 @@ static const struct thermal_zone_of_device_ops google_soft_ocp_cpu2_ops = {
 	.get_temp = soft_ocp_cpu2_read_current,
 };
 
-static void google_tpu_warn_work(struct work_struct *work)
-{
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  gra_irq_work[OCP_WARN_TPU].work);
-
-	bcl_dev->gra_tz_cnt[OCP_WARN_TPU] = 0;
-}
-
 static irqreturn_t google_tpu_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
@@ -516,14 +516,6 @@ static int ocp_tpu_read_current(void *data, int *val)
 static const struct thermal_zone_of_device_ops google_ocp_tpu_ops = {
 	.get_temp = ocp_tpu_read_current,
 };
-
-static void google_soft_tpu_warn_work(struct work_struct *work)
-{
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  gra_irq_work[SOFT_OCP_WARN_TPU].work);
-
-	bcl_dev->gra_tz_cnt[SOFT_OCP_WARN_TPU] = 0;
-}
 
 static irqreturn_t google_soft_tpu_ocp_warn_irq_handler(int irq, void *data)
 {
@@ -542,14 +534,6 @@ static const struct thermal_zone_of_device_ops google_soft_ocp_tpu_ops = {
 	.get_temp = soft_ocp_tpu_read_current,
 };
 
-static void google_gpu_warn_work(struct work_struct *work)
-{
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  gra_irq_work[OCP_WARN_GPU].work);
-
-	bcl_dev->gra_tz_cnt[OCP_WARN_GPU] = 0;
-}
-
 static irqreturn_t google_gpu_ocp_warn_irq_handler(int irq, void *data)
 {
 	if (!data)
@@ -566,14 +550,6 @@ static int ocp_gpu_read_current(void *data, int *val)
 static const struct thermal_zone_of_device_ops google_ocp_gpu_ops = {
 	.get_temp = ocp_gpu_read_current,
 };
-
-static void google_soft_gpu_warn_work(struct work_struct *work)
-{
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  gra_irq_work[SOFT_OCP_WARN_GPU].work);
-
-	bcl_dev->gra_tz_cnt[SOFT_OCP_WARN_GPU] = 0;
-}
 
 static irqreturn_t google_soft_gpu_ocp_warn_irq_handler(int irq, void *data)
 {
@@ -3450,16 +3426,6 @@ static int google_set_main_pmic(struct bcl_device *bcl_dev)
 	int ret, i;
 
 	INIT_DELAYED_WORK(&bcl_dev->gra_irq_work[SMPL_WARN], google_smpl_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->gra_irq_work[OCP_WARN_CPUCL1], google_cpu1_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->gra_irq_work[SOFT_OCP_WARN_CPUCL1],
-			  google_soft_cpu1_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->gra_irq_work[OCP_WARN_CPUCL2], google_cpu2_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->gra_irq_work[SOFT_OCP_WARN_CPUCL2],
-			  google_soft_cpu2_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->gra_irq_work[OCP_WARN_TPU], google_tpu_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->gra_irq_work[SOFT_OCP_WARN_TPU], google_soft_tpu_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->gra_irq_work[OCP_WARN_GPU], google_gpu_warn_work);
-	INIT_DELAYED_WORK(&bcl_dev->gra_irq_work[SOFT_OCP_WARN_GPU], google_soft_gpu_warn_work);
 
 	for (i = 0; i < MITI_SENSOR_MAX; i++)
 		atomic_set(&bcl_dev->bcl_cnt[i], 0);
