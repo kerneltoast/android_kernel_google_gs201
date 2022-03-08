@@ -20,7 +20,6 @@
 #include "ufshcd.h"
 #include "ufshcd-crypto.h"
 #include "ufs-exynos.h"
-#include "ufs-pixel-fips.h"
 
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/ufshcd.h>
@@ -28,8 +27,6 @@
 static void exynos_ufs_fmp_fill_prdt(void *unused, struct ufs_hba *hba,
 				     struct ufshcd_lrb *lrbp,
 				     unsigned int segments, int *err);
-
-static int exynos_ufs_fmp_register_fips_self_test(void);
 
 enum fmp_crypto_algo_mode {
 	FMP_BYPASS_MODE = 0,
@@ -87,10 +84,6 @@ int pixel_ufs_crypto_init_sw_keys_mode(struct ufs_hba *hba)
 			ret);
 		return 0;
 	}
-
-	ret = exynos_ufs_fmp_register_fips_self_test();
-	if (ret)
-		return ret;
 
 	ret = register_trace_android_vh_ufs_fill_prdt(
 				exynos_ufs_fmp_fill_prdt, NULL);
@@ -192,22 +185,3 @@ static void exynos_ufs_fmp_fill_prdt(void *unused, struct ufs_hba *hba,
 			dun_hi++;
 	}
 }
-
-#if IS_ENABLED(CONFIG_SCSI_UFS_PIXEL_FIPS140)
-static void exynos_ufs_fmp_fips_self_test(void *data, struct ufs_hba *hba)
-{
-	if (ufs_pixel_fips_verify(hba))
-		panic("FMP self test failed");
-}
-
-static int exynos_ufs_fmp_register_fips_self_test(void)
-{
-	return register_trace_android_rvh_ufs_complete_init(
-		exynos_ufs_fmp_fips_self_test, NULL);
-}
-#else
-static int exynos_ufs_fmp_register_fips_self_test(void)
-{
-	return 0;
-}
-#endif
