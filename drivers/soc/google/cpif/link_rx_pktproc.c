@@ -395,7 +395,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 	u32 fore;
 	int i;
 	unsigned long flags;
-	u32 space;
+	u32 space, space_margin = 0;
 	u32 fore_inc = 1;
 
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
@@ -410,6 +410,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 	fore = q->ioc.curr_fore;
+	space_margin = PAGE_FRAG_CACHE_MAX_SIZE / q->ppa->true_packet_size;
 #else
 	fore = *q->fore_ptr;
 #endif
@@ -419,10 +420,15 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 
 	spin_lock_irqsave(&q->lock, flags);
 
-	if (q->ppa->buff_rgn_cached)
+	if (q->ppa->buff_rgn_cached) {
 		space = circ_get_space(q->num_desc, fore, q->done_ptr);
-	else
+		if (space > space_margin)
+			space -= space_margin;
+		else
+			space = 0;
+	} else {
 		space = q->num_desc;
+	}
 
 	for (i = 0; i < space; i++) {
 		u8 *dst_vaddr = NULL;
