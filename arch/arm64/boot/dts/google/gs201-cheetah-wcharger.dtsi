@@ -9,8 +9,8 @@
 
 &hsi2c_15 {
 	p9412@3c {
-		fod = [B2 2E 93 3B 8B 2B 94 0E 98 02 9E ED 19 06 01 3C];
-		fod_epp = [AD 54 83 7F 89 46 87 46 8A 37 8D 1F 32 11 01 50];
+		fod = [AD 2E 8D 39 87 24 95 06 97 FC 9C E6 19 06 01 3C];
+		fod_epp = [AD 54 83 7A 89 44 87 46 8A 33 8D 17 32 11 01 50];
 		google,q_value = <56>;
 		google,tx4191_q = <29>;
 		idt,has_rtx = <1>;
