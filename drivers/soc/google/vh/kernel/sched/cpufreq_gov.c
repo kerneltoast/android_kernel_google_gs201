@@ -908,7 +908,8 @@ static void pmu_limit_work(struct kthread_work *work)
 	struct cpufreq_policy *policy = NULL;
 	u64 lcpi = 0, spc = 0;
 	unsigned int next_max_freq;
-	unsigned long inst, cyc, stall, cachemiss;
+	unsigned long inst, cyc, stall, cachemiss, freq;
+	struct sugov_cpu *sg_cpu;
 
 	while (cpu < CPU_NUM) {
 		policy = cpufreq_cpu_get(cpu);
@@ -944,8 +945,17 @@ static void pmu_limit_work(struct kthread_work *work)
 				scnprintf(trace_name, sizeof(trace_name), "spc%d", ccpu);
 				trace_clock_set_rate(trace_name, spc, raw_smp_processor_id());
 			}
-			if (!check_pmu_limit_conditions(lcpi, spc, sg_policy))
-				goto update_next_max_freq;
+
+			if (!check_pmu_limit_conditions(lcpi, spc, sg_policy)) {
+				sg_cpu = &per_cpu(sugov_cpu, ccpu);
+				freq = map_util_freq_pixel_mod(sugov_get_util(sg_cpu),
+					policy->cpuinfo.max_freq, sg_cpu->max, ccpu);
+				// Ignore this cpu if freq is <= limit freq.
+				if (freq <= sg_policy->tunables->limit_frequency)
+					continue;
+				else
+					goto update_next_max_freq;
+			}
 		}
 
 		next_max_freq = sg_policy->tunables->limit_frequency;
