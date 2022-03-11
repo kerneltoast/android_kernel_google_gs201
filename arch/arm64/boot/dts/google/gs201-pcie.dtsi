@@ -42,6 +42,7 @@
 		pcie-clk-num = <0>;
 		phy-clk-num = <0>;
 		pcie-pm-qos-int = <200000>;
+		separated-msi = <1>;
 		use-cache-coherency = "false";
 		use-pcieon-sleep = "false";
 		use-msi = "false";

@@ -252,6 +252,7 @@ struct exynos_pcie {
 	int			l1ss_enable;
 	int			linkdown_cnt;
 	int			idle_ip_index;
+	int			separated_msi;
 	bool			use_msi;
 	bool			use_cache_coherency;
 	bool			use_sicd;
@@ -317,12 +318,14 @@ struct exynos_pcie {
 #define PCIE_MAX_SEPA_IRQ_NUM	(5)
 #define PCIE_START_SEP_MSI_VEC	(1)
 #define PCIE_MSI_MAX_VEC_NUM	(32)
+#define PCIE_DOMAIN_MAX_IRQ	(256)
 
 struct separated_msi_vector {
 	int is_used;
 	int irq;
 	void *context;
 	irq_handler_t msi_irq_handler;
+	int flags;
 };
 
 #define PCIE_EXYNOS_OP_READ(base, type)						\

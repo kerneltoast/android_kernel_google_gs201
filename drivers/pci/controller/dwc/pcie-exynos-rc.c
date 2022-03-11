@@ -35,6 +35,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/kthread.h>
 #include <linux/random.h>
+#include <linux/irqdomain.h>
 
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 #include <soc/google/exynos-powermode.h>
@@ -1387,6 +1388,13 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 		dev_info(dev, "parse the number of lanes: %d\n", exynos_pcie->num_lanes);
 	}
 
+	if (of_property_read_u32(np, "separated-msi", &exynos_pcie->separated_msi)) {
+		dev_info(dev, "Unset separated-msi value, default '0'\n");
+		exynos_pcie->separated_msi = 0;
+	} else {
+		dev_info(dev, "parse the separated msi: %d\n", exynos_pcie->separated_msi);
+	}
+
 	if (!of_property_read_string(np, "use-cache-coherency", &use_cache_coherency)) {
 		if (!strcmp(use_cache_coherency, "true")) {
 			dev_info(dev, "Cache Coherency unit is ENABLED.\n");
@@ -2294,6 +2302,25 @@ static struct dw_pcie_host_ops exynos_pcie_rc_ops = {
 	.host_init = exynos_pcie_rc_init,
 };
 
+void exynos_pcie_msi_post_process(struct pcie_port *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	int ctrl, num_ctrls;
+
+	if (exynos_pcie->separated_msi)
+		return;
+
+	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+	for (ctrl = 0; ctrl < num_ctrls; ctrl++) {
+		/* clear MSI register because of edge */
+		exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_MASK +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), 4, 0xffffffff);
+		exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_MASK +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), 4, 0x0);
+	}
+}
+
 static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 {
 	struct pcie_port *pp = arg;
@@ -2343,8 +2370,7 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 		 * lower MSI status bit is set while processing upper bit.
 		 * Through the Mask/Unmask, ignored interrupts will be pended.
 		 */
-		exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, 0xffffffff);
-		exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, 0x0);
+		exynos_pcie_msi_post_process(pp);
 	}
 #endif
 
@@ -2353,7 +2379,7 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 static int exynos_pcie_rc_msi_init(struct pcie_port *pp)
 {
-	u32 val, mask_val;
+	u32 val, mask_val, i;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	struct device *dev = pci->dev;
@@ -2407,7 +2433,10 @@ program_msi_data:
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_ADDR_HI, 4, upper_32_bits(pp->msi_data));
 
 	val = exynos_elbi_read(exynos_pcie, PCIE_IRQ2_EN);
-	val |= IRQ_MSI_CTRL_EN_RISING_EDG;
+	if (exynos_pcie->separated_msi)
+		val &= ~IRQ_MSI_CTRL_EN_RISING_EDG;
+	else
+		val |= IRQ_MSI_CTRL_EN_RISING_EDG;
 	exynos_elbi_write(exynos_pcie, val, PCIE_IRQ2_EN);
 
 	/* Enable MSI interrupt after PCIe reset */
@@ -2415,6 +2444,20 @@ program_msi_data:
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, val);
 	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, &val);
 	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, &mask_val);
+
+	if (exynos_pcie->separated_msi) {
+		pr_info("Enable Separated MSI IRQs.\n");
+		for (i = PCIE_START_SEP_MSI_VEC; i < PCIE_MAX_SEPA_IRQ_NUM; i++) {
+			if (sep_msi_vec[exynos_pcie->ch_num][i].is_used) {
+				/* Enable MSI interrupt for separated MSI. */
+				pr_info("Separated MSI%d is Enabled.\n", i);
+				exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE +
+						(i * MSI_REG_CTRL_BLOCK_SIZE), 4, 0x1);
+				exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_MASK +
+						(i * MSI_REG_CTRL_BLOCK_SIZE), 4, ~(0x1));
+			}
+		}
+	}
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	dev_info(dev, "MSI INIT: check MSI_INTR0_ENABLE(0x%x): 0x%x\n", PCIE_MSI_INTR0_ENABLE, val);
 	if (exynos_pcie->ep_device_type != EP_QC_WIFI) {
@@ -3826,6 +3869,59 @@ static const char *sep_irq_name[PCIE_MAX_SEPA_IRQ_NUM] = {
 	"exynos-pcie-msi0", "exynos-pcie-msi1", "exynos-pcie-msi2",
 	"exynos-pcie-msi3", "exynos-pcie-msi4" };
 
+static irqreturn_t exynos_pcie_msi0_handler(int irq, void *arg)
+{
+	struct pcie_port *pp = arg;
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	struct device *dev = pci->dev;
+	int ch_num = exynos_pcie->ch_num;
+	struct separated_msi_vector *msi_vec = &sep_msi_vec[ch_num][0];
+
+	if (!msi_vec->is_used) {
+		dev_err(dev, "Unexpected separated MSI0 interrupt!");
+		return IRQ_HANDLED;
+	}
+
+	dw_handle_msi_irq(pp);
+
+	if (!msi_vec->flags) {
+		/* To set as handle_level_irq, get virq, mapped_irq, irq_data. */
+		struct irq_data *irq_data;
+		int i, virq, mapped_irq, changed_irq = 0;
+
+		virq = irq_find_mapping(pp->irq_domain, 0);
+		mapped_irq = pp->irq_domain->mapcount;
+
+		dev_dbg(dev, "Start virq = %d, Total mapped irq = %d\n",
+				virq, mapped_irq);
+
+		for (i = 0; i < PCIE_DOMAIN_MAX_IRQ; i++) {
+			irq_data = irq_domain_get_irq_data(pp->irq_domain, virq);
+			if (irq_data == NULL) {
+				virq++;
+				continue;
+			}
+
+			dev_dbg(dev, "Change flow interrupt for virq(%d)\n", virq);
+			irq_domain_set_info(pp->irq_domain, virq, irq_data->hwirq,
+					pp->msi_irq_chip,
+					pp, handle_level_irq,
+					NULL, NULL);
+
+			virq++;
+			changed_irq++;
+
+			if (changed_irq == mapped_irq)
+				break;
+		}
+		msi_vec->flags = 1;
+	}
+	exynos_pcie_msi_post_process(pp);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t exynos_pcie_msi1_handler(int irq, void *arg)
 {
 	struct pcie_port *pp = arg;
@@ -3841,14 +3937,14 @@ static irqreturn_t exynos_pcie_msi1_handler(int irq, void *arg)
 			(vec_num * MSI_REG_CTRL_BLOCK_SIZE), 4, 0x1);
 
 	if (!msi_vec->is_used) {
-		dev_info(dev, "Unexpected separated MSI1 interrupt!");
-		goto clear_irq;
+		dev_err(dev, "Unexpected separated MSI1 interrupt!");
+		return IRQ_HANDLED;
 	}
 
 	if (msi_vec->msi_irq_handler != NULL)
 		msi_vec->msi_irq_handler(irq, msi_vec->context);
 
-clear_irq:
+	exynos_pcie_msi_post_process(pp);
 
 	return IRQ_HANDLED;
 }
@@ -3868,14 +3964,14 @@ static irqreturn_t exynos_pcie_msi2_handler(int irq, void *arg)
 			(vec_num * MSI_REG_CTRL_BLOCK_SIZE), 4, 0x1);
 
 	if (!msi_vec->is_used) {
-		dev_info(dev, "Unexpected separated MSI2 interrupt!");
-		goto clear_irq;
+		dev_err(dev, "Unexpected separated MSI2 interrupt!");
+		return IRQ_HANDLED;
 	}
 
 	if (msi_vec->msi_irq_handler != NULL)
 		msi_vec->msi_irq_handler(irq, msi_vec->context);
 
-clear_irq:
+	exynos_pcie_msi_post_process(pp);
 
 	return IRQ_HANDLED;
 }
@@ -3895,14 +3991,14 @@ static irqreturn_t exynos_pcie_msi3_handler(int irq, void *arg)
 			(vec_num * MSI_REG_CTRL_BLOCK_SIZE), 4, 0x1);
 
 	if (!msi_vec->is_used) {
-		dev_info(dev, "Unexpected separated MSI3 interrupt!");
-		goto clear_irq;
+		dev_err(dev, "Unexpected separated MSI3 interrupt!");
+		return IRQ_HANDLED;
 	}
 
 	if (msi_vec->msi_irq_handler != NULL)
 		msi_vec->msi_irq_handler(irq, msi_vec->context);
 
-clear_irq:
+	exynos_pcie_msi_post_process(pp);
 
 	return IRQ_HANDLED;
 }
@@ -3922,20 +4018,20 @@ static irqreturn_t exynos_pcie_msi4_handler(int irq, void *arg)
 			(vec_num * MSI_REG_CTRL_BLOCK_SIZE), 4, 0x1);
 
 	if (!msi_vec->is_used) {
-		dev_info(dev, "Unexpected separated MSI4 interrupt!");
-		goto clear_irq;
+		dev_err(dev, "Unexpected separated MSI4 interrupt!");
+		return IRQ_HANDLED;
 	}
 
 	if (msi_vec->msi_irq_handler != NULL)
 		msi_vec->msi_irq_handler(irq, msi_vec->context);
 
-clear_irq:
+	exynos_pcie_msi_post_process(pp);
 
 	return IRQ_HANDLED;
 }
 
 irqreturn_t (*msi_handler[PCIE_MAX_SEPA_IRQ_NUM])(int , void *) = {
-	NULL, exynos_pcie_msi1_handler,  exynos_pcie_msi2_handler,
+	exynos_pcie_msi0_handler, exynos_pcie_msi1_handler,  exynos_pcie_msi2_handler,
 	exynos_pcie_msi3_handler, exynos_pcie_msi4_handler };
 
 int register_separated_msi_vector(int ch_num, irq_handler_t handler, void *context,
@@ -4003,19 +4099,29 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 		return ret;
 	}
 
-	for (i = 0; i < PCIE_MAX_SEPA_IRQ_NUM; i++) {
-		sep_irq = platform_get_irq(pdev, i + 1);
-		if (sep_irq < 0)
-			goto skip_sep_request_irq;
+	if (exynos_pcie->separated_msi) {
+		for (i = 0; i < PCIE_MAX_SEPA_IRQ_NUM; i++) {
+			sep_irq = platform_get_irq(pdev, i + 1);
+			if (sep_irq < 0)
+				goto skip_sep_request_irq;
 
-		dev_info(&pdev->dev, "%d separated MSI irq is defined.\n", sep_irq);
-		sep_msi_vec[ch_num][i].irq = sep_irq;
+			dev_info(&pdev->dev, "%d separated MSI irq is defined.\n", sep_irq);
+			sep_msi_vec[ch_num][i].irq = sep_irq;
 
-		/* MSI vector 0/1 will used by default MSI */
-		if (i < PCIE_START_SEP_MSI_VEC) {
-			sep_msi_vec[ch_num][i].is_used = true;
+			/* MSI vector 0 will used by default MSI */
+			if (i == 0) {
+				sep_msi_vec[ch_num][0].is_used = true;
+				ret = devm_request_irq(pci->dev, sep_msi_vec[ch_num][0].irq,
+						msi_handler[0],
+						IRQF_SHARED | IRQF_TRIGGER_HIGH,
+						sep_irq_name[0], pp);
+				if (ret) {
+					dev_err(&pdev->dev, "failed to request MSI%d irq\n", i);
+					return ret;
+				}
+				continue;
+			}
 		}
-
 	}
 
 skip_sep_request_irq:
