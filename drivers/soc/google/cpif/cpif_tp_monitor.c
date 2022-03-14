@@ -780,14 +780,16 @@ static void tpmon_set_pci_low_power(struct tpmon_data *data)
 	if (!data->enable)
 		return;
 
-	if (!mc || !mc->pcie_powered_on)
-		return;
+	mutex_lock(&mc->pcie_check_lock);
+	if (!mc->pcie_powered_on || s51xx_check_pcie_link_status(mc->pcie_ch_num) == 0)
+		goto out;
 
 	val = tpmon_get_curr_level(data);
-
+	mif_info("%s (enable:%u)\n", data->name, val);
 	s51xx_pcie_l1ss_ctrl((int)val, mc->pcie_ch_num);
 
-	mif_info("%s (enable:%u)\n", data->name, val);
+out:
+	mutex_unlock(&mc->pcie_check_lock);
 }
 #endif
 
