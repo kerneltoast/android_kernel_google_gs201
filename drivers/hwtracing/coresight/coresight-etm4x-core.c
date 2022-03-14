@@ -1569,6 +1569,7 @@ static int __etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	struct coresight_device *csdev = drvdata->csdev;
 	struct csdev_access *csa;
 	struct device *etm_dev;
+	struct coresight_device *funnel_csdev = csdev->pdata->conns[0].child_dev;
 
 	if (WARN_ON(!csdev))
 		return -ENODEV;
@@ -1677,14 +1678,7 @@ static int __etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	if (!drvdata->skip_power_up)
 		state->trcpdcr = etm4x_read32(csa, TRCPDCR);
 
-	/* wait for TRCSTATR.IDLE to go up */
-	if (coresight_timeout(csa, TRCSTATR, TRCSTATR_IDLE_BIT, 1)) {
-		dev_err(etm_dev,
-			"timeout while waiting for Idle Trace Status\n");
-		etm4_os_unlock(drvdata);
-		ret = -EBUSY;
-		goto out;
-	}
+	link_ops(funnel_csdev)->disable(funnel_csdev, csdev->pdata->conns[0].child_port, 0);
 
 	drvdata->state_needs_restore = true;
 
@@ -1723,6 +1717,8 @@ static void __etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	struct etmv4_save_state *state = drvdata->save_state;
 	struct csdev_access tmp_csa = CSDEV_ACCESS_IOMEM(drvdata->base);
 	struct csdev_access *csa = &tmp_csa;
+	struct coresight_device *csdev = drvdata->csdev;
+	struct coresight_device *funnel_csdev = csdev->pdata->conns[0].child_dev;
 
 	etm4_cs_unlock(drvdata, csa);
 	etm4x_relaxed_write32(csa, state->trcclaimset, TRCCLAIMSET);
@@ -1807,6 +1803,8 @@ static void __etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	 */
 	dsb(sy);
 	isb();
+
+	link_ops(funnel_csdev)->enable(funnel_csdev, csdev->pdata->conns[0].child_port, 0);
 
 	/* Unlock the OS lock to re-enable trace and external debug access */
 	etm4_os_unlock(drvdata);

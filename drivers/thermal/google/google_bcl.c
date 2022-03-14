@@ -3782,6 +3782,8 @@ static struct platform_driver google_bcl_driver = {
 };
 
 module_platform_driver(google_bcl_driver);
+
+MODULE_SOFTDEP("pre: i2c-acpm");
 MODULE_DESCRIPTION("Google Battery Current Limiter");
 MODULE_AUTHOR("George Lee <geolee@google.com>");
 MODULE_LICENSE("GPL");

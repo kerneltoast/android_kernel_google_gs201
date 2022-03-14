@@ -118,7 +118,7 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	case V4L2_PIX_FMT_NV21M_P010:
 	case V4L2_PIX_FMT_NV61M_P210:
 	case V4L2_PIX_FMT_NV16M_P210:
-		if (ctx->dev->pdata->stride_type) {
+		if ((ctx->type == MFCINST_DECODER) && ctx->dev->pdata->stride_type) {
 			raw->stride[0] = ALIGN(ctx->img_width * 2, stride_align);
 			raw->stride[1] = ALIGN(ctx->img_width * 2, stride_align);
 		} else {
