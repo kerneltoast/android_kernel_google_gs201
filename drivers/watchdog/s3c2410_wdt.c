@@ -35,6 +35,14 @@
 #include <linux/preempt.h>
 #include <linux/of_address.h>
 #include <soc/google/exynos-el3_mon.h>
+#include <trace/hooks/sched.h>
+#include <asm/stacktrace.h>
+#include <linux/minmax.h>
+#include <linux/sched.h>
+#include <linux/math64.h>
+#include <linux/rcupdate.h>
+#include <linux/pid.h>
+#include <linux/sched/task.h>
 
 #define S3C2410_WTCON		0x00
 #define S3C2410_WTDAT		0x04
@@ -90,6 +98,8 @@
 #define MULTISTAGE_WDT_RATIO			80
 #define WINDOW_MULTIPLIER			2
 
+#define PRINT_CPUS_LIMIT			(30)
+
 static bool nowayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin;
 static int tmr_atboot	= S3C2410_WATCHDOG_ATBOOT;
@@ -108,6 +118,12 @@ MODULE_PARM_DESC(tmr_atboot,
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, 0 to reboot (default 0)");
+
+struct schedstat {
+	u64 rt_load;
+	u64 kcpustat_softirq;
+	u64 kcpustat_irq;
+};
 
 struct s3c2410_wdt {
 	struct device		*dev;
@@ -133,6 +149,9 @@ struct s3c2410_wdt {
 	unsigned int noncpu_out_reg_val;
 	int in_suspend;
 	int in_panic;
+	pid_t dog_owner_pid;
+	u64 pet_when;
+	struct schedstat __percpu *schedstat;
 };
 
 /*
@@ -562,8 +581,11 @@ static void s3c2410wdt_mask_dbgack(struct s3c2410_wdt *wdt, bool mask)
 	writel(wtcon, wdt->reg_base + S3C2410_WTCON);
 }
 
+#define per_schedstat(wdt, cpu) per_cpu_ptr(wdt->schedstat, cpu)
+
 static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 {
+	int cpu;
 	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
 	unsigned long flags, old_wtcnt = 0, wtcnt = 0;
 
@@ -582,10 +604,144 @@ static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 	dev_dbg(wdt->dev, "Watchdog cluster %u keepalive!, old_wtcnt = %lx, wtcnt = %lx\n",
 		wdt->cluster, old_wtcnt, wtcnt);
 
+	wdt->dog_owner_pid = task_active_pid_ns(current) == &init_pid_ns ? current->pid : 0;
+	wdt->pet_when = sched_clock();
+	if (wdt->schedstat) {
+		for_each_possible_cpu(cpu) {
+			struct schedstat *stat = per_schedstat(wdt, cpu);
+
+			stat->rt_load = 0;
+			stat->kcpustat_softirq = kcpustat_cpu(cpu).cpustat[CPUTIME_SOFTIRQ];
+			stat->kcpustat_irq = kcpustat_cpu(cpu).cpustat[CPUTIME_IRQ];
+		}
+	}
+
 	preempt_enable();
 
 	return 0;
 }
+
+static struct task_struct *get_task_by_pid_in_init_ns(pid_t nr)
+{
+	struct task_struct *task;
+
+	rcu_read_lock();
+	task = pid_task(find_pid_ns(nr, &init_pid_ns), PIDTYPE_PID);
+	if (task)
+		get_task_struct(task);
+	rcu_read_unlock();
+
+	return task;
+}
+
+static void print_wd_owner(struct s3c2410_wdt *wdt, const char *loglvl)
+{
+	const char *status = "unknown";
+	u64 last_nsecs = 0;
+	struct task_struct *task = NULL;
+
+	if (wdt->dog_owner_pid)
+		task = get_task_by_pid_in_init_ns(wdt->dog_owner_pid);
+
+	if (!task) {
+		dev_err(wdt->dev, "last petting info not found: pid = %d\n", wdt->dog_owner_pid);
+		return;
+	}
+
+	dev_printk(loglvl, wdt->dev, "last petted by comm:%s (pid:%d state:%c cpu:%d)\n",
+			task->comm, task->pid, task_state_to_char(task), task_cpu(task));
+
+#ifdef CONFIG_SCHED_INFO
+	if (task->state == TASK_RUNNING
+			&& task->sched_info.last_queued == 0) {
+		status = "running";
+		last_nsecs = task->sched_info.last_arrival;
+	} else if (task->state == TASK_RUNNING
+			&& task->sched_info.last_queued != 0) {
+		status = "queued";
+		last_nsecs = task->sched_info.last_queued;
+	} else if (task->state == TASK_INTERRUPTIBLE
+			|| task->state == TASK_UNINTERRUPTIBLE) {
+		status = "blocked";
+		last_nsecs = task->sched_info.last_arrival;
+	}
+#endif /* CONFIG_SCHED_INFO */
+
+	dev_printk(loglvl, wdt->dev, "  %s for %llu secs\n", status,
+			(sched_clock() - last_nsecs) / NSEC_PER_SEC);
+
+	if (task->state != TASK_RUNNING)
+		dump_backtrace(NULL, task, loglvl);
+	else
+		dev_printk(loglvl, wdt->dev, "  (skip dump backtrace; task is running)\n");
+
+	put_task_struct(task);
+}
+
+/* Returns proportion of dividend to divisor in range (0, 10]. */
+static int proportion_in_1_digit(u64 dividend, u64 divisor)
+{
+	return max(min((int) div64_u64(dividend * 10, divisor), 9), 0);
+}
+
+void s3c2410wdt_print_schedstat(const char *loglvl)
+{
+	int cpu;
+	char buf[max(NR_CPUS, PRINT_CPUS_LIMIT)];
+	char *bufp;
+	u64 duration;
+	struct s3c2410_wdt *wdt = s3c_wdt[LITTLE_CLUSTER];
+
+	if (s3c_wdt[LITTLE_CLUSTER])
+		print_wd_owner(s3c_wdt[LITTLE_CLUSTER], loglvl);
+	if (s3c_wdt[BIG_CLUSTER])
+		print_wd_owner(s3c_wdt[BIG_CLUSTER], loglvl);
+
+	if (!wdt || !wdt->schedstat) {
+		dev_err(wdt->dev, "schedstat is invalid: %s not found",
+				wdt ? "little-wdt.schedstat" : "little-wdt");
+		return;
+	}
+
+	duration = sched_clock() - wdt->pet_when;
+
+	dev_printk(loglvl, wdt->dev, "schedstat since last petting: %llu secs ago",
+			duration / NSEC_PER_SEC);
+
+	if (num_possible_cpus() > sizeof(buf)) {
+		dev_err(wdt->dev, "not enough buffer to print schedstat\n");
+		return;
+	}
+
+	bufp = &buf[0];
+	for_each_possible_cpu(cpu)
+		*bufp++ = cpu_online(cpu) ? '0' + cpu : '_';
+	dev_printk(loglvl, wdt->dev, "\t   online cpu nr: %.*s\n", num_possible_cpus(), buf);
+
+	bufp = &buf[0];
+	for_each_possible_cpu(cpu) {
+		u64 load = per_schedstat(wdt, cpu)->rt_load;
+		*bufp++ = '0' + proportion_in_1_digit(load, duration);
+	}
+	dev_printk(loglvl, wdt->dev, "\trt tasks loading: %.*s\n", num_possible_cpus(), buf);
+
+	bufp = &buf[0];
+	for_each_possible_cpu(cpu) {
+		u64 last = per_schedstat(wdt, cpu)->kcpustat_irq;
+		u64 now = kcpustat_cpu(cpu).cpustat[CPUTIME_IRQ];
+		*bufp++ = '0' + proportion_in_1_digit(now - last, duration);
+	}
+	dev_printk(loglvl, wdt->dev, "\t     irq loading: %.*s\n", num_possible_cpus(), buf);
+
+	bufp = &buf[0];
+	for_each_possible_cpu(cpu) {
+		u64 last = per_schedstat(wdt, cpu)->kcpustat_softirq;
+		u64 now = kcpustat_cpu(cpu).cpustat[CPUTIME_SOFTIRQ];
+		*bufp++ = '0' + proportion_in_1_digit(now - last, duration);
+	}
+	dev_printk(loglvl, wdt->dev, "\t softirq loading: %.*s\n", num_possible_cpus(), buf);
+}
+EXPORT_SYMBOL_GPL(s3c2410wdt_print_schedstat);
 
 static void __s3c2410wdt_stop(struct s3c2410_wdt *wdt)
 {
@@ -1377,6 +1533,16 @@ static struct notifier_block s3c2410wdt_pm_nb = {
 	.priority = 0,
 };
 
+static void vh_scheduler_tick(void *data, struct rq *unused)
+{
+	struct s3c2410_wdt *wdt = data;
+
+	if (!rt_prio(current->prio))
+		return;
+
+	this_cpu_ptr(wdt->schedstat)->rt_load += NSEC_PER_SEC / HZ;
+}
+
 static int s3c2410wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1589,6 +1755,15 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 			goto err_unregister;
 	}
 
+	if (wdt->cluster == LITTLE_CLUSTER) {
+		wdt->schedstat = alloc_percpu(struct schedstat);
+		if (!wdt->schedstat) {
+			dev_err(dev, "cannot alloc percpu schedstat\n");
+			goto err_unregister;
+		}
+		WARN_ON(register_trace_android_vh_scheduler_tick(vh_scheduler_tick, wdt));
+	}
+
 	s3c2410wdt_mask_dbgack(wdt, true);
 
 	if (tmr_atboot && started == 0) {
@@ -1675,6 +1850,11 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 	wdt->gate_clock = NULL;
 
 	unregister_pm_notifier(&s3c2410wdt_pm_nb);
+
+	if (wdt->schedstat) {
+		WARN_ON(unregister_trace_android_vh_scheduler_tick(vh_scheduler_tick, wdt));
+		free_percpu(wdt->schedstat);
+	}
 
 	return ret;
 }
