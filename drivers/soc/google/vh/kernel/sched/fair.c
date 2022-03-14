@@ -20,6 +20,7 @@ extern void update_uclamp_stats(int cpu, u64 time);
 extern unsigned int vendor_sched_uclamp_threshold;
 extern unsigned int vendor_sched_high_capacity_start_cpu;
 extern unsigned int vendor_sched_util_post_init_scale;
+extern bool vendor_sched_npi_packing;
 
 static struct vendor_group_property vg[VG_MAX];
 
@@ -138,6 +139,13 @@ static inline unsigned long uclamp_task_util(struct task_struct *p)
 static inline unsigned long capacity_of(int cpu)
 {
 	return cpu_rq(cpu)->cpu_capacity;
+}
+
+static unsigned long capacity_curr_of(int cpu)
+{
+	unsigned long max_cap = cpu_rq(cpu)->cpu_capacity_orig;
+
+	return cap_scale(max_cap, scale_freq[cpu]);
 }
 
 /* Runqueue only has SCHED_IDLE tasks enqueued */
@@ -661,7 +669,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	struct perf_domain *pd;
 	cpumask_t idle_fit = { CPU_BITS_NONE }, idle_unfit = { CPU_BITS_NONE },
 		  unimportant_fit = { CPU_BITS_NONE }, unimportant_unfit = { CPU_BITS_NONE },
-		  max_spare_cap = { CPU_BITS_NONE }, candidates = { CPU_BITS_NONE };
+		  max_spare_cap = { CPU_BITS_NONE }, packing = { CPU_BITS_NONE },
+		  candidates = { CPU_BITS_NONE };
 	int i, weight, best_energy_cpu = -1, this_cpu = smp_processor_id();
 	long cur_energy, best_energy = LONG_MAX;
 	unsigned long spare_cap, target_max_spare_cap = 0;
@@ -672,8 +681,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	bool idle_target_found = false, importance_target_found = false;
 	bool prefer_idle = get_prefer_idle(p), prefer_high_cap = get_prefer_high_cap(p);
 	unsigned long capacity, wake_util, group_capacity, wake_group_util, cpu_importance;
-	unsigned long pd_max_spare_cap;
-	int pd_max_spare_cap_cpu, pd_best_idle_cpu;
+	unsigned long pd_max_spare_cap, pd_max_unimportant_spare_cap, pd_max_packing_spare_cap;
+	int pd_max_spare_cap_cpu, pd_best_idle_cpu, pd_most_unimportant_cpu, pd_best_packing_cpu;
 	int most_spare_cap_cpu = -1;
 	struct cpuidle_state *idle_state;
 
@@ -686,9 +695,13 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 
 	for (; pd; pd = pd->next) {
 		pd_max_spare_cap = 0;
+		pd_max_packing_spare_cap = 0;
+		pd_max_unimportant_spare_cap = 0;
 		pd_best_exit_lat = UINT_MAX;
 		pd_max_spare_cap_cpu = -1;
 		pd_best_idle_cpu = -1;
+		pd_most_unimportant_cpu = -1;
+		pd_best_packing_cpu = -1;
 
 		for_each_cpu_and(i, perf_domain_span(pd), p->cpus_ptr) {
 			if (i >= CPU_NUM)
@@ -750,14 +763,11 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 				if (idle_target_found)
 					continue;
 
-				/* find unimportant cpu */
-				if (task_importance > cpu_importance) {
-					if (task_fits) {
-						cpumask_set_cpu(i, &unimportant_fit);
-					} else {
-						cpumask_set_cpu(i, &unimportant_unfit);
-					}
-
+				/* Find an unimportant cpu with the max spare capacity. */
+				if (task_importance > cpu_importance &&
+				    spare_cap >= pd_max_unimportant_spare_cap) {
+					pd_max_unimportant_spare_cap = spare_cap;
+					pd_most_unimportant_cpu = i;
 					importance_target_found = true;
 				}
 
@@ -787,6 +797,21 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 				if (spare_cap < min_t(unsigned long, task_util_est(p),
 				    cap_scale(get_task_group_throttle(p),
 					      arch_scale_cpu_capacity(i))))
+					continue;
+
+				/*
+				 * Find the best packing CPU with the maximum spare capacity in
+				 * the performance domain
+				 */
+				if (vendor_sched_npi_packing &&
+				    spare_cap > pd_max_packing_spare_cap && capacity_curr_of(i) >=
+				    ((cpu_util_next(i, p, i) + cpu_util_rt(cpu_rq(i))) *
+				    sched_capacity_margin[i]) >> SCHED_CAPACITY_SHIFT) {
+					pd_max_packing_spare_cap = spare_cap;
+					pd_best_packing_cpu = i;
+				}
+
+				if (pd_best_packing_cpu != -1)
 					continue;
 
 				/*
@@ -825,6 +850,19 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 			}
 		}
 
+		/* set the best_important_cpu of each cluster */
+		if (pd_most_unimportant_cpu != -1) {
+			if (task_fits) {
+				cpumask_set_cpu(pd_most_unimportant_cpu, &unimportant_fit);
+			} else {
+				cpumask_set_cpu(pd_most_unimportant_cpu, &unimportant_unfit);
+			}
+		}
+
+		/* set the packing cpu of max_spare_cap of each cluster */
+		if (pd_best_packing_cpu != -1)
+			cpumask_set_cpu(pd_best_packing_cpu, &packing);
+
 		/* set the max_spare_cap_cpu of each cluster */
 		if (pd_max_spare_cap_cpu != -1)
 			cpumask_set_cpu(pd_max_spare_cap_cpu, &max_spare_cap);
@@ -839,6 +877,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 		cpumask_copy(&candidates, &unimportant_fit);
 	} else if (cpumask_weight(&unimportant_unfit)) {
 		cpumask_copy(&candidates, &unimportant_unfit);
+	} else if (cpumask_weight(&packing)) {
+		cpumask_copy(&candidates, &packing);
 	} else if (cpumask_weight(&max_spare_cap)) {
 		cpumask_copy(&candidates, &max_spare_cap);
 	}

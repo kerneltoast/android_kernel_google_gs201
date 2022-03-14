@@ -23,6 +23,7 @@ DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 
 unsigned int __read_mostly vendor_sched_uclamp_threshold;
 unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INIT_SCALE;
+bool __read_mostly vendor_sched_npi_packing = true; //non prefer idle packing
 static struct kobject *vendor_sched_kobj;
 struct proc_dir_entry *vendor_sched;
 extern unsigned int sched_capacity_margin[CPU_NUM];
@@ -723,6 +724,29 @@ static ssize_t util_threshold_store(struct kobject *kobj,
 
 static struct kobj_attribute util_threshold_attribute = __ATTR_RW(util_threshold);
 
+static ssize_t npi_packing_show(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				char *buf)
+{
+	return sysfs_emit(buf, "%s\n", vendor_sched_npi_packing ? "true" : "false");
+}
+
+static ssize_t npi_packing_store(struct kobject *kobj,
+				 struct kobj_attribute *attr,
+				 const char *buf, size_t count)
+{
+	bool enable;
+
+	if (kstrtobool(buf, &enable))
+		return -EINVAL;
+
+	vendor_sched_npi_packing = enable;
+
+	return count;
+}
+
+static struct kobj_attribute npi_packing_attribute = __ATTR_RW(npi_packing);
+
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 static ssize_t uclamp_stats_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
@@ -1117,6 +1141,7 @@ static struct attribute *attrs[] = {
 	&util_post_init_scale_attribute.attr,
 	&uclamp_fork_reset_set_attribute.attr,
 	&uclamp_fork_reset_clear_attribute.attr,
+	&npi_packing_attribute.attr,
 
 	&pmu_poll_time_attribute.attr,
 	&pmu_poll_enable_attribute.attr,
