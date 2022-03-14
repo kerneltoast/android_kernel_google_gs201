@@ -296,6 +296,9 @@ struct pktproc_adaptor {
 	enum pktproc_desc_mode desc_mode;	/* Descriptor structure mode */
 	u32 desc_num_ratio_percent;		/* Number of descriptors ratio as percent */
 	u32 num_queue;		/* Number of queue */
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	u32 space_margin;
+#endif
 	bool use_exclusive_irq;	/* Exclusive interrupt */
 #if IS_ENABLED(CONFIG_MCU_IPC)
 	u32 exclusive_irq_idx[PKTPROC_MAX_QUEUE];

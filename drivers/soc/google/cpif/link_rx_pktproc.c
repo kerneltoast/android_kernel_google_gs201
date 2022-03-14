@@ -395,7 +395,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 	u32 fore;
 	int i;
 	unsigned long flags;
-	u32 space, space_margin = 0;
+	u32 space;
 	u32 fore_inc = 1;
 
 	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
@@ -410,7 +410,6 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 	fore = q->ioc.curr_fore;
-	space_margin = PAGE_FRAG_CACHE_MAX_SIZE / q->ppa->true_packet_size;
 #else
 	fore = *q->fore_ptr;
 #endif
@@ -422,10 +421,12 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 
 	if (q->ppa->buff_rgn_cached) {
 		space = circ_get_space(q->num_desc, fore, q->done_ptr);
-		if (space > space_margin)
-			space -= space_margin;
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+		if (space > q->ppa->space_margin)
+			space -= q->ppa->space_margin;
 		else
 			space = 0;
+#endif
 	} else {
 		space = q->num_desc;
 	}
@@ -1767,6 +1768,7 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 	mif_info("adjusted iommu required:%u true_packet_size:%lu\n",
 		 ppa->true_packet_size, roundup_pow_of_two(ppa->true_packet_size));
 	ppa->true_packet_size = roundup_pow_of_two(ppa->true_packet_size);
+	ppa->space_margin = PAGE_FRAG_CACHE_MAX_SIZE / ppa->true_packet_size;
 #endif
 
 	return 0;
