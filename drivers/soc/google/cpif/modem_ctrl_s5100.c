@@ -520,6 +520,58 @@ static int init_control_messages(struct modem_ctl *mc)
 	return 0;
 }
 
+static void set_pcie_msi_int(struct link_device *ld, bool enabled)
+{
+	struct mem_link_device *mld = to_mem_link_device(ld);
+	int irq;
+	bool *irq_wake;
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+	struct pktproc_adaptor *ppa = &mld->pktproc;
+	unsigned int q_idx = 0;
+#endif
+
+	if (!mld->msi_irq_base)
+		return;
+
+	irq = mld->msi_irq_base;
+	irq_wake = &mld->msi_irq_base_wake;
+
+	do {
+		if (enabled) {
+			int err;
+
+			if (!mld->msi_irq_enabled)
+				enable_irq(irq);
+
+			if (!*irq_wake) {
+				err = enable_irq_wake(irq);
+				*irq_wake = !err;
+			}
+		} else {
+			if (mld->msi_irq_enabled)
+				disable_irq(irq);
+
+			if (*irq_wake) {
+				disable_irq_wake(irq);
+				*irq_wake = false;
+			}
+		}
+
+		irq = 0;
+#if IS_ENABLED(CONFIG_CP_PKTPROC)
+		if (q_idx < ppa->num_queue) {
+			struct pktproc_queue *q = ppa->q[q_idx];
+
+			irq = q->irq;
+			irq_wake = &q->msi_irq_wake;
+			q_idx++;
+		}
+#endif
+	} while (irq);
+
+	mld->msi_irq_enabled = enabled;
+}
+
 static int request_pcie_msi_int(struct link_device *ld,
 				struct platform_device *pdev)
 {
@@ -576,57 +628,9 @@ static int request_pcie_msi_int(struct link_device *ld,
 
 	mld->msi_irq_base = base_irq;
 	mld->msi_irq_enabled = true;
+	set_pcie_msi_int(ld, true);
 
 	return base_irq;
-}
-
-static void set_pcie_msi_int(struct link_device *ld, bool enabled)
-{
-	struct mem_link_device *mld = to_mem_link_device(ld);
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	struct pktproc_adaptor *ppa = &mld->pktproc;
-	unsigned int i;
-#endif
-
-	if (!mld->msi_irq_base)
-		return;
-
-	if (mld->msi_irq_enabled == enabled)
-		return;
-
-	if (enabled) {
-		int err;
-
-		enable_irq(mld->msi_irq_base);
-		/*
-		 * All of MSI IRQs for PktProc will be fired with msi_irq_base.
-		 * Do not need to call enable/disable_irq_wake for PktProc IRQs.
-		 */
-		err = enable_irq_wake(mld->msi_irq_base);
-		mld->msi_irq_wake = !err;
-	} else {
-		disable_irq(mld->msi_irq_base);
-		if (mld->msi_irq_wake) {
-			disable_irq_wake(mld->msi_irq_base);
-			mld->msi_irq_wake = false;
-		}
-	}
-
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	for (i = 0; i < ppa->num_queue; i++) {
-		struct pktproc_queue *q = ppa->q[i];
-
-		if (!q->irq)
-			continue;
-
-		if (enabled)
-			enable_irq(q->irq);
-		else
-			disable_irq(q->irq);
-	}
-#endif
-
-	mld->msi_irq_enabled = enabled;
 }
 
 static int register_pcie(struct link_device *ld)

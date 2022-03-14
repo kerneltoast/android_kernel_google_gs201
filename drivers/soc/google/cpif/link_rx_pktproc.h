@@ -206,6 +206,9 @@ struct pktproc_queue {
 #if IS_ENABLED(CONFIG_MCU_IPC)
 	u32 irq_idx;
 #endif
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+	bool msi_irq_wake;
+#endif
 
 	/* NAPI */
 	struct net_device netdev;

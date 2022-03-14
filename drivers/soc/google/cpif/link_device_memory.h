@@ -360,9 +360,9 @@ struct mem_link_device {
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 	u8 __iomem *msi_reg_base;
-	int msi_irq_base;
-	bool msi_irq_wake;
 	bool msi_irq_enabled;
+	int msi_irq_base;
+	bool msi_irq_base_wake;
 	u32 msi_irq_base_cpu;
 	u32 msi_irq_q_cpu[PKTPROC_MAX_QUEUE];
 #endif
