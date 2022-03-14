@@ -45,6 +45,8 @@
 
 #define CLUSTER_0_CORE_NR		(6)
 
+#define MAX_PRINT_DELAY_MS		(1800U)
+
 unsigned int hardlockup_debug_cpu_resume_insts[] = {
 	0x100000a2, //    adr     x2, 14 <__fiq_pending>
 	0xd53800a1, //    mrs     x1, mpidr_el1
@@ -168,8 +170,14 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 					hardlockup_debug_get_locked_cpu_mask();
 			} else {
 				pr_emerg("%s: invalid magic from "
-					"el3 fiq handler\n", __func__);
+					"el3 fiq handler: 0x%08x\n", __func__,
+					val);
 				raw_spin_unlock(&hardlockup_seq_lock);
+				/* To avoid log interleaves with log from other
+				 * cores, delay 200 ms for each core to finish
+				 * this call back function.
+				 */
+				mdelay(min(200 * num_online_cpus(), MAX_PRINT_DELAY_MS));
 				return DBG_HOOK_ERROR;
 			}
 		}
