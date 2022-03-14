@@ -22,6 +22,7 @@
 
 #include <asm/cputype.h>
 #include <asm/smp_plat.h>
+#include <asm/sysreg.h>
 #include <asm/system_misc.h>
 #include "system-regs.h"
 
@@ -462,6 +463,8 @@ static inline void dbg_snapshot_save_core(struct pt_regs *regs)
 		core_reg->sp = core_reg->regs[29];
 		core_reg->pc =
 			(unsigned long)(core_reg->regs[30] - sizeof(unsigned int));
+		/* We don't know other bits but mode is definitely CurrentEL. */
+		core_reg->pstate = read_sysreg(CurrentEL);
 	} else {
 		memcpy(core_reg, regs, sizeof(struct user_pt_regs));
 	}
