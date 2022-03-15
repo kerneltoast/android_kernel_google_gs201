@@ -64,6 +64,9 @@ struct sugov_policy {
 	bool			need_freq_update;
 
 	struct freq_qos_request	pmu_max_freq_req;
+	cpumask_t		pmu_ignored_mask;
+	bool			under_pmu_throttle;
+	bool			relax_pmu_throttle;
 };
 
 struct sugov_cpu {
@@ -132,6 +135,41 @@ static bool check_pmu_limit_conditions(u64 lcpi, u64 spc, struct sugov_policy *s
 		return true;
 
 	return false;
+}
+
+/*
+ * Check those ignored cpus of pmu throttle - cpus did not meet pmu limit condidtion but have
+ * lower frequency than pmu limit frequency. We need to check if any such cpu has hihger frequency
+ * demand when there is util change in a cluster.
+ * Return: true to signal the caller to continue searching, false to signal the caller to stop
+ * searching because a target cpu in that cluster is found.
+ */
+static inline bool update_pmu_throttle_on_ignored_cpus(struct sugov_policy *sg_policy,
+				unsigned long util, unsigned long freq, unsigned long cap, int cpu)
+{
+	if (sg_policy->tunables->pmu_limit_enable && sg_policy->under_pmu_throttle &&
+	    !sg_policy->relax_pmu_throttle &&
+	    cpumask_test_cpu(cpu, &sg_policy->pmu_ignored_mask) &&
+	    map_util_freq_pixel_mod(util, freq, cap, cpu) > sg_policy->tunables->limit_frequency) {
+		sg_policy->relax_pmu_throttle = true;
+
+		return false;
+	}
+
+	return true;
+}
+
+static inline void trace_pmu_limit(struct sugov_policy *sg_policy)
+{
+	if (trace_clock_set_rate_enabled()) {
+		char trace_name[32] = {0};
+		scnprintf(trace_name, sizeof(trace_name), "pmu_limit_cpu%d",
+			  sg_policy->policy->cpu);
+		trace_clock_set_rate(trace_name, sg_policy->under_pmu_throttle ?
+				     sg_policy->tunables->limit_frequency :
+				     sg_policy->policy->cpuinfo.max_freq,
+				     raw_smp_processor_id());
+	}
 }
 
 static bool check_sg_policy_initialized(void)
@@ -763,6 +801,7 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 	struct cpufreq_policy *policy = sg_policy->policy;
 	unsigned long util = 0, max = 1;
 	unsigned int j;
+	bool update_pmu_limit = true;
 
 	for_each_cpu(j, policy->cpus) {
 		struct sugov_cpu *j_sg_cpu = &per_cpu(sugov_cpu, j);
@@ -771,6 +810,9 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 		j_util = sugov_get_util(j_sg_cpu);
 		j_max = j_sg_cpu->max;
 		j_util = sugov_iowait_apply(j_sg_cpu, time, j_util, j_max);
+		if (update_pmu_limit)
+			update_pmu_limit = update_pmu_throttle_on_ignored_cpus(sg_policy, j_util,
+							      policy->cpuinfo.max_freq, j_max, j);
 
 		if (j_util * max > j_max * util) {
 			util = j_util;
@@ -819,6 +861,7 @@ static void sugov_work(struct kthread_work *work)
 	struct sugov_policy *sg_policy = container_of(work, struct sugov_policy, work);
 	unsigned int freq;
 	unsigned long flags;
+	bool relax_pmu_throttle;
 
 	/*
 	 * Hold sg_policy->update_lock shortly to handle the case where:
@@ -833,7 +876,18 @@ static void sugov_work(struct kthread_work *work)
 	raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
 	freq = sg_policy->next_freq;
 	sg_policy->work_in_progress = false;
+	relax_pmu_throttle = sg_policy->relax_pmu_throttle;
 	raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
+
+	if (relax_pmu_throttle) {
+		freq_qos_update_request(&sg_policy->pmu_max_freq_req,
+					sg_policy->policy->cpuinfo.max_freq);
+
+		sg_policy->under_pmu_throttle = false;
+		sg_policy->relax_pmu_throttle = false;
+
+		trace_pmu_limit(sg_policy);
+	}
 
 	mutex_lock(&sg_policy->work_lock);
 	__cpufreq_driver_target(sg_policy->policy, freq, CPUFREQ_RELATION_L);
@@ -910,14 +964,31 @@ static void pmu_limit_work(struct kthread_work *work)
 	unsigned int next_max_freq;
 	unsigned long inst, cyc, stall, cachemiss, freq;
 	struct sugov_cpu *sg_cpu;
+	unsigned long flags;
+	bool pmu_throttle = false;
+	cpumask_t local_pmu_ignored_mask = CPU_MASK_NONE;
 
 	while (cpu < CPU_NUM) {
 		policy = cpufreq_cpu_get(cpu);
 		sg_policy = policy->governor_data;
 		next_max_freq = policy->cpuinfo.max_freq;
 
-		if (!sg_policy->tunables->pmu_limit_enable)
-			goto update_next_max_freq;
+		// If pmu_limit_enable is not set, we don't need to call freq_qos_update_request
+		// unless it's currently under throttle.
+		if (!sg_policy->tunables->pmu_limit_enable) {
+			if (unlikely(sg_policy->under_pmu_throttle)) {
+				goto update_next_max_freq;
+			} else {
+				cpu = cpumask_last(policy->related_cpus) + 1;
+				cpufreq_cpu_put(policy);
+				continue;
+			}
+		}
+
+		raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
+		sg_policy->under_pmu_throttle = false;
+		sg_policy->relax_pmu_throttle = false;
+		raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
 
 		for_each_cpu(ccpu, policy->cpus) {
 			ret = get_ev_data(ccpu, pmu_addr[ccpu][0], pmu_addr[ccpu][1],
@@ -951,22 +1022,28 @@ static void pmu_limit_work(struct kthread_work *work)
 				freq = map_util_freq_pixel_mod(sugov_get_util(sg_cpu),
 					policy->cpuinfo.max_freq, sg_cpu->max, ccpu);
 				// Ignore this cpu if freq is <= limit freq.
-				if (freq <= sg_policy->tunables->limit_frequency)
+				if (freq <= sg_policy->tunables->limit_frequency) {
+					cpumask_set_cpu(ccpu, &local_pmu_ignored_mask);
 					continue;
-				else
+				} else {
 					goto update_next_max_freq;
+				}
 			}
 		}
 
 		next_max_freq = sg_policy->tunables->limit_frequency;
+		pmu_throttle = true;
 
 update_next_max_freq:
+
 		freq_qos_update_request(&sg_policy->pmu_max_freq_req, next_max_freq);
-		if (trace_clock_set_rate_enabled()) {
-			char trace_name[32] = {0};
-			scnprintf(trace_name, sizeof(trace_name), "pmu_limit_cpu%d", cpu);
-			trace_clock_set_rate(trace_name, next_max_freq, raw_smp_processor_id());
-		}
+
+		raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
+		sg_policy->under_pmu_throttle = pmu_throttle;
+		cpumask_copy(&sg_policy->pmu_ignored_mask, &local_pmu_ignored_mask);
+		raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
+
+		trace_pmu_limit(sg_policy);
 		cpu = cpumask_last(policy->related_cpus) + 1;
 		cpufreq_cpu_put(policy);
 	}
@@ -1204,6 +1281,9 @@ static struct sugov_policy *sugov_policy_alloc(struct cpufreq_policy *policy)
 
 	sg_policy->policy = policy;
 	raw_spin_lock_init(&sg_policy->update_lock);
+	cpumask_clear(&sg_policy->pmu_ignored_mask);
+	sg_policy->under_pmu_throttle = false;
+	sg_policy->relax_pmu_throttle = false;
 	return sg_policy;
 }
 
