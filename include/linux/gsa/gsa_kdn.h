@@ -18,8 +18,12 @@
  * side of KDN interface and is the only entity that can manage these keys.
  */
 
-/* Total number of KDN slots */
-#define KDN_SLOT_NUM 16
+/*
+ * The UFS CMVP module requires an uninitialized key in the KDN Master Key
+ * table to perform self tests with zero key. Thus the total number of KDN
+ * slots is decreased by one from 16 and is 15.
+ */
+#define KDN_SLOT_NUM 15
 
 /**
  * enum kdn_op_mode - KDN operating mode
