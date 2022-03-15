@@ -493,7 +493,7 @@
 				power-down-seq-delays-us =
 					<0
 					 0
-					 0
+					 1000
 					 0
 					 0>;
 			};
