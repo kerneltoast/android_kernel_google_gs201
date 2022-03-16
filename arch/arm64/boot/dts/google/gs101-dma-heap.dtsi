@@ -178,7 +178,7 @@
 	};
 
 	famodel: famodel {
-		size = <0x3C00000>;
+		size = <0x4B00000>;
 		alignment = <0x0 0x00010000>;
 		alloc-ranges = <0x9 0x80000000 0x80000000>,
 			       <0x9 0x00000000 0x80000000>,
