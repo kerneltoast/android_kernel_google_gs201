@@ -325,8 +325,8 @@
 					"pinctrl",
 					"gpio";
 				power-up-seq-delays-us =
-					<1000
-					 1000
+					<0
+					 0
 					 1000
 					 1000
 					 8000>;
@@ -347,8 +347,8 @@
 				power-down-seq-delays-us =
 					<0
 					 1000
-					 1000
-					 1000
+					 0
+					 0
 					 1000>;
 			};
 
