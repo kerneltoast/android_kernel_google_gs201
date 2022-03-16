@@ -923,14 +923,13 @@ static struct dentry *fuse_get_dentry(struct super_block *sb,
 	inode = ilookup5(sb, handle->nodeid, fuse_inode_eq, &fii);
 	if (!inode) {
 		struct fuse_entry_out outarg;
-		struct fuse_entry_bpf_out bpf_outarg;
 		const struct qstr name = QSTR_INIT(".", 1);
 
 		if (!fc->export_support)
 			goto out_err;
 
 		err = fuse_lookup_name(sb, handle->nodeid, &name, &outarg,
-				       &bpf_outarg, NULL, &inode);
+				       NULL, &inode);
 		if (err && err != -ENOENT)
 			goto out_err;
 		if (err || !inode) {
@@ -1024,7 +1023,6 @@ static struct dentry *fuse_get_parent(struct dentry *child)
 	struct inode *inode;
 	struct dentry *parent;
 	struct fuse_entry_out outarg;
-	struct fuse_entry_bpf_out bpf_outarg;
 	const struct qstr name = QSTR_INIT("..", 2);
 	int err;
 
@@ -1032,7 +1030,7 @@ static struct dentry *fuse_get_parent(struct dentry *child)
 		return ERR_PTR(-ESTALE);
 
 	err = fuse_lookup_name(child_inode->i_sb, get_node_id(child_inode),
-			       &name, &outarg, &bpf_outarg, NULL, &inode);
+			       &name, &outarg, NULL, &inode);
 	if (err) {
 		if (err == -ENOENT)
 			return ERR_PTR(-ESTALE);
@@ -1218,7 +1216,6 @@ static void process_init_reply(struct fuse_mount *fm, struct fuse_args *args,
 		fc->minor = arg->minor;
 		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
 		fc->max_write = max_t(unsigned, 4096, fc->max_write);
-		fc->task = get_task_struct(current);
 		fc->conn_init = 1;
 	}
 	kfree(ia);
@@ -1295,8 +1292,6 @@ void fuse_free_conn(struct fuse_conn *fc)
 	idr_for_each(&fc->passthrough_req, free_fuse_passthrough, NULL);
 	idr_destroy(&fc->passthrough_req);
 	kfree_rcu(fc, rcu);
-	if (fc->task)
-		put_task_struct(fc->task);
 }
 EXPORT_SYMBOL_GPL(fuse_free_conn);
 
