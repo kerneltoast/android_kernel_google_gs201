@@ -2766,24 +2766,6 @@ irqreturn_t shmem_irq_handler(int irq, void *data)
 		__napi_schedule(&mld->mld_napi);
 	}
 
-/* ToDo: irq might be disabled by disable_rx_int() */
-#if IS_ENABLED(CONFIG_CP_PKTPROC)
-	if (pktproc_check_support(&mld->pktproc) &&
-			!mld->pktproc.use_exclusive_irq &&
-			!mld->pktproc.use_napi) {
-		struct pktproc_adaptor *ppa = &mld->pktproc;
-		int i;
-		for (i = 0; i < ppa->num_queue; i++) {
-			struct pktproc_queue *q = ppa->q[i];
-
-			if (!pktproc_check_active(&mld->pktproc, i))
-				continue;
-
-			q->irq_handler(irq, q);
-		}
-	}
-#endif
-
 	return IRQ_HANDLED;
 }
 

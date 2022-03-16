@@ -525,12 +525,8 @@ static void tpmon_set_gro(struct tpmon_data *data)
 
 	timeout = tpmon_get_curr_level(data);
 
-#if !IS_ENABLED(CONFIG_CP_PKTPROC) && !IS_ENABLED(CONFIG_EXYNOS_DIT)
-	mld->dummy_net.gro_flush_timeout = timeout;
-#endif
-
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
-	if (ppa->use_napi && ppa->use_exclusive_irq) {
+	if (ppa->use_exclusive_irq) {
 		for (i = 0; i < ppa->num_queue; i++) {
 			struct pktproc_queue *q = ppa->q[i];
 
@@ -539,6 +535,8 @@ static void tpmon_set_gro(struct tpmon_data *data)
 	} else {
 		mld->dummy_net.gro_flush_timeout = timeout;
 	}
+#else
+	mld->dummy_net.gro_flush_timeout = timeout;
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
@@ -583,8 +581,7 @@ static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 		int irq_idx = data->extra_idx;
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
-		if (ppa->use_napi)
-			pktproc_stop_napi_poll(ppa, i);
+		pktproc_stop_napi_poll(ppa, i);
 
 		if (ppa->use_exclusive_irq)
 			irq_idx = ppa->q[i]->irq_idx;
@@ -631,8 +628,7 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 	tpmon_get_cpu_per_queue(val, q_cpu, num_queue, false);
 
 	for (i = 0; i < num_queue; i++) {
-		if (ppa->use_napi)
-			pktproc_stop_napi_poll(ppa, i);
+		pktproc_stop_napi_poll(ppa, i);
 
 		if (!ppa->q[i]->irq)
 			break;

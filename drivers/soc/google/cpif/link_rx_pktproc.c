@@ -191,10 +191,7 @@ static int pktproc_get_pkt_from_ringbuf_mode(struct pktproc_queue *q, struct sk_
 	pp_debug("len:%d ch_id:%d src:%pK\n", len, ch_id, src);
 
 	/* Build skb */
-	if (q->ppa->use_napi)
-		skb = napi_alloc_skb(q->napi_ptr, len);
-	else
-		skb = dev_alloc_skb(len);
+	skb = napi_alloc_skb(q->napi_ptr, len);
 	if (unlikely(!skb)) {
 		mif_err_limited("alloc_skb() error\n");
 		q->stat.err_nomem++;
@@ -212,10 +209,7 @@ static int pktproc_get_pkt_from_ringbuf_mode(struct pktproc_queue *q, struct sk_
 	skbpriv(skb)->sipc_ch = ch_id;
 	skbpriv(skb)->iod = link_get_iod_with_channel(ld, skbpriv(skb)->sipc_ch);
 	skbpriv(skb)->ld = ld;
-	if (q->ppa->use_napi)
-		skbpriv(skb)->napi = q->napi_ptr;
-	else
-		skbpriv(skb)->napi = NULL;
+	skbpriv(skb)->napi = q->napi_ptr;
 
 	switch (q->ppa->version) {
 	case PKTPROC_V2:
@@ -604,15 +598,9 @@ static struct sk_buff *cpif_build_skb_single(struct pktproc_queue *q, u8 *src, u
 
 		skb_reserve(skb, front_pad_size);
 #else
-		if (q->ppa->use_napi) {
-			skb = napi_alloc_skb(q->napi_ptr, len);
-			if (unlikely(!skb))
-				goto error;
-		} else {
-			skb = dev_alloc_skb(len);
-			if (unlikely(!skb))
-				goto error;
-		}
+		skb = napi_alloc_skb(q->napi_ptr, len);
+		if (unlikely(!skb))
+			goto error;
 
 		skb_copy_to_linear_data(skb, src, len);
 #endif
@@ -902,10 +890,7 @@ static int pktproc_get_pkt_from_sktbuf_mode(struct pktproc_queue *q, struct sk_b
 	skbpriv(skb)->sipc_ch = ch_id;
 	skbpriv(skb)->iod = link_get_iod_with_channel(ld, ch_id);
 	skbpriv(skb)->ld = ld;
-	if (ppa->use_napi)
-		skbpriv(skb)->napi = q->napi_ptr;
-	else
-		skbpriv(skb)->napi = NULL;
+	skbpriv(skb)->napi = q->napi_ptr;
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
 	/* CLAT[1:0] = {CLAT On, CLAT Pkt} */
@@ -1043,8 +1028,7 @@ static int pktproc_clean_rx_ring(struct pktproc_queue *q, int budget, int *work_
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 out:
 #endif
-	if (q->ppa->use_napi)
-		*work_done = rcvd_total;
+	*work_done = rcvd_total;
 
 	return ret;
 }
@@ -1143,27 +1127,23 @@ static int pktproc_perftest_thread(void *arg)
 	pkts = (perf->session > 0 ? (1023 / perf->session) : 0);
 	do {
 		for (i = 0 ; i < perf->session ; i++) {
+			int napi_cpu = perf->ipi_cpu[0];
+
 			if (session_queue)
 				q = ppa->q[i];
 
 			if (!pktproc_perftest_gen_rx_packet_sktbuf_mode(q, pkts, i))
 				continue;
 
-			if (ppa->use_napi) {
-				int napi_cpu = perf->ipi_cpu[0];
+			if (session_queue)
+				napi_cpu = perf->ipi_cpu[i];
 
-				if (session_queue)
-					napi_cpu = perf->ipi_cpu[i];
-
-				if (napi_cpu >= 0 && cpu_online(napi_cpu)) {
-					smp_call_function_single(napi_cpu,
-								 pktproc_perftest_napi_schedule,
-								 (void *)q, 0);
-				} else {
-					pktproc_perftest_napi_schedule(q);
-				}
+			if (napi_cpu >= 0 && cpu_online(napi_cpu)) {
+				smp_call_function_single(napi_cpu,
+							 pktproc_perftest_napi_schedule,
+							 (void *)q, 0);
 			} else {
-				q->irq_handler(q->irq, q);
+				pktproc_perftest_napi_schedule(q);
 			}
 		}
 
@@ -1342,7 +1322,6 @@ poll_exit:
 static irqreturn_t pktproc_irq_handler(int irq, void *arg)
 {
 	struct pktproc_queue *q = (struct pktproc_queue *)arg;
-	int ret = 0;
 
 	if (!q) {
 		mif_err_limited("q is null\n");
@@ -1356,15 +1335,9 @@ static irqreturn_t pktproc_irq_handler(int irq, void *arg)
 	tpmon_start();
 #endif
 
-	if (q->ppa->use_napi) {
-		if (napi_schedule_prep(q->napi_ptr)) {
-			q->disable_irq(q);
-			__napi_schedule(q->napi_ptr);
-		}
-	} else {
-		ret = q->clean_rx_ring(q, 0, NULL);
-		if ((ret == -EBUSY) || (ret == -ENOMEM))
-			return IRQ_HANDLED;
+	if (napi_schedule_prep(q->napi_ptr)) {
+		q->disable_irq(q);
+		__napi_schedule(q->napi_ptr);
 	}
 
 	return IRQ_HANDLED;
@@ -1388,7 +1361,6 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Num of queue:%d\n", ppa->num_queue);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "NetRX manager:%d\n",
 		ppa->use_netrx_mng);
-	count += scnprintf(&buf[count], PAGE_SIZE - count, "NAPI:%d\n", ppa->use_napi);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "Exclusive interrupt:%d\n",
 		ppa->use_exclusive_irq);
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "HW cache coherency:%d\n",
@@ -1551,17 +1523,15 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 
 	mif_info("version:%d cp_base:0x%08llx desc_mode:%d num_queue:%d\n",
 		ppa->version, ppa->cp_base, ppa->desc_mode, ppa->num_queue);
-	mif_info("interrupt:%d napi:%d iocc:%d max_packet_size:%d\n",
-		ppa->use_exclusive_irq, ppa->use_napi,
-		ppa->use_hw_iocc, ppa->max_packet_size);
+	mif_info("interrupt:%d iocc:%d max_packet_size:%d\n",
+		ppa->use_exclusive_irq, ppa->use_hw_iocc, ppa->max_packet_size);
 
 	for (i = 0; i < ppa->num_queue; i++) {
 		struct pktproc_queue *q = ppa->q[i];
 
 		mif_info("Q%d\n", i);
 
-		if (ppa->use_napi)
-			napi_synchronize(&q->napi);
+		napi_synchronize(&q->napi);
 
 		switch (ppa->desc_mode) {
 		case DESC_MODE_SKTBUF:
@@ -1713,7 +1683,6 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 			}
 		}
 #endif
-		mif_dt_read_bool(np, "pktproc_dl_use_napi", ppa->use_napi);
 		break;
 	default:
 		mif_err("Unsupported version:%d\n", ppa->version);
@@ -1722,9 +1691,8 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 
 	mif_info("version:%d cp_base:0x%08llx mode:%d num_queue:%d\n",
 		ppa->version, ppa->cp_base, ppa->desc_mode, ppa->num_queue);
-	mif_info("use_netrx_mng:%d netrx_capacity:%d use_napi:%d exclusive_irq:%d\n",
-		ppa->use_netrx_mng, ppa->netrx_capacity, ppa->use_napi,
-		ppa->use_exclusive_irq);
+	mif_info("use_netrx_mng:%d netrx_capacity:%d exclusive_irq:%d\n",
+		ppa->use_netrx_mng, ppa->netrx_capacity, ppa->use_exclusive_irq);
 
 	mif_dt_read_u32(np, "pktproc_dl_use_hw_iocc", ppa->use_hw_iocc);
 	mif_dt_read_u32(np, "pktproc_dl_max_packet_size", ppa->max_packet_size);
@@ -2043,16 +2011,13 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		q->mld = mld;
 
 		/* NAPI */
-		if (ppa->use_napi) {
-			if (ppa->use_exclusive_irq) {
-				init_dummy_netdev(&q->netdev);
-				netif_napi_add(&q->netdev, &q->napi, pktproc_poll,
-					NAPI_POLL_WEIGHT);
-				napi_enable(&q->napi);
-				q->napi_ptr = &q->napi;
-			} else {
-				q->napi_ptr = &q->mld->mld_napi;
-			}
+		if (ppa->use_exclusive_irq) {
+			init_dummy_netdev(&q->netdev);
+			netif_napi_add(&q->netdev, &q->napi, pktproc_poll, NAPI_POLL_WEIGHT);
+			napi_enable(&q->napi);
+			q->napi_ptr = &q->napi;
+		} else {
+			q->napi_ptr = &q->mld->mld_napi;
 		}
 
 		/* IRQ handler */

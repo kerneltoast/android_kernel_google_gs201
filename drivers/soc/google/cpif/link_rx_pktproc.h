@@ -313,7 +313,6 @@ struct pktproc_adaptor {
 
 	struct device *dev;
 
-	bool use_napi;
 	bool use_netrx_mng;
 	u32 netrx_capacity;
 	u32 skb_padding_size;
@@ -351,9 +350,6 @@ static inline int pktproc_check_active(struct pktproc_adaptor *ppa, u32 q_idx)
 
 static inline int pktproc_stop_napi_poll(struct pktproc_adaptor *ppa, u32 q_idx)
 {
-	if (!ppa->use_napi)
-		return 0;
-
 	if (!ppa->q[q_idx])
 		return 0;
 
