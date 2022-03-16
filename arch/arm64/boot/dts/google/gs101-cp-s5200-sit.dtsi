@@ -156,7 +156,6 @@
 				pktproc_dl_desc_mode = <1>;
 				pktproc_dl_num_queue = <1>;
 				pktproc_dl_use_exclusive_irq = <0>;
-				pktproc_dl_use_napi = <1>;
 				/* H/W IO cache coherency */
 				pktproc_dl_use_hw_iocc = <1>;
 				pktproc_dl_max_packet_size = <2048>;
