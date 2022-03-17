@@ -13,53 +13,12 @@
 
 #include "../internal.h"
 
-/* Reimplement these functions since fget_task is not exported */
-static struct file *fuse__fget_files(struct files_struct *files,
-		unsigned int fd, fmode_t mask, unsigned int refs)
+struct bpf_prog *fuse_get_bpf_prog(struct file *file)
 {
-	struct file *file;
-
-	rcu_read_lock();
-loop:
-	file = fcheck_files(files, fd);
-	if (file) {
-		/* File object ref couldn't be taken.
-		 * dup2() atomicity guarantee is the reason
-		 * we loop to catch the new file (or NULL pointer)
-		 */
-		if (file->f_mode & mask)
-			file = NULL;
-		else if (!get_file_rcu_many(file, refs))
-			goto loop;
-	}
-	rcu_read_unlock();
-	return file;
-}
-
-static struct file *fuse_fget_task(struct task_struct *task, unsigned int fd)
-{
-	struct file *file = NULL;
-
-	task_lock(task);
-	if (task->files)
-		file = fuse__fget_files(task->files, fd, 0, 1);
-	task_unlock(task);
-
-	return file;
-}
-
-struct file *fuse_fget(struct fuse_conn *fc, unsigned int fd)
-{
-	return fuse_fget_task(fc->task, fd);
-}
-
-struct bpf_prog *fuse_get_bpf_prog(struct fuse_conn *fc, unsigned int fd)
-{
-	struct file *bpf_file = fuse_fget(fc, fd);
 	struct bpf_prog *bpf_prog = ERR_PTR(-EINVAL);
 
-	if (!bpf_file)
-		goto out;
+       if (!file || IS_ERR(file))
+               return bpf_prog;
 	/**
 	 * Two ways of getting a bpf prog from another task's fd, since
 	 * bpf_prog_get_type_dev only works with an fd
@@ -75,10 +34,10 @@ struct bpf_prog *fuse_get_bpf_prog(struct fuse_conn *fc, unsigned int fd)
 	 * compilable as a module.
 	 */
 #if 0
-	if (bpf_file->f_op != &bpf_prog_fops)
+	if (file->f_op != &bpf_prog_fops)
 		goto out;
 
-	bpf_prog = bpf_file->private_data;
+	bpf_prog = file->private_data;
 	if (bpf_prog->type == BPF_PROG_TYPE_FUSE)
 		bpf_prog_inc(bpf_prog);
 	else
@@ -86,24 +45,25 @@ struct bpf_prog *fuse_get_bpf_prog(struct fuse_conn *fc, unsigned int fd)
 
 #else
 	{
-		int task_fd = get_unused_fd_flags(bpf_file->f_flags);
+		int task_fd = get_unused_fd_flags(file->f_flags);
 
 		if (task_fd < 0)
 			goto out;
-		fd_install(task_fd, bpf_file);
+
+		fd_install(task_fd, file);
 
 		bpf_prog = bpf_prog_get_type_dev(task_fd, BPF_PROG_TYPE_FUSE,
 						 false);
-		__close_fd(current->files, task_fd);
 
-		/* TODO I think this file is probably being leaked */
-		bpf_file = NULL;
+		/* Close the fd, which also closes the file */
+		__close_fd(current->files, task_fd);
+		file = NULL;
 	}
 #endif
 
 out:
-	if (bpf_file)
-		fput(bpf_file);
+	if (file)
+		fput(file);
 	return bpf_prog;
 }
 
@@ -597,12 +557,15 @@ int fuse_listxattr_backing(struct fuse_args *fa, struct dentry *dentry,
 		vfs_listxattr(get_fuse_dentry(dentry)->backing_path.dentry,
 			      list, size);
 
+	if (ret < 0)
+		return ret;
+
 	if (fa->out_argvar)
 		fa->out_args[0].size = ret;
 	else
 		((struct fuse_getxattr_out *)fa->out_args[0].value)->size = ret;
 
-	return 0;
+	return ret;
 }
 
 void *fuse_listxattr_finalize(struct fuse_args *fa, struct dentry *dentry,
@@ -610,11 +573,13 @@ void *fuse_listxattr_finalize(struct fuse_args *fa, struct dentry *dentry,
 {
 	struct fuse_getxattr_out *fgo;
 
+	if (fa->error_in)
+		return NULL;
+
 	if (fa->out_argvar)
 		return ERR_PTR(fa->out_args[0].size);
 
 	fgo = fa->out_args[0].value;
-
 	return ERR_PTR(fgo->size);
 }
 
@@ -914,8 +879,8 @@ int fuse_lookup_initialize(struct fuse_args *fa, struct fuse_lookup_io *fli,
 			.value = &fli->feo,
 		},
 		.out_args[1] = (struct fuse_arg) {
-			.size = sizeof(fli->febo),
-			.value = &fli->febo,
+			.size = sizeof(fli->feb.out),
+			.value = &fli->feb.out,
 		},
 	};
 
@@ -957,6 +922,7 @@ struct dentry *fuse_lookup_finalize(struct fuse_args *fa, struct inode *dir,
 	struct inode *inode, *backing_inode;
 	struct fuse_entry_out *feo = fa->out_args[0].value;
 	struct fuse_entry_bpf_out *febo = fa->out_args[1].value;
+	struct fuse_entry_bpf *feb = container_of(febo, struct fuse_entry_bpf, out);
 
 	fd = get_fuse_dentry(entry);
 	if (!fd)
@@ -992,8 +958,11 @@ struct dentry *fuse_lookup_finalize(struct fuse_args *fa, struct inode *dir,
 		break;
 
 	case FUSE_ACTION_REPLACE: {
-		struct fuse_conn *fc = get_fuse_mount(dir)->fc;
-		struct bpf_prog *bpf_prog = fuse_get_bpf_prog(fc, febo->bpf_fd);
+		struct file *bpf_file = feb->bpf_file;
+		struct bpf_prog *bpf_prog = ERR_PTR(-EINVAL);
+
+		if (bpf_file && !IS_ERR(bpf_file))
+			bpf_prog = fuse_get_bpf_prog(bpf_file);
 
 		if (IS_ERR(bpf_prog))
 			return ERR_PTR(PTR_ERR(bpf_prog));
@@ -1022,9 +991,8 @@ struct dentry *fuse_lookup_finalize(struct fuse_args *fa, struct inode *dir,
 		struct file *backing_file;
 
 		fc = get_fuse_mount(dir)->fc;
-		backing_file = fuse_fget(fc, febo->backing_fd);
-		__close_fd(fc->task->files, febo->backing_fd);
-		if (!backing_file)
+		backing_file = feb->backing_file;
+		if (!backing_file || IS_ERR(backing_file))
 			return ERR_PTR(-EIO);
 
 		iput(get_fuse_inode(inode)->backing_inode);
