@@ -2315,7 +2315,7 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 	mld->rx_poll_count++;
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
-	{
+	if (!mld->pktproc.use_exclusive_irq) {
 		int i = 0;
 		for (i = 0; i < mld->pktproc.num_queue; i++) {
 			ret = mld->pktproc.q[i]->clean_rx_ring(mld->pktproc.q[i], budget, &ps_rcvd);
