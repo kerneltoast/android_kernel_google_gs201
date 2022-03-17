@@ -96,7 +96,7 @@ struct max77759_plat {
 	/* Userspace status */
 	bool contaminant_detection_userspace;
 	/* Consecutive floating cable instances */
-	unsigned int floating_cable_detected;
+	unsigned int floating_cable_or_sink_detected;
 	/* Timer to re-enable auto ultra lower mode for contaminant detection */
 	struct alarm reenable_auto_ultra_low_power_mode_alarm;
 	/* Bottom half for alarm */
@@ -165,7 +165,7 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 int enable_contaminant_detection(struct max77759_plat *chip, bool maxq);
 void disable_contaminant_detection(struct max77759_plat *chip);
 bool is_contaminant_detected(struct max77759_plat *chip);
-bool is_floating_cable_detected(struct max77759_plat *chip);
+bool is_floating_cable_or_sink_detected(struct max77759_plat *chip);
 void disable_auto_ultra_low_power_mode(struct max77759_plat *chip, bool disable);
 
 #define VBUS_VOLTAGE_MASK		0x3ff

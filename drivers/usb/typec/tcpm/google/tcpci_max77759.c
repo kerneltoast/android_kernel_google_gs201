@@ -79,8 +79,8 @@ enum gbms_charger_modes {
 #define VOLTAGE_ALARM_LOW_EN_MV		1500
 #define VOLTAGE_ALARM_LOW_DIS_MV	0
 
-#define FLOATING_CABLE_INSTANCE_THRESHOLD	5
-#define AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS	600000
+#define FLOATING_CABLE_OR_SINK_INSTANCE_THRESHOLD	10
+#define AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS		600000
 
 #define REGMAP_REG_MAX_ADDR			0x95
 #define REGMAP_REG_COUNT			(REGMAP_REG_MAX_ADDR + 1)
@@ -987,6 +987,19 @@ static int max77759_get_vbus_voltage_mv(struct i2c_client *tcpc_client)
 	return ret ? 0 : ((raw & TCPC_VBUS_VOLTAGE_MASK) * TCPC_VBUS_VOLTAGE_LSB_MV);
 }
 
+/* Acquire rc lock before calling */
+static void floating_cable_sink_detected_handler_locked(struct max77759_plat *chip)
+{
+	chip->floating_cable_or_sink_detected++;
+	logbuffer_log(chip->log, "floating_cable_or_sink_detected count: %d",
+		      chip->floating_cable_or_sink_detected);
+	if (chip->floating_cable_or_sink_detected >= FLOATING_CABLE_OR_SINK_INSTANCE_THRESHOLD) {
+		disable_auto_ultra_low_power_mode(chip, true);
+		alarm_start_relative(&chip->reenable_auto_ultra_low_power_mode_alarm,
+				     ms_to_ktime(AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS));
+	}
+}
+
 static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				 struct logbuffer *log)
 {
@@ -1100,24 +1113,27 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 			tcpm_cc_change(tcpci->port);
 			/* TCPM has detected valid CC terminations */
 			if (!tcpm_is_toggling(tcpci->port)) {
-				chip->floating_cable_detected = 0;
+				chip->floating_cable_or_sink_detected = 0;
 				disable_auto_ultra_low_power_mode(chip, false);
-				logbuffer_log(chip->log, "enable_auto_ultra_low_power_mode");
+			} else {
+				/*
+				 * TCPM has not detected valid CC terminations
+				 * and neither the comparators nor ADC
+				 * readings indicate sink or floating cable.
+				 * Mitigate AP wakeups here.
+				 *
+				 * The counter will also incremented when
+				 * transitioning from *_READY states to
+				 * TOGGLING state. This shouldn't have adverse
+				 * effect as the FLOATING_CABLE_OR_SINK_INSTANCE_THRESHOLD
+				 * is now doubled.
+				 */
+				floating_cable_sink_detected_handler_locked(chip);
 			}
 		} else {
 			logbuffer_log(log, "CC update: Contaminant algorithm responded");
-			if (is_floating_cable_detected(chip)) {
-				chip->floating_cable_detected++;
-				logbuffer_log(chip->log, "floating_cable_detected count: %d",
-					      chip->floating_cable_detected);
-				if (chip->floating_cable_detected >=
-				    FLOATING_CABLE_INSTANCE_THRESHOLD) {
-					disable_auto_ultra_low_power_mode(chip, true);
-					alarm_start_relative(
-						&chip->reenable_auto_ultra_low_power_mode_alarm,
-						ms_to_ktime(AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS));
-				}
-			}
+			if (is_floating_cable_or_sink_detected(chip))
+				floating_cable_sink_detected_handler_locked(chip);
 		}
 		mutex_unlock(&chip->rc_lock);
 	}
@@ -2018,7 +2034,7 @@ static void reenable_auto_ultra_low_power_mode_work_item(struct kthread_work *wo
 	struct max77759_plat *chip = container_of(work, struct max77759_plat,
 						  reenable_auto_ultra_low_power_mode_work);
 
-	chip->floating_cable_detected = 0;
+	chip->floating_cable_or_sink_detected = 0;
 	disable_auto_ultra_low_power_mode(chip, false);
 }
 
