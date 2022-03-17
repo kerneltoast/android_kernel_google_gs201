@@ -152,6 +152,7 @@ snd-soc-cs35l41.ko
 snd-soc-cs35l45-spi.ko
 snd-soc-cs35l45.ko
 snd-soc-wm-adsp.ko
+softdog.ko
 spi-s3c64xx.ko
 spidev.ko
 sscoredump.ko
