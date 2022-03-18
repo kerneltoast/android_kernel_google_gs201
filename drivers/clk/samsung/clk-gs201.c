@@ -753,6 +753,15 @@ static struct init_vclk gs201_misc_hwacg_vclks[] = {
 		0,
 		VCLK_GATE,
 		NULL),
+	HWACG_VCLK_QACTIVE(ATCLK,
+		"ATCLK",
+		"DOUT_CLK_MISC_BUSP",
+		0,
+		VCLK_QACTIVE,
+		NULL,
+		0x2b00c02c,
+		0x1,
+		0x1),
 };
 
 static struct init_vclk gs201_peric0_hwacg_vclks[] = {

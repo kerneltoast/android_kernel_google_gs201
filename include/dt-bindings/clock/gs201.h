@@ -219,6 +219,7 @@
 #define GATE_WDT_CL1			(CLK_MISC_BASE + 5)
 #define GATE_PDMA0			(CLK_MISC_BASE + 6)
 #define GATE_PDMA1			(CLK_MISC_BASE + 7)
+#define ATCLK				(CLK_MISC_BASE + 8)
 
 
 #define CLK_PERIC0_BASE			(1300)
