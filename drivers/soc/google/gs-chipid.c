@@ -361,23 +361,24 @@ static void gs_chipid_get_raw_str(void __iomem *reg)
 	u32 addr;
 	u8 val;
 	int str_pos = 0;
+	size_t str_buf_size = sizeof(gs_soc_info.raw_str);
 
 	for (addr = 0x4; addr < 0xA; addr++) {
 		val = readb_relaxed(reg + addr);
 		str_pos += scnprintf(gs_soc_info.raw_str + str_pos,
-				     RAW_HEX_STR_SIZE - str_pos,
+				     str_buf_size - str_pos,
 				     "%02x", val);
 	}
 	for (addr = 0xA000; addr < 0xA024; addr++) {
 		val = readb_relaxed(reg + addr);
 		str_pos += scnprintf(gs_soc_info.raw_str + str_pos,
-				     RAW_HEX_STR_SIZE - str_pos,
+				     str_buf_size - str_pos,
 				     "%02x", val);
 	}
 	for (addr = 0x9000; addr < 0x9010; addr++) {
 		val = readb_relaxed(reg + addr);
 		str_pos += scnprintf(gs_soc_info.raw_str + str_pos,
-				     RAW_HEX_STR_SIZE - str_pos,
+				     str_buf_size - str_pos,
 				     "%02x", val);
 	}
 }
@@ -388,11 +389,12 @@ static void gs_chipid_get_ap_hw_tune_str(void __iomem *reg)
 	u8 val;
 	int str_pos = 0;
 	int arr_pos = 0;
+	size_t str_buf_size = sizeof(gs_soc_info.ap_hw_tune_str);
 
 	for (addr = 0xC300; addr < (0xC300 + AP_HW_TUNE_HEX_STR_SIZE/2); addr++) {
 		val = readb_relaxed(reg + addr);
 		str_pos += scnprintf(gs_soc_info.ap_hw_tune_str + str_pos,
-				     AP_HW_TUNE_HEX_STR_SIZE - str_pos, "%02x",
+				     str_buf_size - str_pos, "%02x",
 				     val);
 		if (arr_pos < ARRAY_SIZE(gs_soc_info.ap_hw_tune_arr))
 			gs_soc_info.ap_hw_tune_arr[arr_pos++] = val;
@@ -414,11 +416,12 @@ static void gs_chipid_get_asv_tbl_str(void __iomem *reg)
 	u32 addr;
 	u8 val;
 	int str_pos = 0;
+	size_t str_buf_size = sizeof(gs_soc_info.asv_tbl_str);
 
 	for (addr = 0x9000; addr < (0x9000 + ASV_TBL_HEX_STR_SIZE/2); addr++) {
 		val = readb_relaxed(reg + addr);
 		str_pos += scnprintf(gs_soc_info.asv_tbl_str + str_pos,
-				     ASV_TBL_HEX_STR_SIZE - str_pos, "%02x",
+				     str_buf_size - str_pos, "%02x",
 				     val);
 	}
 }
@@ -428,11 +431,12 @@ static void gs_chipid_get_hpm_asv_str(void __iomem *reg)
 	u32 addr;
 	u8 val;
 	int str_pos = 0;
+	size_t str_buf_size = sizeof(gs_soc_info.hpm_asv_str);
 
 	for (addr = 0xA000; addr < (0xA000 + HPM_ASV_HEX_STR_SIZE/2); addr++) {
 		val = readb_relaxed(reg + addr);
 		str_pos += scnprintf(gs_soc_info.hpm_asv_str + str_pos,
-				     HPM_ASV_HEX_STR_SIZE - str_pos, "%02x",
+				     str_buf_size - str_pos, "%02x",
 				     val);
 	}
 }
