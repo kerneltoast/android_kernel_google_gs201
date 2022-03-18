@@ -15,7 +15,7 @@
 #include "sched_priv.h"
 
 extern void init_uclamp_stats(void);
-extern int create_sysfs_node(void);
+extern int create_procfs_node(void);
 extern void vh_arch_set_freq_scale_pixel_mod(void *data,
 					     const struct cpumask *cpus,
 					     unsigned long freq,
@@ -64,7 +64,7 @@ static int vh_sched_init(void)
 	init_uclamp_stats();
 #endif
 
-	ret = create_sysfs_node();
+	ret = create_procfs_node();
 
 	if (ret)
 		return ret;
