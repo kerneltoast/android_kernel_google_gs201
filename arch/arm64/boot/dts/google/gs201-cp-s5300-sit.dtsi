@@ -152,7 +152,7 @@
 
 				/* 0:ringbuf mode, 1:sktbuf mode */
 				pktproc_dl_desc_mode = <1>;
-				pktproc_dl_num_queue = <1>;
+				pktproc_dl_num_queue = <4>;
 				pktproc_dl_use_exclusive_irq = <1>;
 				/* H/W IO cache coherency */
 				pktproc_dl_use_hw_iocc = <1>;
@@ -281,7 +281,7 @@
 						boost_name = "IRQ_0";
 						target = <TPMON_TARGET_IRQ_PCIE>;
 						extra_idx = <3>;
-						level = <0x04 0x20>;
+						level = <0x0C 0x30>;
 
 						boost0 {
 							enable = <1>;
