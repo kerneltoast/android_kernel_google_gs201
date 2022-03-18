@@ -269,8 +269,8 @@ static struct iommu_domain *samsung_sysmmu_domain_alloc(unsigned int type)
 	if (!domain->page_table)
 		goto err_pgtable;
 
-	domain->lv2entcnt = kcalloc(NUM_LV1ENTRIES, sizeof(*domain->lv2entcnt),
-				    GFP_KERNEL|__GFP_RETRY_MAYFAIL);
+	domain->lv2entcnt = kvcalloc(NUM_LV1ENTRIES, sizeof(*domain->lv2entcnt),
+				     GFP_KERNEL);
 	if (!domain->lv2entcnt)
 		goto err_counter;
 
@@ -290,7 +290,7 @@ static struct iommu_domain *samsung_sysmmu_domain_alloc(unsigned int type)
 	return &domain->domain;
 
 err_get_dma_cookie:
-	kfree(domain->lv2entcnt);
+	kvfree(domain->lv2entcnt);
 err_counter:
 	kmem_cache_free(flpt_cache, domain->page_table);
 err_pgtable:
@@ -315,7 +315,7 @@ static void samsung_sysmmu_domain_free(struct iommu_domain *dom)
 		}
 	}
 	kmem_cache_free(flpt_cache, domain->page_table);
-	kfree(domain->lv2entcnt);
+	kvfree(domain->lv2entcnt);
 	kfree(domain);
 }
 
