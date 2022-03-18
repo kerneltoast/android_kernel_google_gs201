@@ -58,6 +58,8 @@
 #include <linux/wait.h>
 #include <linux/freezer.h>
 
+#include <soc/google/pkvm-s2mpu.h>
+
 /* These are the possible values for the status field from the specification */
 enum eh_cdesc_status {
 	/* descriptor not in use */
@@ -1249,6 +1251,14 @@ static int eh_of_probe(struct platform_device *pdev)
 	unsigned short quirks = 0;
 	struct clk *clk;
 	int sw_fifo_size = EH_SW_FIFO_SIZE;
+
+	if (IS_ENABLED(CONFIG_PKVM_S2MPU)) {
+		ret = pkvm_s2mpu_of_link(&pdev->dev);
+		if (ret == -EAGAIN)
+			return -EPROBE_DEFER;
+		else if (ret)
+			return ret;
+	}
 
 	pr_info("starting probing\n");
 
