@@ -1325,19 +1325,6 @@ struct pmucal_seq early_sleep_slcmon[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_CLEAR_PEND, "GRP4_INTR_BID_CLEAR", 0x18070000, 0x040c, (0x1 << 0), (0x1 << 0), 0x18070000, 0x0408, (0x1 << 0), (0x1 << 0) | (0x1 << 0)),
 };
 
-struct pmucal_seq enter_sleep_hsi1on[] = {
-	/* TODO */
-};
-struct pmucal_seq save_sleep_hsi1on[] = {
-	/* TODO */
-};
-struct pmucal_seq exit_sleep_hsi1on[] = {
-	/* TODO */
-};
-struct pmucal_seq early_sleep_hsi1on[] = {
-	/* TODO */
-};
-
 struct pmucal_seq enter_stop[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "GRP2_INTR_BID_ENABLE", 0x18070000, 0x0200, (0x1 << 0), (0x1 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_CLEAR_PEND, "GRP1_INTR_BID_CLEAR", 0x18070000, 0x010c, (0x1 << 0), (0x1 << 0), 0x18070000, 0x0108, (0x1 << 0), (0x1 << 0) | (0x1 << 0)),
@@ -1424,15 +1411,18 @@ struct pmucal_lpm pmucal_lpm_list[NUM_SYS_POWERDOWN] = {
 		.num_early_wakeup = ARRAY_SIZE(early_sleep_slcmon),
 	},
 	[SYS_SLEEP_HSI1ON] = {
-		.id = SYS_SLEEP_HSI1ON,
-		.enter = enter_sleep_hsi1on,
-		.save = save_sleep_hsi1on,
-		.exit = exit_sleep_hsi1on,
-		.early_wakeup = early_sleep_hsi1on,
-		.num_enter = ARRAY_SIZE(enter_sleep_hsi1on),
-		.num_save = ARRAY_SIZE(save_sleep_hsi1on),
-		.num_exit = ARRAY_SIZE(exit_sleep_hsi1on),
-		.num_early_wakeup = ARRAY_SIZE(early_sleep_hsi1on),
+		/*
+		 * Same sequence as SLCMON
+		 */
+		.id = SYS_SLEEP_SLCMON,
+		.enter = enter_sleep_slcmon,
+		.save = save_sleep_slcmon,
+		.exit = exit_sleep_slcmon,
+		.early_wakeup = early_sleep_slcmon,
+		.num_enter = ARRAY_SIZE(enter_sleep_slcmon),
+		.num_save = ARRAY_SIZE(save_sleep_slcmon),
+		.num_exit = ARRAY_SIZE(exit_sleep_slcmon),
+		.num_early_wakeup = ARRAY_SIZE(early_sleep_slcmon),
 	},
 	[SYS_STOP] = {
 		.id = SYS_STOP,
