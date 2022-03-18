@@ -108,7 +108,7 @@
 
 		cp_rmem_1: cp_rmem_1 {
 			compatible = "exynos,modem_if";
-			reg = <0x0 0xE8000000 0x02400000>;
+			reg = <0x0 0xE8000000 0x02000000>;
 			rmem_index = <2>;
 		};
 
