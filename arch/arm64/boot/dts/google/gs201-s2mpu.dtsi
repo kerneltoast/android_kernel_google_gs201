@@ -159,6 +159,13 @@
 		always-on;
 	};
 
+	s2mpu_gsa: s2mpu_gsa@17c60000 {
+		compatible = "google,s2mpu";
+		reg = <0x0 0x17c60000 0x10000>;
+		interrupts = <GIC_SPI SYSMMU_S2MPU__INTERRUPT_GSA IRQ_TYPE_LEVEL_HIGH>;
+		off-at-boot;
+	};
+
 	s2mpu_ipp: s2mpu_ipp@1ad20000 {
 		compatible = "google,s2mpu";
 		reg = <0x0 0x1ad20000 0x10000>;
