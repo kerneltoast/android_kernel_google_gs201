@@ -669,6 +669,7 @@
 		reg = <0 0x2500a000 0x1000>;
 
 		coresight-name = "coresight-etr";
+		arm,scatter-gather;
 
 		clocks = <&clock ATCLK>;
 		clock-names = "apb_pclk";
