@@ -316,11 +316,6 @@ struct mem_link_device {
 	unsigned int rx_poll_count;
 	unsigned long long rx_int_disabled_time;
 
-	/* Doorbell interrupt value to separate interrupt */
-	unsigned int intval_ap2cp_msg;
-	unsigned int intval_ap2cp_status;
-	unsigned int intval_ap2cp_active;
-
 	/* Location for arguments in shared memory */
 	u32 __iomem *ap_version;
 	u32 __iomem *cp_version;
@@ -352,6 +347,11 @@ struct mem_link_device {
 	struct ctrl_msg ap2cp_handover_block_info;
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+	/* Doorbell */
+	unsigned int intval_ap2cp_msg;
+	unsigned int intval_ap2cp_pcie_link_ack;
+
+	/* MSI */
 	u8 __iomem *msi_reg_base;
 	bool msi_irq_enabled;
 	int msi_irq_base;

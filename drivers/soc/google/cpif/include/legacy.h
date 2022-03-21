@@ -10,11 +10,6 @@
 #include "circ_queue.h"
 #include "sipc5.h"
 
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-#define DOORBELL_INT_ADD		0x10000
-#define MODEM_INT_NUM			16
-#endif
-
 #define BAD_MSG_BUFFER_SIZE 32
 
 enum legacy_ipc_map {

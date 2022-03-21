@@ -3810,15 +3810,6 @@ static int register_irq_handler(struct modem_data *modem,
 	}
 #endif
 
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-	/* Set doorbell interrupt value for separating interrupts */
-	mld->intval_ap2cp_msg = modem->mbx->int_ap2cp_msg + DOORBELL_INT_ADD;
-	mld->intval_ap2cp_status = modem->mbx->int_ap2cp_status
-				+ DOORBELL_INT_ADD;
-	mld->intval_ap2cp_active = modem->mbx->int_ap2cp_active
-				+ DOORBELL_INT_ADD;
-#endif
-
 	/**
 	 * Retrieve SHMEM MBOX# and IRQ# for wakelock
 	 */

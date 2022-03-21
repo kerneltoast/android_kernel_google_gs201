@@ -669,7 +669,6 @@ struct modem_ctl {
 	spinlock_t pcie_pm_lock;
 	struct pci_driver pci_driver;
 
-	int int_pcie_link_ack;
 	int pcie_ch_num;
 	int pcie_cto_retry_cnt;
 	int pcie_cto_retry_cnt_all;

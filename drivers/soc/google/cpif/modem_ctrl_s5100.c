@@ -572,23 +572,28 @@ static void set_pcie_msi_int(struct link_device *ld, bool enabled)
 	mld->msi_irq_enabled = enabled;
 }
 
-static int request_pcie_msi_int(struct link_device *ld,
-				struct platform_device *pdev)
+static int request_pcie_int(struct link_device *ld, struct platform_device *pdev)
 {
+#define DOORBELL_INT_MASK(x)	((x) | 0x10000)
+
 	int ret, base_irq;
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	struct device *dev = &pdev->dev;
 	struct modem_ctl *mc = ld->mc;
+	struct modem_data *modem = mc->mdm_data;
 	int irq_offset = 0;
 
-	mif_info("Request MSI interrupt\n");
+	/* Doorbell */
+	mld->intval_ap2cp_msg = DOORBELL_INT_MASK(modem->mbx->int_ap2cp_msg);
+	mld->intval_ap2cp_pcie_link_ack = DOORBELL_INT_MASK(modem->mbx->int_ap2cp_pcie_link_ack);
 
+	/* MSI */
 	base_irq = s51xx_pcie_request_msi_int(mc->s51xx_pdev, 4);
 	if (base_irq <= 0) {
 		mif_err("Can't get MSI IRQ!!!\n");
 		return -EFAULT;
 	}
-	mif_info("Request MSI interrupt: BASE_IRQ(%d)\n", base_irq);
+	mif_info("MSI base_irq(%d)\n", base_irq);
 
 	ret = devm_request_irq(dev, base_irq + irq_offset, shmem_irq_handler,
 			       IRQF_SHARED, "mif_cp2ap_msg", mld);
@@ -714,7 +719,7 @@ static int register_pcie(struct link_device *ld)
 		// debug: pci_read_config_dword(s51xx_pcie.s51xx_pdev, 0x50, &msi_val);
 		// debug: mif_err("MSI Control Reg : 0x%x\n", msi_val);
 
-		request_pcie_msi_int(ld, pdev);
+		request_pcie_int(ld, pdev);
 		first_save_s51xx_status(mc->s51xx_pdev);
 
 		is_registered = 1;
@@ -1502,7 +1507,8 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 	if ((mc->s51xx_pdev != NULL) && mc->pcie_registered) {
 		/* DBG */
 		mif_info("DBG: doorbell: pcie_registered = %d\n", mc->pcie_registered);
-		if (s51xx_pcie_send_doorbell_int(mc->s51xx_pdev, mc->int_pcie_link_ack) != 0) {
+		if (s51xx_pcie_send_doorbell_int(mc->s51xx_pdev,
+						 mld->intval_ap2cp_pcie_link_ack) != 0) {
 			/* DBG */
 			mif_err("DBG: s5100pcie_send_doorbell_int() func. is failed !!!\n");
 			s5100_force_crash_exit_ext();
@@ -1781,9 +1787,6 @@ static int s5100_get_pdata(struct modem_ctl *mc, struct modem_data *pdata)
 			return -EINVAL;
 		}
 	}
-
-	mif_dt_read_u32(np, "mif,int_ap2cp_pcie_link_ack", mc->int_pcie_link_ack);
-	mc->int_pcie_link_ack += DOORBELL_INT_ADD;
 
 	/* Get PCIe Channel Number */
 	mif_dt_read_u32(np, "pci_ch_num", mc->pcie_ch_num);

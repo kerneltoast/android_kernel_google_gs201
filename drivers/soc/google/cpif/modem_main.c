@@ -345,6 +345,9 @@ static int parse_dt_mbox_pdata(struct device *dev, struct device_node *np,
 #if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
 	mif_dt_read_u32(np, "mif,int_ap2cp_clatinfo_send", mbox->int_ap2cp_clatinfo_send);
 #endif
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+	mif_dt_read_u32(np, "mif,int_ap2cp_pcie_link_ack", mbox->int_ap2cp_pcie_link_ack);
+#endif
 	mif_dt_read_u32(np, "mif,int_ap2cp_uart_noti", mbox->int_ap2cp_uart_noti);
 
 	mif_dt_read_u32(np, "mif,irq_cp2ap_msg", mbox->irq_cp2ap_msg);

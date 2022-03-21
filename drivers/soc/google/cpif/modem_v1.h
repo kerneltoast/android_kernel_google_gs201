@@ -90,6 +90,9 @@ struct modem_mbox {
 #if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
 	unsigned int int_ap2cp_clatinfo_send;
 #endif
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
+	unsigned int int_ap2cp_pcie_link_ack;
+#endif
 	unsigned int int_ap2cp_uart_noti;
 
 	unsigned int irq_cp2ap_msg;
