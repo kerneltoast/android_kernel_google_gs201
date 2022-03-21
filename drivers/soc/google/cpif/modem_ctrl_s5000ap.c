@@ -839,15 +839,9 @@ static void s5000ap_get_pdata(struct modem_ctl *mc, struct modem_data *modem)
 	struct modem_mbox *mbx = modem->mbx;
 
 	mc->int_pda_active = mbx->int_ap2cp_active;
-
 	mc->int_cp_wakeup = mbx->int_ap2cp_wakeup;
-
-	mc->irq_phone_active = mbx->irq_cp2ap_active;
-
-	mc->mbx_ap_status = mbx->mbx_ap2cp_status;
-	mc->mbx_cp_status = mbx->mbx_cp2ap_status;
-
 	mc->int_uart_noti = mbx->int_ap2cp_uart_noti;
+	mc->irq_phone_active = mbx->irq_cp2ap_active;
 
 	mc->sbi_lte_active_mask = modem->sbi_lte_active_mask;
 	mc->sbi_lte_active_pos = modem->sbi_lte_active_pos;

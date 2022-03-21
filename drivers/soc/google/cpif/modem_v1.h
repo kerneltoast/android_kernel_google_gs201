@@ -77,16 +77,6 @@ struct modem_io_t {
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM) || IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 struct modem_mbox {
-	unsigned int mbx_ap2cp_msg;
-	unsigned int mbx_cp2ap_msg;
-	unsigned int mbx_ap2cp_wakeup;	/* CP_WAKEUP	*/
-	unsigned int mbx_cp2ap_wakeup;	/* AP_WAKEUP	*/
-	unsigned int mbx_ap2cp_status;	/* AP_STATUS	*/
-	unsigned int mbx_cp2ap_status;	/* CP_STATUS	*/
-	unsigned int mbx_cp2ap_wakelock; /* Wakelock for VoLTE */
-	unsigned int mbx_cp2ap_ratmode; /* Wakelock for pcie */
-	unsigned int mbx_ap2cp_kerneltime; /* Kernel time */
-
 	unsigned int int_ap2cp_msg;
 	unsigned int int_ap2cp_active;
 	unsigned int int_ap2cp_wakeup;
@@ -111,10 +101,8 @@ struct modem_mbox {
 #if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
 	unsigned int irq_cp2ap_clatinfo_ack;
 #endif
-	unsigned int irq_cp2ap_wakeup;
 	unsigned int irq_cp2ap_wakelock;
 	unsigned int irq_cp2ap_rat_mode;
-	unsigned int irq_cp2ap_change_ul_path;
 };
 #endif
 

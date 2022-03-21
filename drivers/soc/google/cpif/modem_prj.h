@@ -617,15 +617,7 @@ struct modem_ctl {
 #endif
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_SHMEM)
-	unsigned int mbx_pda_active;
-	unsigned int mbx_phone_active;
-	unsigned int mbx_ap_wakeup;
-	unsigned int mbx_ap_status;
-	unsigned int mbx_cp_wakeup;
-	unsigned int mbx_cp_status;
-
 	/* for notify uart connection with direction*/
-	unsigned int mbx_uart_noti;
 	unsigned int int_uart_noti;
 
 	/* for checking aliveness of CP */

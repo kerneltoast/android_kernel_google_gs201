@@ -223,17 +223,16 @@ struct mem_link_device {
 	/**
 	 * GPIO#, MBOX#, IRQ# for IPC
 	 */
-	unsigned int mbx_cp2ap_msg;	/* MBOX# for IPC RX */
-	unsigned int irq_cp2ap_msg;	/* IRQ# for IPC RX  */
+	unsigned int int_ap2cp_msg;		/* INTR# for IPC TX */
+	unsigned int irq_cp2ap_msg;		/* IRQ# for IPC RX  */
 
 	unsigned int sbi_cp2ap_wakelock_mask;
 	unsigned int sbi_cp2ap_wakelock_pos;
-
-	unsigned int mbx_ap2cp_msg;	/* MBOX# for IPC TX */
-	unsigned int int_ap2cp_msg;	/* INTR# for IPC TX */
+	unsigned int irq_cp2ap_wakelock;	/* IRQ# for wakelock */
 
 	unsigned int sbi_cp_status_mask;
 	unsigned int sbi_cp_status_pos;
+	unsigned int irq_cp2ap_status;		/* IRQ# for TX FLOWCTL */
 
 	unsigned int total_freq_table_count;
 
@@ -243,16 +242,10 @@ struct mem_link_device {
 	struct freq_table cp_em_table;
 	struct freq_table cp_mcw_table;
 
-	unsigned int irq_cp2ap_wakelock;	/* INTR# for wakelock */
+	unsigned int sbi_cp_rat_mode_mask;	/* MBOX# for pcie */
+	unsigned int sbi_cp_rat_mode_pos;	/* MBOX# for pcie */
+	unsigned int irq_cp2ap_rat_mode;	/* IRQ# for pcie */
 
-	unsigned int sbi_cp_rat_mode_mask;		/* MBOX# for pcie */
-	unsigned int sbi_cp_rat_mode_pos;		/* MBOX# for pcie */
-	unsigned int irq_cp2ap_rat_mode;		/* INTR# for pcie */
-
-	unsigned int irq_cp2ap_change_ul_path;
-
-	unsigned int mbx_cp2ap_status;	/* MBOX# for TX FLOWCTL */
-	unsigned int irq_cp2ap_status;	/* INTR# for TX FLOWCTL */
 	unsigned int tx_flowctrl_cmd;
 
 	struct wakeup_source *ws;
