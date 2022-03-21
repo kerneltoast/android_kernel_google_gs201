@@ -522,6 +522,24 @@ static int init_stat_node(struct platform_device *pdev, const char *buffer_name,
 	return ret;
 }
 
+static int check_exynos_pd_initialized(struct device *dev)
+{
+	struct platform_device *pdev;
+	struct device_node *np;
+
+	for_each_compatible_node (np, NULL, "samsung,exynos-pd") {
+		if (of_device_is_available(np)) {
+			pdev = of_find_device_by_node(np);
+			if (!platform_get_drvdata(pdev)) {
+				dev_info(dev, "defer probe, %s not ready\n",
+					 dev_name(&pdev->dev));
+				return -EPROBE_DEFER;
+			}
+		}
+	}
+	return 0;
+}
+
 static int init_pd_stat_node(struct power_stats_device *ps_dev)
 {
 	struct device_node *np;
@@ -571,11 +589,15 @@ ATTRIBUTE_GROUPS(power_stats);
 
 static int power_stats_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret;
 	u32 timer_freq_hz;
+	struct power_stats_device *ps_dev;
 
-	struct power_stats_device *ps_dev =
-		devm_kzalloc(&pdev->dev, sizeof(*ps_dev), GFP_KERNEL);
+	ret = check_exynos_pd_initialized(&pdev->dev);
+	if (ret)
+		return ret;
+
+	ps_dev = devm_kzalloc(&pdev->dev, sizeof(*ps_dev), GFP_KERNEL);
 	if (!ps_dev)
 		return -ENOMEM;
 
