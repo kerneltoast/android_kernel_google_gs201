@@ -1345,6 +1345,7 @@
   of_device_is_compatible
   of_dma_controller_free
   of_dma_controller_register
+  of_dma_is_coherent
   of_drm_find_bridge
   of_drm_find_panel
   of_find_backlight_by_node
@@ -1511,6 +1512,9 @@
   pin_user_pages_fast
   pin_user_pages_remote
   pktgen_xfrm_outer_mode_output
+  pkvm_iommu_resume
+  pkvm_iommu_s2mpu_register
+  pkvm_iommu_suspend
   platform_bus_type
   platform_device_add
   platform_device_add_data
@@ -1750,6 +1754,7 @@
   rtc_tm_to_time64
   rtc_update_irq
   rtc_valid_tm
+  rt_mutex_destroy
   __rt_mutex_init
   rt_mutex_lock
   rt_mutex_trylock
