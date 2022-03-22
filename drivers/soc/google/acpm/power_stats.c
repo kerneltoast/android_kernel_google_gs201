@@ -536,6 +536,8 @@ static int init_pd_stat_node(struct power_stats_device *ps_dev)
 			pdev = of_find_device_by_node(np);
 			pd = (struct exynos_pm_domain *)platform_get_drvdata(
 				pdev);
+			if (!pd)
+				return -EINVAL;
 
 			new_pd_entry = devm_kzalloc(
 				ps_dev->dev, sizeof(*new_pd_entry), GFP_KERNEL);
@@ -660,6 +662,9 @@ static void __exit power_stats_exit(void)
 module_init(power_stats_init);
 module_exit(power_stats_exit);
 
+#if defined(CONFIG_SOC_GS201)
+MODULE_SOFTDEP("pre: exynos-pm");
+#endif
 MODULE_AUTHOR("Benjamin Schwartz <bsschwar@google.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("APM power stats collection");
