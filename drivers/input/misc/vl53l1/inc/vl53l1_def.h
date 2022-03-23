@@ -464,6 +464,11 @@ struct VL53L1_TargetRangeData_t {
 		 *  Value = 1 means timings A&B are combined to increase the
 		 *  maximum distance range.
 		 */
+
+	uint8_t IsUlpRangeData;
+		/*!< indicate if data is generated from ultra-low power mode.
+		 * Value = 0 means normal mode, 1 means ULP mode.
+		*/
 };
 /**
  * @struct  VL53L1_MultiRangingData_t
