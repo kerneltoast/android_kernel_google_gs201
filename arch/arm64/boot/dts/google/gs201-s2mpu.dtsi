@@ -110,6 +110,13 @@
 		power-domains = <&pd_g3aa>;
 	};
 
+	s2mpu_g3d: s2mpu_g3d@20080000 {
+		compatible = "google,s2mpu";
+		reg = <0x0 0x20080000 0x10000>;
+		interrupts = <GIC_SPI IRQ_SYSMMU_G3D_NONSECURE_NOCL1A IRQ_TYPE_LEVEL_HIGH>;
+		always-on;
+	};
+
 	s2mpu_gdc0: s2mpu_gdc0@1d0c0000 {
 		compatible = "google,s2mpu";
 		reg = <0x0 0x1d0c0000 0x10000>;
