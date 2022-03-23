@@ -696,17 +696,23 @@ static int stmvl53l1_start(struct stmvl53l1_data *data)
 	if (rc)
 		goto done;
 
-	/* full setup when out of reset or power up */
-	rc = VL53L1_StaticInit(&data->stdev);
-	if (rc) {
-		dev_err(dev, "VL53L1_StaticInit @%d fail %d\n", __LINE__, rc);
-		rc = store_last_error(data, rc);
-		goto done;
+	if (data->ulp_enable) {
+		rc = VL53L1_ULP_SensorInit(&data->stdev);
+		if (rc)
+			goto done;
+	} else {
+		/* full setup when out of reset or power up */
+		rc = VL53L1_StaticInit(&data->stdev);
+		if (rc) {
+			dev_err(dev, "VL53L1_StaticInit @%d fail %d\n",
+				__LINE__, rc);
+			rc = store_last_error(data, rc);
+			goto done;
+		}
+		rc = stmvl53l1_sendparams(data);
+		if (rc)
+			goto done;
 	}
-
-	rc = stmvl53l1_sendparams(data);
-	if (rc)
-		goto done;
 
 	/* init the timing  */
 	st_gettimeofday(&data->start_tv);
@@ -719,7 +725,10 @@ static int stmvl53l1_start(struct stmvl53l1_data *data)
 
 	data->allow_hidden_start_stop = false;
 	/* kick off ranging */
-	rc = VL53L1_StartMeasurement(&data->stdev);
+	if (data->ulp_enable)
+		rc = VL53L1_ULP_StartRanging(&data->stdev);
+	else
+		rc = VL53L1_StartMeasurement(&data->stdev);
 	if (rc) {
 		dev_err(dev, "VL53L1_StartMeasurement @%d fail %d",
 			__LINE__, rc);
@@ -756,7 +765,10 @@ static int stmvl53l1_stop(struct stmvl53l1_data *data)
 	struct i2c_data *i2c_data = (struct i2c_data *)data->client_object;
 	struct device *dev = &i2c_data->client->dev;
 
-	rc = VL53L1_StopMeasurement(&data->stdev);
+	if (data->ulp_enable)
+		rc = VL53L1_ULP_StopRanging(&data->stdev);
+	else
+		rc = VL53L1_StopMeasurement(&data->stdev);
 	if (rc) {
 		dev_err(dev, "VL53L1_StopMeasurement @%d fail %d\n",
 			__LINE__, rc);
@@ -2024,6 +2036,133 @@ static ssize_t is_xtalk_value_changed_show(struct device *dev,
  */
 static DEVICE_ATTR_RO(is_xtalk_value_changed);
 
+static int stmvl53l1_set_ulp_enable(struct stmvl53l1_data *data, int value)
+{
+	struct i2c_data *i2c_data = data->client_object;
+	struct device *dev = &i2c_data->client->dev;
+
+	if (data->enable_sensor) {
+		dev_err(dev, "can't change ulp mode while ranging\n");
+		return -EBUSY;
+	}
+
+	data->ulp_enable = value;
+
+	return 0;
+}
+IMPLEMENT_PARAMETER_INTEGER(ulp_enable, "ulp enable")
+static DEVICE_ATTR_RW(ulp_enable);
+
+static int stmvl53l1_set_macro_timing(struct stmvl53l1_data *data, int value)
+{
+	int rc = 0;
+	struct i2c_data *i2c_data = data->client_object;
+	struct device *dev = &i2c_data->client->dev;
+
+	if (value <= 0 || value > 255) {
+		dev_err(dev, "invalid value %d\n", value);
+		return -EINVAL;
+	}
+	if (!data->enable_sensor) {
+		data->macro_timing = value;
+		return 0;
+	}
+
+	rc = VL53L1_ULP_SetMacroTiming(&data->stdev, value);
+	if (rc) {
+		dev_err(dev, "Set macro_timing %d fail %d\n", value, rc);
+		rc = store_last_error(data, rc);
+	} else
+		data->macro_timing = value;
+
+	return rc;
+}
+IMPLEMENT_PARAMETER_INTEGER(macro_timing, "macro timing")
+static DEVICE_ATTR_RW(macro_timing);
+
+static int stmvl53l1_set_inter_measurement(struct stmvl53l1_data *data,
+					   int value)
+{
+	int rc = 0;
+	struct i2c_data *i2c_data = data->client_object;
+	struct device *dev = &i2c_data->client->dev;
+
+	if (value < 20 || value > 60000) {
+		dev_err(dev, "invalid value %d\n", value);
+		return -EINVAL;
+	}
+	if (!data->enable_sensor) {
+		data->inter_measurement = value;
+		return 0;
+	}
+
+	rc = VL53L1_ULP_SetInterMeasurement(&data->stdev, value);
+	if (rc) {
+		dev_err(dev, "Set inter_measurement %d fail %d\n", value, rc);
+		rc = store_last_error(data, rc);
+	} else
+		data->inter_measurement = value;
+
+	return rc;
+}
+IMPLEMENT_PARAMETER_INTEGER(inter_measurement, "inter measurement")
+static DEVICE_ATTR_RW(inter_measurement);
+
+static int stmvl53l1_set_sigma_threshold(struct stmvl53l1_data *data, int value)
+{
+	int rc = 0;
+	struct i2c_data *i2c_data = data->client_object;
+	struct device *dev = &i2c_data->client->dev;
+
+	if (value > (0XFFFF >> 2)) {
+		dev_err(dev, "invalid value %d\n", value);
+		return-EINVAL;
+	}
+	if (!data->enable_sensor) {
+		data->sigma_threshold = value;
+		return 0;
+	}
+
+	rc = VL53L1_ULP_SetSigmaThreshold(&data->stdev, value);
+	if (rc) {
+		dev_err(dev, "Set sigma_threshold %d fail %d\n", value, rc);
+		rc = store_last_error(data, rc);
+	} else
+		data->sigma_threshold = value;
+
+	return rc;
+}
+IMPLEMENT_PARAMETER_INTEGER(sigma_threshold, "sigma threshold")
+static DEVICE_ATTR_RW(sigma_threshold);
+
+static int stmvl53l1_set_signal_threshold(struct stmvl53l1_data *data,
+					  int value)
+{
+	int rc = 0;
+	struct i2c_data *i2c_data = data->client_object;
+	struct device *dev = &i2c_data->client->dev;
+
+	if (value < 1 || value > 16384) {
+		dev_err(dev, "invalid value %d\n", value);
+		return -EINVAL;
+	}
+	if (!data->enable_sensor) {
+		data->signal_threshold = value;
+		return 0;
+	}
+
+	rc = VL53L1_ULP_SetSignalThreshold(&data->stdev, value);
+	if (rc) {
+		dev_err(dev, "Set signal_threshold %d fail %d\n", value, rc);
+		rc = store_last_error(data, rc);
+	} else
+		data->signal_threshold = value;
+
+	return rc;
+}
+IMPLEMENT_PARAMETER_INTEGER(signal_threshold, "signal threshold")
+static DEVICE_ATTR_RW(signal_threshold);
+
 static struct attribute *stmvl53l1_attributes[] = {
 	&dev_attr_enable_ps_sensor.attr,
 	&dev_attr_set_delay_ms.attr,
@@ -2047,6 +2186,11 @@ static struct attribute *stmvl53l1_attributes[] = {
 	&dev_attr_smudge_correction_mode.attr,
 	&dev_attr_is_xtalk_value_changed.attr,
 	&dev_attr_product_type.attr,
+	&dev_attr_ulp_enable.attr,
+	&dev_attr_macro_timing.attr,
+	&dev_attr_inter_measurement.attr,
+	&dev_attr_sigma_threshold.attr,
+	&dev_attr_signal_threshold.attr,
 	NULL
 };
 
@@ -2801,6 +2945,21 @@ static int ctrl_params(struct stmvl53l1_data *data, void __user *p)
 		break;
 	case VL53L1_ISXTALKVALUECHANGED_PAR:
 		rc = ctrl_param_is_xtalk_value_changed(data, &param);
+		break;
+	case VL53L1_ULP_ENABLE_PAR:
+		rc = ctrl_param_ulp_enable(data, &param);
+		break;
+	case VL53L1_MACRO_TIMING_PAR:
+		rc = ctrl_param_macro_timing(data, &param);
+		break;
+	case VL53L1_INTER_MEASUREMENT_PAR:
+		rc = ctrl_param_inter_measurement(data, &param);
+		break;
+	case VL53L1_SIGMA_THRESHOLD_PAR:
+		rc = ctrl_param_sigma_threshold(data, &param);
+		break;
+	case VL53L1_SIGNAL_THRESHOLD_PAR:
+		rc = ctrl_param_signal_threshold(data, &param);
 		break;
 	default:
 		dev_err(dev, "unknown or unsupported %d\n", param.name);
@@ -3648,6 +3807,13 @@ static int stmvl53l1_intr_process(struct stmvl53l1_data *data)
 
 	if (!data->enable_sensor)
 		goto done;
+
+	if (data->ulp_enable) {
+		rc = VL53L1_ULP_Interrupt(&data->stdev);
+		data->is_data_valid = true;
+		wake_up_data_waiters(data);
+		goto done;
+	}
 
 	data->meas.poll_cnt++;
 	rc = VL53L1_GetMeasurementDataReady(&data->stdev, &data_rdy);
