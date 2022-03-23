@@ -1179,7 +1179,8 @@ static void samsung_sysmmu_aux_detach_dev(struct iommu_domain *dom, struct devic
 		if (--drvdata->attached_count[vid] == 0) {
 			list_del(&drvdata->list[vid]);
 			drvdata->pgtable[vid] = 0;
-			__sysmmu_disable_vid(drvdata, vid);
+			if (pm_runtime_active(drvdata->dev))
+				__sysmmu_disable_vid(drvdata, vid);
 		}
 		spin_unlock(&drvdata->lock);
 	}
