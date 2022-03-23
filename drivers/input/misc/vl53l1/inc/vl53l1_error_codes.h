@@ -211,5 +211,9 @@ typedef int8_t VL53L1_Error;
 /** @} VL53L1_define_Error_group */
 
 
+/* Definition of error code for ULP mode */
+#define VL53L1_ULP_ERROR_NONE             ((VL53L1_Error) 0)
+#define VL53L1_ULP_ERROR_TIMEOUT          ((VL53L1_Error) -71)
+#define VL53L1_ULP_ERROR_INVALID_ARGUMENT ((VL53L1_Error) -72)
 
 #endif /* _VL53L1_ERROR_CODES_H_ */

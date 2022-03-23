@@ -196,6 +196,13 @@ enum __stmv53l1_parameter_name_e {
 	 * @li 0 Xtalk values has not been changed.
 	 * @li 1 Xtalk values has been changed.
 	 */
+
+	/* New parameter name for ULP mode*/
+	VL53L1_ULP_ENABLE_PAR        = 31,
+	VL53L1_MACRO_TIMING_PAR      = 32,
+	VL53L1_INTER_MEASUREMENT_PAR = 33,
+	VL53L1_SIGMA_THRESHOLD_PAR   = 34,
+	VL53L1_SIGNAL_THRESHOLD_PAR  = 35,
 };
 #define stmv53l1_parameter_name_e enum __stmv53l1_parameter_name_e
 

@@ -128,6 +128,13 @@ struct stmvl53l1_data {
 	int dmax_mode;		/*!< Dmax mode of the device */
 	int smudge_correction_mode; /*!< smudge mode */
 
+	/* Custom ULP parameters set by app */
+	int ulp_enable;
+	int macro_timing;
+	int inter_measurement;
+	int sigma_threshold;
+	int signal_threshold;
+
 	/* Read only values */
 	FixPoint1616_t optical_offset_x;
 	FixPoint1616_t optical_offset_y;
