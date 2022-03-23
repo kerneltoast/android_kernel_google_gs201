@@ -1050,7 +1050,8 @@ static void samsung_sysmmu_aux_detach_dev(struct iommu_domain *dom, struct devic
 
 	spin_lock_irqsave(&drvdata->lock, flags);
 	drvdata->pgtable[vid] = 0;
-	__sysmmu_disable_vid(drvdata, vid);
+	if (pm_runtime_active(drvdata->dev))
+		__sysmmu_disable_vid(drvdata, vid);
 	spin_unlock_irqrestore(&drvdata->lock, flags);
 
 	domain->vm_sysmmu = NULL;
