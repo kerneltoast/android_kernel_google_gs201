@@ -92,7 +92,7 @@
 		cirrus,vpbr-enable;
 		cirrus,vpbr-thld-mv = <2800>;		/* 2.8V */
 		cirrus,bst-expl-mode-disable;
-		cirrus,bst-ipk-microamp = <4000000>;	/* 4A */
+		cirrus,bst-ipk-microamp = <3500000>;	/* 3.5A */
 
 		status = "okay";
 
