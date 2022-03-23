@@ -42,6 +42,7 @@
 #include <linux/of_device.h>
 
 #include <soc/google/exynos-cpupm.h>
+#include <soc/google/pkvm-s2mpu.h>
 
 static const struct of_device_id exynos_dwc3_match[] = {
 	{
@@ -1084,6 +1085,14 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	if (IS_ERR(temp_usb_phy)) {
 		dev_dbg(dev, "USB phy is not probed - defered return!\n");
 		return  -EPROBE_DEFER;
+	}
+
+	if (IS_ENABLED(CONFIG_PKVM_S2MPU)) {
+		ret = pkvm_s2mpu_of_link(dev);
+		if (ret == -EAGAIN)
+			return -EPROBE_DEFER;
+		else if (ret)
+			return ret;
 	}
 
 	exynos = devm_kzalloc(dev, sizeof(*exynos), GFP_KERNEL);
