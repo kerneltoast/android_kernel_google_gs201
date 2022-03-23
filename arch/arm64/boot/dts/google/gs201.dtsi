@@ -673,6 +673,7 @@
 		#size-cells = <1>;
 		ranges;
 		power-domains = <&pd_hsi0>;
+		s2mpus = <&s2mpu_hsi0>;
 		status = "okay";
 
 		interrupts = <GIC_SPI IRQ_USB31DRD_GIC_0_HSI0 IRQ_TYPE_LEVEL_HIGH>;
