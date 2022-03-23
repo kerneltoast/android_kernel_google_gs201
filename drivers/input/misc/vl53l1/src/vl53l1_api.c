@@ -9,6 +9,7 @@
  */
 
 
+#include <linux/delay.h>
 
 
 #include "../inc/vl53l1_api.h"
@@ -22,6 +23,7 @@
 #include "../inc/vl53l1_api_debug.h"
 #include "../inc/vl53l1_api_core.h"
 #include "../inc/vl53l1_nvm.h"
+#include "../stmvl53l1.h"
 
 #define ZONE_CHECK VL53L1_MAX_USER_ZONES
 
@@ -2566,6 +2568,7 @@ static VL53L1_Error SetMeasurementData(VL53L1_DEV Dev,
 		iteration = ActiveResults;
 	for (i = 0; i < iteration; i++) {
 		pRangeData = &(pMultiRangingData->RangeData[i]);
+		pRangeData->IsUlpRangeData = 0;
 
 		presults_data = &(presults->VL53L1_p_002[i]);
 		if (Status == VL53L1_ERROR_NONE)
@@ -3932,4 +3935,229 @@ VL53L1_Error VL53L1_PerformOffsetPerVcselCalibration(VL53L1_DEV Dev,
 
 	LOG_FUNCTION_END(Status);
 	return Status;
+}
+
+/* New APIs for ULP mode */
+VL53L1_Error VL53L1_ULP_SetMacroTiming(VL53L1_DEV Dev, int value)
+{
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	uint16_t macro_timing = value & 0xFFFF;
+	status |= VL53L1_WrWord(Dev, VL53L1_ULP_RANGE_CONFIG_A,
+				macro_timing);
+	status |= VL53L1_WrWord(Dev, VL53L1_ULP_RANGE_CONFIG_B,
+				macro_timing + 0x1);
+
+	return status;
+}
+
+VL53L1_Error VL53L1_ULP_SetInterMeasurement(VL53L1_DEV Dev, int value)
+{
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	uint16_t clock_pll;
+	uint32_t inter_measurement_factor;
+	status |= VL53L1_RdWord(Dev, VL53L1_ULP_RESULT__OSC_CALIBRATE_VAL,
+				&clock_pll);
+	clock_pll = clock_pll & 0x3FF;
+	inter_measurement_factor = clock_pll * value * 1055 / 1000;
+	status |= VL53L1_WrDWord(Dev, VL53L1_ULP_INTERMEASUREMENT_MS,
+				 inter_measurement_factor);
+
+	return status;
+}
+
+VL53L1_Error VL53L1_ULP_SetSigmaThreshold(VL53L1_DEV Dev, int value)
+{
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	uint16_t sigma_mm = (value & 0xFFFF) << 2;
+	status = VL53L1_WrWord(Dev, VL53L1_ULP_RANGE_CONFIG__SIGMA_THRESH,
+			       sigma_mm);
+
+	return status;
+}
+
+VL53L1_Error VL53L1_ULP_SetSignalThreshold(VL53L1_DEV Dev, int value)
+{
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	uint16_t signal_kcps = (value & 0xFFFF) >> 3;
+	status = VL53L1_WrWord(Dev,
+			       VL53L1_ULP_MIN_COUNT_RATE_RTN_LIMIT_MCPS,
+			       signal_kcps);
+
+	return status;
+}
+
+VL53L1_Error VL53L1_ULP_StartRanging(VL53L1_DEV Dev)
+{
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	status = VL53L1_WrByte(Dev, VL53L1_ULP_SYSTEM_START, 0x40);
+
+	return status;
+}
+
+VL53L1_Error VL53L1_ULP_StopRanging(VL53L1_DEV Dev)
+{
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	status = VL53L1_WrByte(Dev, VL53L1_ULP_SYSTEM_START, 0x00);
+
+	return status;
+}
+
+VL53L1_Error VL53L1_ULP_CheckForDataReady(VL53L1_DEV Dev,
+					  uint8_t *is_ready)
+{
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	uint8_t tmp;
+	uint8_t int_pol;
+
+	status |= VL53L1_RdByte(Dev, VL53L1_ULP_GPIO_HV_MUX__CTRL, &tmp);
+	int_pol = !((tmp & 0x10) >> 4);
+	status |= VL53L1_RdByte(Dev, VL53L1_ULP_GPIO__TIO_HV_STATUS, &tmp);
+	*is_ready = ((tmp & 0x01) == int_pol);
+
+	return status;
+}
+
+VL53L1_Error VL53L1_ULP_ClearInterrupt(VL53L1_DEV Dev)
+{
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	status = VL53L1_WrByte(Dev, VL53L1_ULP_SYSTEM__INTERRUPT_CLEAR, 0x01);
+
+	return status;
+}
+
+VL53L1_Error VL53L1_ULP_SensorInit(VL53L1_DEV Dev)
+{
+	struct stmvl53l1_data *data = container_of(Dev,
+						   struct stmvl53l1_data,
+						   stdev);
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	uint8_t addr, tmp;
+	uint16_t i = 0;
+
+	while (1) {
+		status |= VL53L1_RdByte(Dev,
+					VL53L1_ULP_FIRMWARE__SYSTEM_STATUS,
+					&tmp);
+
+		if (tmp == 0x3)    /* Sensor booted */
+			break;
+		else if (i < 1000) /* Wait for boot */
+			i++;
+		else {             /* Timeout 1000ms reached */
+			status |= VL53L1_ULP_ERROR_TIMEOUT;
+			return status;
+		}
+		VL53L1_WaitMs(Dev, 1);
+	}
+
+	/* Load default configuration */
+	for (addr = 0x2D; addr <= 0x87; addr++) {
+		status |= VL53L1_WrByte(Dev, addr,
+					VL53L1_ULP_DEFAULT_CONFIGURATION[
+					addr - 0x2D]);
+	}
+
+	if (status != VL53L1_ULP_ERROR_NONE)
+		return status;
+
+	/* Start VHV */
+	status |= VL53L1_ULP_StartRanging(Dev);
+	if (status != VL53L1_ULP_ERROR_NONE)
+		return status;
+
+	i  = 0;
+	while (1) {
+		status |= VL53L1_ULP_CheckForDataReady(Dev, &tmp);
+		if (tmp == 1)     /* Data ready */
+			break;
+		else if(i < 1000) /* Wait for answer */
+			i++;
+		else {            /* Timeout 1000ms reached */
+			status |= VL53L1_ULP_ERROR_TIMEOUT;
+			return status;
+		}
+		VL53L1_WaitMs(Dev, 1);
+	}
+
+	status |= VL53L1_ULP_ClearInterrupt(Dev);
+	status |= VL53L1_ULP_StopRanging(Dev);
+	if (status != VL53L1_ULP_ERROR_NONE)
+		return status;
+
+	status |= VL53L1_WrByte(Dev,
+			VL53L1_ULP_VHV_CONFIG__TIMEOUT_MACROP_LOOP_BOUND,
+			0x09);
+	status |= VL53L1_WrByte(Dev, 0x0B, 0);
+	status |= VL53L1_WrWord(Dev, 0x0024, 0x500);
+	status |= VL53L1_WrByte(Dev, 0x81, 0b10001010);
+	status |= VL53L1_WrByte(Dev, 0x004B, 0x03);
+	status |= VL53L1_ULP_SetMacroTiming(Dev, data->macro_timing);
+	status |= VL53L1_ULP_SetInterMeasurement(Dev, data->inter_measurement);
+	status |= VL53L1_ULP_SetSigmaThreshold(Dev, data->sigma_threshold);
+	status |= VL53L1_ULP_SetSignalThreshold(Dev, data->signal_threshold);
+
+	return status;
+}
+
+VL53L1_Error VL53L1_ULP_Interrupt(VL53L1_DEV Dev)
+{
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	status |= VL53L1_ULP_DumpDebugData(Dev);
+	status |= VL53L1_ULP_ClearInterrupt(Dev);
+
+	return status;
+}
+
+static inline void st_gettimeofday(struct timespec64 *tv)
+{
+	struct timespec64 now;
+	ktime_get_real_ts64(&now);
+	tv->tv_sec = now.tv_sec;
+	tv->tv_nsec = now.tv_nsec;
+}
+
+VL53L1_Error VL53L1_ULP_DumpDebugData(VL53L1_DEV Dev)
+{
+	struct stmvl53l1_data *data = container_of(Dev,
+						   struct stmvl53l1_data,
+						   stdev);
+	VL53L1_Error status = VL53L1_ULP_ERROR_NONE;
+	uint8_t  measurement_status;
+	uint16_t estimated_distance_mm;
+	uint16_t sigma_mm;
+	uint16_t signal_kcps;
+	uint16_t ambient_kcps;
+	static const uint8_t status_rtn[24] = { 255, 255, 255, 5, 2, 4, 1, 7, 3,
+		0, 255, 255, 9, 13, 255, 255, 255, 255, 10, 6, 255, 255, 11, 12
+	};
+	long ts_msec;
+	struct VL53L1_MultiRangingData_t *pmrange =
+						&data->meas.multi_range_data;
+
+	st_gettimeofday(&data->meas.comp_tv);
+	ts_msec = stmvl53l1_tv_dif(&data->start_tv,
+				   &data->meas.comp_tv) / 1000;
+	status |= VL53L1_RdByte(Dev, 0x0089, &measurement_status);
+	status |= VL53L1_RdWord(Dev, 0x0096, &estimated_distance_mm);
+	status |= VL53L1_RdWord(Dev, 0x0092, &sigma_mm);
+	status |= VL53L1_RdWord(Dev, 0x008E, &signal_kcps);
+	status |= VL53L1_RdWord(Dev, 0x0090, &ambient_kcps);
+	signal_kcps *= 8;
+	sigma_mm /= 4;
+	ambient_kcps *= 8;
+	measurement_status = measurement_status & 0x1F;
+	if (measurement_status < 24)
+		measurement_status = status_rtn[(measurement_status)];
+
+	memset(pmrange, 0xFF, sizeof(struct VL53L1_MultiRangingData_t));
+	pmrange->TimeStamp = ts_msec;
+	pmrange->NumberOfObjectsFound = 1;
+	pmrange->RangeData[0].RangeStatus = measurement_status;
+	pmrange->RangeData[0].RangeMilliMeter = estimated_distance_mm;
+	pmrange->RangeData[0].SigmaMilliMeter = sigma_mm;
+	pmrange->RangeData[0].SignalRateRtnMegaCps = signal_kcps;
+	pmrange->RangeData[0].AmbientRateRtnMegaCps = ambient_kcps;
+	pmrange->RangeData[0].IsUlpRangeData = true;
+
+	return status;
 }

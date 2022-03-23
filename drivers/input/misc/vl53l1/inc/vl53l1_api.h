@@ -1434,4 +1434,17 @@ VL53L1_Error VL53L1_GetThresholdConfig(VL53L1_DEV Dev,
 
 /** @} VL53L1_cut11_group */
 
+/* New APIs for ULP mode */
+VL53L1_Error VL53L1_ULP_SetMacroTiming(VL53L1_DEV Dev, int value);
+VL53L1_Error VL53L1_ULP_SetInterMeasurement(VL53L1_DEV Dev, int value);
+VL53L1_Error VL53L1_ULP_SetSigmaThreshold(VL53L1_DEV Dev, int value);
+VL53L1_Error VL53L1_ULP_SetSignalThreshold(VL53L1_DEV Dev, int value);
+VL53L1_Error VL53L1_ULP_StartRanging(VL53L1_DEV Dev);
+VL53L1_Error VL53L1_ULP_StopRanging(VL53L1_DEV Dev);
+VL53L1_Error VL53L1_ULP_CheckForDataReady(VL53L1_DEV Dev, uint8_t *is_ready);
+VL53L1_Error VL53L1_ULP_ClearInterrupt(VL53L1_DEV Dev);
+VL53L1_Error VL53L1_ULP_SensorInit(VL53L1_DEV Dev);
+VL53L1_Error VL53L1_ULP_Interrupt(VL53L1_DEV Dev);
+VL53L1_Error VL53L1_ULP_DumpDebugData(VL53L1_DEV Dev);
+
 #endif /* _VL53L1_API_H_ */
