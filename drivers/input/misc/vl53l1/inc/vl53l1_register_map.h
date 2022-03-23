@@ -2382,6 +2382,32 @@
 
 
 
+/* Register address for ULP mode */
+#define VL53L1_ULP_I2C_SLAVE__DEVICE_ADDRESS              ((uint16_t)0x0001)
+#define VL53L1_ULP_VHV_CONFIG__TIMEOUT_MACROP_LOOP_BOUND  ((uint16_t)0x0008)
+#define VL53L1_ULP_GPIO_HV_MUX__CTRL                      ((uint16_t)0x0030)
+#define VL53L1_ULP_GPIO__TIO_HV_STATUS                    ((uint16_t)0x0031)
+#define VL53L1_ULP_SYSTEM__INTERRUPT                      ((uint16_t)0x0046)
+#define VL53L1_ULP_RANGE_CONFIG_A                         ((uint16_t)0x005E)
+#define VL53L1_ULP_RANGE_CONFIG_B                         ((uint16_t)0x0061)
+#define VL53L1_ULP_RANGE_CONFIG__SIGMA_THRESH             ((uint16_t)0x0064)
+#define VL53L1_ULP_MIN_COUNT_RATE_RTN_LIMIT_MCPS          ((uint16_t)0x0066)
+#define VL53L1_ULP_INTERMEASUREMENT_MS                    ((uint16_t)0x006C)
+#define VL53L1_ULP_THRESH_HIGH                            ((uint16_t)0x0072)
+#define VL53L1_ULP_THRESH_LOW                             ((uint16_t)0x0074)
+#define VL53L1_ULP_POWER_GO1                              ((uint16_t)0x0083)
+#define VL53L1_ULP_FIRMWARE_ENABLE                        ((uint16_t)0x0085)
+#define VL53L1_ULP_SYSTEM__INTERRUPT_CLEAR                ((uint16_t)0x0086)
+#define VL53L1_ULP_SYSTEM_START                           ((uint16_t)0x0087)
+#define VL53L1_ULP_RESULT__RANGE_STATUS                   ((uint16_t)0x0089)
+#define VL53L1_ULP_RESULT__SPAD_NB                        ((uint16_t)0x008C)
+#define VL53L1_ULP_RESULT__SIGNAL_RATE                    ((uint16_t)0x008E)
+#define VL53L1_ULP_RESULT__AMBIENT_RATE                   ((uint16_t)0x0090)
+#define VL53L1_ULP_RESULT__SIGMA                          ((uint16_t)0x0092)
+#define VL53L1_ULP_RESULT__DISTANCE                       ((uint16_t)0x0096)
+#define VL53L1_ULP_RESULT__OSC_CALIBRATE_VAL              ((uint16_t)0x00DE)
+#define VL53L1_ULP_FIRMWARE__SYSTEM_STATUS                ((uint16_t)0x00E5)
+#define VL53L1_ULP_IDENTIFICATION__MODEL_ID               ((uint16_t)0x010F)
 
 
 #endif /* _VL53L1_REGISTER_MAP_H_ */

@@ -4149,6 +4149,11 @@ int stmvl53l1_setup(struct stmvl53l1_data *data)
 		STMVL53L1_CFG_DEFAULT_SMUDGE_CORRECTION_MODE;
 	data->current_roi_id = 0;
 	data->is_xtalk_value_changed = false;
+	data->ulp_enable = false;
+	data->macro_timing = 1;
+	data->inter_measurement = 1000;
+	data->sigma_threshold = 45;
+	data->signal_threshold = 1500;
 
 	data->is_delay_allowed = true;
 	/* need to be done once */
