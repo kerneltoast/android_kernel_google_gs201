@@ -19,6 +19,9 @@ extern int sched_cpu_idle(int cpu);
 extern bool get_prefer_high_cap(struct task_struct *p);
 
 extern unsigned int sched_capacity_margin[CPU_NUM];
+extern ___update_load_sum(u64 now, struct sched_avg *sa,
+			  unsigned long load, unsigned long runnable, int running);
+extern ___update_load_avg(struct sched_avg *sa, unsigned long load);
 
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
@@ -370,4 +373,76 @@ out:
 	trace_sched_select_task_rq_rt(p, prev_cpu, target, *new_cpu, sync_wakeup);
 
 	return;
+}
+
+void init_vendor_rt_rq(void)
+{
+	int i;
+	struct vendor_rq_struct *vrq;
+
+	for (i = 0; i < CPU_NUM; i++) {
+		vrq = get_vendor_rq_struct(cpu_rq(i));
+		raw_spin_lock_init(&vrq->lock);
+		vrq->util_removed = 0;
+	}
+}
+
+static int update_load_avg_se(u64 now, struct sched_entity *se, int running)
+{
+	if (___update_load_sum(now, &se->avg, running, 0, running)) {
+		___update_load_avg(&se->avg, se_weight(se));
+		trace_pelt_se_tp(se);
+		return 1;
+	}
+
+	return 0;
+}
+
+void rvh_update_rt_rq_load_avg_pixel_mod(void *data, u64 now, struct rq *rq, struct task_struct *p,
+					 int running)
+{
+	unsigned long removed_util = 0;
+	u32 divider = get_pelt_divider(&rq->avg_rt);
+	struct vendor_rq_struct *vrq = get_vendor_rq_struct(rq);
+
+	// RT task p got migrated to this cpu, add its load to the rt util of rq
+	if (!p->se.avg.last_update_time) {
+		p->se.avg.last_update_time = rq->avg_rt.last_update_time;
+		p->se.avg.util_sum = p->se.avg.util_avg * divider;
+		rq->avg_rt.util_avg += p->se.avg.util_avg;
+		rq->avg_rt.util_sum += p->se.avg.util_sum;
+	}
+
+	// One or more rt tasks previously ran on this cpu got migrated to other cpus, need to
+	// remove its/their loading from the rt util of rq.
+	if (vrq->util_removed) {
+		raw_spin_lock(&vrq->lock);
+		swap(vrq->util_removed, removed_util);
+		raw_spin_unlock(&vrq->lock);
+		sub_positive(&rq->avg_rt.util_avg, removed_util);
+		sub_positive(&rq->avg_rt.util_sum, removed_util * divider);
+		rq->avg_rt.util_sum = max_t(unsigned long, rq->avg_rt.util_sum,
+					    rq->avg_rt.util_avg * PELT_MIN_DIVIDER);
+	}
+
+	// Update rt task util
+	update_load_avg_se(rq_clock_pelt(rq), &p->se, running);
+}
+
+// For RT task only, used for task migration.
+void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsigned int new_cpu)
+{
+	struct vendor_rq_struct *vrq;
+	unsigned long flags;
+
+	if (p->prio >= MAX_RT_PRIO)
+		return;
+
+	vrq = get_vendor_rq_struct(cpu_rq(task_cpu(p)));
+
+	raw_spin_lock_irqsave(&vrq->lock, flags);
+	vrq->util_removed += p->se.avg.util_avg;
+	raw_spin_unlock_irqrestore(&vrq->lock, flags);
+
+	p->se.avg.last_update_time = 0;
 }

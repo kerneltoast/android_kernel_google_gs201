@@ -58,6 +58,10 @@ extern void rvh_remove_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_
 extern void rvh_update_blocked_fair_pixel_mod(void *data, struct rq *rq);
 extern void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
 extern void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
+extern void init_vendor_rt_rq(void);
+extern void rvh_update_rt_rq_load_avg_pixel_mod(void *data, u64 now, struct rq *rq,
+						struct task_struct *p, int running);
+extern void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsigned int new_cpu);
 
 extern struct cpufreq_governor sched_pixel_gov;
 
@@ -83,6 +87,8 @@ static int vh_sched_init(void)
 
 	init_vendor_group_data();
 
+	init_vendor_rt_rq();
+
 	ret = register_trace_android_rvh_enqueue_task_fair(rvh_enqueue_task_fair_pixel_mod, NULL);
 	if (ret)
 		return ret;
@@ -96,6 +102,15 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_rvh_dequeue_task(rvh_dequeue_task_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_update_rt_rq_load_avg(rvh_update_rt_rq_load_avg_pixel_mod,
+							       NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_set_task_cpu(rvh_set_task_cpu_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
