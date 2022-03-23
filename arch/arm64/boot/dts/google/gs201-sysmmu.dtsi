@@ -73,6 +73,7 @@
 		port-name = "BO";
 		#iommu-cells = <0>;
 		power-domains = <&pd_bo>;
+		s2mpus = <&s2mpu_bo>;
 		sysmmu,no-s2pf;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x2,  0x1F)>,
@@ -93,6 +94,7 @@
 		port-name = "CSIS0";
 		#iommu-cells = <0>;
 		power-domains = <&pd_csis>;
+		s2mpus = <&s2mpu_csis0>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1  TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x2,  0x7E)>,
 				      <2  TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4,  0x7E)>,
@@ -122,6 +124,7 @@
 		port-name = "CSIS1";
 		#iommu-cells = <0>;
 		power-domains = <&pd_csis>;
+		s2mpus = <&s2mpu_csis1>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1  TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x2,  0xFE)>,
 				      <2  TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4,  0xFE)>,
@@ -158,6 +161,7 @@
 		port-name = "DNS";
 		#iommu-cells = <0>;
 		power-domains = <&pd_dns>;
+		s2mpus = <&s2mpu_dns>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = < 1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x2,  0xFE)>,
 				      < 2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x0,  0xFE)>,
@@ -192,6 +196,7 @@
 		port-name = "DPU L0/L1";
 		#iommu-cells = <0>;
 		power-domains = <&pd_dpu>;
+		s2mpus = <&s2mpu_dpu0>;
 		sysmmu,default_tlb = <TLB_CFG(BL16, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1,  PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x2, 0x7)>,
 				      <2 TLB_CFG(BL32, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x4, 0x7)>,
@@ -211,6 +216,7 @@
 		port-name = "DPU L2/L3";
 		#iommu-cells = <0>;
 		power-domains = <&pd_dpu>;
+		s2mpus = <&s2mpu_dpu1>;
 		sysmmu,default_tlb = <TLB_CFG(BL16, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1,  PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x2, 0x7)>,
 				      <2 TLB_CFG(BL32, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x4, 0x7)>,
@@ -230,6 +236,7 @@
 		port-name = "DPU L4/L5/W";
 		#iommu-cells = <0>;
 		power-domains = <&pd_dpu>;
+		s2mpus = <&s2mpu_dpu2>;
 		sysmmu,default_tlb = <TLB_CFG(BL16, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1,  PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x2, 0x7)>,
 				      <2 TLB_CFG(BL32, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x4, 0x7)>,
@@ -253,6 +260,7 @@
 		port-name = "G2D0";
 		#iommu-cells = <0>;
 		power-domains = <&pd_g2d>;
+		s2mpus = <&s2mpu_g2d0>;
 		sysmmu,default_tlb = <TLB_CFG(BL32, PREFETCH_PREDICTION)>;
 	};
 
@@ -267,6 +275,7 @@
 		port-name = "G2D1";
 		#iommu-cells = <0>;
 		power-domains = <&pd_g2d>;
+		s2mpus = <&s2mpu_g2d1>;
 		sysmmu,default_tlb = <TLB_CFG(BL32, PREFETCH_PREDICTION)>;
 	};
 
@@ -281,6 +290,7 @@
 		port-name = "JPEG";
 		#iommu-cells = <0>;
 		power-domains = <&pd_g2d>;
+		s2mpus = <&s2mpu_g2d2>;
 		sysmmu,default_tlb = <TLB_CFG(BL8, PREFETCH_NONE)>;
 	};
 
@@ -295,6 +305,7 @@
 		port-name = "G3AA";
 		#iommu-cells = <0>;
 		power-domains = <&pd_g3aa>;
+		s2mpus = <&s2mpu_g3aa>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x8,  0x38)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x10, 0x38)>,
@@ -316,6 +327,7 @@
 		port-name = "GDC0";
 		#iommu-cells = <0>;
 		power-domains = <&pd_gdc>;
+		s2mpus = <&s2mpu_gdc0>;
 		sysmmu,default_tlb = <TLB_CFG(BL32, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL32, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x8, 0xE)>,
 				      <2 TLB_CFG(BL1,  PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x2, 0xE)>,
@@ -337,6 +349,7 @@
 		port-name = "GDC1";
 		#iommu-cells = <0>;
 		power-domains = <&pd_gdc>;
+		s2mpus = <&s2mpu_gdc1>;
 		sysmmu,default_tlb = <TLB_CFG(BL32, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL32, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x8, 0xE)>,
 				      <2 TLB_CFG(BL1,  PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x2, 0xE)>,
@@ -358,6 +371,7 @@
 		port-name = "SCSC";
 		#iommu-cells = <0>;
 		power-domains = <&pd_gdc>;
+		s2mpus = <&s2mpu_gdc2>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = < 1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4,  0x1E)>,
 				      < 2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x8,  0x1E)>,
@@ -408,6 +422,7 @@
 		port-name = "IPP";
 		#iommu-cells = <0>;
 		power-domains = <&pd_ipp>;
+		s2mpus = <&s2mpu_ipp>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = < 1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x10,  0x3FE)>,
 				      < 2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x20,  0x3FE)>,
@@ -453,6 +468,7 @@
 		port-name = "ITSC";
 		#iommu-cells = <0>;
 		power-domains = <&pd_mcsc>;
+		s2mpus = <&s2mpu_mcsc0>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4, 0xE)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x8, 0xE)>,
@@ -471,6 +487,7 @@
 		port-name = "MCSC";
 		#iommu-cells = <0>;
 		power-domains = <&pd_mcsc>;
+		s2mpus = <&s2mpu_mcsc1>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1  TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4,  0x3E)>,
 				      <2  TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x8,  0x3E)>,
@@ -500,6 +517,7 @@
 		port-name = "MCSC";
 		#iommu-cells = <0>;
 		power-domains = <&pd_mcsc>;
+		s2mpus = <&s2mpu_mcsc2>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4,  0x3E)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x8,  0x3E)>,
@@ -522,6 +540,7 @@
 		port-name = "MFC0";
 		#iommu-cells = <0>;
 		power-domains = <&pd_mfc>;
+		s2mpus = <&s2mpu_mfc0>;
 		sysmmu,default_tlb = <TLB_CFG(BL8, PREFETCH_NONE)>;
 	};
 
@@ -537,6 +556,7 @@
 		port-name = "MFC1";
 		#iommu-cells = <0>;
 		power-domains = <&pd_mfc>;
+		s2mpus = <&s2mpu_mfc1>;
 		sysmmu,default_tlb = <TLB_CFG(BL8, PREFETCH_NONE)>;
 	};
 
@@ -551,11 +571,11 @@
 		port-name = "TNR0";
 		#iommu-cells = <0>;
 		power-domains = <&pd_tnr>;
+		s2mpus = <&s2mpu_tnr0>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW   SYSMMU_ID_MASK(0x4,  0x7C)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x40, 0x7C)>,
 				      <3 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x44, 0x7C)>;
-
 	};
 
 	sysmmu_tnr1: sysmmu@1BCA0000 {
@@ -569,6 +589,7 @@
 		port-name = "TNR1";
 		#iommu-cells = <0>;
 		power-domains = <&pd_tnr>;
+		s2mpus = <&s2mpu_tnr1>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_WRITE SYSMMU_ID_MASK(0x4, 0x3C)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x0, 0x3C)>,
@@ -586,6 +607,7 @@
 		port-name = "TNR2";
 		#iommu-cells = <0>;
 		power-domains = <&pd_tnr>;
+		s2mpus = <&s2mpu_tnr2>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x4, 0x3C)>;
 	};
@@ -601,6 +623,7 @@
 		port-name = "TNR3";
 		#iommu-cells = <0>;
 		power-domains = <&pd_tnr>;
+		s2mpus = <&s2mpu_tnr3>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x4, 0x3C)>;
 	};
@@ -616,6 +639,7 @@
 		port-name = "TNR4";
 		#iommu-cells = <0>;
 		power-domains = <&pd_tnr>;
+		s2mpus = <&s2mpu_tnr4>;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_RW    SYSMMU_ID_MASK(0x80, 0xC0)>,
 				      <2 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ  SYSMMU_ID_MASK(0x0,  0xC0)>,
@@ -633,6 +657,7 @@
 		port-name = "TPU";
 		#iommu-cells = <0>;
 		power-domains = <&pd_tpu>;
+		s2mpus = <&s2mpu_tpu>;
 		sysmmu,no-s2pf;
 		sysmmu,default_tlb = <TLB_CFG(BL1, PREFETCH_PREDICTION)>;
 		sysmmu,tlb_property = <1 TLB_CFG(BL1, PREFETCH_PREDICTION) DIR_READ SYSMMU_ID_MASK(0x4, 0xC)>,
@@ -653,6 +678,7 @@
 		port-name = "AUR_IDMA";
 		#iommu-cells = <0>;
 		power-domains = <&pd_aur>;
+		s2mpus = <&s2mpu_aur_idma>;
 		sysmmu,no-s2pf;
 		sysmmu,async-fault;
 	};
@@ -669,6 +695,7 @@
 		port-name = "AUR_INST_DATA";
 		#iommu-cells = <0>;
 		power-domains = <&pd_aur>;
+		s2mpus = <&s2mpu_aur_inst_data>;
 		sysmmu,no-s2pf;
 		sysmmu,async-fault;
 	};
