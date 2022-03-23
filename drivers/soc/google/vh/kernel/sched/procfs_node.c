@@ -784,7 +784,8 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 	switch (vta) {
 	case VTA_TASK_GROUP:
 		vp = get_vendor_task_struct(p);
-		migrate_vendor_group_util(p, vp->group, val);
+		if (p->prio >= MAX_RT_PRIO)
+			migrate_vendor_group_util(p, vp->group, val);
 		if (p->on_rq) {
 			group = vp->group;
 			raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
@@ -812,7 +813,8 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 		for_each_thread(p, t) {
 			get_task_struct(t);
 			vp = get_vendor_task_struct(t);
-			migrate_vendor_group_util(t, vp->group, val);
+			if (p->prio >= MAX_RT_PRIO)
+				migrate_vendor_group_util(t, vp->group, val);
 			if (t->on_rq) {
 				group = vp->group;
 				raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);

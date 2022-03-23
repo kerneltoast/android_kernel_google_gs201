@@ -31,6 +31,20 @@
 #define cpu_overutilized(cap, max, cpu)	\
 		((cap) * sched_capacity_margin[cpu] > (max) << SCHED_CAPACITY_SHIFT)
 
+#define lsub_positive(_ptr, _val) do {				\
+	typeof(_ptr) ptr = (_ptr);				\
+	*ptr -= min_t(typeof(*ptr), *ptr, _val);		\
+} while (0)
+
+#define sub_positive(_ptr, _val) do {				\
+	typeof(_ptr) ptr = (_ptr);				\
+	typeof(*ptr) val = (_val);				\
+	typeof(*ptr) res, var = READ_ONCE(*ptr);		\
+	res = var - val;					\
+	if (res > var)						\
+		res = 0;					\
+	WRITE_ONCE(*ptr, res);					\
+} while (0)
 
 #define __container_of(ptr, type, member) ({				\
 	void *__mptr = (void *)(ptr);					\
@@ -81,6 +95,18 @@ enum vendor_group_attribute {
 	VTA_TASK_GROUP,
 	VTA_PROC_GROUP,
 };
+
+struct vendor_rq_struct {
+	raw_spinlock_t lock;
+	unsigned long util_removed;
+};
+
+ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[96], struct vendor_rq_struct t);
+
+static inline struct vendor_rq_struct *get_vendor_rq_struct(struct rq *rq)
+{
+	return (struct vendor_rq_struct *)rq->android_vendor_data1;
+}
 
 int acpu_init(void);
 extern struct proc_dir_entry *vendor_sched;
