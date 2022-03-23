@@ -737,25 +737,14 @@ static inline void clear_and_flush_pgtable(sysmmu_pte_t *ent, int count, atomic_
 		atomic_sub(count, lv2entcnt);
 }
 
-size_t samsung_sysmmu_unmap_pages(struct iommu_domain *dom, unsigned long iova_org,
-				  size_t pgsize, size_t pgcount,
-				  struct iommu_iotlb_gather *gather)
+static void unmap_slpt(struct samsung_sysmmu_domain *domain, unsigned long iova, size_t size)
 {
-	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
-	unsigned long iova = iova_org;
-	atomic_t *lv2entcnt;
 	sysmmu_pte_t *sent, *pent;
-	size_t size = pgsize * pgcount;
 	unsigned long section_end, end = iova + size;
+	atomic_t *lv2entcnt;
 	int nent;
 
 	sent = section_entry(domain->page_table, iova);
-	if (pgsize == SECT_SIZE) {
-		clear_and_flush_pgtable(sent, pgcount, NULL);
-		goto out;
-	}
-
-	/* SLPT unmapping begins */
 	while (iova < end) {
 		section_end = (iova + SECT_SIZE) & SECT_MASK;
 		if (end < section_end)
@@ -773,8 +762,42 @@ next_section:
 		iova = section_end;
 		sent++;
 	}
+}
 
-out:
+size_t samsung_sysmmu_unmap_pages(struct iommu_domain *dom, unsigned long iova_org,
+				  size_t pgsize, size_t pgcount,
+				  struct iommu_iotlb_gather *gather)
+{
+	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
+	unsigned long iova = iova_org;
+	size_t size = pgsize * pgcount;
+
+	if (pgsize == SECT_SIZE) {
+		sysmmu_pte_t *sent, *flush_start;
+		unsigned long flush_count = 0;
+
+		sent = section_entry(domain->page_table, iova);
+		flush_start = sent;
+		while (pgcount--) {
+			if (lv1ent_page(sent)) {
+				if (flush_count) {
+					clear_and_flush_pgtable(flush_start, flush_count, NULL);
+					flush_count = 0;
+				}
+				flush_start = sent + 1;
+				unmap_slpt(domain, iova, SECT_SIZE);
+			} else {
+				flush_count++;
+			}
+			iova += SECT_SIZE;
+			sent++;
+		}
+		if (flush_count)
+			clear_and_flush_pgtable(flush_start, flush_count, NULL);
+	} else {
+		unmap_slpt(domain, iova, size);
+	}
+
 	iommu_iotlb_gather_add_page(dom, gather, iova_org, size);
 
 	return size;
