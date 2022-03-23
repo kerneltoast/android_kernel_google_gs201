@@ -411,6 +411,11 @@ void exynos_ehld_event_raw_update(unsigned int cpu, bool update_val)
 		data->pmpcsr[count] = 0;
 	} else {
 		DBG_UNLOCK(ctrl->dbg_base + PMU_OFFSET);
+		/*
+		 * Workaround: Need to read PMUPCSR twice to get valid
+		 * PC values. The first read keeps returning 0xffffffff.
+		 */
+		val = __raw_readq(ctrl->dbg_base + PMU_OFFSET + PMUPCSR);
 		val = __raw_readq(ctrl->dbg_base + PMU_OFFSET + PMUPCSR);
 		if (MSB_MASKING == (MSB_MASKING & val))
 			val |= MSB_PADDING;
