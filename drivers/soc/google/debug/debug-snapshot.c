@@ -134,12 +134,6 @@ bool dbg_snapshot_is_scratch(void)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_is_scratch);
 
-void dbg_snapshot_warm_reboot_reg(unsigned int val)
-{
-	dbg_snapshot_set_val_offset(val, DSS_OFFSET_WARM_REBOOT);
-}
-EXPORT_SYMBOL_GPL(dbg_snapshot_warm_reboot_reg);
-
 void dbg_snapshot_set_debug_test_buffer_addr(u64 paddr, unsigned int cpu)
 {
 	void __iomem *header = dbg_snapshot_get_header_vaddr();

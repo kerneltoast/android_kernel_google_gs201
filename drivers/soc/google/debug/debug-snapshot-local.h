@@ -80,7 +80,6 @@ extern int dbg_snapshot_dt_scan_dpm(void);
 extern int dbg_snapshot_get_enable(void);
 extern void __iomem *dbg_snapshot_get_header_vaddr(void);
 extern void dbg_snapshot_scratch_reg(unsigned int val);
-extern void dbg_snapshot_warm_reboot_reg(unsigned int val);
 extern void dbg_snapshot_print_log_report(void);
 extern void dbg_snapshot_set_debug_test_buffer_addr(u64 paddr, unsigned int cpu);
 extern unsigned int dbg_snapshot_get_debug_test_buffer_addr(unsigned int cpu);
@@ -133,10 +132,6 @@ extern struct itmon_logs *dss_itmon;
 #define DSS_BOOT_CNT_MAGIC		0xFACEDB90
 #define DSS_SLCDUMP_MAGIC		0x1337CACE
 
-/* Warm reboot domain */
-#define DSS_WARM_REBOOT_SET		0x1
-#define DSS_WARM_REBOOT_UNSET		0x0
-
 /*  Specific Address Information */
 #define DSS_OFFSET_SCRATCH		(0x100)
 #define DSS_OFFSET_NONE_DPM_DUMP_MODE	(0x108)
@@ -153,7 +148,6 @@ extern struct itmon_logs *dss_itmon;
 #define DSS_OFFSET_PMIC_REG_INT_5	(0x288)
 #define DSS_OFFSET_PMIC_REG_INT_6	(0x289)
 #define DSS_OFFSET_PMIC_REASON		(0x290)
-#define DSS_OFFSET_WARM_REBOOT		(0x2C0)
 #define DSS_OFFSET_EMERGENCY_REASON	(0x300)
 #define DSS_OFFSET_WDT_CALLER		(0x310)
 #define DSS_OFFSET_DUMP_GPR_WAIT	(0x380)
