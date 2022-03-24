@@ -32,6 +32,8 @@ struct gs_pi_param {
 	bool switched_on;
 };
 
+#define TRIP_LEVEL_NUM 8
+
 /**
  * struct gs_tmu_data : A structure to hold the private data of the TMU
 	driver
@@ -113,6 +115,7 @@ struct gs_tmu_data {
 	char cpuhp_name[CPUHP_USER_NAME_LEN + 1];
 	void *disable_stats;
 	void *hardlimit_stats;
+	atomic64_t trip_counter[TRIP_LEVEL_NUM];
 };
 
 enum throttling_stats_type {
@@ -213,6 +216,7 @@ enum tmu_sensor_t {
 #define TMU_REG_INTEN(p)			((p) * 0x50 + TMU_REG_P0_INTEN)
 #define TMU_REG_P0_INTPEND			(0x00F8)
 #define TMU_REG_INTPEND(p)			((p) * 0x50 + TMU_REG_P0_INTPEND)
+#define TMU_REG_INTPEND_RISE_MASK(l)		(1 << (l))
 #define TMU_REG_P0_PAST_TEMP1_0			(0x0100)
 #define TMU_REG_PAST_TEMP1_0(p)			((p) * 0x50 + TMU_REG_P0_PAST_TEMP1_0)
 #define TMU_REG_P0_PAST_TEMP3_2			(0x0104)

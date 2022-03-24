@@ -303,18 +303,27 @@ static int gs_tmu_tz_config_init(struct platform_device *pdev)
 static bool has_tz_pending_irq(struct gs_tmu_data *pdata)
 {
 	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
-	u32 val;
+	u32 val, counter = 0;
 	u16 cnt;
 	enum tmu_sensor_t probe_id;
+	int i;
+	bool ret = false;
 
 	for (cnt = 0; cnt < tz_config_p->sensor_cnt; cnt++) {
 		probe_id = tz_config_p->sensors[cnt].probe_id;
 		val = readl(pdata->base + TMU_REG_INTPEND(probe_id));
+		counter |= val;
+
 		if (val)
-			return true;
+			ret = true;
 	}
 
-	return false;
+	for (i = 0; i < TRIP_LEVEL_NUM; i++) {
+		if (counter & TMU_REG_INTPEND_RISE_MASK(i))
+			atomic64_inc(&(pdata->trip_counter[i]));
+	}
+
+	return ret;
 }
 
 static void gs_report_trigger(struct gs_tmu_data *p)
@@ -2166,6 +2175,39 @@ pause_reset_store(struct device *dev, struct device_attribute *attr, const char 
 	return count;
 }
 
+static ssize_t trip_counter_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
+	int i;
+	int len = 0;
+
+	for (i = 0; i < TRIP_LEVEL_NUM; i++)
+		len += sysfs_emit_at(buf, len, "%lld ",
+				     atomic64_read(&(data->trip_counter[i])));
+
+	len += sysfs_emit_at(buf, len, "\n");
+
+	return len;
+}
+
+static ssize_t trip_counter_reset_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t count)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gs_tmu_data *data = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < TRIP_LEVEL_NUM; i++)
+		atomic64_set(&(data->trip_counter[i]), 0);
+
+	return count;
+}
+
 static ssize_t ipc_dump1_show(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
@@ -2247,6 +2289,8 @@ static DEVICE_ATTR_WO(pause_reset);
 static DEVICE_ATTR_RO(hardlimit_time_in_state_ms);
 static DEVICE_ATTR_RO(hardlimit_total_count);
 static DEVICE_ATTR_WO(hardlimit_reset);
+static DEVICE_ATTR_RO(trip_counter);
+static DEVICE_ATTR_WO(trip_counter_reset);
 static DEVICE_ATTR_RO(ipc_dump1);
 static DEVICE_ATTR_RO(ipc_dump2);
 create_s32_param_attr(k_po);
@@ -2278,6 +2322,8 @@ static struct attribute *gs_tmu_attrs[] = {
 	&dev_attr_hardlimit_time_in_state_ms.attr,
 	&dev_attr_hardlimit_total_count.attr,
 	&dev_attr_hardlimit_reset.attr,
+	&dev_attr_trip_counter.attr,
+	&dev_attr_trip_counter_reset.attr,
 	&dev_attr_ipc_dump1.attr,
 	&dev_attr_ipc_dump2.attr,
 	NULL,
