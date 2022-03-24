@@ -11,7 +11,7 @@
 	subsys-name = "Camera";
 };
 
-/* replace S7S_MLDO to VSYS_PWR_CAM */
+/* replace L9S_GNSS_CORE to VSYS_PWR_CAM */
 &ch15 {
 	rail-name = "VSEN_C6";
 };

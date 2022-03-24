@@ -26,6 +26,10 @@
 	subsys-name = "Spare";
 };
 
+&s_ldo7_reg {
+	schematic-name = "L7S_SENSORS";
+};
+
 &s_ldo8_reg {
 	schematic-name = "L8S_SPARE";
 	subsys-name = "Spare";
@@ -43,6 +47,11 @@
 
 &s_ldo15_reg {
 	schematic-name = "L15S_UDFPS_AVDD";
+};
+
+&s_ldo20_reg {
+	schematic-name = "L20S_DMIC2";
+	subsys-name = "DMIC";
 };
 
 &s_ldo22_reg {

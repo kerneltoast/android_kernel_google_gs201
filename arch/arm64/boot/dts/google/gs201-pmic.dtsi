@@ -637,12 +637,12 @@
 				};
 
 				ch9: channel@8 {
-					rail-name = "BUCK6M";
+					rail-name = "BUCK8M";
 					channel_enabled;
 				};
 
 				ch10: channel@9 {
-					rail-name = "BUCK7M";
+					rail-name = "LDO15M";
 					channel_enabled;
 				};
 
@@ -652,7 +652,7 @@
 				};
 
 				ch12: channel@11 {
-					rail-name = "LDO1M";
+					rail-name = "LDO28M";
 					channel_enabled;
 				};
 			};
@@ -1270,7 +1270,7 @@
 				};
 
 				ch15: channel@2 {
-					rail-name = "BUCK7S";
+					rail-name = "LDO9S";
 					channel_enabled;
 				};
 
@@ -1305,17 +1305,17 @@
 				};
 
 				ch22: channel@9 {
-					rail-name = "BUCK10S";
+					rail-name = "LDO7S";
 					channel_enabled;
 				};
 
 				ch23: channel@10 {
-					rail-name = "LDO9S";
+					rail-name = "LDO14S";
 					channel_enabled;
 				};
 
 				ch24: channel@11 {
-					rail-name = "LDO15S";
+					rail-name = "LDO2S";
 					channel_enabled;
 				};
 			};
