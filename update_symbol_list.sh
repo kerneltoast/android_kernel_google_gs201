@@ -250,11 +250,6 @@ function extract_pixel_symbols {
 function verify_new_symbols_require_abi_update {
   local pixel_symbol_list=$1
 
-  # Note: The KMI won't be frozen on android13-5.10 until Feb 23
-  # (go/gki-schedule). So disable the ABI xml update until then.
-  ABI_XML_UPDATE_REQUIRED=0
-  return
-
   pushd aosp/ >/dev/null
     git diff --name-only aosp/android13-5.10..HEAD | grep -v "\<${pixel_symbol_list}\>"
     err=$?
