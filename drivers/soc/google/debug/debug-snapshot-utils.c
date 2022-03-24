@@ -19,6 +19,7 @@
 #include <linux/kdebug.h>
 #include <linux/arm-smccc.h>
 #include <linux/sysfs.h>
+#include <linux/reboot.h>
 
 #include <asm/cputype.h>
 #include <asm/smp_plat.h>
@@ -197,6 +198,11 @@ static void dbg_snapshot_report_reason(unsigned int val)
 
 	if (header)
 		__raw_writel(val, header + DSS_OFFSET_EMERGENCY_REASON);
+}
+
+static void dbg_snapshot_set_reboot_mode(enum reboot_mode mode)
+{
+	reboot_mode = mode;
 }
 
 static void dbg_snapshot_set_wdt_caller(unsigned long addr)
@@ -581,6 +587,7 @@ static int dbg_snapshot_panic_handler(struct notifier_block *nb,
 	dbg_snapshot_set_item_enable("log_kevents", false);
 	dbg_snapshot_dump_panic(kernel_panic_msg, strlen(kernel_panic_msg));
 	dbg_snapshot_report_reason(DSS_SIGN_PANIC);
+	dbg_snapshot_set_reboot_mode(REBOOT_WARM);
 	for_each_possible_cpu(cpu) {
 		if (cpu_is_offline(cpu))
 			dbg_snapshot_set_core_power_stat(DSS_SIGN_DEAD, cpu);
@@ -644,6 +651,7 @@ static int dbg_snapshot_restart_handler(struct notifier_block *nb,
 	if (dss_desc.in_warm) {
 		dev_emerg(dss_desc.dev, "warm reset\n");
 		dbg_snapshot_report_reason(DSS_SIGN_WARM_REBOOT);
+		dbg_snapshot_set_reboot_mode(REBOOT_WARM);
 		dbg_snapshot_dump_task_info();
 	} else if (dss_desc.in_reboot) {
 		dev_emerg(dss_desc.dev, "normal reboot starting\n");
@@ -651,6 +659,7 @@ static int dbg_snapshot_restart_handler(struct notifier_block *nb,
 	} else {
 		dev_emerg(dss_desc.dev, "emergency restart\n");
 		dbg_snapshot_report_reason(DSS_SIGN_EMERGENCY_REBOOT);
+		dbg_snapshot_set_reboot_mode(REBOOT_WARM);
 		dbg_snapshot_dump_task_info();
 	}
 
