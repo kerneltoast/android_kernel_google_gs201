@@ -11,6 +11,7 @@ function update_khwasan_config() {
     -e CONFIG_KCOV \
     -e CONFIG_DEBUG_INFO \
     -d CONFIG_RANDOMIZE_BASE \
+    -d CONFIG_SCSI_UFS_PIXEL_FIPS140 \
     --set-val CONFIG_FRAME_WARN 0
   (cd ${OUT_DIR} && \
    make O=${OUT_DIR} "${TOOL_ARGS[@]}" ${MAKE_ARGS} olddefconfig)
