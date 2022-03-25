@@ -3993,6 +3993,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
+	device_enable_async_suspend(&pdev->dev);
 
 	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
 	platform_set_drvdata(pdev, exynos_pcie);
