@@ -570,7 +570,7 @@ static u8 *get_packet_vaddr(struct pktproc_queue *q, struct pktproc_desc_sktbuf 
 
 	ret += ppa->skb_padding_size;
 
-	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
+	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc && q->dma_addr[q->done_ptr]) {
 		dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
 					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 		q->dma_addr[q->done_ptr] = 0;
