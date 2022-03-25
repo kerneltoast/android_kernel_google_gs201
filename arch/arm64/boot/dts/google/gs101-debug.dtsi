@@ -718,6 +718,49 @@
 		status = "ok";
 	};
 
+	exynos-ehld {
+		compatible = "google,exynos-ehld";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		cs_base = <0x25000000>;
+		status = "ok";
+
+		dbgc {
+			/* IPC */
+			plugin-len = <4>;
+			plugin-name = "ELD";
+			support = <1>;
+			interval = <1000>;
+			warn-count = <4>;
+			use-tick-timer = <0>;
+		};
+
+		cpu0 {
+			dbg-offset = <0x810000>;
+		};
+		cpu1 {
+			dbg-offset = <0x910000>;
+		};
+		cpu2 {
+			dbg-offset = <0xa10000>;
+		};
+		cpu3 {
+			dbg-offset = <0xb10000>;
+		};
+		cpu4 {
+			dbg-offset = <0xc10000>;
+		};
+		cpu5 {
+			dbg-offset = <0xd10000>;
+		};
+		cpu6 {
+			dbg-offset = <0xe10000>;
+		};
+		cpu7 {
+			dbg-offset = <0xf10000>;
+		};
+	};
+
 	sjtag_ap {
 		compatible = "google,sjtag";
 		ms-per-tick = <5590>;
