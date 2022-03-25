@@ -527,6 +527,22 @@
 				};
 			};
 
+			dai_fe_ims_rx: fe_ims_rx {
+				dai-name = "audio_immersive";
+				stream-name = "audio_immersive";
+				id = <IDX_IMS_RX>;
+				dynamic;
+				playback;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_IMS_RX>;
+				};
+				platform {
+					rx1 {
+						of_drv = <&aoc_pcm_ep>;
+					};
+				};
+			};
+
 			dai_be_i2s0_rx: be_i2s0_rx {
 				dai-name = "I2S_0_RX Playback";
 				stream-name = "I2S_0_RX Playback";
