@@ -30,6 +30,7 @@
 				cpu2_clkdivstep = <0x801>;
 				cpu1_clkdivstep = <0x0>;
 				cpu0_clkdivstep = <0x1>;
+				odpm_ratio = <3>;
 			};
 		};
 	};
