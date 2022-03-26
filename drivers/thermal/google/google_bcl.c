@@ -331,11 +331,11 @@ static int triggered_read_level(void *data, int *val, int id)
 
 	*val = bcl_dev->gra_lvl[id];
 	if ((bcl_dev->gra_tz_cnt[id] == 0) ||
-	    (bcl_dev->gra_tz_cnt[id] < THERMAL_IRQ_COUNTER_LIMIT)) {
+	    (bcl_dev->gra_tz_cnt[id] > THERMAL_IRQ_COUNTER_LIMIT)) {
 		bcl_dev->gra_tz_cnt[id] = 0;
 		return 0;
 	}
-	if ((id == SMPL_WARN) || odpm_current > (bcl_dev->gra_lvl[id] >> 1) ||
+	if ((id == SMPL_WARN) || odpm_current > (bcl_dev->gra_lvl[id] / bcl_dev->odpm_ratio) ||
 	    bcl_dev->gra_tz_cnt[id] == 1) {
 		*val = bcl_dev->gra_lvl[id] + THERMAL_HYST_LEVEL;
 		bcl_dev->gra_tz_cnt[id] += 1;
@@ -3680,6 +3680,8 @@ static void google_bcl_parse_dtree(struct bcl_device *bcl_dev)
 	bcl_dev->cpu1_clkdivstep = ret ? 0 : val;
 	ret = of_property_read_u32(np, "cpu0_clkdivstep", &val);
 	bcl_dev->cpu0_clkdivstep = ret ? 0 : val;
+	ret = of_property_read_u32(np, "odpm_ratio", &val);
+	bcl_dev->odpm_ratio = (ret || !val) ? 2 : val;
 	if (google_bcl_init_clk_div(bcl_dev, CPU2, bcl_dev->cpu2_clkdivstep) != 0)
 		dev_err(bcl_dev->device, "CPU2 Address is NULL\n");
 	if (google_bcl_init_clk_div(bcl_dev, CPU1, bcl_dev->cpu1_clkdivstep) != 0)

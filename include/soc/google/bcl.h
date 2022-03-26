@@ -134,6 +134,7 @@ struct bcl_device {
 	unsigned int tpu_clk_stats;
 	unsigned int tpu_vdroop_flt;
 	unsigned int gpu_vdroop_flt;
+	unsigned int odpm_ratio;
 
 	bool batt_psy_initialized;
 	bool enabled;
