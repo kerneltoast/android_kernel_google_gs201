@@ -94,12 +94,13 @@ extern void pmu_poll_disable(void);
 			size_t count, loff_t *pos) \
 		{									      \
 			char buf[MAX_PROC_SIZE];	\
-			int ret = update_vendor_group_attribute(buf, VTA_TASK_GROUP, __vg);   \
+			int ret;   \
 			if (count >= sizeof(buf))	\
 				return -EINVAL;	\
 			if (copy_from_user(buf, ubuf, count))	\
 				return -EFAULT;	\
 			buf[count] = '\0';	\
+			ret = update_vendor_group_attribute(buf, VTA_TASK_GROUP, __vg);   \
 			return ret ?: count;						      \
 		}									      \
 		PROC_OPS_WO(set_task_group_##__grp);		\
@@ -108,12 +109,13 @@ extern void pmu_poll_disable(void);
 			size_t count, loff_t *pos)		\
 		{									      \
 			char buf[MAX_PROC_SIZE];	\
-			int ret  = update_vendor_group_attribute(buf, VTA_PROC_GROUP, __vg);   \
+			int ret;   \
 			if (count >= sizeof(buf))	\
 				return -EINVAL;	\
 			if (copy_from_user(buf, ubuf, count))	\
 				return -EFAULT;	\
 			buf[count] = '\0';	\
+			ret = update_vendor_group_attribute(buf, VTA_PROC_GROUP, __vg);   \
 			return ret ?: count;						      \
 		}									      \
 		PROC_OPS_WO(set_proc_group_##__grp);
@@ -201,8 +203,40 @@ extern void pmu_poll_disable(void);
 		}									      \
 		PROC_OPS_RW(__grp##_##__attr);
 
+#define PER_TASK_BOOL_ATTRIBUTE(__attr)						      \
+		static ssize_t __attr##_set##_store(struct file *filp, \
+			const char __user *ubuf, \
+			size_t count, loff_t *pos) \
+		{									      \
+			char buf[MAX_PROC_SIZE];	\
+			int ret;	\
+			if (count >= sizeof(buf))	\
+				return -EINVAL;	\
+			if (copy_from_user(buf, ubuf, count))	\
+				return -EFAULT;	\
+			buf[count] = '\0';	\
+			ret = update_##__attr(buf, true);   \
+			return ret ?: count;						      \
+		}									      \
+		PROC_OPS_WO(__attr##_set);	\
+		static ssize_t __attr##_clear##_store(struct file *filp, \
+			const char __user *ubuf, \
+			size_t count, loff_t *pos) \
+		{									      \
+			char buf[MAX_PROC_SIZE];	\
+			int ret;	\
+			if (count >= sizeof(buf))	\
+				return -EINVAL;	\
+			if (copy_from_user(buf, ubuf, count))	\
+				return -EFAULT;	\
+			buf[count] = '\0';	\
+			ret = update_##__attr(buf, false);   \
+			return ret ?: count;						      \
+		}									      \
+		PROC_OPS_WO(__attr##_clear);
+
 /// ******************************************************************************** ///
-/// ********************* Create vendor group sysfs nodes*************************** ///
+/// ********************* Create vendor group procfs nodes*************************** ///
 /// ******************************************************************************** ///
 
 VENDOR_GROUP_BOOL_ATTRIBUTE(ta, prefer_idle, VG_TOPAPP);
@@ -558,6 +592,23 @@ uclamp_update_active(struct task_struct *p, enum uclamp_id clamp_id)
 /// ******************************************************************************** ///
 /// ********************* New code section ***************************************** ///
 /// ******************************************************************************** ///
+static inline bool check_cred(struct task_struct *p)
+{
+	const struct cred *cred, *tcred;
+	bool ret = true;
+
+	cred = current_cred();
+	tcred = get_task_cred(p);
+	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
+	    !uid_eq(cred->euid, tcred->uid) &&
+	    !uid_eq(cred->euid, tcred->suid) &&
+	    !ns_capable(tcred->user_ns, CAP_SYS_NICE)) {
+		ret = false;
+	}
+	put_cred(tcred);
+	return ret;
+}
+
 
 static int update_sched_capacity_margin(const char *buf, int count)
 {
@@ -633,14 +684,11 @@ static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id
 	rcu_read_unlock();
 }
 
-static int update_vendor_group_attribute(const char *buf, enum vendor_group_attribute vta,
-					 unsigned int val)
+static int update_prefer_idle(const char *buf, bool val)
 {
 	struct vendor_task_struct *vp;
-	struct task_struct *p, *t;
-	enum uclamp_id clamp_id;
+	struct task_struct *p;
 	pid_t pid;
-	const struct cred *cred, *tcred;
 
 	if (kstrtoint(buf, 0, &pid) || pid <= 0)
 		return -EINVAL;
@@ -654,18 +702,79 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 
 	get_task_struct(p);
 
-	cred = current_cred();
-	tcred = get_task_cred(p);
-	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
-	    !uid_eq(cred->euid, tcred->uid) &&
-	    !uid_eq(cred->euid, tcred->suid) &&
-	    !ns_capable(tcred->user_ns, CAP_SYS_NICE)) {
-		put_cred(tcred);
+	if (!check_cred(p)) {
 		put_task_struct(p);
 		rcu_read_unlock();
 		return -EACCES;
 	}
-	put_cred(tcred);
+
+	vp = get_vendor_task_struct(p);
+	vp->prefer_idle = val;
+
+	put_task_struct(p);
+	rcu_read_unlock();
+
+	return 0;
+}
+
+static int update_uclamp_fork_reset(const char *buf, bool val)
+{
+	struct vendor_task_struct *vp;
+	struct task_struct *p;
+	pid_t pid;
+
+	if (kstrtoint(buf, 0, &pid) || pid <= 0)
+		return -EINVAL;
+
+	rcu_read_lock();
+	p = find_task_by_vpid(pid);
+	if (!p) {
+		rcu_read_unlock();
+		return -ESRCH;
+	}
+
+	get_task_struct(p);
+
+	if (!check_cred(p)) {
+		put_task_struct(p);
+		rcu_read_unlock();
+		return -EACCES;
+	}
+
+	vp = get_vendor_task_struct(p);
+	vp->uclamp_fork_reset = val;
+
+	put_task_struct(p);
+	rcu_read_unlock();
+
+	return 0;
+}
+
+static int update_vendor_group_attribute(const char *buf, enum vendor_group_attribute vta,
+					 unsigned int val)
+{
+	struct vendor_task_struct *vp;
+	struct task_struct *p, *t;
+	enum uclamp_id clamp_id;
+	pid_t pid;
+
+	if (kstrtoint(buf, 0, &pid) || pid <= 0)
+		return -EINVAL;
+
+	rcu_read_lock();
+	p = find_task_by_vpid(pid);
+	if (!p) {
+		rcu_read_unlock();
+		return -ESRCH;
+	}
+
+	get_task_struct(p);
+
+	if (!check_cred(p)) {
+		put_task_struct(p);
+		rcu_read_unlock();
+		return -EACCES;
+	}
 
 	switch (vta) {
 	case VTA_TASK_GROUP:
@@ -705,6 +814,10 @@ SET_VENDOR_GROUP_STORE(rt, VG_RT);
 SET_VENDOR_GROUP_STORE(dex2oat, VG_DEX2OAT);
 SET_VENDOR_GROUP_STORE(ota, VG_OTA);
 SET_VENDOR_GROUP_STORE(sf, VG_SF);
+
+// Create per-task attribute nodes
+PER_TASK_BOOL_ATTRIBUTE(prefer_idle);
+PER_TASK_BOOL_ATTRIBUTE(uclamp_fork_reset);
 
 static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "cam_power", "bg", "sys_bg",
 				       "nnapi", "rt", "dex2oat", "ota", "sf"};
@@ -1071,74 +1184,6 @@ static ssize_t pmu_poll_enable_store(struct file *filp,
 
 PROC_OPS_RW(pmu_poll_enable);
 
-static ssize_t uclamp_fork_reset_set_store(struct file *filp,
-							const char __user *ubuf,
-							size_t count, loff_t *pos)
-{
-	struct vendor_task_struct *vp;
-	struct task_struct *p;
-	pid_t pid;
-	char buf[MAX_PROC_SIZE];
-
-	if (count >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(buf, ubuf, count))
-		return -EFAULT;
-
-	buf[count] = '\0';
-
-	if (kstrtoint(buf, 0, &pid) || pid <= 0)
-		return -EINVAL;
-
-	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
-		rcu_read_unlock();
-		return -ESRCH;
-	}
-
-	vp = get_vendor_task_struct(p);
-	vp->uclamp_fork_reset = true;
-	rcu_read_unlock();
-	return count;
-}
-PROC_OPS_WO(uclamp_fork_reset_set);
-
-static ssize_t uclamp_fork_reset_clear_store(struct file *filp,
-							const char __user *ubuf,
-							size_t count, loff_t *pos)
-{
-	struct vendor_task_struct *vp;
-	struct task_struct *p;
-	pid_t pid;
-	char buf[MAX_PROC_SIZE];
-
-	if (count >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(buf, ubuf, count))
-		return -EFAULT;
-
-	buf[count] = '\0';
-
-	if (kstrtoint(buf, 0, &pid) || pid <= 0)
-		return -EINVAL;
-
-	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
-		rcu_read_unlock();
-		return -ESRCH;
-	}
-
-	vp = get_vendor_task_struct(p);
-	vp->uclamp_fork_reset = false;
-	rcu_read_unlock();
-	return count;
-}
-PROC_OPS_WO(uclamp_fork_reset_clear);
-
 struct pentry {
 	const char *name;
 	const struct proc_ops *fops;
@@ -1263,13 +1308,16 @@ static struct pentry entries[] = {
 	PROC_ENTRY(uclamp_threshold),
 	PROC_ENTRY(util_threshold),
 	PROC_ENTRY(util_post_init_scale),
-	PROC_ENTRY(uclamp_fork_reset_set),
-	PROC_ENTRY(uclamp_fork_reset_clear),
 	PROC_ENTRY(npi_packing),
 	PROC_ENTRY(dump_task),
-
+	// pmu limit attribute
 	PROC_ENTRY(pmu_poll_time),
 	PROC_ENTRY(pmu_poll_enable),
+	// per-task attribute
+	PROC_ENTRY(prefer_idle_set),
+	PROC_ENTRY(prefer_idle_clear),
+	PROC_ENTRY(uclamp_fork_reset_set),
+	PROC_ENTRY(uclamp_fork_reset_clear),
 };
 
 
