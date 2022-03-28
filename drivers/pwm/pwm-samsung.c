@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/time.h>
+#include <linux/gpio.h>
 
 /* For struct samsung_timer_variant and samsung_pwm_lock. */
 #include <clocksource/samsung_pwm.h>
@@ -117,6 +118,9 @@ struct samsung_pwm_chip {
 	int enable_cnt;
 	unsigned int idle_ip_index;
 	struct samsung_pwm_save_regs save_regs;
+	struct pinctrl_state	*pin_def;
+	struct pinctrl_state	*pin_sleep;
+	struct pinctrl		*pinctrl;
 };
 
 #ifndef CONFIG_CLKSRC_SAMSUNG_PWM
@@ -786,6 +790,28 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+	chip->pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR(chip->pinctrl)) {
+		dev_err(&pdev->dev, "Couldn't get pinctrl.\n");
+		chip->pinctrl = NULL;
+	} else {
+		chip->pin_def = pinctrl_lookup_state(chip->pinctrl,
+						     PINCTRL_STATE_DEFAULT);
+		if (IS_ERR(chip->pin_def)) {
+			dev_err(&pdev->dev, "Default state not defined\n");
+			chip->pin_def = NULL;
+		}
+
+		chip->pin_sleep = pinctrl_lookup_state(chip->pinctrl,
+						       PINCTRL_STATE_SLEEP);
+		if (IS_ERR(chip->pin_sleep)) {
+			dev_err(&pdev->dev, "Not using Sleep state\n");
+			chip->pin_sleep = NULL;
+		}
+	}
+#endif
+
 	ret = pwmchip_add(&chip->chip);
 	if (ret < 0) {
 		dev_err(dev, "failed to register PWM chip\n");
@@ -828,6 +854,20 @@ static int pwm_samsung_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
+
+static void pwm_pin_ctrl(struct device *dev, int en)
+{
+	struct samsung_pwm_chip *chip = dev_get_drvdata(dev);
+	struct pinctrl_state *pin_stat;
+
+	pin_stat = en ? chip->pin_def : chip->pin_sleep;
+	if (IS_ERR(pin_stat)) {
+		dev_err(dev, "pinctrl stat is null pointer.\n");
+		return;
+	}
+	pinctrl_select_state(chip->pinctrl, pin_stat);
+}
+
 static void pwm_samsung_save_regs(struct samsung_pwm_chip *chip)
 {
 	int i;
@@ -905,12 +945,16 @@ static int pwm_samsung_suspend(struct device *dev)
 
 	pwm_samsung_clk_disable(chip);
 
+	pwm_pin_ctrl(dev, 0);
+
 	return 0;
 }
 
 static int pwm_samsung_resume(struct device *dev)
 {
 	struct samsung_pwm_chip *chip = dev_get_drvdata(dev);
+
+	pwm_pin_ctrl(dev, 1);
 
 	pwm_samsung_clk_enable(chip);
 
