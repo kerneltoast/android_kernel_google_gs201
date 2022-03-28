@@ -50,6 +50,7 @@
 #define TCPC_RECEIVE_BUFFER_LEN                         32
 
 #define PD_ACTIVITY_TIMEOUT_MS				10000
+#define VSAFE0V_DEBOUNCE_MS				15
 
 #define GBMS_MODE_VOTABLE "CHARGER_MODE"
 
@@ -816,6 +817,23 @@ static void max77759_frs_sourcing_vbus(struct tcpci *tcpci, struct tcpci_data *t
 	usb_psy_set_sink_state(chip->usb_psy_data, false);
 }
 
+static void vsafe0v_debounce_work(struct kthread_work *work)
+{
+	struct max77759_plat *chip  =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct max77759_plat, vsafe0v_work);
+	struct tcpci *tcpci = chip->tcpci;
+
+	/* update to TCPM only if it is still Vsafe0V */
+	if (!chip->vsafe0v)
+		return;
+
+	chip->vbus_present = 0;
+	logbuffer_log(chip->log, "[%s]: vsafe0v debounced, vbus_present 0", __func__);
+	tcpm_vbus_change(tcpci->port);
+}
+
+
 static void process_power_status(struct max77759_plat *chip)
 {
 	struct tcpci *tcpci = chip->tcpci;
@@ -1201,18 +1219,28 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	}
 
 	if (status & TCPC_ALERT_EXTENDED_STATUS) {
+		bool vsafe0v;
 		ret = max77759_read8(tcpci->regmap, TCPC_EXTENDED_STATUS,
 				     (u8 *)&raw);
 		if (ret < 0)
 			return ret;
 
-		logbuffer_log(log, "VSAFE0V: %c\n", raw & TCPC_EXTENDED_STATUS_VSAFE0V ? 'Y' :
-			      'N');
-		if (raw & TCPC_EXTENDED_STATUS_VSAFE0V) {
-			chip->vbus_present = 0;
-			logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
-			tcpm_vbus_change(tcpci->port);
-		}
+		vsafe0v = raw & TCPC_EXTENDED_STATUS_VSAFE0V;
+		logbuffer_log(log, "VSAFE0V (runtime): %c -> %c", chip->vsafe0v ? 'Y' : 'N',
+			      vsafe0v ? 'Y' : 'N');
+
+		/*
+		 * b/199991513 For some OVP chips, when the incoming Vbus ramps up from 0, there is
+		 * a chance that an induced voltage (over Vsafe0V) behind the OVP would appear for a
+		 * short time and then drop to 0 (Vsafe0V), and ramp up to some HIGH voltage
+		 * (e.g Vsafe5V). To ignore the unwanted Vsafe0V event, queue a delayed work and
+		 * re-check the voltage after VSAFE0V_DEBOUNCE_MS.
+		 */
+		if (!chip->vsafe0v && vsafe0v)
+			kthread_mod_delayed_work(chip->wq, &chip->vsafe0v_work,
+						 msecs_to_jiffies(VSAFE0V_DEBOUNCE_MS));
+
+		chip->vsafe0v = vsafe0v;
 	}
 
 	logbuffer_log(log, "TCPC_ALERT status done: %#x", status);
@@ -2264,6 +2292,7 @@ static int max77759_probe(struct i2c_client *client,
 
 	kthread_init_delayed_work(&chip->icl_work, icl_work_item);
 	kthread_init_delayed_work(&chip->enable_vbus_work, enable_vbus_work);
+	kthread_init_delayed_work(&chip->vsafe0v_work, vsafe0v_debounce_work);
 
 	chip->psy_notifier.notifier_call = psy_changed;
 	ret = power_supply_reg_notifier(&chip->psy_notifier);
