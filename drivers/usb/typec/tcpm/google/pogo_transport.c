@@ -27,6 +27,7 @@
 #define POGO_USB_RETRY_THRESHOLD_UV 7000000
 #define POGO_USB_RETRY_COUNT 10
 #define POGO_USB_RETRY_INTEREVAL_MS 100
+#define POGO_LIKELY_USB_NOT_CAPABLE_MS 250
 #define POGO_PSY_DEBOUNCE_MS 50
 
 enum pogo_event_type {
@@ -57,6 +58,7 @@ struct pogo_transport {
 	int pogo_gpio;
 	int pogo_irq;
 	int pogo_data_mux_gpio;
+	int pogo_ovp_en_gpio;
 	/* When true, Usb data active over pogo pins. */
 	bool pogo_usb_active;
 	/* When true, Pogo connection is capable of usb transport. */
@@ -139,11 +141,13 @@ static void update_pogo_transport(struct kthread_work *work)
 				/*
 				 * Retry to avoid transients, ideally rise time should not
 				 * be more than 30ms.
+				 * Fuel gauge ADC which read's VBYP has a
+				 * sampling period of ~176ms.
 				 */
 				if (!pogo_transport->likely_usb_not_capable) {
 					pogo_transport_event(pogo_transport,
 							     EVENT_RETRY_READ_VOLTAGE,
-							     POGO_USB_RETRY_INTEREVAL_MS);
+							     POGO_LIKELY_USB_NOT_CAPABLE_MS);
 					pogo_transport->likely_usb_not_capable = true;
 					goto free;
 				} else {
@@ -241,6 +245,12 @@ static irqreturn_t pogo_irq(int irq, void *dev_id)
 	struct pogo_transport *pogo_transport = dev_id;
 
 	logbuffer_log(pogo_transport->log, "Pogo threaded irq running");
+
+	if (pogo_transport->pogo_ovp_en_gpio >= 0) {
+		gpio_set_value_cansleep(pogo_transport->pogo_ovp_en_gpio,
+					!gpio_get_value(pogo_transport->pogo_gpio));
+	}
+
 	/*
 	 * Signal pogo status change event.
 	 * Debounce on docking to differentiate between different docks by
@@ -346,6 +356,37 @@ static int init_pogo_alert_gpio(struct pogo_transport *pogo_transport)
 
 	pogo_transport->equal_priority = of_property_read_bool(pogo_transport->dev->of_node,
 							       "equal-priority");
+
+	if (!of_property_read_bool(pogo_transport->dev->of_node, "pogo-ovp-en")) {
+		pogo_transport->pogo_ovp_en_gpio = -EINVAL;
+		goto exit;
+	}
+
+	pogo_transport->pogo_ovp_en_gpio = of_get_named_gpio(pogo_transport->dev->of_node,
+							     "pogo-ovp-en", 0);
+	if (pogo_transport->pogo_ovp_en_gpio < 0) {
+		dev_err(pogo_transport->dev,
+			"Pogo ovp en gpio not found. ret:%d\n",
+			pogo_transport->pogo_ovp_en_gpio);
+		ret = pogo_transport->pogo_ovp_en_gpio;
+		goto disable_irq;
+	}
+
+	ret = devm_gpio_request(pogo_transport->dev, pogo_transport->pogo_ovp_en_gpio,
+				"pogo-ovp-en");
+	if (ret) {
+		dev_err(pogo_transport->dev, "failed to request pogo-ovp-en gpio, ret:%d\n",
+			ret);
+		goto disable_irq;
+	}
+
+	ret = gpio_direction_output(pogo_transport->pogo_ovp_en_gpio, 0);
+	if (ret) {
+		dev_err(pogo_transport->dev, "failed set pogo-ovp-en as output, ret:%d\n",
+			ret);
+		goto disable_irq;
+	}
+exit:
 	return 0;
 
 disable_irq:
