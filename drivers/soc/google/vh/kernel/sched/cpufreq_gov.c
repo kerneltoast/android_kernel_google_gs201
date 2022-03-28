@@ -959,9 +959,11 @@ static void pmu_limit_work(struct kthread_work *work)
 		sg_policy = policy->governor_data;
 		next_max_freq = policy->cpuinfo.max_freq;
 
-		// If pmu_limit_enable is not set, we don't need to call freq_qos_update_request
+		// If pmu_limit_enable is not set, or policy max is lower than pum limit freq,
+		// such as under thermal throttling, we don't need to call freq_qos_update_request
 		// unless it's currently under throttle.
-		if (!sg_policy->tunables->pmu_limit_enable) {
+		if (!sg_policy->tunables->pmu_limit_enable ||
+		    policy->max <= sg_policy->tunables->limit_frequency) {
 			if (unlikely(sg_policy->under_pmu_throttle)) {
 				goto update_next_max_freq;
 			} else {
