@@ -1450,7 +1450,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 
 
 	freq_qos_add_request(&policy->constraints, &sg_policy->pmu_max_freq_req,
-			     FREQ_QOS_MAX, policy->max);
+			     FREQ_QOS_MAX, policy->cpuinfo.max_freq);
 
 	ret = kobject_init_and_add(&tunables->attr_set.kobj, &sugov_tunables_ktype,
 				   get_governor_parent_kobj(policy), "%s",
