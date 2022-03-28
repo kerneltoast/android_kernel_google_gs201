@@ -2565,6 +2565,8 @@ retry:
 		if (pll_lock != 0 && cdr_lock != 0)
 			break;
 	}
+	if ((pll_lock == 0) || (cdr_lock == 0))
+		dev_info(dev, "PLL & CDR lock check!\n");
 
 	/* check offset calibration */
 	for (i = 0; i < 2000; i++) {
