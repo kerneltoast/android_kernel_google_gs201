@@ -2447,10 +2447,38 @@ static int exynos_pcie_rc_establish_link(struct pcie_port *pp)
 	u32 val, busdev;
 	int count = 0, try_cnt = 0;
 	unsigned int save_before_state = 0xff;
+	u32 i;
+	u32 pll_lock = 0, cdr_lock = 0, oc_done = 0;
 retry:
 
 	/* to call eyxnos_pcie_rc_pcie_phy_config() in cal.c file */
 	exynos_pcie_rc_assert_phy_reset(pp);
+
+	/* check pll & cdr lock */
+	for (i = 0; i < 1000; i++) {
+		udelay(1);
+		pll_lock = exynos_phy_read(exynos_pcie, 0x03F0) & (1 << 3);
+		cdr_lock = exynos_phy_read(exynos_pcie, 0x0FC0) & (1 << 4);
+
+		if (pll_lock != 0 && cdr_lock != 0)
+			break;
+	}
+
+	/* check offset calibration */
+	for (i = 0; i < 2000; i++) {
+		usleep_range(10, 12);
+		oc_done = exynos_phy_read(exynos_pcie, 0x0E18) & (1 << 7);
+
+		if (oc_done != 0)
+			break;
+	}
+	if (oc_done == 0) {
+		pll_lock = exynos_phy_read(exynos_pcie, 0x03F0) & (1 << 3);
+		cdr_lock = exynos_phy_read(exynos_pcie, 0x0FC0) & (1 << 4);
+		oc_done = exynos_phy_read(exynos_pcie, 0x0E18) & (1 << 7);
+		dev_err(dev, "OC Fail : PLL_LOCK : 0x%x, CDR_LOCK : 0x%x, OC : 0x%x\n",
+			pll_lock, cdr_lock, oc_done);
+	}
 
 	/* Soft Power RST */
 	val = exynos_elbi_read(exynos_pcie, PCIE_SOFT_RESET);
