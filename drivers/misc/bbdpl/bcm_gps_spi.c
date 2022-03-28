@@ -1415,20 +1415,6 @@ static int bcm_spi_probe(struct spi_device *spi)
 	/* Init - pinctrl */
 	error = gps_initialize_pinctrl(priv);
 
-	/* Request IRQ */
-	ret = devm_request_irq(&spi->dev, spi->irq, bcm_irq_handler,
-			IRQF_TRIGGER_HIGH, "ttyBCM", priv);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to register BCM477x SPI TTY IRQ %d.\n",
-				spi->irq);
-		goto free_wq;
-	}
-
-	disable_irq(spi->irq);
-
-	dev_info(&spi->dev, "Probe OK. ssp-host-req=%d, irq=%d, priv=0x%pK\n",
-			host_req, spi->irq, priv);
-
 	/* Register misc device */
 	priv->misc.minor = MISC_DYNAMIC_MINOR;
 	priv->misc.name = "ttyBCM";
@@ -1475,6 +1461,19 @@ static int bcm_spi_probe(struct spi_device *spi)
 
 	if (device_create_file(&priv->spi->dev, &dev_attr_sspmcureq))
 		dev_err(&spi->dev, "Unable to create sysfs 4775 sspmcureq entry");
+
+	/* Request IRQ */
+	ret = devm_request_irq(&spi->dev, spi->irq, bcm_irq_handler,
+			IRQF_TRIGGER_HIGH, "ttyBCM", priv);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to register BCM477x SPI TTY IRQ %d.\n",
+				spi->irq);
+		goto free_wq;
+	}
+	disable_irq(spi->irq);
+
+	dev_info(&spi->dev, "Probe OK. ssp-host-req=%d, irq=%d, priv=0x%pK\n",
+			host_req, spi->irq, priv);
 
 	return 0;
 
