@@ -23,6 +23,7 @@
 #include <soc/google/exynos-ehld.h>
 #include <soc/google/exynos-coresight.h>
 #include <soc/google/debug-snapshot.h>
+#include <soc/google/sjtag-driver.h>
 
 #include "core_regs.h"
 
@@ -405,7 +406,7 @@ void exynos_ehld_event_raw_update(unsigned int cpu, bool update_val)
 	data = &ctrl->data;
 	count = ++data->data_ptr & (NUM_TRACE - 1);
 	data->time[count] = cpu_clock(cpu);
-	if (cpu_is_offline(cpu) || !ctrl->ehld_running) {
+	if (sjtag_is_locked() || cpu_is_offline(cpu) || !ctrl->ehld_running) {
 		val = EHLD_VAL_PM;
 		data->event[count] = val;
 		data->pmpcsr[count] = 0;
@@ -459,6 +460,11 @@ void exynos_ehld_event_raw_dump(unsigned int cpu, bool header)
 	unsigned long flags, count;
 	int i;
 
+	if (sjtag_is_locked()) {
+		ehld_err(1, "EHLD trace requires SJTAG authentication\n");
+		return;
+	}
+
 	if (header)
 		print_ehld_header();
 
@@ -478,6 +484,11 @@ void exynos_ehld_event_raw_dump(unsigned int cpu, bool header)
 void exynos_ehld_event_raw_dump_allcpu(void)
 {
 	unsigned int cpu;
+
+	if (sjtag_is_locked()) {
+		ehld_err(1, "EHLD trace requires SJTAG authentication\n");
+		return;
+	}
 
 	print_ehld_header();
 	for_each_possible_cpu(cpu)
