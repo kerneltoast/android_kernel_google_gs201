@@ -24,6 +24,7 @@ struct s2mpu_data {
 	struct device *dev;
 	void __iomem *base;
 	bool pkvm_registered;
+	bool always_on;
 };
 
 static struct platform_device *__of_get_phandle_pdev(struct device *parent,
@@ -153,9 +154,14 @@ static void s2mpu_probe_irq(struct platform_device *pdev, struct s2mpu_data *dat
 	}
 }
 
+static struct s2mpu_data *s2mpu_dev_data(struct device *dev)
+{
+	return platform_get_drvdata(to_platform_device(dev));
+}
+
 static int s2mpu_suspend(struct device *dev)
 {
-	struct s2mpu_data *data = platform_get_drvdata(to_platform_device(dev));
+	struct s2mpu_data *data = s2mpu_dev_data(dev);
 
 	if (data->pkvm_registered)
 		return pkvm_iommu_suspend(dev);
@@ -165,7 +171,7 @@ static int s2mpu_suspend(struct device *dev)
 
 static int s2mpu_resume(struct device *dev)
 {
-	struct s2mpu_data *data = platform_get_drvdata(to_platform_device(dev));
+	struct s2mpu_data *data = s2mpu_dev_data(dev);
 
 	if (data->pkvm_registered)
 		return pkvm_iommu_resume(dev);
@@ -176,7 +182,14 @@ static int s2mpu_resume(struct device *dev)
 
 static int s2mpu_late_suspend(struct device *dev)
 {
-	if (pm_runtime_status_suspended(dev))
+	struct s2mpu_data *data = s2mpu_dev_data(dev);
+
+	/*
+	 * Some always-on S2MPUs need to allow traffic while the CPU is asleep.
+	 * Do not call pkvm_iommu_suspend() here because that would put them
+	 * in a blocking state.
+	 */
+	if (data->always_on || pm_runtime_status_suspended(dev))
 		return 0;
 
 	dev->power.must_resume = true;
@@ -185,6 +198,11 @@ static int s2mpu_late_suspend(struct device *dev)
 
 static int s2mpu_late_resume(struct device *dev)
 {
+	/*
+	 * Some always-on S2MPUs reset while the CPU is asleep. Call
+	 * pkvm_iommu_resume() here regardless of always-on to reconfigure them.
+	 */
+
 	if (pm_runtime_status_suspended(dev))
 		return 0;
 
@@ -197,7 +215,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
 	struct s2mpu_data *data;
-	bool always_on, off_at_boot;
+	bool off_at_boot;
 	int ret;
 
 	data = devm_kmalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -218,7 +236,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 		return PTR_ERR(data->base);
 	}
 
-	always_on = !!of_get_property(np, "always-on", NULL);
+	data->always_on = !!of_get_property(np, "always-on", NULL);
 	off_at_boot = !!of_get_property(np, "off-at-boot", NULL);
 
 	/*
@@ -249,7 +267,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 		WARN_ON(s2mpu_suspend(dev));
 
 	pm_runtime_enable(dev);
-	if (always_on)
+	if (data->always_on)
 		pm_runtime_get_sync(dev);
 
 	return 0;
