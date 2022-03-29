@@ -22,3 +22,16 @@
 		#include "gs201-panther-battery-data.dtsi"
 	};
 };
+
+/ {
+	fragment@battery {
+		target-path = "/";
+		__overlay__ {
+			google_bms {
+				nvmem-names = "6-00500";
+				/* pack eeprom is available only with P20+ batteries */
+				google,bee-name = "6-00500";
+			};
+		};
+	};
+};
