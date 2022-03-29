@@ -43,6 +43,7 @@
 		gxp-fw-region = <&gxp_fw_reserved>;
 		gxp-debug-dump-region = <&gxp_debug_dump_reserved>;
 		gxp-scratchpad-region = <&gxp_scratchpad_reserved>;
+		gxp-memory-per-core = <0 512>;
 	};
 	gxp_cooling: gxp-cooling {
 		#cooling-cells = <2>;
