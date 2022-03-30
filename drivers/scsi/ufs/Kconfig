@@ -209,7 +209,7 @@ config SCSI_UFS_HWMON
 
 config SCSI_UFS_PIXEL_FIPS140
 	tristate "Enable FIPS 140 CMVP Module"
-	depends on m && SCSI_UFS_EXYNOS && SCSI_UFS_CRYPTO
+	depends on m && SCSI_UFS_EXYNOS && SCSI_UFS_CRYPTO && !LTO_NONE
 	help
 	  Build a module capable of executing FIPS140-3 compliant self tests of
 	  the UFS crypto engine. The module is used to execute power on self
