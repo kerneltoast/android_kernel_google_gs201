@@ -10,7 +10,7 @@
 &max77759_chg {
 	/* external boost */
 	max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>; /* MW: OTG_BOOST_EN */
-	max77759,bst-sel = <0>;
+	max77759,apbst-on = <&p9xxx_gpio 4 GPIO_ACTIVE_HIGH>;
 	max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
 	max77759,extbst-mode = <&s2mpg12_gpio 4 GPIO_ACTIVE_HIGH>;
 
@@ -28,7 +28,4 @@
 	/* for OTG related usecase*/
 	max77759,rx-to-rx-otg-en; /* support RX -> RX+OTG */
 	max77759,ext-otg-only; /* use external OTG only */
-	/* WLC_TX ON : extboost on -> loadswitch on    */
-	/*        OFF: loadswitch off -> extboost off  */
-	max77759,bst-lsw-sequence;
 };

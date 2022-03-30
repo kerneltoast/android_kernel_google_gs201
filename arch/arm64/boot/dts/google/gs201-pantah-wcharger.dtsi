@@ -47,8 +47,8 @@
 		reg = <0x3c>;
 		status = "ok";
 
-		/* RTX: configure boost to 7V through wlc chip */
-		idt,apbst_en;
+		/* Support p9412 GPIO */
+		idt,has_p9412_gpio;
 
 		/* Granvilla GPIO 2~4 */
 		idt,gpio_ben = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>;  /* EXT_BST_EN */
