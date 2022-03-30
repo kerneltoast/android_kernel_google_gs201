@@ -18,12 +18,6 @@ extern int cpu_is_idle(int cpu);
 extern int sched_cpu_idle(int cpu);
 extern unsigned int sched_capacity_margin[CPU_NUM];
 
-/*
- * For cpu running normal tasks, its uclamp.min will be 0 and uclamp.max will be 1024,
- * and the sum will be 1024. We use this as index that cpu is not running important tasks.
- */
-#define DEFAULT_IMPRATANCE_THRESHOLD	1024
-
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
 /*****************************************************************************/

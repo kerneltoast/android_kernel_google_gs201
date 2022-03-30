@@ -12,6 +12,11 @@
 #define DEF_UTIL_THRESHOLD  1280
 #define DEF_UTIL_POST_INIT_SCALE  512
 #define C1_EXIT_LATENCY     1
+/*
+ * For cpu running normal tasks, its uclamp.min will be 0 and uclamp.max will be 1024,
+ * and the sum will be 1024. We use this as index that cpu is not running important tasks.
+ */
+#define DEFAULT_IMPRATANCE_THRESHOLD	1024
 
 /* Iterate thr' all leaf cfs_rq's on a runqueue */
 #define for_each_leaf_cfs_rq_safe(rq, cfs_rq, pos)			\

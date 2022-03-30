@@ -1022,7 +1022,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 				 * Find the best packing CPU with the maximum spare capacity in
 				 * the performance domain
 				 */
-				if (vendor_sched_npi_packing &&
+				if (vendor_sched_npi_packing && !is_idle &&
+				    cpu_importance <= DEFAULT_IMPRATANCE_THRESHOLD &&
 				    spare_cap > pd_max_packing_spare_cap && capacity_curr_of(i) >=
 				    ((cpu_util_next(i, p, i) + cpu_util_rt(cpu_rq(i))) *
 				    sched_capacity_margin[i]) >> SCHED_CAPACITY_SHIFT) {
@@ -1151,7 +1152,7 @@ out:
 	rcu_read_unlock();
 	trace_sched_find_energy_efficient_cpu(p, task_util_est(p), prefer_idle, prefer_high_cap,
 				     task_importance, &idle_fit, &idle_unfit, &unimportant_fit,
-				     &unimportant_unfit, &max_spare_cap, best_energy_cpu);
+				     &unimportant_unfit, &packing, &max_spare_cap, best_energy_cpu);
 	return best_energy_cpu;
 }
 
