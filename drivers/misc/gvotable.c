@@ -1350,8 +1350,14 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_cast_int_vote_fops, NULL,
 static int debugfs_force_int_value(void *data, u64 val)
 {
 	struct election_slot *slot = data;
+	u64 pre_val = (u64)slot->el->force_result;
 
 	slot->el->force_result = (void *)val;
+
+	if (slot->el->force_result_is_enabled && (pre_val != val))
+		slot->el->callback(slot->el, DEBUGFS_FORCE_VOTE_REASON,
+				   slot->el->force_result);
+
 	return 0;
 }
 
