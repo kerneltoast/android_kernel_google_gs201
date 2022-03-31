@@ -9,7 +9,9 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 
-#define GVOTABLE_MAX_REASON_LEN      32
+#define GVOTABLE_MAX_REASON_LEN		32
+
+#define GVOTABLE_PTR_TO_INT(v)		((int)(uintptr_t)(v))
 
 struct gvotable_election;
 
