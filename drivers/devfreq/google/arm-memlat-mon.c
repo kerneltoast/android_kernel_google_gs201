@@ -33,10 +33,6 @@
 static DEFINE_PER_CPU(bool, is_idle);
 static DEFINE_PER_CPU(bool, is_on);
 
-#define INST_EV	0x08
-#define CYC_EV	0x11
-#define STALL_EV 0x24
-
 enum mon_type {
 	MEMLAT_CPU_GRP,
 	MEMLAT_MON,
