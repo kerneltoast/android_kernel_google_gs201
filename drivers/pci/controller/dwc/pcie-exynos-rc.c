@@ -3811,6 +3811,10 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 		msi_domain = pp->msi_domain;
 		msi_domain_info = (struct msi_domain_info *)msi_domain->host_data;
 		msi_domain_info->chip->irq_set_affinity = exynos_pcie_msi_set_affinity;
+		if (exynos_pcie->ep_device_type == EP_QC_WIFI) {
+			msi_domain_info->chip->irq_mask = pci_msi_mask_irq;
+			msi_domain_info->chip->irq_unmask = pci_msi_unmask_irq;
+		}
 	}
 
 	return 0;
