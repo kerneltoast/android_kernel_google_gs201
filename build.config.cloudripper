@@ -1,8 +1,16 @@
 DEFCONFIG=cloudripper_gki_defconfig
 GKI_FRAGMENT_DEFCONFIG=${KERNEL_DIR}/arch/arm64/configs/cloudripper_gki.fragment
-VENDOR_RAMDISK_BINARY=${VENDOR_RAMDISK_BINARY:-${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-cloudripper.img}
 
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.gs101
+
+# Set BUILD_VENDOR_KERNEL_BOOT to 1 to build vendor_kernel_boot and remove vendor_boot
+# artifacts and arguments since we don't need to update vendor_boot anymore.
+BUILD_VENDOR_KERNEL_BOOT=1
+KERNEL_VENDOR_CMDLINE=""
+VENDOR_BOOTCONFIG=""
+INITRAMFS_VENDOR_RAMDISK_FRAGMENT_NAME=""
+VENDOR_RAMDISK_BINARY=""
+GKI_RAMDISK_PREBUILT_BINARY=""
 
 MAKE_GOALS="$MAKE_GOALS
 modules
@@ -31,14 +39,6 @@ fi
 
 MODULES_LIST=${KERNEL_DIR}/vendor_boot_modules.cloudripper
 VENDOR_DLKM_MODULES_BLOCKLIST=${KERNEL_DIR}/vendor_dlkm.blocklist.cloudripper
-
-VENDOR_RAMDISK_CMDS="modify_vendor_ramdisk"
-function modify_vendor_ramdisk() {
-  ln -f init.recovery.gs201.rc init.recovery.cloudripper.rc
-  ln -f init.recovery.gs201.rc init.recovery.ravenclaw.rc
-  ln -f init.recovery.gs201.rc init.recovery.cheetah.rc
-  ln -f init.recovery.gs201.rc init.recovery.panther.rc
-}
 
 EXT_MODULES_MAKEFILE=${KERNEL_DIR}/Makefile.ext_modules.cloudripper
 # Explicitly clear EXT_MODULES because build.config.gs101 might set it to
