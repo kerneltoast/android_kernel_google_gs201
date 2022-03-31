@@ -723,7 +723,7 @@ static int eh_comp_thread(void *data)
 		 * rather than CPU burn.
 		 */
 		if (ret == 0)
-			msleep(1);
+			usleep_range(5, 10);
 
 		if (!fifo_full(eh_dev))
 			flush_sw_fifo(eh_dev);
