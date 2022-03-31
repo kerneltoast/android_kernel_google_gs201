@@ -108,20 +108,6 @@ unsigned int map_scaling_freq(int cpu, unsigned int freq)
 
 	return policy ? clamp(freq, policy->min, policy->max) : freq;
 }
-/*
- * 0x08: INST_RETIRED
- * 0x11: CPU_CYCLES
- * 0x24: STALL_BACKEND
- * 0x2A: L3D_CACHE_REFILL
- */
-static int pmu_addr[CPU_NUM][4] = {{0x08, 0x11, 0x24, 0x2A},
-			{0x08, 0x11, 0x24, 0x2A},
-			{0x08, 0x11, 0x24, 0x2A},
-			{0x08, 0x11, 0x24, 0x2A},
-			{0x08, 0x11, 0x24, 0x2A},
-			{0x08, 0x11, 0x24, 0x2A},
-			{0x08, 0x11, 0x24, 0x2A},
-			{0x08, 0x11, 0x24, 0x2A}};
 
 extern int get_ev_data(int cpu, int inst_ev, int cyc_ev, int stall_ev, int cachemiss_ev,
 			unsigned long *inst, unsigned long *cyc,
@@ -991,8 +977,8 @@ static void pmu_limit_work(struct kthread_work *work)
 		raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
 
 		for_each_cpu(ccpu, policy->cpus) {
-			ret = get_ev_data(ccpu, pmu_addr[ccpu][0], pmu_addr[ccpu][1],
-					  pmu_addr[ccpu][2], pmu_addr[ccpu][3], &inst, &cyc,
+			ret = get_ev_data(ccpu, INST_EV, CYC_EV,
+					  STALL_EV, L3D_CACHE_REFILL_EV, &inst, &cyc,
 					  &stall, &cachemiss);
 
 			if (ret) {
