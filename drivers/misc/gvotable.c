@@ -268,7 +268,7 @@ static bool gvotable_internal_run_election(struct gvotable_election *el)
 	if (el->force_result_is_enabled)
 		return false;
 
-	/* the fist VALID ballot, the default vote or invalid result */
+	/* the first VALID ballot, the default vote or invalid result */
 	list_for_each_entry(ballot, &el->votes, list) {
 		if (!ballot->enabled)
 			continue;
@@ -1015,21 +1015,36 @@ EXPORT_SYMBOL_GPL(gvotable_recast_ballot);
 
 #define gvotable_ballot_size_ok(size) ((size) <= sizeof(void *))
 
-/* This doesn't belong to the API */
-int gvotable_run_election(struct gvotable_election *el)
+int gvotable_run_election(struct gvotable_election *el, bool force_callback)
 {
 	bool callback;
 	int ret = 0;
 
+	/*
+	 * In theory this should be calling gvotable_internal_run_election() even if the result
+	 * doesn't change yet. In practice this is NOT necessary since the lock should ensure that
+	 * you call the callback with the right value.
+	 */
 	gvotable_lock_election(el);
 	callback = gvotable_internal_run_election(el);
 	gvotable_unlock_result(el);
-	if (callback)
-		ret = gvotable_run_callback(el);
-	gvotable_unlock_callback(el);
 
+	if (!el->callback)
+		goto exit_done;
+
+	if (el->force_result_is_enabled) {
+		ret = el->callback(el, DEBUGFS_FORCE_VOTE_REASON, el->force_result);
+		goto exit_done;
+	}
+
+	if (callback || force_callback)
+		ret = gvotable_run_callback(el);
+
+exit_done:
+	gvotable_unlock_callback(el);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(gvotable_run_election);
 
 /*
  * overrides result and reason for "none" type votables.
