@@ -87,6 +87,8 @@ static inline int gvotable_cast_bool_vote(struct gvotable_election *el,
 
 int gvotable_recast_ballot(struct gvotable_election *el, const char *reason,
 			   bool enabled);
+int gvotable_run_election(struct gvotable_election *el, bool force_callback);
+
 
 int gvotable_get_vote(struct gvotable_election *el, const char *reason,
 		      void **vote);
