@@ -194,6 +194,7 @@ ufs-pixel-fips140.ko
 usb_f_dm.ko
 usb_f_dm1.ko
 usb_f_etr_miu.ko
+usb_f_rndis.ko
 usb_psy.ko
 usbc_cooling_dev.ko
 vh_cgroup.ko
