@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/timer.h>
+#include <linux/alarmtimer.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -323,19 +324,19 @@ int odpm_configure_start_measurement(struct odpm_info *info)
 	return ret;
 }
 
-void odpm_periodic_refresh_timeout(struct timer_list *t)
+static enum alarmtimer_restart odpm_alarm_handler(struct alarm *alarm, ktime_t time)
 {
-	int ret;
 	struct odpm_info *info =
-		container_of(t, struct odpm_info, timer_refresh);
-	ret = mod_timer(&info->timer_refresh,
-			jiffies +
-			msecs_to_jiffies(info->chip.max_refresh_time_ms));
-	if (ret < 0)
-		pr_err("odpm: Refresh timer cannot be modified!\n");
+		container_of(alarm, struct odpm_info, alarmtimer_refresh);
+
+	__pm_stay_awake(info->ws);
 
 	/* schedule the periodic reading from the chip */
 	queue_work(info->work_queue, &info->work_refresh);
+	alarm_start_relative(&info->alarmtimer_refresh,
+			     ms_to_ktime(info->chip.max_refresh_time_ms));
+
+	return ALARMTIMER_NORESTART;
 }
 
 static void odpm_periodic_refresh_work(struct work_struct *work)
@@ -348,6 +349,8 @@ static void odpm_periodic_refresh_work(struct work_struct *work)
 		       info->chip.name);
 	else
 		pr_info("odpm: Refreshed %s registers!\n", info->chip.name);
+
+	__pm_relax(info->ws);
 }
 
 static void odpm_periodic_refresh_setup(struct odpm_info *info)
@@ -357,10 +360,9 @@ static void odpm_periodic_refresh_setup(struct odpm_info *info)
 
 	/* setup the latest moment for reading the regs before saturation */
 	/* register the timer */
-	timer_setup(&info->timer_refresh, odpm_periodic_refresh_timeout, 0);
-	info->timer_refresh.expires =
-		jiffies + msecs_to_jiffies(info->chip.max_refresh_time_ms);
-	add_timer(&info->timer_refresh);
+	alarm_init(&info->alarmtimer_refresh, ALARM_BOOTTIME, odpm_alarm_handler);
+	alarm_start_relative(&info->alarmtimer_refresh,
+			     ms_to_ktime(info->chip.max_refresh_time_ms));
 }
 
 static bool odpm_match_int_sampling_rate(struct odpm_info *info,
@@ -906,18 +908,16 @@ exit_refresh:
 
 static int odpm_reset_timer(struct odpm_info *info)
 {
-	unsigned long future_timer = jiffies +
-		msecs_to_jiffies(info->chip.max_refresh_time_ms);
-
-	/* re-schedule the work for the read registers timeout
-	 * (to prevent chip regs saturation)
-	 */
-	int ret_timer = mod_timer(&info->timer_refresh, future_timer);
-
-	if (ret_timer < 0)
-		pr_err("odpm: read timer can't be modified!\n");
-
-	return ret_timer;
+	int ret = alarm_cancel(&info->alarmtimer_refresh);
+	if (ret < 0) {
+		pr_err("odpm: cannot reset the refresh timer\n");
+		return ret;
+	} else {
+		alarm_init(&info->alarmtimer_refresh, ALARM_BOOTTIME, odpm_alarm_handler);
+		alarm_start_relative(&info->alarmtimer_refresh,
+				     ms_to_ktime(info->chip.max_refresh_time_ms));
+	}
+	return ret;
 }
 
 static int odpm_take_snapshot(struct odpm_info *info)
@@ -1150,6 +1150,7 @@ static void odpm_set_sampling_rate(struct odpm_info *info,
 		pr_err("odpm: Could not send blank async when applying sampling rate\n");
 
 sampling_rate_store_exit:
+	odpm_reset_timer(info);
 	mutex_unlock(&info->lock);
 }
 
@@ -1400,6 +1401,8 @@ static ssize_t enabled_rails_store(struct device *dev,
 		pr_err("odpm: cannot refresh values to swap rails\n");
 		goto enabled_rails_store_exit;
 	}
+
+	odpm_reset_timer(info);
 
 	/* Capture measurement time for current rail */
 	info->chip.rails[current_rail].measurement_start_ms_cached =
@@ -1689,7 +1692,7 @@ static int odpm_remove(struct platform_device *pdev)
 	struct odpm_info *info = iio_priv(indio_dev);
 	int ret;
 
-	ret = try_to_del_timer_sync(&info->timer_refresh);
+	ret = alarm_cancel(&info->alarmtimer_refresh);
 	if (ret < 0) {
 		pr_err("odpm: cannot delete the refresh timer\n");
 		return ret;
@@ -1704,6 +1707,9 @@ static int odpm_remove(struct platform_device *pdev)
 	kfree(indio_dev->channels);
 
 	iio_device_unregister(indio_dev);
+
+	if (info->ws)
+		wakeup_source_unregister(info->ws);
 
 	return ret;
 }
@@ -1863,6 +1869,11 @@ static int odpm_probe(struct platform_device *pdev)
 		return ret;
 	}
 	device_enable_async_suspend(&pdev->dev);
+
+	odpm_info->ws = wakeup_source_register(&pdev->dev, odpm_info->chip.name);
+	if (odpm_info->ws == NULL) {
+		pr_err("odpm: wakelock register fail\n");
+	}
 
 	mutex_init(&odpm_info->lock);
 
