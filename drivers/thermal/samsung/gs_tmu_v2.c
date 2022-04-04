@@ -319,8 +319,20 @@ static bool has_tz_pending_irq(struct gs_tmu_data *pdata)
 	}
 
 	for (i = 0; i < TRIP_LEVEL_NUM; i++) {
-		if (counter & TMU_REG_INTPEND_RISE_MASK(i))
+		if (counter & TMU_REG_INTPEND_RISE_MASK(i)) {
 			atomic64_inc(&(pdata->trip_counter[i]));
+			if (i == DFS_IRQ_BIT) {
+				if (unlikely(trace_clock_set_rate_enabled())) {
+					char clock_name[DFS_CLOCK_STRING_LEN];
+					snprintf(clock_name, DFS_CLOCK_STRING_LEN, "%s%s",
+						 pdata->tmu_name, DFS_CLOCK_SUFFIX_STR);
+					trace_clock_set_rate(
+						clock_name,
+						(unsigned long)pdata->trip_counter[i].counter,
+						raw_smp_processor_id());
+				}
+			}
+		}
 	}
 
 	return ret;

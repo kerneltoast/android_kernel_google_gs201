@@ -233,6 +233,9 @@ enum tmu_sensor_t {
 #define TMU_REG_PAST_TEMP13_12(p)		((p) * 0x50 + TMU_REG_P0_PAST_TEMP13_12)
 #define TMU_REG_P0_PAST_TEMP15_14		(0x011C)
 #define TMU_REG_PAST_TEMP15_14(p)		((p) * 0x50 + TMU_REG_P0_PAST_TEMP15_14)
+#define DFS_IRQ_BIT	             		(6)
+#define DFS_CLOCK_STRING_LEN			(THERMAL_NAME_LENGTH + 12 + 1)
+#define DFS_CLOCK_SUFFIX_STR			("_dfs_count")
 
 struct sensor_data {
 	enum tmu_sensor_t probe_id;
