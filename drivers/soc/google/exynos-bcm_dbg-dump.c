@@ -140,10 +140,8 @@ int exynos_bcm_dbg_buffer_dump(struct exynos_bcm_dbg_data *data)
 	}
 
 	result = kzalloc(sizeof(char) * BCM_DUMP_MAX_STR, GFP_KERNEL);
-	if (result == NULL) {
-		BCM_ERR("%s: faild allocated of result memory\n", __func__);
+	if (result == NULL)
 		return -ENOMEM;
-	}
 
 	tmp_ktime[0] = __raw_readl(v_addr);
 	tmp_ktime[1] = __raw_readl(v_addr + 0x4);
@@ -244,15 +242,9 @@ int exynos_bcm_dbg_dump(struct exynos_bcm_dbg_data *data, char *buff, size_t buf
 		return -ENOMEM;
 	}
 
-	if (buff == NULL) {
-		BCM_ERR("%s: Out buff is NULL\n", __func__);
-		return -ENOMEM;
-	}
-
 	line = kzalloc(sizeof(char) * BCM_DUMP_MAX_LINE_SIZE, GFP_KERNEL);
-	if (line == NULL) {
+	if (line == NULL)
 		return -ENOMEM;
-	}
 
 	ktime_ptr = data->dump_addr.v_addr;
 	dump_start = (struct exynos_bcm_dump_entry *)(ktime_ptr + EXYNOS_BCM_KTIME_SIZE);
