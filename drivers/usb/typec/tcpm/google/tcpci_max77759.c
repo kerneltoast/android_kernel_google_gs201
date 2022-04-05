@@ -419,7 +419,8 @@ static void ext_bst_en_gpio_set(struct gpio_chip *gpio, unsigned int offset, int
 	struct regmap *regmap = chip->data.regmap;
 
 	ret = max77759_write8(regmap, TCPC_VENDOR_EXTBST_CTRL, value ? EXT_BST_EN : 0);
-	logbuffer_log(chip->log, "%s: ret:%d", __func__, ret);
+	logbuffer_log(chip->log, "%s: TCPC_VENDOR_EXTBST_CTRL value%d ret:%d", __func__, value,
+		      ret);
 }
 
 static int ext_bst_en_gpio_init(struct max77759_plat *chip)
@@ -1411,6 +1412,10 @@ static int max77759_start_toggling(struct tcpci *tcpci,
 		if (ret < 0)
 			logbuffer_log(chip->log, "[%s]: Disabling auto discharge failed", __func__);
 	}
+
+	/* b/223078393: Disable ext bst upon toggling */
+	ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_EXTBST_CTRL, 0);
+	logbuffer_log(chip->log, "%s: clear TCPC_VENDOR_EXTBST_CTRL ret:%d", __func__, ret);
 
 	if (chip->contaminant_detection)
 		update_contaminant_detection_locked(chip, chip->contaminant_detection);
