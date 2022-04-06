@@ -1,4 +1,5 @@
 blocklist bcmdhd4389
+blocklist synadhd
 blocklist focal_touch
 blocklist ftm5
 blocklist goodix_brl_touch
