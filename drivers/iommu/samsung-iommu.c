@@ -462,7 +462,7 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom,
 	if (ret)
 		goto err_drvdata_add;
 
-	dev_info(dev, "attached with pgtable %pa\n", &domain->page_table);
+	dev_info(dev, "attached with pgtable %pap\n", &page_table);
 
 	return 0;
 
@@ -485,6 +485,7 @@ static void samsung_sysmmu_detach_dev(struct iommu_domain *dom,
 	struct sysmmu_groupdata *groupdata;
 	struct sysmmu_drvdata *drvdata;
 	unsigned long flags;
+	phys_addr_t page_table;
 	unsigned int i;
 
 	if (WARN_ON(!group))
@@ -501,7 +502,8 @@ static void samsung_sysmmu_detach_dev(struct iommu_domain *dom,
 	}
 	spin_unlock_irqrestore(&groupdata->sysmmu_list_lock[0], flags);
 
-	dev_info(dev, "detached from pgtable %pa\n", &domain->page_table);
+	page_table = virt_to_phys(domain->page_table);
+	dev_info(dev, "detached from pgtable %pap\n", &page_table);
 }
 
 static inline sysmmu_pte_t make_sysmmu_pte(phys_addr_t paddr,
@@ -920,7 +922,7 @@ static struct iommu_device *samsung_sysmmu_probe_device(struct device *dev)
 
 	client = (struct sysmmu_clientdata *) dev_iommu_priv_get(dev);
 	client->dev_link = kcalloc(client->sysmmu_count,
-				   sizeof(**client->dev_link), GFP_KERNEL);
+				   sizeof(*client->dev_link), GFP_KERNEL);
 	if (!client->dev_link)
 		return ERR_PTR(-ENOMEM);
 
@@ -1071,7 +1073,7 @@ static int samsung_sysmmu_of_xlate(struct device *dev,
 
 	client = (struct sysmmu_clientdata *) dev_iommu_priv_get(dev);
 	new_link = krealloc(client->sysmmus,
-			    sizeof(*data) * (client->sysmmu_count + 1),
+			    sizeof(data) * (client->sysmmu_count + 1),
 			    GFP_KERNEL);
 	if (!new_link)
 		return -ENOMEM;
