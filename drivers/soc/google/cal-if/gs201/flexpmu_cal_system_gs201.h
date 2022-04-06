@@ -109,6 +109,7 @@ struct pmucal_seq pmucal_lpm_init[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "TCXO_DURATION", 0x18060000, 0x3cc8, (0xfffff << 0), (0x66c << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "EARLY_WAKEUP_DPU_CTRL", 0x1e080000, 0x0880, (0x1 << 0), (0x1 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "EARLY_WAKEUP_DPU_DEST", 0x1e080000, 0x0898, (0xffffffff << 0), (0xfe << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "TREX_D_NOCL1A", 0x20510000, 0x2000, (0xffffffff << 0), (0xf000 << 0), 0, 0, 0xffffffff, 0),
 };
 unsigned int pmucal_lpm_init_size = ARRAY_SIZE(pmucal_lpm_init);
 /* individual sequence descriptor for each power mode - enter, exit, early_wakeup */
