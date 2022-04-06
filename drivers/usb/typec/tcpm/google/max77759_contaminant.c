@@ -755,14 +755,15 @@ bool is_contaminant_detected(struct max77759_plat *chip)
 }
 EXPORT_SYMBOL_GPL(is_contaminant_detected);
 
-bool is_floating_cable_detected(struct max77759_plat *chip)
+bool is_floating_cable_or_sink_detected(struct max77759_plat *chip)
 {
 	if (chip)
-		return chip->contaminant->state == FLOATING_CABLE;
+		return chip->contaminant->state == FLOATING_CABLE ||
+			chip->contaminant->state == SINK;
 
 	return false;
 }
-EXPORT_SYMBOL_GPL(is_floating_cable_detected);
+EXPORT_SYMBOL_GPL(is_floating_cable_or_sink_detected);
 
 void disable_auto_ultra_low_power_mode(struct max77759_plat *chip, bool disable)
 {
