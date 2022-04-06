@@ -73,6 +73,8 @@
 #define HSI2C_MASTER				BIT(3)
 #define HSI2C_RXCHON				BIT(6)
 #define HSI2C_TXCHON				BIT(7)
+#define HSI2C_BUS_WIDTH(x)                      (((x) >> 12) & 0x3)
+#define HSI2C_CH_WIDTH(x)                       (((x) >> 10) & 0x3)
 #define HSI2C_NO_LOSE_ARBITRATION		BIT(22)
 #define HSI2C_EXT_MSB				BIT(29)
 #define HSI2C_EXT_ADDR				BIT(30)
@@ -674,8 +676,9 @@ static irqreturn_t exynos5_i2c_irq(int irqno, void *dev_id)
 	}
 
 	if (i2c->msg->flags & I2C_M_RD) {
-		while ((readl(i2c->regs + HSI2C_FIFO_STATUS) &
-			HSI2C_RX_FIFO_EMPTY) == 0) {
+		while (i2c->msg_ptr < i2c->msg->len &&
+				!(readl(i2c->regs + HSI2C_FIFO_STATUS) &
+					HSI2C_RX_FIFO_EMPTY)) {
 			byte = (unsigned char)readl(i2c->regs + HSI2C_RX_DATA);
 			i2c->msg->buf[i2c->msg_ptr++] = byte;
 		}
@@ -747,6 +750,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	unsigned long i2c_addr;
 	unsigned long i2c_int_en;
 	unsigned long i2c_fifo_ctl;
+	unsigned long trig_level;
 	unsigned char byte;
 	int ret = 0;
 	int operation_mode = i2c->operation_mode;
@@ -773,15 +777,15 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	 * In case of short length request it'd be better to set
 	 * trigger level as msg length
 	 */
-	if (i2c->msg->len >= FIFO_TRIG_CRITERIA) {
-		i2c_fifo_ctl = HSI2C_RXFIFO_EN | HSI2C_TXFIFO_EN |
-			HSI2C_RXFIFO_TRIGGER_LEVEL(FIFO_TRIG_CRITERIA) |
-			HSI2C_TXFIFO_TRIGGER_LEVEL(FIFO_TRIG_CRITERIA);
-	} else {
-		i2c_fifo_ctl = HSI2C_RXFIFO_EN | HSI2C_TXFIFO_EN |
-			HSI2C_RXFIFO_TRIGGER_LEVEL(i2c->msg->len) |
-			HSI2C_TXFIFO_TRIGGER_LEVEL(i2c->msg->len);
-	}
+	trig_level = i2c->msg->len;
+	if (trig_level >= FIFO_TRIG_CRITERIA)
+		trig_level = FIFO_TRIG_CRITERIA;
+	else if (trig_level <= HSI2C_BUS_WIDTH(i2c_ctl))
+		trig_level = HSI2C_BUS_WIDTH(i2c_ctl);
+
+	i2c_fifo_ctl = HSI2C_RXFIFO_EN | HSI2C_TXFIFO_EN |
+			HSI2C_RXFIFO_TRIGGER_LEVEL(trig_level) |
+			HSI2C_TXFIFO_TRIGGER_LEVEL(trig_level);
 
 	writel(i2c_fifo_ctl, i2c->regs + HSI2C_FIFO_CTL);
 
@@ -850,7 +854,8 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	ret = -EAGAIN;
 	if (msgs->flags & I2C_M_RD && operation_mode == HSI2C_POLLING) {
 		timeout = jiffies + msecs_to_jiffies(timeout_max);
-		while (time_before(jiffies, timeout)) {
+		while (time_before(jiffies, timeout) &&
+				i2c->msg_ptr < i2c->msg->len) {
 			if ((readl(i2c->regs + HSI2C_FIFO_STATUS) &
 						HSI2C_RX_FIFO_EMPTY) == 0) {
 				/* RX FIFO is not empty */
@@ -859,11 +864,9 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 				i2c->msg->buf[i2c->msg_ptr++] = byte;
 			}
 
-			if (i2c->msg_ptr >= i2c->msg->len) {
-				ret = 0;
-				break;
-			}
 		}
+		if (i2c->msg_ptr >= i2c->msg->len)
+			ret = 0;
 
 		if (ret == -EAGAIN) {
 			dump_i2c_register(i2c);
