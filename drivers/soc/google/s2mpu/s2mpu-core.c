@@ -247,7 +247,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 	u32 vid;
 	int ret;
 
-	dma_set_mask(dev, DMA_BIT_MASK(36));
+	dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
 
 	/* s2mpu config */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "s2mpu");
