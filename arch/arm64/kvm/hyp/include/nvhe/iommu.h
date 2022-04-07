@@ -84,6 +84,7 @@ int __pkvm_iommu_register(unsigned long dev_id,
 			  void *kern_mem_va, size_t mem_size);
 int __pkvm_iommu_pm_notify(unsigned long dev_id,
 			   enum pkvm_iommu_pm_event event);
+int __pkvm_iommu_finalize(void);
 int pkvm_iommu_host_stage2_adjust_range(phys_addr_t addr, phys_addr_t *start,
 					phys_addr_t *end);
 bool pkvm_iommu_host_dabt_handler(struct kvm_cpu_context *host_ctxt, u32 esr,
@@ -92,5 +93,6 @@ void pkvm_iommu_host_stage2_idmap(phys_addr_t start, phys_addr_t end,
 				  enum kvm_pgtable_prot prot);
 
 extern const struct pkvm_iommu_ops pkvm_s2mpu_ops;
+extern const struct pkvm_iommu_ops pkvm_sysmmu_sync_ops;
 
 #endif	/* __ARM64_KVM_NVHE_IOMMU_H__ */
