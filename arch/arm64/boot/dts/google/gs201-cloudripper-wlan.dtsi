@@ -42,6 +42,8 @@
 
 &pcie_1 {
 	pinctrl-0 = <&pcie1_clkreq &pcie1_perst &cfg_wlanen &wlan_host_wake &wlan_dev_wake>;
+	use-cache-coherency = "true";
+	dma-coherent;
 
 	wlan {
 		compatible = "android,bcmdhd_wlan";
