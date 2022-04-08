@@ -116,6 +116,7 @@ struct gs_tmu_data {
 	void *disable_stats;
 	void *hardlimit_stats;
 	atomic64_t trip_counter[TRIP_LEVEL_NUM];
+	bool has_dfs_support;
 };
 
 enum throttling_stats_type {
@@ -217,6 +218,7 @@ enum tmu_sensor_t {
 #define TMU_REG_P0_INTPEND			(0x00F8)
 #define TMU_REG_INTPEND(p)			((p) * 0x50 + TMU_REG_P0_INTPEND)
 #define TMU_REG_INTPEND_RISE_MASK(l)		(1 << (l))
+#define TMU_REG_INTPEND_FALL_MASK(l)		(1 << (l+16))
 #define TMU_REG_P0_PAST_TEMP1_0			(0x0100)
 #define TMU_REG_PAST_TEMP1_0(p)			((p) * 0x50 + TMU_REG_P0_PAST_TEMP1_0)
 #define TMU_REG_P0_PAST_TEMP3_2			(0x0104)

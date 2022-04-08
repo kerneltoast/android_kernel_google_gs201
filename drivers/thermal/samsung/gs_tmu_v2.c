@@ -300,6 +300,16 @@ static int gs_tmu_tz_config_init(struct platform_device *pdev)
 	return 0;
 }
 
+static void update_dfs_trace(struct gs_tmu_data *pdata, int dfsValue)
+{
+	if (unlikely(trace_clock_set_rate_enabled())) {
+		char clock_name[DFS_CLOCK_STRING_LEN];
+		snprintf(clock_name, DFS_CLOCK_STRING_LEN, "%s%s", pdata->tmu_name,
+			 DFS_CLOCK_SUFFIX_STR);
+		trace_clock_set_rate(clock_name, dfsValue, raw_smp_processor_id());
+	}
+}
+
 static bool has_tz_pending_irq(struct gs_tmu_data *pdata)
 {
 	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
@@ -321,18 +331,12 @@ static bool has_tz_pending_irq(struct gs_tmu_data *pdata)
 	for (i = 0; i < TRIP_LEVEL_NUM; i++) {
 		if (counter & TMU_REG_INTPEND_RISE_MASK(i)) {
 			atomic64_inc(&(pdata->trip_counter[i]));
-			if (i == DFS_IRQ_BIT) {
-				if (unlikely(trace_clock_set_rate_enabled())) {
-					char clock_name[DFS_CLOCK_STRING_LEN];
-					snprintf(clock_name, DFS_CLOCK_STRING_LEN, "%s%s",
-						 pdata->tmu_name, DFS_CLOCK_SUFFIX_STR);
-					trace_clock_set_rate(
-						clock_name,
-						(unsigned long)pdata->trip_counter[i].counter,
-						raw_smp_processor_id());
-				}
-			}
+			if ((i == DFS_IRQ_BIT) && (pdata->has_dfs_support))
+				update_dfs_trace(pdata, 1);
 		}
+		if ((counter & TMU_REG_INTPEND_FALL_MASK(i)) && (i == DFS_IRQ_BIT) &&
+		    (pdata->has_dfs_support))
+			update_dfs_trace(pdata, 0);
 	}
 
 	return ret;
@@ -1660,6 +1664,8 @@ static int gs_map_dt_data(struct platform_device *pdev)
 	} else {
 		data->use_pi_thermal = false;
 	}
+
+	data->has_dfs_support = of_property_read_bool(pdev->dev.of_node, "has-dfs-support");
 
 	return 0;
 }
