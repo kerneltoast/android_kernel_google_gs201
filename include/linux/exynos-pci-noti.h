@@ -16,6 +16,7 @@ enum exynos_pcie_event {
 	EXYNOS_PCIE_EVENT_WAKEUP = 0x4,
 	EXYNOS_PCIE_EVENT_WAKE_RECOVERY = 0x8,
 	EXYNOS_PCIE_EVENT_NO_ACCESS = 0x10,
+	EXYNOS_PCIE_EVENT_CPL_TIMEOUT = 0x20,
 };
 
 enum exynos_pcie_trigger {

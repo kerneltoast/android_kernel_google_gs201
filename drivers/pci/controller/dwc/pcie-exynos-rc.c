@@ -1962,90 +1962,24 @@ void exynos_pcie_rc_cpl_timeout_work(struct work_struct *work)
 	struct dw_pcie *pci = exynos_pcie->pci;
 	struct pcie_port *pp = &pci->pp;
 	struct device *dev = pci->dev;
-	u32 afc_code_lane0, afc_code_lane1, cdr_mon_lane0, cdr_mon_lane1;
-	u32 i, val, lane_num = 0, count = 0;
+	unsigned long flags;
 
-	dev_err(dev, "[%s] +++\n", __func__);
+	if (exynos_pcie->state == STATE_LINK_DOWN)
+		return;
 
-	/* dump phy monitor registers */
-	/* common */
-	pr_err("PHY PMA 0x3F0 : 0x%08x\n", exynos_phy_read(exynos_pcie, 0x3F0));
-	/* lane0 */
-	for (i = 0xE00; i < 0xE50; i += 4)
-		pr_err("PHY PMA 0x%04x : 0x%08x\n", i, exynos_phy_read(exynos_pcie, i));
-
-	pr_err("PHY PMA 0xE74: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xE74));
-	pr_err("PHY PMA 0xE78: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xE78));
-	pr_err("PHY PMA 0xE7C: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xE7C));
-	pr_err("PHY PMA 0xEC4: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xEC4));
-	pr_err("PHY PMA 0xEC8: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xEC8));
-	pr_err("PHY PMA 0xFC0: 0x%08x\n", exynos_phy_read(exynos_pcie, 0xFC0));
-	/* lane1 */
-	for (i = 0x1600; i < 0x1650; i += 4)
-		pr_err("PHY PMA 0x%04x : 0x%08x\n", i, exynos_phy_read(exynos_pcie, i));
-
-	pr_err("PHY PMA 0x1674: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x1674));
-	pr_err("PHY PMA 0x1678: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x1678));
-	pr_err("PHY PMA 0x167C: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x167C));
-	pr_err("PHY PMA 0x16C4: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x16C4));
-	pr_err("PHY PMA 0x16C8: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x16C8));
-	pr_err("PHY PMA 0x17C0: 0x%08x\n", exynos_phy_read(exynos_pcie, 0x17C0));
-
-	/* PMA sfr dump for debegging */
-	/* PHY PMA lane0 */
-	afc_code_lane0 = exynos_phy_read(exynos_pcie, 0xE38);
-	pr_err("PHY PMA(0x%04x afc_code0): 0x%08x\n", 0xE38, afc_code_lane0);
-	afc_code_lane0 &= (0x3f);
-	cdr_mon_lane0 = exynos_phy_read(exynos_pcie, 0xFC0);
-	pr_err("PHY PMA(0x%04x cdr_mon0): 0x%08x\n", 0xFC0, cdr_mon_lane0);
-	cdr_mon_lane0 = (cdr_mon_lane0 >> 4) & 0xf;
-	/* PHY PMA lane1 */
-	afc_code_lane1 = exynos_phy_read(exynos_pcie, 0x1638);
-	pr_err("PHY PMA(0x%04x afc_code1): 0x%08x\n", 0x1638, afc_code_lane1);
-	afc_code_lane1 &= (0x3f);
-	cdr_mon_lane1 = exynos_phy_read(exynos_pcie, 0x17C0);
-	pr_err("PHY PMA(0x%04x cdr_mon1): 0x%08x\n", 0x17C0, cdr_mon_lane1);
-	cdr_mon_lane1 = (cdr_mon_lane1 >> 4) & 0xf;
-
-	dev_info(pci->dev, "afc_code_lane0 = 0x%x, cdr_mon_lane0 = 0x%x\n",
-		 afc_code_lane0, cdr_mon_lane0);
-	dev_info(pci->dev, "afc_code_lane1 = 0x%x, cdr_mon_lane1 = 0x%x\n",
-		 afc_code_lane1, cdr_mon_lane1);
-
-	/* check lane number */
-	exynos_pcie_rc_rd_own_conf(pp, PCIE_LINK_CTRL_STAT, 4, &lane_num);
-	lane_num = lane_num >> 20;
-	lane_num &= PCIE_CAP_NEGO_LINK_WIDTH_MASK;
-	dev_info(pci->dev, "Current lane_num(0x80) = %d\n", lane_num);
-
-	/* check LTSSM */
-	dev_info(pci->dev, "check LTSSM +++\n");
-	count = 0;
-	while (count < LNKRCVYWAIT_TIMEOUT) {
-		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
-		      & PCIE_ELBI_LTSSM_STATE_MASK;
-		if (val >= S_L0 && val <= S_L1_IDLE) {
-			dev_info(dev, "LTSSM == 0x%x Link OK\n", val);
-			return;
-		}
-
-		count++;
-		usleep_range(10, 12);
-	}
-	dev_info(pci->dev, "check LTSSM ---, LTSSM: 0x%x\n", val);
-
-	exynos_pcie->state = STATE_LINK_DOWN_TRY;
+	spin_lock_irqsave(&exynos_pcie->conf_lock, flags);
+	exynos_pcie_rc_print_link_history(pp);
 	exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
 	exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
-	dev_info(dev, "printed DUMP STATE after CPL Timeout IRQ\n");
+	spin_unlock_irqrestore(&exynos_pcie->conf_lock, flags);
 
 	if (exynos_pcie->use_pcieon_sleep) {
 		dev_info(dev, "[%s] pcie_is_linkup = 0\n", __func__);
 		pcie_is_linkup = 0;
 	}
 
-	dev_info(dev, "[%s] call PCIE_LINKDOWN callback after CPL Timeout\n", __func__);
-	exynos_pcie_notify_callback(pp, EXYNOS_PCIE_EVENT_LINKDOWN);
+	dev_info(dev, "call PCIE_CPL_TIMEOUT callback\n");
+	exynos_pcie_notify_callback(pp, EXYNOS_PCIE_EVENT_CPL_TIMEOUT);
 }
 
 static void exynos_pcie_rc_use_ia(struct exynos_pcie *exynos_pcie)
@@ -2347,19 +2281,36 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 		dev_info(dev, "! PCIE LINK DOWN-irq1_state: 0x%x !\n", val_irq1);
 		dev_info(dev, "(irq0 = 0x%x, irq1 = 0x%x, irq2 = 0x%x)\n",
 			 val_irq0, val_irq1, val_irq2);
-		exynos_pcie->state = STATE_LINK_DOWN_TRY;
-		queue_work(exynos_pcie->pcie_wq, &exynos_pcie->dislink_work.work);
+
+		if (exynos_pcie->cpl_timeout_recovery) {
+			dev_err(dev, "already in cpl recovery\n");
+		} else {
+			exynos_pcie->sudden_linkdown = 1;
+			exynos_pcie->state = STATE_LINK_DOWN_TRY;
+			queue_work(exynos_pcie->pcie_wq, &exynos_pcie->dislink_work.work);
+		}
 	}
 
 	if (val_irq2 & IRQ_RADM_CPL_TIMEOUT_ASSERT) {
 		dev_info(dev, "!! PCIE_CPL_TIMEOUT-irq2_state: 0x%x !!\n", val_irq2);
 		dev_info(dev, "(irq0 = 0x%x, irq1 = 0x%x, irq2 = 0x%x)\n",
-			 val_irq0, val_irq1, val_irq2);
+				val_irq0, val_irq1, val_irq2);
 
 		val_irq2 = exynos_elbi_read(exynos_pcie, PCIE_IRQ2);
 		dev_info(dev, "check irq22 pending clear: irq2_state = 0x%x\n", val_irq2);
 
-		exynos_pcie->state = STATE_LINK_DOWN_TRY;
+		if (exynos_pcie->sudden_linkdown) {
+			dev_err(dev, "in linkdown recovery\n");
+		} else {
+			if (exynos_pcie->cpl_timeout_recovery) {
+				dev_err(dev, "in cpl recovery\n");
+			} else {
+				exynos_pcie->cpl_timeout_recovery = 1;
+				exynos_pcie->state = STATE_LINK_DOWN_TRY;
+				queue_work(exynos_pcie->pcie_wq,
+					   &exynos_pcie->cpl_timeout_work.work);
+			}
+		}
 	}
 
 #if IS_ENABLED(CONFIG_PCI_MSI)
@@ -2851,6 +2802,9 @@ int exynos_pcie_rc_poweron(int ch_num)
 		spin_lock_irqsave(&exynos_pcie->reg_lock, flags);
 		exynos_pcie->state = STATE_LINK_UP_TRY;
 		spin_unlock_irqrestore(&exynos_pcie->reg_lock, flags);
+
+		exynos_pcie->sudden_linkdown = 0;
+		exynos_pcie->cpl_timeout_recovery = 0;
 
 		enable_irq(pp->irq);
 
@@ -4375,6 +4329,8 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	exynos_pcie->state = STATE_LINK_DOWN;
 
 	exynos_pcie->linkdown_cnt = 0;
+	exynos_pcie->sudden_linkdown = 0;
+	exynos_pcie->cpl_timeout_recovery = 0;
 	exynos_pcie->l1ss_ctrl_id_state = 0;
 	exynos_pcie->atu_ok = 0;
 
