@@ -263,6 +263,8 @@ int odpm_configure_chip(struct odpm_info *info)
 	/* TODO(stayfan): b/156107234
 	 * error conditions
 	 */
+	pr_info("odpm: Configuring %s...\n", info->chip.name);
+
 	ret = odpm_io_set_int_sampling_rate(info,
 					    info->chip.int_config_sampling_rate_i);
 	odpm_print_new_sampling_rate(info, ret, ODPM_SAMPLING_RATE_INTERNAL);
@@ -283,6 +285,8 @@ int odpm_configure_chip(struct odpm_info *info)
 	odpm_io_set_meter_on(info, true);
 	odpm_io_set_ext_meter_on(info, true);
 
+	pr_info("odpm: Configuring %s...done\n", info->chip.name);
+
 	return 0;
 }
 
@@ -296,7 +300,8 @@ int odpm_configure_start_measurement(struct odpm_info *info)
 
 	info->last_poll_ktime_boot_ns = timestamp_capture_ns;
 
-	pr_info("odpm: Starting at timestamp (ms): %llu\n",
+	pr_info("odpm: %s: Starting at timestamp (ms): %llu\n",
+		info->chip.name,
 		to_ms(timestamp_capture_ns));
 
 	/* Initialize boot measurement time to 0. This means that there will be

@@ -172,6 +172,8 @@ static int s2mpg13_spmic_set_ntc_channels(
 	struct i2c_client *meter_i2c = s2mpg13_spmic_thermal->meter_i2c;
 	struct i2c_client *mt_trim_i2c = s2mpg13_spmic_thermal->mt_trim_i2c;
 
+	dev_info(dev, "Applying NTC... disabling odpm [s2mpg13]\n");
+
 	/* workaround suggested in b/200582715 for NTC channel update */
 	ret = s2mpg13_write_reg(mt_trim_i2c, S2MPG13_MT_TRIM_COMMON2, 0x00);
 	if (ret)
@@ -205,6 +207,15 @@ static int s2mpg13_spmic_set_ntc_channels(
 	msleep(SENSOR_WAIT_SLEEP_MS);
 
 	dev_info(dev, "Set NTC channels (adc_ch_en : 0x%x\n)", adc_ch_en);
+
+	/* b/228112807, we need to re-enable the meter for the odpm. */
+	ret = s2mpg13_update_reg(meter_i2c, S2MPG13_METER_CTRL1,
+				 METER_EN_MASK, METER_EN_MASK);
+	if (ret)
+		dev_info(dev, "Failed to re-enable odpm [s2mpg13] :(\n");
+	else
+		dev_info(dev, "Re-enabled odpm [s2mpg13] :)\n");
+
 	return ret;
 
 err:
