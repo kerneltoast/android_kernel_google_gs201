@@ -4034,21 +4034,17 @@ VL53L1_Error VL53L1_ULP_SensorInit(VL53L1_DEV Dev)
 	uint8_t addr, tmp;
 	uint16_t i = 0;
 
-	while (1) {
+	while (i < 1000) {
 		status |= VL53L1_RdByte(Dev,
 					VL53L1_ULP_FIRMWARE__SYSTEM_STATUS,
 					&tmp);
-
 		if (tmp == 0x3)    /* Sensor booted */
 			break;
-		else if (i < 1000) /* Wait for boot */
-			i++;
-		else {             /* Timeout 1000ms reached */
-			status |= VL53L1_ULP_ERROR_TIMEOUT;
-			return status;
-		}
+		i++;
 		VL53L1_WaitMs(Dev, 1);
 	}
+	if (i == 1000)
+		return status | VL53L1_ULP_ERROR_TIMEOUT;
 
 	/* Load default configuration */
 	for (addr = 0x2D; addr <= 0x87; addr++) {
@@ -4066,18 +4062,15 @@ VL53L1_Error VL53L1_ULP_SensorInit(VL53L1_DEV Dev)
 		return status;
 
 	i  = 0;
-	while (1) {
+	while (i < 1000) {
 		status |= VL53L1_ULP_CheckForDataReady(Dev, &tmp);
 		if (tmp == 1)     /* Data ready */
 			break;
-		else if(i < 1000) /* Wait for answer */
-			i++;
-		else {            /* Timeout 1000ms reached */
-			status |= VL53L1_ULP_ERROR_TIMEOUT;
-			return status;
-		}
+		i++;
 		VL53L1_WaitMs(Dev, 1);
 	}
+	if (i == 1000)
+		return status | VL53L1_ULP_ERROR_TIMEOUT;
 
 	status |= VL53L1_ULP_ClearInterrupt(Dev);
 	status |= VL53L1_ULP_StopRanging(Dev);
