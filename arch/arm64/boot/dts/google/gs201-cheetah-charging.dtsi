@@ -15,3 +15,22 @@
 	google,thermal-mitigation = <5000000 4000000 2500000 1000000>;
 	google,wlc-fcc-thermal-mitigation = <5000000 5000000 4000000 2500000 1000000>;
 };
+
+&google_cpm {
+	/* google,mdis_in =  &max77759tcpc, "wireless" */
+	/* google,mdis_out = "main-charger", "pca94xx-mains"; */
+
+	// thermal budgets
+	google,mdis-thermal-mitigation =
+		<4352000 3483000 2659000 2058000 1536000 1095000  736000  580000  258000>;
+	// source ONLINE selection criteria
+	google,mdis-out-sel-online = <1 2>;
+	// PD+main-charger, WLC+main-charger
+	google,mdis-out0-limits =
+		<5000000 3500000 3000000 2500000 2000000 1500000 1000000  500000  500000
+		 1100000  500000  500000  500000  250000  250000  100000  100000  100000>;
+	// PPS_CP+pca94xx-mains, // WLC_CP+pca94xx-mains
+	google,mdis-out1-limits =
+		<5000000 4500000 4000000 3500000 3000000 2500000 2000000 1500000 1000000
+		 5000000 4000000 4000000 3500000 3000000 2000000 1500000 1000000       0>;
+};

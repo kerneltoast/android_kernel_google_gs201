@@ -8,11 +8,30 @@
 
 
 &pca9468_dc {
-	pca9468,input-current-limit = <2200000>;
+	pca9468,input-current-limit = <2200000>;	/* 4.4A max */
 	pca9468,spread-spectrum;
 };
 
 &google_charger {
 	google,thermal-mitigation = <4300000 3680000 2300000 1000000>;
 	google,wlc-fcc-thermal-mitigation = <4300000 4300000 2300000 1150000 1000000>;
+};
+
+&google_cpm {
+	/* google,mdis_in =  &max77759tcpc, "wireless" */
+	/* google,mdis_out = "main-charger", "pca94xx-mains"; */
+
+	// thermal budgets
+	google,mdis-thermal-mitigation =
+		<4258000 3413000 2603000 2017000 1919000 1506000  909000  575000  254000>;
+	// source ONLINE selection criteria
+	google,mdis-out-sel-online = <1 2>;
+	// PD+main-charger, WLC+main-charger
+	google,mdis-out0-limits =
+		<4000000 3500000 3000000 3000000 2500000 2000000 1500000 1000000   500000
+		 1100000  500000  500000  500000  250000  250000  100000  100000   100000>;
+	// PPS_CP+pca94xx-mains, // WLC_CP+pca94xx-mains
+	google,mdis-out1-limits =
+		<4500000  4500000 4000000 3500000 3500000 3000000 2500000 2000000 1000000
+		 4500000  4000000 3500000 3000000 2500000 2000000 1500000 1000000       0>;
 };
