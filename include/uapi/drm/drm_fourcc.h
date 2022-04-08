@@ -569,6 +569,8 @@ extern "C" {
 #define SBWC_FORMAT_MOD_BLOCK_SIZE_32x5		(5ULL)
 #define SBWC_FORMAT_MOD_BLOCK_SIZE_32x6		(6ULL)
 
+#define SBWC_FORMAT_MOD_LOSSY			(1 << 12)
+
 #define DRM_FORMAT_MOD_SAMSUNG_SBWC(blk_size)	\
 		fourcc_mod_code(SAMSUNG,	\
 		(SBWC_BLOCK_SIZE_SET(blk_size) | SBWC_IDENTIFIER))
