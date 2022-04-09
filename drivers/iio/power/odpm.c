@@ -1541,7 +1541,7 @@ static ssize_t odpm_show_lpf_values(struct device *dev,
 				   info->chip.rails[rail_i].schematic_name,
 				   micro_unit[ch]);
 	}
-	mutex_lock(&info->lock);
+	mutex_unlock(&info->lock);
 
 	return count;
 }
