@@ -256,6 +256,7 @@
 
 			min-freq = <300000>;
 			max-freq = <1803000>;
+			resume-freq = <1197000>;
 
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <2>;
@@ -275,6 +276,7 @@
 
 			min-freq = <400000>;
 			max-freq = <2348000>;
+			resume-freq = <1491000>;
 
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <1>;
@@ -294,6 +296,7 @@
 
 			min-freq = <500000>;
 			max-freq = <2850000>;
+			resume-freq = <1826000>;
 
 			#cooling-cells = <2>; /* min followed by max */
 			ect-coeff-index = <0>;
