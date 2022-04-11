@@ -51,6 +51,7 @@
 #define MODIFY_MSI_ADDR
 #endif	/* CONFIG_LINK_DEVICE_PCIE */
 
+#include <misc/logbuffer.h>
 #include "pcie-designware.h"
 #include "pcie-exynos-common.h"
 #include "pcie-exynos-rc.h"
@@ -4377,6 +4378,16 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	exynos_pcie->app_req_exit_l1_mode = PCIE_APP_REQ_EXIT_L1_MODE;
 	exynos_pcie->linkup_offset = PCIE_ELBI_RDLH_LINKUP;
 
+	exynos_pcie->log = NULL;
+	if (ch_num == 0)
+		exynos_pcie->log = logbuffer_register("pcie0");
+	else if (ch_num == 1)
+		exynos_pcie->log = logbuffer_register("pcie1");
+	else
+		dev_err(&pdev->dev, "invalid ch_num=%d for logbuffer registry\n", ch_num);
+	if (IS_ERR_OR_NULL(exynos_pcie->log))
+		dev_err(&pdev->dev, "logbuffer register failed\n");
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 	device_enable_async_suspend(&pdev->dev);
@@ -4496,10 +4507,13 @@ probe_fail:
 	if (exynos_pcie->use_phy_isol_con)
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
 
-	if (ret)
+	if (ret) {
 		dev_err(&pdev->dev, "## %s: PCIe probe failed\n", __func__);
-	else
+		logbuffer_log(exynos_pcie->log, "PCIe %d: probe failed", ch_num);
+	} else {
 		dev_info(&pdev->dev, "## %s: PCIe probe success\n", __func__);
+		logbuffer_log(exynos_pcie->log, "PCIe %d: probe done", ch_num);
+	}
 
 	return ret;
 }
