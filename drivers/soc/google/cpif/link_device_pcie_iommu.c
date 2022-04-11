@@ -196,25 +196,16 @@ void cpif_pcie_iommu_try_ummap_va(struct pktproc_queue *q, unsigned long src_pa,
 {
 	struct modem_ctl *mc = dev_get_drvdata(q->ppa->dev);
 	struct cpif_pcie_iommu_ctrl *ioc = &q->ioc;
-	struct page *p = virt_to_head_page(addr);
 	u32 unmap_size;
 	size_t ret;
-
-	if (ioc->unmap_page == p)
-		return;
 
 	if (!ioc->unmap_src_pa)
 		goto set_unmap;
 
-	/*
-	 * Cannot not ensure that ioc->unmap_page has a valid page addr.
-	 * Use the variable to keep an addr only.
-	 */
+	unmap_size = !idx ? ioc->end_map_size : ioc->unmap_page_size;
 
-	if (!idx)
-		unmap_size = ioc->end_map_size;
-	else
-		unmap_size = (u32)(src_pa - ioc->unmap_src_pa);
+	if (src_pa >= ioc->unmap_src_pa && src_pa < ioc->unmap_src_pa + unmap_size)
+		return;
 
 #ifdef LINK_DEVICE_PCIE_IOMMU_DEBUG
 	mif_debug("unmap src_pa:0x%lX size:0x%X\n", ioc->unmap_src_pa, unmap_size);
@@ -230,5 +221,5 @@ void cpif_pcie_iommu_try_ummap_va(struct pktproc_queue *q, unsigned long src_pa,
 
 set_unmap:
 	ioc->unmap_src_pa = src_pa;
-	ioc->unmap_page = p;
+	ioc->unmap_page_size = page_size(virt_to_head_page(addr));
 }

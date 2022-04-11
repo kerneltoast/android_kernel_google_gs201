@@ -132,7 +132,7 @@ struct cpif_pcie_iommu_ctrl {
 	u32 map_idx;
 
 	unsigned long unmap_src_pa;
-	struct page *unmap_page;
+	u32 unmap_page_size;
 
 	/* Was */
 	u32 end_map_size;
