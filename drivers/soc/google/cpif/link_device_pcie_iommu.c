@@ -143,8 +143,10 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 		if (map_size > tailroom)
 			map_size = tailroom;
 
+#ifdef LINK_DEVICE_PCIE_IOMMU_DEBUG
 		mif_debug("map idx:%u src_pa:0x%lX va:0x%p size:0x%lX\n",
-			  ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);
+			  ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);aa
+#endif
 
 		ret = pcie_iommu_map(ioc->map_src_pa, virt_to_phys(ioc->map_page_va),
 				     map_size, 0, PCIE_CH2HSI(mc->pcie_ch_num));
@@ -214,7 +216,9 @@ void cpif_pcie_iommu_try_ummap_va(struct pktproc_queue *q, unsigned long src_pa,
 	else
 		unmap_size = (u32)(src_pa - ioc->unmap_src_pa);
 
+#ifdef LINK_DEVICE_PCIE_IOMMU_DEBUG
 	mif_debug("unmap src_pa:0x%lX size:0x%X\n", ioc->unmap_src_pa, unmap_size);
+#endif
 
 	ret = pcie_iommu_unmap(ioc->unmap_src_pa, unmap_size, PCIE_CH2HSI(mc->pcie_ch_num));
 	if (ret != unmap_size) {
