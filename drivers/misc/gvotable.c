@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2019-2020 Google LLC
+ * Copyright 2019-2022 Google LLC
  */
 
 #include <linux/init.h>
@@ -398,17 +398,17 @@ static struct ballot *gvotable_ballot_find_internal(struct gvotable_election *el
 	return NULL;
 }
 
-void gvotable_election_for_each(struct gvotable_election *el,
-				gvotable_foreach_callback_fn callback_fn,
-				void *cb_data)
+int gvotable_election_for_each(struct gvotable_election *el,
+			       gvotable_foreach_callback_fn callback_fn,
+			       void *cb_data)
 {
 	struct ballot *ballot;
-	int ret;
+	int ret = 0;
 
 	if (el->force_result_is_enabled) {
-		callback_fn(cb_data, DEBUGFS_FORCE_VOTE_REASON,
-			    el->force_result);
-		return;
+		ret = callback_fn(cb_data, DEBUGFS_FORCE_VOTE_REASON,
+				  el->force_result);
+		return ret;
 	}
 
 	/* TODO: LOCK list? */
@@ -421,6 +421,8 @@ void gvotable_election_for_each(struct gvotable_election *el,
 		if (ret < 0)
 			break;
 	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gvotable_election_for_each);
 
@@ -678,18 +680,23 @@ void gvotable_set_vote2str(struct gvotable_election *el,
 }
 EXPORT_SYMBOL_GPL(gvotable_set_vote2str);
 
-static void gvotable_run_callback(struct gvotable_election *el)
+static int gvotable_run_callback(struct gvotable_election *el)
 {
+	int ret;
+
 	if (el->result_is_valid)
-		el->callback(el, el->reason, el->result);
+		ret = el->callback(el, el->reason, el->result);
 	else
-		el->callback(el, NULL, NULL);
+		ret = el->callback(el, NULL, NULL);
+
+	return ret;
 }
 
 /* Set the default value, rerun the election when the value changes */
 int gvotable_set_default(struct gvotable_election *el, void *default_val)
 {
 	bool changed;
+	int ret = 0;
 
 	/* boolean elections don't allow changing the default value */
 	if (!el || el->is_bool_type)
@@ -703,7 +710,7 @@ int gvotable_set_default(struct gvotable_election *el, void *default_val)
 	if (changed) {
 		if (gvotable_internal_run_election(el)) {
 			gvotable_unlock_result(el);
-			gvotable_run_callback(el);
+			ret = gvotable_run_callback(el);
 		}
 	} else {
 		gvotable_unlock_result(el);
@@ -711,7 +718,7 @@ int gvotable_set_default(struct gvotable_election *el, void *default_val)
 
 	el->has_default_vote = 1;
 	gvotable_unlock_callback(el);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gvotable_set_default);
 
@@ -731,6 +738,8 @@ int gvotable_get_default(struct gvotable_election *el, void **result)
 /* Enable or disable usage of a default value for a given election */
 int gvotable_use_default(struct gvotable_election *el, bool default_is_enabled)
 {
+	int ret = 0;
+
 	/* boolean elections don't allow changing the default value */
 	if (!el || el->is_bool_type)
 		return -EINVAL;
@@ -740,13 +749,13 @@ int gvotable_use_default(struct gvotable_election *el, bool default_is_enabled)
 	el->has_default_vote = default_is_enabled;
 	if (gvotable_internal_run_election(el)) {
 		gvotable_unlock_result(el);
-		gvotable_run_callback(el);
+		ret = gvotable_run_callback(el);
 	} else {
 		gvotable_unlock_result(el);
 	}
 
 	gvotable_unlock_callback(el);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gvotable_use_default);
 
@@ -994,29 +1003,32 @@ int gvotable_recast_ballot(struct gvotable_election *el, const char *reason,
 
 	if (gvotable_internal_run_election(el)) {
 		gvotable_unlock_result(el);
-		gvotable_run_callback(el);
+		ret = gvotable_run_callback(el);
 	} else {
 		gvotable_unlock_result(el);
 	}
 
 	gvotable_unlock_callback(el);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gvotable_recast_ballot);
 
 #define gvotable_ballot_size_ok(size) ((size) <= sizeof(void *))
 
 /* This doesn't belong to the API */
-void gvotable_run_election(struct gvotable_election *el)
+int gvotable_run_election(struct gvotable_election *el)
 {
 	bool callback;
+	int ret = 0;
 
 	gvotable_lock_election(el);
 	callback = gvotable_internal_run_election(el);
 	gvotable_unlock_result(el);
 	if (callback)
-		gvotable_run_callback(el);
+		ret = gvotable_run_callback(el);
 	gvotable_unlock_callback(el);
+
+	return ret;
 }
 
 /*
@@ -1094,13 +1106,13 @@ int gvotable_cast_vote(struct gvotable_election *el, const char *reason,
 
 	if (gvotable_internal_run_election(el)) {
 		gvotable_unlock_result(el);
-		gvotable_run_callback(el);
+		ret = gvotable_run_callback(el);
 	} else {
 		gvotable_unlock_result(el);
 	}
 
 	gvotable_unlock_callback(el);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gvotable_cast_vote);
 
@@ -1351,6 +1363,7 @@ static int debugfs_force_int_value(void *data, u64 val)
 {
 	struct election_slot *slot = data;
 	u64 pre_val = (u64)slot->el->force_result;
+	int ret = 0;
 
 	gvotable_lock_election(slot->el);
 
@@ -1361,12 +1374,12 @@ static int debugfs_force_int_value(void *data, u64 val)
 		goto exit_done;
 
 	if (slot->el->force_result_is_enabled && (pre_val != val))
-		slot->el->callback(slot->el, DEBUGFS_FORCE_VOTE_REASON,
-				   slot->el->force_result);
+		ret = slot->el->callback(slot->el, DEBUGFS_FORCE_VOTE_REASON,
+					 slot->el->force_result);
 
 exit_done:
 	gvotable_unlock_callback(slot->el);
-	return 0;
+	return ret;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(debugfs_force_int_value_fops, NULL,
@@ -1375,6 +1388,7 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_force_int_value_fops, NULL,
 static int debugfs_force_int_active(void *data, u64 val)
 {
 	struct election_slot *slot = data;
+	int ret = 0;
 
 	gvotable_lock_election(slot->el);
 
@@ -1384,16 +1398,15 @@ static int debugfs_force_int_active(void *data, u64 val)
 	if (!slot->el->callback)
 		goto exit_done;
 
-	if (slot->el->force_result_is_enabled) {
-		slot->el->callback(slot->el, DEBUGFS_FORCE_VOTE_REASON,
-				   slot->el->force_result);
-	} else {
-		gvotable_run_callback(slot->el);
-	}
+	if (slot->el->force_result_is_enabled)
+		ret = slot->el->callback(slot->el, DEBUGFS_FORCE_VOTE_REASON,
+					 slot->el->force_result);
+	else
+		ret = gvotable_run_callback(slot->el);
 
 exit_done:
 	gvotable_unlock_callback(slot->el);
-	return 0;
+	return ret;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(debugfs_force_int_active_fops, NULL,
