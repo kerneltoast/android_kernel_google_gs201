@@ -777,6 +777,10 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 				if (prefer_high_cap && i < HIGH_CAPACITY_CPU)
 					continue;
 
+				if (group_overutilize ||
+						cpu_overutilized(cpu_util(i), capacity, i))
+					continue;
+
 				/* find max spare capacity cpu, used as backup */
 				if (spare_cap > target_max_spare_cap) {
 					target_max_spare_cap = spare_cap;
@@ -786,12 +790,16 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 					cpumask_set_cpu(i, &max_spare_cap);
 				}
 			} else {/* Below path is for non-prefer idle case*/
+				if (group_overutilize ||
+						cpu_overutilized(cpu_util(i), capacity, i))
+					continue;
+
 				if (spare_cap >= target_max_spare_cap) {
 					target_max_spare_cap = spare_cap;
 					most_spare_cap_cpu = i;
 				}
 
-				if (!task_fits || group_overutilize)
+				if (!task_fits)
 					continue;
 
 				if (spare_cap < min_t(unsigned long, task_util_est(p),
@@ -869,27 +877,26 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	}
 
 	/* Assign candidates based on search order. */
-	if (cpumask_weight(&idle_fit)) {
+	if (!cpumask_empty(&idle_fit)) {
 		cpumask_copy(&candidates, &idle_fit);
-	} else if (cpumask_weight(&idle_unfit)) {
+	} else if (!cpumask_empty(&idle_unfit)) {
 		cpumask_copy(&candidates, &idle_unfit);
-	} else if (cpumask_weight(&unimportant_fit)) {
+	} else if (!cpumask_empty(&unimportant_fit)) {
 		cpumask_copy(&candidates, &unimportant_fit);
-	} else if (cpumask_weight(&unimportant_unfit)) {
+	} else if (!cpumask_empty(&unimportant_unfit)) {
 		cpumask_copy(&candidates, &unimportant_unfit);
-	} else if (cpumask_weight(&packing)) {
+	} else if (!cpumask_empty(&packing)) {
 		cpumask_copy(&candidates, &packing);
-	} else if (cpumask_weight(&max_spare_cap)) {
+	} else if (!cpumask_empty(&max_spare_cap)) {
 		cpumask_copy(&candidates, &max_spare_cap);
 	}
 
 	weight = cpumask_weight(&candidates);
+	best_energy_cpu = most_spare_cap_cpu;
 
 	/* Bail out if no candidate was found. */
-	if (weight == 0) {
-		best_energy_cpu = most_spare_cap_cpu;
+	if (weight == 0)
 		goto out;
-	}
 
 	/* Bail out if only 1 candidate was found. */
 	if (weight == 1) {
