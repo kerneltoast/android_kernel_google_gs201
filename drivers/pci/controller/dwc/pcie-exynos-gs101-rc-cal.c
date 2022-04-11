@@ -103,7 +103,6 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	int num_lanes = exynos_pcie->num_lanes;
 	u32 val;
 	u32 i;
-	u32 pll_lock = 0, cdr_lock = 0, oc_done = 0;
 
 	/* init. input clk path */
 	writel(0x28, phy_base_regs + 0xD8);
@@ -303,33 +302,6 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	val &= ~(0x1 << 3);
 	writel(val, phy_base_regs + 0x5D0);
 	pr_debug("XO clock configuration : 0x%x\n", readl(phy_base_regs + 0x5D0));
-
-	/* check pll & cdr lock */
-	phy_base_regs = exynos_pcie->phy_base;
-	for (i = 0; i < 1000; i++) {
-		udelay(1);
-		pll_lock = readl(phy_base_regs + 0x3F0) & (1 << 3);
-		cdr_lock = readl(phy_base_regs + 0xFC0) & (1 << 4);
-
-		if (pll_lock != 0 && cdr_lock != 0)
-			break;
-	}
-
-	/* check offset calibration */
-	for (i = 0; i < 2000; i++) {
-		usleep_range(10, 12);
-		oc_done = readl(phy_base_regs + 0xE18) & (1 << 7);
-
-		if (oc_done != 0)
-			break;
-	}
-	if (oc_done == 0) {
-		pll_lock = readl(phy_base_regs + 0x3F0) & (1 << 3);
-		cdr_lock = readl(phy_base_regs + 0xFC0) & (1 << 4);
-		oc_done = readl(phy_base_regs + 0xE18) & (1 << 7);
-		pr_err("OC Fail : PLL_LOCK : 0x%x, CDR_LOCK : 0x%x, OC : 0x%x\n",
-		       pll_lock, cdr_lock, oc_done);
-	}
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_pcie_phy_config);
 

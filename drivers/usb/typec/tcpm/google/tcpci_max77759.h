@@ -85,6 +85,7 @@ struct max77759_plat {
 	/* Runtime flags */
 	int frs;
 	bool in_frs;
+	bool vsafe0v;
 
 	/*
 	 * Current status of contaminant detection.
@@ -119,6 +120,7 @@ struct max77759_plat {
 	struct kthread_worker *wq;
 	struct kthread_delayed_work icl_work;
 	struct kthread_delayed_work enable_vbus_work;
+	struct kthread_delayed_work vsafe0v_work;
 
 	/* Notifier for data role */
 	struct usb_role_switch *usb_sw;
