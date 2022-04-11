@@ -72,7 +72,9 @@ static unsigned int get_random_for_type(int type)
 		}
 		break;
 	case DVFS_DOMAIN_ID:
-		ret = random % NUM_OF_DVFS_DOMAINS;
+		do {
+			ret = get_random_int() % NUM_OF_DVFS_DOMAINS;
+		} while (ret == DVFS_G3D || ret == DVFS_G3DL2 || ret == DVFS_TPU);
 		break;
 	case GRANVILLE_M_REG:
 	case GRANVILLE_S_REG:
@@ -256,7 +258,7 @@ static void acpm_mbox_dvfs_rate_random_change(struct work_struct *work)
 	} else {
 		set_rate = get_random_rate(domain);
 
-		if (domain >= DVFS_CPUCL0)
+		if (domain >= DVFS_CPUCL0 && domain <= DVFS_CPUCL2)
 			acpm_dvfs_set_cpufreq(domain, set_rate, -1);
 		else
 			acpm_dvfs_set_devfreq(domain, set_rate, -1);
