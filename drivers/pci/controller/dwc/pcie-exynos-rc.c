@@ -2703,6 +2703,10 @@ retry:
 			goto retry;
 		} else {
 			//exynos_pcie_host_v1_print_link_history(pp);
+			exynos_pcie_rc_print_link_history(pp);
+			exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
+			exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
+
 			if (exynos_pcie->ip_ver >= 0x889000 &&
 			    exynos_pcie->ep_device_type == EP_BCM_WIFI) {
 				return -EPIPE;
