@@ -559,8 +559,8 @@ static int vote_comp(struct usb_vote *v1, struct usb_vote *v2)
 	return v2_pri - v1_pri;
 }
 
-static void usb_icl_callback(struct gvotable_election *el,
-			     const char *reason, void *result)
+static int usb_icl_callback(struct gvotable_election *el,
+			    const char *reason, void *result)
 {
 	struct usb_psy_data *usb = gvotable_get_data(el);
 	union power_supply_propval val = {.strval = result};
@@ -572,10 +572,11 @@ static void usb_icl_callback(struct gvotable_election *el,
 		      "%s: %s:%d setting PROP_CURRRENT_MAX: %d by %s",
 		      __func__, ret < 0 ? "error" : "success", ret,
 		      val.intval, reason);
+	return 0;
 }
 
-static void usb_icl_combined_callback(struct gvotable_election *el,
-				      const char *reason, void *result)
+static int usb_icl_combined_callback(struct gvotable_election *el,
+				     const char *reason, void *result)
 {
 	struct usb_psy_data *usb = gvotable_get_data(el);
 	struct usb_vote *vote_result = result;
@@ -587,6 +588,7 @@ static void usb_icl_combined_callback(struct gvotable_election *el,
 	logbuffer_log(usb->log, "%s: %s:%d voting usb_icl_el: %d by %s",
 		      __func__, ret < 0 ? "error" : "success", ret,
 		      vote_result->val, icl_voter_reason[USB_ICL_COMB]);
+	return 0;
 }
 
 /*
@@ -604,8 +606,8 @@ static int usb_icl_combined_comp(void *vote1, void *vote2)
 		return 0;
 }
 
-static void usb_icl_proto_callback(struct gvotable_election *el,
-				   const char *reason, void *result)
+static int usb_icl_proto_callback(struct gvotable_election *el,
+				  const char *reason, void *result)
 {
 	struct usb_psy_data *usb = gvotable_get_data(el);
 	struct usb_vote *vote_result = result;
@@ -629,6 +631,7 @@ static void usb_icl_proto_callback(struct gvotable_election *el,
 		      "%s: %s:%d voting usb_icl_combined_el: %d by %s",
 		      __func__, ret < 0 ? "error" : "success",
 		      ret, vote.val, vote.reason);
+	return 0;
 }
 
 /*
@@ -645,7 +648,7 @@ static inline int usb_icl_proto_comp(void *vote1, void *vote2)
  * result 0 means to clear DEAD_BATTERY vote to usb_icl_proto_el
  * result 1 means to vote DEAD_BATTERY_UA to usb_icl_proto_el
  */
-static void dead_battery_callback(struct gvotable_election *el, const char *reason, void *result)
+static int dead_battery_callback(struct gvotable_election *el, const char *reason, void *result)
 {
 	struct usb_psy_data *usb = gvotable_get_data(el);
 	unsigned long vote_result = (unsigned long)result;
@@ -664,6 +667,7 @@ static void dead_battery_callback(struct gvotable_election *el, const char *reas
 		      __func__, ret < 0 ? "error" : "success", ret,
 		      vote_result ? "voting" : "clearing", vote.val,
 		      proto_voter_reason[DEAD_BATTERY]);
+	return 0;
 }
 
 static int debug_print_vote(char *str,  size_t len, const void *vote)
