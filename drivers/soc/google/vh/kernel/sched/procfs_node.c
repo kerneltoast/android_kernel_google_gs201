@@ -26,6 +26,7 @@ unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INI
 bool __read_mostly vendor_sched_npi_packing = true; //non prefer idle packing
 struct proc_dir_entry *vendor_sched;
 extern unsigned int sched_capacity_margin[CPU_NUM];
+extern struct vendor_group_list vendor_group_list[VG_MAX];
 
 extern void initialize_vendor_group_property(void);
 extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum uclamp_id clamp_id,
@@ -671,16 +672,16 @@ fail:
 
 static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id)
 {
-	struct task_struct *p, *t;
+	struct task_struct *p;
 	struct vendor_task_struct *vp;
 
 	rcu_read_lock();
 
-	for_each_process_thread(p, t) {
-		vp = get_vendor_task_struct(t);
-		if (t->on_rq && vp->group == group) {
-			uclamp_update_active(t, clamp_id);
-		}
+	list_for_each_entry_rcu(vp, &vendor_group_list[group].list, node) {
+		p = __container_of(vp, struct task_struct, android_vendor_data1);
+		get_task_struct(p);
+		uclamp_update_active(p, clamp_id);
+		put_task_struct(p);
 	}
 
 	rcu_read_unlock();
@@ -759,6 +760,8 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 	struct task_struct *p, *t;
 	enum uclamp_id clamp_id;
 	pid_t pid;
+	unsigned long flags;
+	int group;
 
 	if (kstrtoint(buf, 0, &pid) || pid <= 0)
 		return -EINVAL;
@@ -782,17 +785,57 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 	case VTA_TASK_GROUP:
 		vp = get_vendor_task_struct(p);
 		migrate_vendor_group_util(p, vp->group, val);
+		if (p->on_rq) {
+			group = vp->group;
+			raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
+			if (vp->queued_to_list) {
+				list_del_rcu(&vp->node);
+				vp->queued_to_list = false;
+			}
+			raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
+		}
 		vp->group = val;
+		// task could be dequeued in between, so need to check on_rq again
+		if (p->on_rq) {
+			group = vp->group;
+			raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
+			if (!vp->queued_to_list) {
+				list_add_rcu(&vp->node, &vendor_group_list[group].list);
+				vp->queued_to_list = true;
+			}
+			raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
+		}
 		for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
 			uclamp_update_active(p, clamp_id);
 		break;
 	case VTA_PROC_GROUP:
 		for_each_thread(p, t) {
+			get_task_struct(t);
 			vp = get_vendor_task_struct(t);
 			migrate_vendor_group_util(t, vp->group, val);
+			if (t->on_rq) {
+				group = vp->group;
+				raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
+				if (vp->queued_to_list) {
+					list_del_rcu(&vp->node);
+					vp->queued_to_list = false;
+				}
+				raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
+			}
 			vp->group = val;
+			// task could be dequeued in between, so need to check on_rq again
+			if (t->on_rq) {
+				group = vp->group;
+				raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
+				if (!vp->queued_to_list) {
+					list_add_rcu(&vp->node, &vendor_group_list[group].list);
+					vp->queued_to_list = true;
+				}
+				raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
+			}
 			for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
 				uclamp_update_active(t, clamp_id);
+			put_task_struct(t);
 		}
 		break;
 	default:

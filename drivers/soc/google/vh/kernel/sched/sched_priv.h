@@ -32,6 +32,10 @@
 		((cap) * sched_capacity_margin[cpu] > (max) << SCHED_CAPACITY_SHIFT)
 
 
+#define __container_of(ptr, type, member) ({				\
+	void *__mptr = (void *)(ptr);					\
+	((type *)(__mptr - offsetof(type, member))); })
+
 struct vendor_group_property {
 	bool prefer_idle;
 	bool prefer_high_cap;
@@ -63,6 +67,11 @@ struct vendor_cfs_util {
 	struct sched_avg avg;
 	unsigned long util_removed;
 	unsigned int util_est;
+};
+
+struct vendor_group_list {
+	raw_spinlock_t lock;
+	struct list_head list;
 };
 
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,

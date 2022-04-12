@@ -10,6 +10,14 @@
 
 #include "sched_priv.h"
 
+struct vendor_group_list vendor_group_list[VG_MAX];
+
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
+extern void update_uclamp_stats(int cpu, u64 time);
+#endif
+
+extern int get_vendor_group(struct task_struct *p);
+
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
 /*****************************************************************************/
@@ -65,8 +73,40 @@ static inline void uclamp_fork_pixel_mod(struct task_struct *p)
 	}
 }
 
-
 void rvh_sched_fork_pixel_mod(void *data, struct task_struct *p)
 {
 	uclamp_fork_pixel_mod(p);
+}
+
+void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
+{
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	int group;
+
+	group = get_vendor_group(p);
+	raw_spin_lock(&vendor_group_list[group].lock);
+	if (!vp->queued_to_list) {
+		list_add_tail_rcu(&vp->node, &vendor_group_list[group].list);
+		vp->queued_to_list = true;
+	}
+	raw_spin_unlock(&vendor_group_list[group].lock);
+}
+
+void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
+{
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	int group;
+
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
+	if (rq->nr_running == 1)
+		update_uclamp_stats(rq->cpu, rq_clock(rq));
+#endif
+
+	group = get_vendor_group(p);
+	raw_spin_lock(&vendor_group_list[group].lock);
+	if (vp->queued_to_list) {
+		list_del_rcu(&vp->node);
+		vp->queued_to_list = false;
+	}
+	raw_spin_unlock(&vendor_group_list[group].lock);
 }
