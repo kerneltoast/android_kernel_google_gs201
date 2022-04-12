@@ -771,6 +771,7 @@
   drm_poll
   drm_prime_gem_destroy
   drm_printf
+  __drm_printfn_debug
   __drm_printfn_info
   __drm_printfn_seq_file
   drm_property_blob_get
@@ -1445,7 +1446,6 @@
   __page_frag_cache_drain
   page_frag_free
   page_mapping
-  __page_pinner_migration_failed
   panic
   panic_notifier_list
   param_array_ops
