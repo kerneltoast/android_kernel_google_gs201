@@ -50,6 +50,7 @@
 #include <linux/sysfs.h>
 #include <linux/string.h>
 #include <linux/fs.h>
+#include <linux/suspend.h>
 
 #include <soc/google/debug-test.h>
 
@@ -532,6 +533,35 @@ static void simulate_scandump(char *arg)
 
 	(*soc_test_trigger.scandump)(arg);
 }
+
+static int suspend_valid(suspend_state_t state)
+{
+	return 1;
+}
+
+static int suspend_begin(suspend_state_t state)
+{
+	pr_crit("called!\n");
+	schedule_timeout_interruptible(msecs_to_jiffies(9000000));
+	return -EINVAL;
+}
+
+static int suspend_enter(suspend_state_t state)
+{
+	return -EINVAL;
+}
+
+static const struct platform_suspend_ops suspend_ops = {
+	.valid = suspend_valid,
+	.begin = suspend_begin,
+	.enter = suspend_enter,
+};
+
+static void simulate_suspend_hang(char *arg)
+{
+	suspend_set_ops(&suspend_ops);
+}
+
 /*
  * Error trigger definitions
  */
@@ -570,6 +600,7 @@ static const struct force_error_item force_error_vector[] = {
 	{ "halt",		&simulate_halt },
 	{ "arraydump",		&simulate_arraydump },
 	{ "scandump",		&simulate_scandump },
+	{ "suspend_hang",	&simulate_suspend_hang },
 };
 
 static void parse_and_trigger(const char *buf)
