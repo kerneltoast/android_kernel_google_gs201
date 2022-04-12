@@ -84,6 +84,7 @@
 #define CPUCL12_CLKDIVSTEP_STAT (0x848)
 #define CPUCL12_CLKDIVSTEP_CON_HEAVY (0x840)
 #define CPUCL12_CLKDIVSTEP_CON_LIGHT (0x844)
+#define CLKOUT (0x810)
 #define G3D_CLKDIVSTEP_STAT (0x854)
 #define TPU_CLKDIVSTEP_STAT (0x850)
 #define CLUSTER0_MPMM (0x1408)
@@ -138,6 +139,7 @@
 #define PMU_ALIVE_CPU2_OUT (0x1DA0)
 #define PMU_ALIVE_TPU_OUT (0x2920)
 #define PMU_ALIVE_GPU_OUT (0x1E20)
+#define PMU_CLK_OUT (0x3E80)
 #define ONE_SECOND 1000
 
 #if IS_ENABLED(CONFIG_SOC_GS201)
@@ -2768,6 +2770,8 @@ int google_init_tpu_ratio(struct bcl_device *data)
 	__raw_writel(data->tpu_clkdivstep, addr);
 	addr = data->base_mem[TPU] + VDROOP_FLT;
 	__raw_writel(data->tpu_vdroop_flt, addr);
+	addr = data->base_mem[TPU] + CLKOUT;
+	__raw_writel(data->tpu_clk_out, addr);
 	data->tpu_clk_stats = __raw_readl(data->base_mem[TPU] + clk_stats_offset[TPU]);
 	mutex_unlock(&data->ratio_lock);
 
@@ -2797,6 +2801,8 @@ int google_init_gpu_ratio(struct bcl_device *data)
 	__raw_writel(data->gpu_clkdivstep, addr);
 	addr = data->base_mem[GPU] + VDROOP_FLT;
 	__raw_writel(data->gpu_vdroop_flt, addr);
+	addr = data->base_mem[GPU] + CLKOUT;
+	__raw_writel(data->gpu_clk_out, addr);
 	data->gpu_clk_stats = __raw_readl(data->base_mem[GPU] + clk_stats_offset[GPU]);
 	mutex_unlock(&data->ratio_lock);
 
@@ -3008,6 +3014,149 @@ static int google_bcl_register_irq(struct bcl_device *bcl_dev, int id, int tz_id
 		thermal_zone_device_update(bcl_dev->gra_tz[id], THERMAL_DEVICE_UP);
 	}
 	return ret;
+}
+
+static int get_cpu0clk(void *data, u64 *val)
+{
+	struct bcl_device *bcl_dev = data;
+	void __iomem *addr;
+	unsigned int value;
+
+	addr = bcl_dev->base_mem[CPU0] + CLKOUT;
+	*val = __raw_readl(addr);
+	exynos_pmu_read(PMU_CLK_OUT, &value);
+	pr_info("PMU CLK OUT: 0x%x\n", value);
+	return 0;
+}
+
+static int set_cpu0clk(void *data, u64 val)
+{
+	struct bcl_device *bcl_dev = data;
+	void __iomem *addr;
+
+	addr = bcl_dev->base_mem[CPU0] + CLKOUT;
+	__raw_writel(val, addr);
+	if (val != 0)
+		exynos_pmu_write(PMU_CLK_OUT, 0x3001);
+	else
+		exynos_pmu_write(PMU_CLK_OUT, 0x0);
+	return 0;
+}
+
+static int get_cpu1clk(void *data, u64 *val)
+{
+	struct bcl_device *bcl_dev = data;
+	void __iomem *addr;
+	unsigned int value;
+
+	addr = bcl_dev->base_mem[CPU1] + CLKOUT;
+	*val = __raw_readl(addr);
+	exynos_pmu_read(PMU_CLK_OUT, &value);
+	pr_info("PMU CLK OUT: 0x%x\n", value);
+	return 0;
+}
+
+static int set_cpu1clk(void *data, u64 val)
+{
+	struct bcl_device *bcl_dev = data;
+	void __iomem *addr;
+
+	addr = bcl_dev->base_mem[CPU1] + CLKOUT;
+	__raw_writel(val, addr);
+	if (val != 0)
+		exynos_pmu_write(PMU_CLK_OUT, 0x1101);
+	else
+		exynos_pmu_write(PMU_CLK_OUT, 0x0);
+	return 0;
+}
+
+static int get_cpu2clk(void *data, u64 *val)
+{
+	struct bcl_device *bcl_dev = data;
+	void __iomem *addr;
+	unsigned int value;
+
+	addr = bcl_dev->base_mem[CPU2] + CLKOUT;
+	*val = __raw_readl(addr);
+	exynos_pmu_read(PMU_CLK_OUT, &value);
+	pr_info("PMU CLK OUT: 0x%x\n", value);
+	return 0;
+}
+
+static int set_cpu2clk(void *data, u64 val)
+{
+	struct bcl_device *bcl_dev = data;
+	void __iomem *addr;
+
+	addr = bcl_dev->base_mem[CPU2] + CLKOUT;
+	__raw_writel(val, addr);
+	if (val != 0)
+		exynos_pmu_write(PMU_CLK_OUT, 0x1201);
+	else
+		exynos_pmu_write(PMU_CLK_OUT, 0x0);
+	return 0;
+}
+
+static int get_gpuclk(void *data, u64 *val)
+{
+	struct bcl_device *bcl_dev = data;
+	unsigned int value;
+
+	*val = bcl_dev->gpu_clk_out;
+	exynos_pmu_read(PMU_CLK_OUT, &value);
+	pr_info("PMU CLK OUT: 0x%x\n", value);
+	return 0;
+}
+
+static int set_gpuclk(void *data, u64 val)
+{
+	struct bcl_device *bcl_dev = data;
+
+	bcl_dev->gpu_clk_out = val;
+	if (val != 0)
+		exynos_pmu_write(PMU_CLK_OUT, 0x1a01);
+	else
+		exynos_pmu_write(PMU_CLK_OUT, 0x0);
+	return 0;
+}
+
+static int get_tpuclk(void *data, u64 *val)
+{
+	struct bcl_device *bcl_dev = data;
+	unsigned int value;
+
+	*val = bcl_dev->tpu_clk_out;
+	exynos_pmu_read(PMU_CLK_OUT, &value);
+	pr_info("PMU CLK OUT: 0x%x\n", value);
+	return 0;
+}
+
+static int set_tpuclk(void *data, u64 val)
+{
+	struct bcl_device *bcl_dev = data;
+
+	bcl_dev->tpu_clk_out = val;
+	if (val != 0)
+		exynos_pmu_write(PMU_CLK_OUT, 0x2E01);
+	else
+		exynos_pmu_write(PMU_CLK_OUT, 0x0);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(cpu0_clkout_fops, get_cpu0clk, set_cpu0clk, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(cpu1_clkout_fops, get_cpu1clk, set_cpu1clk, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(cpu2_clkout_fops, get_cpu2clk, set_cpu2clk, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(gpu_clkout_fops, get_gpuclk, set_gpuclk, "0x%llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(tpu_clkout_fops, get_tpuclk, set_tpuclk, "0x%llx\n");
+
+static void google_init_debugfs(struct bcl_device *bcl_dev)
+{
+	bcl_dev->debug_entry = debugfs_create_dir("google_bcl", 0);
+	debugfs_create_file("cpu0_clk_out", 0644, bcl_dev->debug_entry, bcl_dev, &cpu0_clkout_fops);
+	debugfs_create_file("cpu1_clk_out", 0644, bcl_dev->debug_entry, bcl_dev, &cpu1_clkout_fops);
+	debugfs_create_file("cpu2_clk_out", 0644, bcl_dev->debug_entry, bcl_dev, &cpu2_clkout_fops);
+	debugfs_create_file("gpu_clk_out", 0644, bcl_dev->debug_entry, bcl_dev, &gpu_clkout_fops);
+	debugfs_create_file("tpu_clk_out", 0644, bcl_dev->debug_entry, bcl_dev, &tpu_clkout_fops);
 }
 
 static void google_set_throttling(struct bcl_device *bcl_dev)
@@ -3734,6 +3883,7 @@ static int google_bcl_probe(struct platform_device *pdev)
 		goto bcl_soc_probe_exit;
 	schedule_delayed_work(&bcl_dev->init_work, msecs_to_jiffies(THERMAL_DELAY_INIT_MS));
 	bcl_dev->enabled = true;
+	google_init_debugfs(bcl_dev);
 
 	return 0;
 
@@ -3747,6 +3897,7 @@ static int google_bcl_remove(struct platform_device *pdev)
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
 	pmic_device_destroy(bcl_dev->mitigation_dev->devt);
+	debugfs_remove_recursive(bcl_dev->debug_entry);
 	google_bcl_remove_thermal(bcl_dev);
 
 	return 0;

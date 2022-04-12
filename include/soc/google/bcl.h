@@ -141,6 +141,11 @@ struct bcl_device {
 
 	unsigned int offsrc;
 	unsigned int pwronsrc;
+
+	/* debug */
+	struct dentry *debug_entry;
+	unsigned int gpu_clk_out;
+	unsigned int tpu_clk_out;
 };
 
 extern void google_bcl_irq_update_lvl(struct bcl_device *bcl_dev, int index, unsigned int lvl);
