@@ -329,7 +329,7 @@ static irqreturn_t cp_active_handler(int irq, void *data)
 		ld->crash_reason.type = CRASH_REASON_CP_ACT_CRASH;
 
 	mc->s5100_cp_reset_required = false;
-	mif_info("Set s5100_cp_reset_required to %u\n", mc->s5100_cp_reset_required);
+	mif_info("Set s5100_cp_reset_required to 0\n");
 
 	if (old_state != new_state) {
 		mif_err("new_state = %s\n", cp_state_str(new_state));

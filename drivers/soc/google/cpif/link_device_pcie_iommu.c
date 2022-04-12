@@ -145,7 +145,7 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 
 #ifdef LINK_DEVICE_PCIE_IOMMU_DEBUG
 		mif_debug("map idx:%u src_pa:0x%lX va:0x%p size:0x%lX\n",
-			  ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);aa
+			  ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);
 #endif
 
 		ret = pcie_iommu_map(ioc->map_src_pa, virt_to_phys(ioc->map_page_va),

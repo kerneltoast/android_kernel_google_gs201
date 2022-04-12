@@ -120,6 +120,13 @@ config CPIF_TP_MONITOR
 	help
 	  This enables CP network throughput monitor
 
+config LINK_DEVICE_PCIE_IOCC
+	bool "Use PCIE IOCC"
+	depends on LINK_DEVICE_PCIE
+	default n
+	help
+	  This enables PCIe IOCC
+
 config LINK_DEVICE_PCIE_IOMMU
 	bool "Use PCIE IOMMU"
 	depends on LINK_DEVICE_PCIE && EXYNOS_PCIE_IOMMU

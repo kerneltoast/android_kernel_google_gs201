@@ -186,8 +186,12 @@ static int pktproc_get_pkt_from_ringbuf_mode(struct pktproc_queue *q, struct sk_
 		ret = -EINVAL;
 		goto rx_error_on_desc;
 	}
+
+#if !IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOCC)
 	if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc)
 		dma_sync_single_for_cpu(q->ppa->dev, virt_to_phys(src), len, DMA_FROM_DEVICE);
+#endif
+
 	pp_debug("len:%d ch_id:%d src:%pK\n", len, ch_id, src);
 
 	/* Build skb */
@@ -264,11 +268,13 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 
 	mif_info("Unmap buffer from %d to %d\n", q->done_ptr, *q->fore_ptr);
 	while (*q->fore_ptr != q->done_ptr) {
+#if !IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOCC)
 		if (ppa->buff_rgn_cached && !ppa->use_hw_iocc && q->dma_addr[q->done_ptr]) {
 			dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
 					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 			q->dma_addr[q->done_ptr] = 0;
 		}
+#endif
 		desc[q->done_ptr].cp_data_paddr = 0;
 		q->done_ptr = circ_new_ptr(q->num_desc, q->done_ptr, 1);
 	}
@@ -283,26 +289,27 @@ static int pktproc_clear_data_addr(struct pktproc_queue *q)
 static int pktproc_clear_data_addr_without_bm(struct pktproc_queue *q)
 {
 	struct pktproc_desc_sktbuf *desc = q->desc_sktbuf;
-	int i;
 
-	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
-		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
-		return -EINVAL;
-	}
-
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_NETRX_MGR)
 	if (q->ppa->use_netrx_mng) {
 		mif_err_limited("Buffer manager is set\n");
 		return -EPERM;
 	}
+#endif
 
+#if !IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOCC)
 	mif_info("Unmap all buffers\n");
-	for (i = 0; i < q->num_desc; i++) {
-		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc && q->dma_addr[i]) {
-			dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[i],
-					q->ppa->max_packet_size, DMA_FROM_DEVICE, 0);
-			q->dma_addr[i] = 0;
+	if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
+		int i;
+		for (i = 0; i < q->num_desc; i++) {
+			if(q->dma_addr[i]) {
+				dma_unmap_single_attrs(q->ppa->dev, q->dma_addr[i],
+						q->ppa->max_packet_size, DMA_FROM_DEVICE, 0);
+				q->dma_addr[i] = 0;
+			}
 		}
 	}
+#endif
 	memset(desc, 0, q->desc_size);
 
 	return 0;
@@ -343,6 +350,7 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 			return -ENOMEM;
 		}
 
+#if !IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOCC)
 		if (ppa->buff_rgn_cached && !ppa->use_hw_iocc) {
 			q->dma_addr[fore] = dma_map_single_attrs(ppa->dev,
 					(u8 *)addrpair->ap_addr + ppa->skb_padding_size,
@@ -354,6 +362,7 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 				return -ENOMEM;
 			}
 		}
+#endif
 
 		desc[fore].cp_data_paddr = addrpair->cp_addr + ppa->skb_padding_size;
 
@@ -392,15 +401,12 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 	u32 space;
 	u32 fore_inc = 1;
 
-	if (q->ppa->desc_mode != DESC_MODE_SKTBUF) {
-		mif_err_limited("Invalid desc_mode %d\n", q->ppa->desc_mode);
-		return -EINVAL;
-	}
-
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_NETRX_MGR)
 	if (q->ppa->use_netrx_mng) {
 		mif_err_limited("Buffer manager is set\n");
 		return -EPERM;
 	}
+#endif
 
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 	fore = q->ioc.curr_fore;
@@ -426,7 +432,9 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 	}
 
 	for (i = 0; i < space; i++) {
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU) || !IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOCC)
 		u8 *dst_vaddr = NULL;
+#endif
 
 		dst_paddr = q->q_buff_pbase + (q->ppa->true_packet_size * fore);
 		if (dst_paddr > (q->q_buff_pbase + q->q_buff_size))
@@ -445,6 +453,7 @@ static int pktproc_fill_data_addr_without_bm(struct pktproc_queue *q)
 		}
 #endif
 
+#if !IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOCC)
 		if (q->ppa->buff_rgn_cached && !q->ppa->use_hw_iocc) {
 			if (dst_vaddr)
 				goto dma_map;
@@ -466,6 +475,7 @@ dma_map:
 				return -ENOMEM;
 			}
 		}
+#endif
 
 		desc[fore].cp_data_paddr = (dst_paddr - q->q_buff_pbase) +
 						q->cp_buff_pbase +
@@ -539,6 +549,7 @@ static u8 *get_packet_vaddr(struct pktproc_queue *q, struct pktproc_desc_sktbuf 
 	u8 *ret;
 	struct pktproc_adaptor *ppa = q->ppa;
 
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_NETRX_MGR)
 	if (q->manager) {
 		ret = (u8 *)cpif_unmap_rx_buf(q->manager,
 				desc->cp_data_paddr -
@@ -548,7 +559,9 @@ static u8 *get_packet_vaddr(struct pktproc_queue *q, struct pktproc_desc_sktbuf 
 			q->stat.err_addr++;
 			return NULL;
 		}
-	} else {
+	} else
+#endif
+	{
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 		unsigned long src_paddr = desc->cp_data_paddr - q->cp_buff_pbase +
 				q->q_buff_pbase - ppa->skb_padding_size;
@@ -570,11 +583,13 @@ static u8 *get_packet_vaddr(struct pktproc_queue *q, struct pktproc_desc_sktbuf 
 
 	ret += ppa->skb_padding_size;
 
+#if !IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOCC)
 	if (ppa->buff_rgn_cached && !ppa->use_hw_iocc && q->dma_addr[q->done_ptr]) {
 		dma_unmap_single_attrs(ppa->dev, q->dma_addr[q->done_ptr],
 					ppa->max_packet_size, DMA_FROM_DEVICE, 0);
 		q->dma_addr[q->done_ptr] = 0;
 	}
+#endif
 
 	return ret;
 }
@@ -584,13 +599,16 @@ static struct sk_buff *cpif_build_skb_single(struct pktproc_queue *q, u8 *src, u
 {
 	struct sk_buff *skb;
 
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_NETRX_MGR)
 	if (q->manager) {
 		skb = build_skb(src - front_pad_size, q->manager->frag_size);
 		if (unlikely(!skb))
 			goto error;
 
 		skb_reserve(skb, front_pad_size);
-	} else {
+	} else
+#endif
+	{
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 		skb = build_skb(src - front_pad_size, q->ppa->true_packet_size);
 		if (unlikely(!skb))
@@ -616,8 +634,10 @@ error:
 	mif_err_limited("getting skb failed\n");
 
 	q->stat.err_nomem++;
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_NETRX_MGR)
 	if (q->manager && !q->manager->already_retrieved)
 		q->manager->already_retrieved = src;
+#endif
 
 	return NULL;
 }
@@ -1406,6 +1426,7 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 			dit_check_dir_use_queue(DIT_DIR_RX, q->q_idx));
 #endif
 
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_NETRX_MGR)
 		if (q->manager) {
 			count += scnprintf(&buf[count], PAGE_SIZE - count,
 					"Buffer manager\n");
@@ -1417,6 +1438,7 @@ static ssize_t region_show(struct device *dev, struct device_attribute *attr, ch
 				q->manager->frag_size);
 			count += scnprintf(&buf[count], PAGE_SIZE - count, "\n");
 		}
+#endif
 	}
 
 	return count;
@@ -1540,10 +1562,12 @@ int pktproc_init(struct pktproc_adaptor *ppa)
 #endif
 			if (pktproc_check_active(q->ppa, q->q_idx))
 				q->clear_data_addr(q);
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_NETRX_MGR)
 			if (q->manager)
 				mif_info("num packets:%llu frag size:%llu\n",
 					q->manager->num_packet,
 					q->manager->frag_size);
+#endif
 			break;
 		default:
 			break;
@@ -1666,6 +1690,12 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 #if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
 		mif_dt_read_u32(np, "pktproc_dl_use_netrx_mng", ppa->use_netrx_mng);
 		mif_dt_read_u32(np, "pktproc_dl_netrx_capacity", ppa->netrx_capacity);
+		/* Check if config and dt are consistent  */
+		if(ppa->use_netrx_mng != IS_ENABLED(CONFIG_EXYNOS_CPIF_NETRX_MGR)) {
+			mif_err("netrx mgr config and dt are inconsistent\n");
+			panic("netrx mgr config and dt are inconsistent\n");
+			return -EINVAL;
+		}
 #else
 		ppa->use_netrx_mng = 0;
 		ppa->netrx_capacity = 0;
@@ -1727,6 +1757,13 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 		return -EINVAL;
 	}
 #endif
+
+	/* Check if config and dt are consistent */
+	if (ppa->use_hw_iocc != IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOCC)) {
+		mif_err("PCIe IOCC config and dt are inconsistent\n");
+		panic("PCIe IOCC config and dt are inconsistent\n");
+		return -EINVAL;
+	}
 
 	ppa->true_packet_size = ppa->max_packet_size;
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
@@ -1899,10 +1936,11 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			else
 				q->q_info_ptr->cp_buff_pbase = q->cp_buff_pbase;
 			q->q_buff_size = buff_size_by_q;
+#if !IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOCC)
 			if (ppa->buff_rgn_cached && !ppa->use_hw_iocc)
 				dma_sync_single_for_device(ppa->dev,
 						q->q_buff_pbase, q->q_buff_size, DMA_FROM_DEVICE);
-
+#endif
 			q->num_desc = buff_size_by_q / ppa->true_packet_size;
 			q->q_info_ptr->num_desc = q->num_desc;
 
