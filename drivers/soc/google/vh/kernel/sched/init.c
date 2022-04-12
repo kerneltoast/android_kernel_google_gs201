@@ -26,7 +26,6 @@ extern void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *sho
 extern void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
 					    int sd_flag, int wake_flags, int *new_cpu);
 extern void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized);
-extern void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
 extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p,
 					 enum uclamp_id clamp_id, struct uclamp_se *uclamp_max,
 					 struct uclamp_se *uclamp_eff, int *ret);
@@ -45,10 +44,13 @@ extern void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
 					 struct task_struct *orig);
 extern void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
 					      int sd_flag, int wake_flags, int *target_cpu);
+extern void init_vendor_group_data(void);
 extern void init_vendor_rt_rq(void);
 extern void rvh_update_rt_rq_load_avg_pixel_mod(void *data, u64 now, struct rq *rq,
 						struct task_struct *p, int running);
 extern void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsigned int new_cpu);
+extern void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
+extern void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
 
 extern struct cpufreq_governor sched_pixel_gov;
 
@@ -72,7 +74,17 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 
+	init_vendor_group_data();
+
 	init_vendor_rt_rq();
+
+	ret = register_trace_android_rvh_enqueue_task(rvh_enqueue_task_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_dequeue_task(rvh_dequeue_task_pixel_mod, NULL);
+	if (ret)
+		return ret;
 
 	ret = register_trace_android_rvh_update_rt_rq_load_avg(rvh_update_rt_rq_load_avg_pixel_mod,
 							       NULL);
@@ -92,10 +104,6 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_rvh_cpu_overutilized(rvh_cpu_overutilized_pixel_mod, NULL);
-	if (ret)
-		return ret;
-
-	ret = register_trace_android_rvh_dequeue_task(rvh_dequeue_task_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
