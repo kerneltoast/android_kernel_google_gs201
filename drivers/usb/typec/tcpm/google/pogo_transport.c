@@ -29,6 +29,7 @@
 #define POGO_USB_RETRY_INTEREVAL_MS 100
 #define POGO_LIKELY_USB_NOT_CAPABLE_MS 250
 #define POGO_PSY_DEBOUNCE_MS 50
+#define POGO_PSY_NRDY_RETRY_MS 500
 
 enum pogo_event_type {
 	/* Reported when docking status changes */
@@ -117,6 +118,9 @@ static void update_pogo_transport(struct kthread_work *work)
 					&voltage_now);
 	if (ret) {
 		dev_err(pogo_transport->dev, "%s voltage now read err: %d\n", __func__, ret);
+		if (ret == -EAGAIN)
+			pogo_transport_event(pogo_transport, EVENT_RETRY_READ_VOLTAGE,
+					     POGO_PSY_NRDY_RETRY_MS);
 		goto free;
 	}
 
