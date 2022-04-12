@@ -63,6 +63,7 @@
 
 		tmu_work_affinity = "0-7";
 		hotplug_work_affinity = "0-3";
+		has-dfs-support;
 	};
 
 	tmuctrl_1: MID@100A0000 {
@@ -86,6 +87,7 @@
 
 		tmu_work_affinity = "0-7";
 		hotplug_work_affinity = "0-3";
+		has-dfs-support;
 	};
 
 	tmuctrl_2: LITTLE@100A0000 {
@@ -130,6 +132,7 @@
 		sustainable_power = <200>;
 
 		tmu_work_affinity = "0-7";
+		has-dfs-support;
 	};
 
 	tmuctrl_4: ISP@100A0000 {
@@ -164,6 +167,7 @@
 		sustainable_power = <200>;
 
 		tmu_work_affinity = "0-7";
+		has-dfs-support;
 	};
 
 	tmuctrl_6: AUR@100B0000 {
