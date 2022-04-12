@@ -39,7 +39,10 @@
 #endif
 #include <soc/google/exynos-debug.h>
 
-#define HARDLOCKUP_DEBUG_MAGIC		(0xDEADBEEF)
+#define HARDLOCKUP_DEBUG_EL1_FIQ_MAGIC		(0xDEADBEEF)
+#define HARDLOCKUP_DEBUG_EL1_SGI_MAGIC		(HARDLOCKUP_DEBUG_EL1_FIQ_MAGIC + 1)
+#define HARDLOCKUP_DEBUG_EL2_FIQ_MAGIC		(HARDLOCKUP_DEBUG_EL1_FIQ_MAGIC - 4)
+#define HARDLOCKUP_DEBUG_EL2_SGI_MAGIC		(HARDLOCKUP_DEBUG_EL1_FIQ_MAGIC - 3)
 #define BUG_BRK_IMM_HARDLOCKUP		(0x801)
 #define FIQ_PENDING_INST_INDEX		(ARRAY_SIZE(hardlockup_debug_cpu_resume_insts) - 1)
 
@@ -173,12 +176,6 @@ static void pm_dev_end(void *data, struct device *dev, int error)
 	spin_unlock_irqrestore(&pm_trace_lock, flags);
 }
 
-static void vh_bug_on_wdt_fiq_pending(void *data, int state, struct cpuidle_device *dev)
-{
-	if (get_pending_fiq_cpu_id() == raw_smp_processor_id())
-		hardlockup_debug_bug_func();
-}
-
 static void hardlockup_debug_disable_fiq(void)
 {
 	asm volatile (__stringify(msr	daifset, #0x1));
@@ -205,6 +202,23 @@ static inline int hardlockup_debug_try_lock_timeout(raw_spinlock_t *lock,
 	return ret;
 }
 
+static bool is_valid_hardlockup_magic(int val)
+{
+	return val == HARDLOCKUP_DEBUG_EL1_FIQ_MAGIC ||
+			val == HARDLOCKUP_DEBUG_EL1_SGI_MAGIC ||
+			val == HARDLOCKUP_DEBUG_EL2_FIQ_MAGIC ||
+			val == HARDLOCKUP_DEBUG_EL2_SGI_MAGIC;
+}
+
+static void vh_bug_on_wdt_fiq_pending(void *data, int state, struct cpuidle_device *dev)
+{
+	int cpu = raw_smp_processor_id();
+
+	if (get_pending_fiq_cpu_id() == cpu ||
+			is_valid_hardlockup_magic(dbg_snapshot_get_hardlockup_magic(cpu)))
+		hardlockup_debug_bug_func();
+}
+
 static unsigned long hardlockup_debug_get_locked_cpu_mask(void)
 {
 	unsigned long mask = 0;
@@ -213,8 +227,7 @@ static unsigned long hardlockup_debug_get_locked_cpu_mask(void)
 
 	for_each_online_cpu(cpu) {
 		val = dbg_snapshot_get_hardlockup_magic(cpu);
-		if (val == HARDLOCKUP_DEBUG_MAGIC ||
-			val == (HARDLOCKUP_DEBUG_MAGIC + 1))
+		if (is_valid_hardlockup_magic(val))
 			mask |= (1 << cpu);
 	}
 
@@ -239,8 +252,7 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 		if (watchdog_fiq && !allcorelockup_detected) {
 			/* 1st WDT FIQ trigger */
 			val = dbg_snapshot_get_hardlockup_magic(cpu);
-			if (val == HARDLOCKUP_DEBUG_MAGIC ||
-				val == (HARDLOCKUP_DEBUG_MAGIC + 1)) {
+			if (is_valid_hardlockup_magic(val)) {
 				allcorelockup_detected = 1;
 				hardlockup_core_mask =
 					hardlockup_debug_get_locked_cpu_mask();
