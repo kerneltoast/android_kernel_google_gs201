@@ -1905,8 +1905,8 @@ static int tcpci_init(struct tcpci *tcpci, struct tcpci_data *data)
 	return -1;
 }
 
-static void max77759_toggle_disable_votable_callback(struct gvotable_election *el,
-						     const char *reason, void *value)
+static int max77759_toggle_disable_votable_callback(struct gvotable_election *el,
+						    const char *reason, void *value)
 {
 	struct max77759_plat *chip = gvotable_get_data(el);
 	int disable = (long)value ? MAX77759_DISABLE_TOGGLE : MAX77759_ENABLE_TOGGLE;
@@ -1914,7 +1914,7 @@ static void max77759_toggle_disable_votable_callback(struct gvotable_election *e
 	mutex_lock(&chip->rc_lock);
 	if (chip->toggle_disable_status == disable) {
 		mutex_unlock(&chip->rc_lock);
-		return;
+		return 0;
 	}
 
 	chip->toggle_disable_status = disable;
@@ -1945,6 +1945,7 @@ static void max77759_toggle_disable_votable_callback(struct gvotable_election *e
 	}
 	mutex_unlock(&chip->rc_lock);
 	logbuffer_log(chip->log, "%s: reason %s value %ld\n", __func__, reason, (long)value);
+	return 0;
 }
 
 #ifdef CONFIG_DEBUG_FS
