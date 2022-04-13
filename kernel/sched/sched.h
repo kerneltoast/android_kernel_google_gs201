@@ -1583,10 +1583,10 @@ static inline void unregister_sched_domain_sysctl(void)
 }
 #endif
 
-extern void flush_smp_call_function_from_idle(void);
+extern void flush_smp_call_function_queue(void);
 
 #else /* !CONFIG_SMP: */
-static inline void flush_smp_call_function_from_idle(void) { }
+static inline void flush_smp_call_function_queue(void) { }
 #endif
 
 #include "stats.h"
