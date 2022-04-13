@@ -320,12 +320,14 @@ struct dvfs_frequency_table {
 };
 
 struct stats_scale {
-	int limit;		/* in us */
-	int count;
+	unsigned int limit;		/* in us */
+	unsigned int count;
 };
 
 #define MICRO_SEC               1000
 #define TIME_SCALES             12
+#define LATENCY_FAIL_CRITERIA   10  /*the percent of slow DVFS latency*/
+#define SLOW_LATENCY_IDX        11  /*bucket idx for 2ms latency case*/
 
 struct stats_scale buckets[TIME_SCALES] = { { 0, 0 }, { 1, 0 }, { 10, 0 },
 { 30, 0 }, { 50, 0 }, { 100, 0 }, { 200, 0 }, { 300, 0 },

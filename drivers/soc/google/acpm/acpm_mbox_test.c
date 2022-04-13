@@ -1453,6 +1453,32 @@ static int debug_dvfs_latency_stats_set(void *data, u64 val)
 	return dvfs_latency_stats_setting(acpm, val);
 }
 
+static int debug_dvfs_latency_stats_get(void *data, unsigned long long *val)
+{
+    u32 dm_id, delayed_latency_ratio, cycle_cnt, scale_cnt;
+
+	for (dm_id = DVFS_MIF; dm_id < NUM_OF_DVFS_DOMAINS; dm_id++) {
+		if (dm_id == DVFS_G3D || dm_id == DVFS_G3DL2
+		    || dm_id == DVFS_TPU)
+			continue;
+
+		if (!dvfs_test->dm[dm_id])
+			return -ENOENT;
+
+		if (dvfs_test->dm[dm_id]->total_cycle_cnt) {
+			cycle_cnt = dvfs_test->dm[dm_id]->total_cycle_cnt;
+			scale_cnt = dvfs_test->dm[dm_id]->scales[SLOW_LATENCY_IDX].count;
+			delayed_latency_ratio = scale_cnt * 100 / cycle_cnt;
+			if (delayed_latency_ratio > LATENCY_FAIL_CRITERIA) {
+				/*Flag domains with unusually slow DVFS latency*/
+				*val |= 1 << dm_id;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static void acpm_acpm_mbox_dvfs(bool start)
 {
 	if (start) {
@@ -1501,8 +1527,9 @@ static int debug_acpm_mbox_dvfs_set(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_mbox_test_fops,
 			debug_acpm_mbox_test_get, debug_acpm_mbox_test_set,
 			"0x%016llx\n");
-DEFINE_SIMPLE_ATTRIBUTE(debug_dvfs_latency_stats_fops, NULL,
-			debug_dvfs_latency_stats_set, "0x%016llx\n");
+DEFINE_SIMPLE_ATTRIBUTE(debug_dvfs_latency_stats_fops,
+			debug_dvfs_latency_stats_get, debug_dvfs_latency_stats_set,
+			"0x%016llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(debug_acpm_mbox_dvfs_fops, NULL,
 			debug_acpm_mbox_dvfs_set, "0x%016llx\n");
 
