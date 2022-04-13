@@ -17,10 +17,14 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/android_debug_symbols.h>
+#include <linux/device.h>
+#include <linux/interval_tree.h>
+#include <linux/pm.h>
 
 #include <linux/suspend.h>
 #include <linux/sched/task.h>
 #include <trace/hooks/cpuidle.h>
+#include <trace/events/power.h>
 
 #include <asm/debug-monitors.h>
 #include <asm/ptrace.h>
@@ -63,6 +67,15 @@ struct hardlockup_param_type {
 	unsigned int spin_func[FIQ_PENDING_INST_INDEX + 1];
 };
 
+static struct rb_root_cached pm_dev_rbroot = RB_ROOT_CACHED;
+
+#define foreach_pm_dev(node, next, priv) \
+	for (node = interval_tree_iter_first(&pm_dev_rbroot, 0, -1UL); \
+			({priv = container_of(node, struct pm_dev_priv, node); \
+			 next = node ? interval_tree_iter_next(node, 0, -1UL) : NULL; \
+			 node;}); \
+			node = next)
+
 static struct hardlockup_param_type *hardlockup_param;
 static dma_addr_t hardlockup_param_paddr;
 
@@ -74,7 +87,7 @@ static unsigned long hardlockup_core_mask;
 static unsigned long hardlockup_core_handled_mask;
 
 static struct task_struct *pm_suspend_task;
-static DEFINE_SPINLOCK(pm_suspend_task_lock);
+static DEFINE_SPINLOCK(pm_trace_lock);
 
 static void hardlockup_debug_bug_func(void)
 {
@@ -97,6 +110,67 @@ static int get_pending_fiq_cpu_id(void)
 	cpu_id = (fiq_info >> FIQINFO_CPU_ID_SHIFT) & FIQINFO_CPU_ID_MASK;
 
 	return fiq_info ? (cluster_id * CLUSTER_0_CORE_NR + cpu_id) : -1;
+}
+
+struct pm_dev_priv {
+	struct interval_tree_node node;
+	struct device *dev;
+	struct device *parent;
+	char pm_ops[64];
+	int event;
+};
+
+static const char *pm_event_str(int event)
+{
+	switch (event) {
+	case PM_EVENT_SUSPEND: return "suspend";
+	case PM_EVENT_RESUME: return "resume";
+	case PM_EVENT_FREEZE: return "freeze";
+	case PM_EVENT_QUIESCE: return "quiesce";
+	case PM_EVENT_HIBERNATE: return "hibernate";
+	case PM_EVENT_THAW: return "thaw";
+	case PM_EVENT_RESTORE: return "restore";
+	case PM_EVENT_RECOVER: return "recover";
+	default: return "unknown";
+	}
+}
+
+
+static void pm_dev_start(void *data, struct device *dev, const char *pm_ops, int event)
+{
+	unsigned long flags;
+	struct pm_dev_priv *priv;
+
+	spin_lock_irqsave(&pm_trace_lock, flags);
+	priv = kzalloc(sizeof(struct pm_dev_priv), GFP_ATOMIC);
+	if (!priv) {
+		pr_err("Failed to alloc pm_dev_priv buffer\n");
+		goto exit;
+	}
+	priv->dev = dev;
+	priv->parent = dev->parent;
+	priv->event = event;
+	strlcpy(priv->pm_ops, pm_ops, sizeof(priv->pm_ops));
+	interval_tree_insert(&priv->node, &pm_dev_rbroot);
+exit:
+	spin_unlock_irqrestore(&pm_trace_lock, flags);
+}
+
+static void pm_dev_end(void *data, struct device *dev, int error)
+{
+	unsigned long flags;
+	struct pm_dev_priv *priv;
+	struct interval_tree_node *node, *next;
+
+	spin_lock_irqsave(&pm_trace_lock, flags);
+	foreach_pm_dev(node, next, priv) {
+		if (priv->dev == dev) {
+			interval_tree_remove(node, &pm_dev_rbroot);
+			kfree(priv);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&pm_trace_lock, flags);
 }
 
 static void vh_bug_on_wdt_fiq_pending(void *data, int state, struct cpuidle_device *dev)
@@ -221,6 +295,37 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 			s3c2410wdt_print_schedstat(KERN_EMERG);
 		}
 
+		spin_lock_irqsave(&pm_trace_lock, flags);
+		if (pm_suspend_task) {
+			static char pm_dev_namebuf[512] = {0};
+			struct pm_dev_priv *priv;
+			struct interval_tree_node *node, *next;
+			int buf_off = 0;
+
+			pr_emerg("pm_suspend_task '%s' %d hung (state=%ld)",
+					pm_suspend_task->comm, pm_suspend_task->pid,
+					pm_suspend_task->state);
+			sched_show_task(pm_suspend_task);
+
+			if (!interval_tree_iter_first(&pm_dev_rbroot, 0, -1UL))
+				panic("PM suspend timeout");
+
+			pr_emerg("PM suspend timeout at following devices:\n");
+			foreach_pm_dev(node, next, priv) {
+				buf_off += scnprintf(pm_dev_namebuf + buf_off,
+						sizeof(pm_dev_namebuf) - buf_off,
+						"%s%s", pm_dev_namebuf[0] ? "," : "",
+						dev_driver_string(priv->dev));
+				pr_emerg("  - %s %s, parent: %s, %s[%s]\n",
+						dev_name(priv->dev),
+						dev_driver_string(priv->dev),
+						priv->parent ? dev_name(priv->parent) : "none",
+						priv->pm_ops, pm_event_str(priv->event));
+			}
+			panic("PM suspend timeout at %s", pm_dev_namebuf);
+		}
+		spin_unlock_irqrestore(&pm_trace_lock, flags);
+
 		if (ret)
 			raw_spin_unlock(&hardlockup_log_lock);
 
@@ -231,16 +336,6 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 			exynos_acpm_reboot();
 #endif
 		}
-
-		spin_lock_irqsave(&pm_suspend_task_lock, flags);
-		if (pm_suspend_task) {
-			pr_emerg("pm_suspend_task '%s' %d hung (state=%ld)",
-					pm_suspend_task->comm, pm_suspend_task->pid,
-					pm_suspend_task->state);
-			sched_show_task(pm_suspend_task);
-			panic("PM suspend timeout");
-		}
-		spin_unlock_irqrestore(&pm_suspend_task_lock, flags);
 
 		/* If cpu is locked, wait for WDT reset without executing
 		 * code anymore.
@@ -314,18 +409,25 @@ static int hardlockup_debugger_pm_notifier(struct notifier_block *notifier,
 				  unsigned long pm_event, void *v)
 {
 	unsigned long flags;
+	struct pm_dev_priv *priv;
+	struct interval_tree_node *node, *next;
 
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
-		spin_lock_irqsave(&pm_suspend_task_lock, flags);
+		spin_lock_irqsave(&pm_trace_lock, flags);
 		pm_suspend_task = get_task_struct(current);
-		spin_unlock_irqrestore(&pm_suspend_task_lock, flags);
+		spin_unlock_irqrestore(&pm_trace_lock, flags);
 		break;
 	case PM_POST_SUSPEND:
-		spin_lock_irqsave(&pm_suspend_task_lock, flags);
+		spin_lock_irqsave(&pm_trace_lock, flags);
 		put_task_struct(pm_suspend_task);
 		pm_suspend_task = NULL;
-		spin_unlock_irqrestore(&pm_suspend_task_lock, flags);
+		foreach_pm_dev(node, next, priv) {
+			WARN_ONCE(1, "pm_dev_rbroot is not empty when PM_POST_SUSPEND");
+			interval_tree_remove(node, &pm_dev_rbroot);
+			kfree(priv);
+		}
+		spin_unlock_irqrestore(&pm_trace_lock, flags);
 		break;
 	}
 
@@ -406,6 +508,9 @@ static int hardlockup_debugger_probe(struct platform_device *pdev)
 
 	WARN_ON(register_trace_android_vh_cpu_idle_exit(
 				vh_bug_on_wdt_fiq_pending, NULL));
+
+	WARN_ON(register_trace_device_pm_callback_start(pm_dev_start, NULL));
+	WARN_ON(register_trace_device_pm_callback_end(pm_dev_end, NULL));
 
 	dev_info(&pdev->dev,
 			"Initialized hardlockup debug dump successfully.\n");
