@@ -1,6 +1,6 @@
 DEFCONFIG=cloudripper_gki_defconfig
 GKI_FRAGMENT_DEFCONFIG=${KERNEL_DIR}/arch/arm64/configs/cloudripper_gki.fragment
-VENDOR_RAMDISK_BINARY=${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-cloudripper.img
+VENDOR_RAMDISK_BINARY=${VENDOR_RAMDISK_BINARY:-${ROOT_DIR}/prebuilts/boot-artifacts/ramdisks/vendor_ramdisk-cloudripper.img}
 
 . ${ROOT_DIR}/${KERNEL_DIR}/build.config.gs101
 
