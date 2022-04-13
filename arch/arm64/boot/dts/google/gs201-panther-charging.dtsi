@@ -9,6 +9,7 @@
 
 &pca9468_dc {
 	pca9468,input-current-limit = <2200000>;
+	pca9468,spread-spectrum;
 };
 
 &google_charger {
