@@ -2,4 +2,4 @@
 
 # vendor mm module
 obj-$(CONFIG_VH_MM) += vh_mm.o
-vh_mm-y += vh_mm_init.o cma.o gup.o
+vh_mm-y += vh_mm_init.o cma.o
