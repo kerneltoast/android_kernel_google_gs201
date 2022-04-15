@@ -924,7 +924,7 @@ void pixel_init_manual_gc(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	struct ufs_manual_gc *mgc = &ufs->manual_gc;
-	char wq_name[sizeof("ufs_mgc_hibern8_work")];
+	char wq_name[sizeof("ufs_mgc_hibern8_work_#####")];
 
 	mgc->state = MANUAL_GC_ENABLE;
 	mgc->hagc_support = true;
