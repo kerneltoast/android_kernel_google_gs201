@@ -178,6 +178,7 @@ static void link_trigger_cp_crash(struct mem_link_device *mld, u32 crash_type,
 {
 	struct link_device *ld = &mld->link_dev;
 	struct modem_ctl *mc = ld->mc;
+	bool reason_done = false;
 
 	if (!cp_online(mc) && !cp_booting(mc)) {
 		mif_err("%s: %s.state %s != ONLINE <%ps>\n",
@@ -195,8 +196,6 @@ static void link_trigger_cp_crash(struct mem_link_device *mld, u32 crash_type,
 	iowrite32(0, mld->legacy_link_dev.mem_access);
 
 	mif_stop_logging();
-
-	memset(ld->crash_reason.string, 0, CP_CRASH_INFO_SIZE);
 
 	switch (ld->protocol) {
 	case PROTOCOL_SIPC:
@@ -221,15 +220,21 @@ static void link_trigger_cp_crash(struct mem_link_device *mld, u32 crash_type,
 	case CRASH_REASON_RIL_TRIGGER_CP_CRASH:
 		if (ld->protocol != PROTOCOL_SIT)
 			goto set_type;
+		reason_done = true;
 		break;
 	default:
 		goto set_type;
 	}
 
-	if (reason && reason[0] != '\0')
+	if (!reason_done && reason && reason[0] != '\0') {
 		strlcpy(ld->crash_reason.string, reason, CP_CRASH_INFO_SIZE);
+		reason_done = true;
+	}
 
 set_type:
+	if (!reason_done)
+		memset(ld->crash_reason.string, 0, CP_CRASH_INFO_SIZE);
+
 	ld->crash_reason.type = crash_type;
 
 	stop_net_ifaces(ld, 0);
