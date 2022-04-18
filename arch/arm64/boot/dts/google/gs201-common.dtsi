@@ -355,6 +355,11 @@
 	vreg2-supply = <&m_ldo18_reg>;  /* PP1800_L18M_PCIE0: AVDD18_PCIE_GEN4_0 */
 };
 
+&sysmmu_hsi1 {
+	use-map-once = "true";
+	status = "okay";
+};
+
 &pcie_1 {	/* pcie ch1 used for the connection with WiFi */
 	status = "okay";
 	num-lanes = <1>;
