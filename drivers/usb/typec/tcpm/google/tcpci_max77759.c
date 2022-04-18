@@ -1132,7 +1132,13 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 			/* TCPM has detected valid CC terminations */
 			if (!tcpm_is_toggling(tcpci->port)) {
 				chip->floating_cable_or_sink_detected = 0;
-				disable_auto_ultra_low_power_mode(chip, false);
+				/*
+				 * Only re-enable auto ultra low power mode only
+				 * when contaminant detection is enabled.
+				 */
+				if (chip->contaminant_detection_userspace !=
+				    CONTAMINANT_DETECT_DISABLE)
+					disable_auto_ultra_low_power_mode(chip, false);
 			} else {
 				/*
 				 * TCPM has not detected valid CC terminations
