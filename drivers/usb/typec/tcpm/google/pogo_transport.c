@@ -60,6 +60,9 @@ struct pogo_transport {
 	int pogo_irq;
 	int pogo_data_mux_gpio;
 	int pogo_ovp_en_gpio;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *susp_usb_state;
+	struct pinctrl_state *susp_pogo_state;
 	/* When true, Usb data active over pogo pins. */
 	bool pogo_usb_active;
 	/* When true, Pogo connection is capable of usb transport. */
@@ -201,6 +204,13 @@ static void update_pogo_transport(struct kthread_work *work)
 				      chip->active_data_role == TYPEC_HOST ? "Host" : "Device");
 			chip->data_active = false;
 		}
+
+		ret = pinctrl_select_state(pogo_transport->pinctrl,
+					   pogo_transport->susp_pogo_state);
+		if (ret)
+			dev_err(pogo_transport->dev, "failed to select suspend in ppogo state ret:%d\n",
+				ret);
+
 		gpio_set_value(pogo_transport->pogo_data_mux_gpio, 1);
 		logbuffer_log(pogo_transport->log, "POGO: data-mux:%d",
 			      gpio_get_value(pogo_transport->pogo_data_mux_gpio));
@@ -215,6 +225,12 @@ static void update_pogo_transport(struct kthread_work *work)
 		logbuffer_log(chip->log, "%s: %s turning off host for Pogo", __func__, ret < 0 ?
 			      "Failed" : "Succeeded");
 		pogo_transport->pogo_usb_active = false;
+
+		ret = pinctrl_select_state(pogo_transport->pinctrl, pogo_transport->susp_usb_state);
+		if (ret)
+			dev_err(pogo_transport->dev, "failed to select suspend in usb state ret:%d\n",
+				ret);
+
 		gpio_set_value(pogo_transport->pogo_data_mux_gpio, 0);
 		logbuffer_log(pogo_transport->log, "POGO: data-mux:%d",
 			      gpio_get_value(pogo_transport->pogo_data_mux_gpio));
@@ -332,6 +348,29 @@ static int init_pogo_alert_gpio(struct pogo_transport *pogo_transport)
 	if (ret) {
 		dev_err(pogo_transport->dev, "Enable irq wake failed ret:%d\n", ret);
 		goto free_irq;
+	}
+
+	pogo_transport->pinctrl = devm_pinctrl_get_select(pogo_transport->dev, "suspend-to-usb");
+	if (IS_ERR(pogo_transport->pinctrl)) {
+		dev_err(pogo_transport->dev, "failed to allocate pinctrl ret:%ld\n",
+			PTR_ERR(pogo_transport->pinctrl));
+		return PTR_ERR(pogo_transport->pinctrl);
+	}
+
+	pogo_transport->susp_usb_state = pinctrl_lookup_state(pogo_transport->pinctrl,
+							      "suspend-to-usb");
+	if (IS_ERR(pogo_transport->susp_usb_state)) {
+		dev_err(pogo_transport->dev, "failed to find pinctrl suspend-to-usb ret:%ld\n",
+			PTR_ERR(pogo_transport->susp_usb_state));
+		return PTR_ERR(pogo_transport->susp_usb_state);
+	}
+
+	pogo_transport->susp_pogo_state = pinctrl_lookup_state(pogo_transport->pinctrl,
+							       "suspend-to-pogo");
+	if (IS_ERR(pogo_transport->susp_pogo_state)) {
+		dev_err(pogo_transport->dev, "failed to find pinctrl suspend-to-pogo ret:%ld\n",
+			PTR_ERR(pogo_transport->susp_pogo_state));
+		return PTR_ERR(pogo_transport->susp_pogo_state);
 	}
 
 	pogo_transport->pogo_data_mux_gpio = of_get_named_gpio(pogo_transport->dev->of_node,
