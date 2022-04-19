@@ -11,6 +11,7 @@
 #include <linux/sysfs.h>
 #include "cma.h"
 #include "vmscan.h"
+#include "compaction.h"
 
 DEFINE_PER_CPU(unsigned long, pgalloc_costly_order);
 DEFINE_PER_CPU(unsigned long, pgcache_miss);
@@ -72,7 +73,16 @@ int pixel_mm_sysfs(void)
 	if (ret)
 		goto remove_vmscan_sysfs;
 
+#ifdef CONFIG_COMPACTION
+	ret = compaction_sysfs(pixel_stat_mm_kobj);
+	if (ret)
+		goto remove_cma_sysfs;
+#endif
+
 	return ret;
+
+remove_cma_sysfs:
+	remove_cma_sysfs();
 remove_vmscan_sysfs:
 	remove_vmscan_sysfs();
 remove_stat_sysfs:
