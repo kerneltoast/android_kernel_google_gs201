@@ -175,6 +175,7 @@ ufs-exynos-core.ko
 ufs-pixel-fips140.ko
 usb_f_dm.ko
 usb_f_dm1.ko
+usb_f_rndis.ko
 usb_psy.ko
 vh_cgroup.ko
 vh_fs.ko
