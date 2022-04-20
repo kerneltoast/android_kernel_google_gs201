@@ -116,6 +116,14 @@ unsigned int pmucal_lpm_init_size = ARRAY_SIZE(pmucal_lpm_init);
 struct pmucal_seq enter_sicd[] = {
 };
 struct pmucal_seq save_sicd[] = {
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_MUX_MUX_CLKCMU_AUR_NOC", 0x1e080000, 0x1008,
+		(0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_DIV_CLKCMU_AUR_NOC", 0x1e080000, 0x180c,
+		(0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_MUX_MUX_CLKCMU_AUR_AURCTL", 0x1e080000,
+		0x1004, (0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_DIV_CLKCMU_AUR_AURCTL", 0x1e080000, 0x1808,
+		(0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
 };
 struct pmucal_seq exit_sicd[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "WAKEUP_INT_EN", 0x18060000, 0x3944, (0xffffffff << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
@@ -678,6 +686,14 @@ struct pmucal_seq save_sleep[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_COND_SAVE_RESTORE, "TPU_SHORTSTOP", 0x1cc00000, 0x0820, (0x1 << 0), (0x1 << 0), 0x18060000, 0x2904, (0x1 << 0), (0x1 << 0)),
 	PMUCAL_SEQ_DESC(PMUCAL_COND_SAVE_RESTORE, "AUR_SHORTSTOP", 0x25a00000, 0x0820, (0x1 << 0), (0x1 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
 	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "NOCL0_SHORTSTOP", 0x1e000000, 0x0820, 0xffffffff, 0, 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_MUX_MUX_CLKCMU_AUR_NOC", 0x1e080000, 0x1008,
+		(0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_DIV_CLKCMU_AUR_NOC", 0x1e080000, 0x180c,
+		(0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_MUX_MUX_CLKCMU_AUR_AURCTL", 0x1e080000,
+		0x1004, (0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_DIV_CLKCMU_AUR_AURCTL", 0x1e080000, 0x1808,
+		(0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
 };
 struct pmucal_seq exit_sleep[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "WAKEUP_INT_EN", 0x18060000, 0x3944, (0xffffffff << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
@@ -1275,6 +1291,14 @@ struct pmucal_seq save_sleep_slcmon[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_COND_SAVE_RESTORE, "TPU_SHORTSTOP", 0x1cc00000, 0x0820, (0x1 << 0), (0x1 << 0), 0x18060000, 0x2904, (0x1 << 0), (0x1 << 0)),
 	PMUCAL_SEQ_DESC(PMUCAL_COND_SAVE_RESTORE, "AUR_SHORTSTOP", 0x25a00000, 0x0820, (0x1 << 0), (0x1 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
 	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "NOCL0_SHORTSTOP", 0x1e000000, 0x0820, 0xffffffff, 0, 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_MUX_MUX_CLKCMU_AUR_NOC", 0x1e080000, 0x1008,
+		(0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_DIV_CLKCMU_AUR_NOC", 0x1e080000, 0x180c,
+		(0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_MUX_MUX_CLKCMU_AUR_AURCTL", 0x1e080000,
+		0x1004, (0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
+	PMUCAL_SEQ_DESC(PMUCAL_SAVE_RESTORE, "CLK_CON_DIV_CLKCMU_AUR_AURCTL", 0x1e080000, 0x1808,
+		(0xffffffff << 0), (0x0 << 0), 0x18060000, 0x2984, (0x1 << 0), (0x1 << 0)),
 };
 struct pmucal_seq exit_sleep_slcmon[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "WAKEUP_INT_EN", 0x18060000, 0x3944, (0xffffffff << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
