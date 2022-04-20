@@ -495,7 +495,7 @@ void exynos_ehld_event_raw_dump_allcpu(void)
 		exynos_ehld_event_raw_dump(cpu, false);
 }
 
-static int exynos_ehld_cpu_online(unsigned int cpu)
+static int exynos_ehld_cpu_pm_exit(unsigned int cpu)
 {
 	struct exynos_ehld_ctrl *ctrl;
 	unsigned long flags;
@@ -504,12 +504,16 @@ static int exynos_ehld_cpu_online(unsigned int cpu)
 
 	raw_spin_lock_irqsave(&ctrl->lock, flags);
 	ctrl->ehld_running = 1;
+	if (ehld_main.dbgc.support && !ehld_main.dbgc.use_tick_timer && !ehld_main.suspending)
+		hrtimer_start(&ctrl->hrtimer,
+			      ns_to_ktime(ehld_main.dbgc.interval * 1000 * 1000),
+			      HRTIMER_MODE_REL_PINNED);
 	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 
 	return 0;
 }
 
-static int exynos_ehld_cpu_predown(unsigned int cpu)
+static int exynos_ehld_cpu_pm_enter(unsigned int cpu)
 {
 	struct exynos_ehld_ctrl *ctrl;
 	unsigned long flags;
@@ -518,6 +522,8 @@ static int exynos_ehld_cpu_predown(unsigned int cpu)
 
 	raw_spin_lock_irqsave(&ctrl->lock, flags);
 	ctrl->ehld_running = 0;
+	if (ehld_main.dbgc.support && !ehld_main.dbgc.use_tick_timer && !ehld_main.suspending)
+		hrtimer_cancel(&ctrl->hrtimer);
 	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 
 	return 0;
@@ -627,7 +633,7 @@ static int exynos_ehld_c2_pm_enter_notifier(struct notifier_block *self,
 	switch (action) {
 	case CPU_PM_ENTER:
 		dbg_snapshot_set_core_pmu_val(EHLD_VAL_PM_PREPARE, cpu);
-		exynos_ehld_cpu_predown(cpu);
+		exynos_ehld_cpu_pm_enter(cpu);
 		break;
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
@@ -651,7 +657,7 @@ static int exynos_ehld_c2_pm_exit_notifier(struct notifier_block *self,
 		break;
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
-		exynos_ehld_cpu_online(cpu);
+		exynos_ehld_cpu_pm_exit(cpu);
 		/*
 		 * When a CPU core exits PM, we cannot use a constant value
 		 * (EHLD_VAL_PM_POST or zero) here as the wake-up value.
