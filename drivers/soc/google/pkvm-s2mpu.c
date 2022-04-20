@@ -94,12 +94,48 @@ static const char *str_fault_type(u32 fault_info)
 	}
 }
 
+static const char *str_l1entry_gran(u32 l1attr)
+{
+	if (!(l1attr & L1ENTRY_ATTR_L2TABLE_EN))
+		return "1G";
+
+	switch (FIELD_GET(L1ENTRY_ATTR_GRAN_MASK, l1attr)) {
+	case L1ENTRY_ATTR_GRAN_4K:
+		return "4K";
+	case L1ENTRY_ATTR_GRAN_64K:
+		return "64K";
+	case L1ENTRY_ATTR_GRAN_2M:
+		return "2M";
+	default:
+		return "invalid";
+	}
+}
+
+static const char *str_l1entry_prot(u32 l1attr)
+{
+	if (l1attr & L1ENTRY_ATTR_L2TABLE_EN)
+		return "??";
+
+	switch (FIELD_GET(L1ENTRY_ATTR_PROT_MASK, l1attr)) {
+	case MPT_PROT_NONE:
+		return "0";
+	case MPT_PROT_R:
+		return "R";
+	case MPT_PROT_W:
+		return "W";
+	case MPT_PROT_RW:
+		return "RW";
+	default:
+		return "invalid";
+	}
+}
+
 static irqreturn_t s2mpu_irq_handler(int irq, void *ptr)
 {
 	struct s2mpu_data *data = ptr;
 	struct device *dev = data->dev;
-	unsigned int vid;
-	u32 vid_bmap, fault_info;
+	unsigned int vid, gb;
+	u32 vid_bmap, fault_info, fmpt, smpt;
 	phys_addr_t fault_pa;
 	irqreturn_t ret = IRQ_NONE;
 
@@ -121,6 +157,15 @@ static irqreturn_t s2mpu_irq_handler(int irq, void *ptr)
 			vid,
 			FIELD_GET(FAULT_INFO_LEN_MASK, fault_info),
 			FIELD_GET(FAULT_INFO_ID_MASK, fault_info));
+
+		for_each_gb(gb) {
+			fmpt = readl_relaxed(data->base + REG_NS_L1ENTRY_ATTR(vid, gb));
+			smpt = readl_relaxed(data->base + REG_NS_L1ENTRY_L2TABLE_ADDR(vid, gb));
+			dev_err(dev, "  %uG: FMPT=%#x (%s, %s), SMPT=%#x\n",
+				gb, fmpt, str_l1entry_gran(fmpt),
+				str_l1entry_prot(fmpt), smpt);
+		}
+
 		dev_err(dev, "==================================================\n");
 
 		writel_relaxed(BIT(vid), data->base + REG_NS_INTERRUPT_CLEAR);
