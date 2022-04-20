@@ -75,13 +75,32 @@ int pkvm_s2mpu_of_link(struct device *parent)
 }
 EXPORT_SYMBOL_GPL(pkvm_s2mpu_of_link);
 
+static const char *str_fault_direction(u32 fault_info)
+{
+	return (fault_info & FAULT_INFO_RW_BIT) ? "write" : "read";
+}
+
+static const char *str_fault_type(u32 fault_info)
+{
+	switch (FIELD_GET(FAULT_INFO_TYPE_MASK, fault_info)) {
+	case FAULT_INFO_TYPE_MPTW:
+		return "MPTW fault";
+	case FAULT_INFO_TYPE_AP:
+		return "access permission fault";
+	case FAULT_INFO_TYPE_CONTEXT:
+		return "context fault";
+	default:
+		return "unknown fault";
+	}
+}
+
 static irqreturn_t s2mpu_irq_handler(int irq, void *ptr)
 {
 	struct s2mpu_data *data = ptr;
+	struct device *dev = data->dev;
 	unsigned int vid;
 	u32 vid_bmap, fault_info;
 	phys_addr_t fault_pa;
-	const char *fault_type;
 	irqreturn_t ret = IRQ_NONE;
 
 	while ((vid_bmap = readl_relaxed(data->base + REG_NS_FAULT_STATUS))) {
@@ -92,32 +111,17 @@ static irqreturn_t s2mpu_irq_handler(int irq, void *ptr)
 		fault_info = readl_relaxed(data->base + REG_NS_FAULT_INFO(vid));
 		WARN_ON(FIELD_GET(FAULT_INFO_VID_MASK, fault_info) != vid);
 
-		switch (FIELD_GET(FAULT_INFO_TYPE_MASK, fault_info)) {
-		case FAULT_INFO_TYPE_MPTW:
-			fault_type = "MPTW fault";
-			break;
-		case FAULT_INFO_TYPE_AP:
-			fault_type = "access permission fault";
-			break;
-		case FAULT_INFO_TYPE_CONTEXT:
-			fault_type = "context fault";
-			break;
-		default:
-			fault_type = "unknown fault";
-			break;
-		}
-
-		dev_err(data->dev, "\n"
-			"============== S2MPU FAULT DETECTED ==============\n"
-			"  PA=%pap, FAULT_INFO=0x%08x\n"
-			"  DIRECTION: %s, TYPE: %s\n"
-			"  VID=%u, REQ_LENGTH=%lu, REQ_AXI_ID=%lu\n"
-			"==================================================\n",
-			&fault_pa, fault_info,
-			(fault_info & FAULT_INFO_RW_BIT) ? "write" : "read",
-			fault_type, vid,
+		dev_err(dev, "============== S2MPU FAULT DETECTED ==============\n");
+		dev_err(dev, "  PA=%pap, FAULT_INFO=0x%08x\n",
+			&fault_pa, fault_info);
+		dev_err(dev, "  DIRECTION: %s, TYPE: %s\n",
+			str_fault_direction(fault_info),
+			str_fault_type(fault_info));
+		dev_err(dev, "  VID=%u, REQ_LENGTH=%lu, REQ_AXI_ID=%lu\n",
+			vid,
 			FIELD_GET(FAULT_INFO_LEN_MASK, fault_info),
 			FIELD_GET(FAULT_INFO_ID_MASK, fault_info));
+		dev_err(dev, "==================================================\n");
 
 		writel_relaxed(BIT(vid), data->base + REG_NS_INTERRUPT_CLEAR);
 		ret = IRQ_HANDLED;
