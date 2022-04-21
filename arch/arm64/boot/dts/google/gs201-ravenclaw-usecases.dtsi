@@ -30,4 +30,8 @@
 	/* WLC_TX ON : extboost on -> loadswitch on    */
 	/*        OFF: loadswitch off -> extboost off  */
 	max77759,bst-lsw-sequence;
+
+	/* The high/low bound of vbatt for FCCM mode */
+	max77759,otg-fccm-vbatt-upperbd = <4000>;
+	max77759,otg-fccm-vbatt-lowerbd = <3900>;
 };
