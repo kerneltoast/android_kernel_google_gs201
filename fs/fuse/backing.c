@@ -17,8 +17,11 @@
 
 struct fuse_bpf_aio_req {
 	struct kiocb iocb;
-	struct kiocb *iocb_fuse;
+	refcount_t ref;
+	struct kiocb *iocb_orig;
 };
+
+static struct kmem_cache *fuse_bpf_aio_request_cachep;
 
 static void fuse_file_accessed(struct file *dst_file, struct file *src_file)
 {
@@ -465,11 +468,15 @@ int fuse_lseek_backing(struct fuse_args *fa, struct file *file, loff_t offset, i
 
 	/* TODO: Handle changing of the file handle */
 	if (offset == 0) {
-		if (whence == SEEK_CUR)
-			return file->f_pos;
+		if (whence == SEEK_CUR) {
+			flo->offset = file->f_pos;
+			return flo->offset;
+		}
 
-		if (whence == SEEK_SET)
-			return vfs_setpos(file, 0, 0);
+		if (whence == SEEK_SET) {
+			flo->offset = vfs_setpos(file, 0, 0);
+			return flo->offset;
+		}
 	}
 
 	inode_lock(file->f_inode);
@@ -806,44 +813,53 @@ void *fuse_removexattr_finalize(struct fuse_args *fa,
 	return NULL;
 }
 
+static inline void fuse_bpf_aio_put(struct fuse_bpf_aio_req *aio_req)
+{
+	if (refcount_dec_and_test(&aio_req->ref))
+		kmem_cache_free(fuse_bpf_aio_request_cachep, aio_req);
+}
+
 static void fuse_bpf_aio_cleanup_handler(struct fuse_bpf_aio_req *aio_req)
 {
 	struct kiocb *iocb = &aio_req->iocb;
-	struct kiocb *iocb_fuse = aio_req->iocb_fuse;
+	struct kiocb *iocb_orig = aio_req->iocb_orig;
 
 	if (iocb->ki_flags & IOCB_WRITE) {
 		__sb_writers_acquired(file_inode(iocb->ki_filp)->i_sb,
 				      SB_FREEZE_WRITE);
 		file_end_write(iocb->ki_filp);
-		fuse_copyattr(iocb_fuse->ki_filp, iocb->ki_filp);
+		fuse_copyattr(iocb_orig->ki_filp, iocb->ki_filp);
 	}
-
-	iocb_fuse->ki_pos = iocb->ki_pos;
-	kfree(aio_req);
+	iocb_orig->ki_pos = iocb->ki_pos;
+	fuse_bpf_aio_put(aio_req);
 }
 
 static void fuse_bpf_aio_rw_complete(struct kiocb *iocb, long res, long res2)
 {
 	struct fuse_bpf_aio_req *aio_req =
 		container_of(iocb, struct fuse_bpf_aio_req, iocb);
-	struct kiocb *iocb_fuse = aio_req->iocb_fuse;
+	struct kiocb *iocb_orig = aio_req->iocb_orig;
 
 	fuse_bpf_aio_cleanup_handler(aio_req);
-	iocb_fuse->ki_complete(iocb_fuse, res, res2);
+	iocb_orig->ki_complete(iocb_orig, res, res2);
 }
 
 
 int fuse_file_read_iter_initialize(
-		struct fuse_args *fa, struct fuse_read_in *fri,
+		struct fuse_args *fa, struct fuse_file_read_iter_io *fri,
 		struct kiocb *iocb, struct iov_iter *to)
 {
 	struct file *file = iocb->ki_filp;
 	struct fuse_file *ff = file->private_data;
 
-	*fri = (struct fuse_read_in) {
+	fri->fri = (struct fuse_read_in) {
 		.fh = ff->fh,
 		.offset = iocb->ki_pos,
 		.size = to->count,
+	};
+
+	fri->frio = (struct fuse_read_iter_out) {
+		.ret = fri->fri.size,
 	};
 
 	/* TODO we can't assume 'to' is a kvec */
@@ -852,11 +868,11 @@ int fuse_file_read_iter_initialize(
 		.opcode = FUSE_READ,
 		.nodeid = ff->nodeid,
 		.in_numargs = 1,
-		.in_args[0].size = sizeof(*fri),
-		.in_args[0].value = fri,
+		.in_args[0].size = sizeof(fri->fri),
+		.in_args[0].value = &fri->fri,
 		.out_numargs = 1,
-		.out_args[0].size = fri->size,
-		.out_args[0].value = to->kvec->iov_base,
+		.out_args[0].size = sizeof(fri->frio),
+		.out_args[0].value = &fri->frio,
 		/*
 		 * TODO Design this properly.
 		 * Possible approach: do not pass buf to bpf
@@ -872,6 +888,7 @@ int fuse_file_read_iter_initialize(
 int fuse_file_read_iter_backing(struct fuse_args *fa,
 		struct kiocb *iocb, struct iov_iter *to)
 {
+	struct fuse_read_iter_out *frio = fa->out_args[0].value;
 	struct file *file = iocb->ki_filp;
 	struct fuse_file *ff = file->private_data;
 	ssize_t ret;
@@ -892,19 +909,21 @@ int fuse_file_read_iter_backing(struct fuse_args *fa,
 		struct fuse_bpf_aio_req *aio_req;
 
 		ret = -ENOMEM;
-		aio_req = kzalloc(sizeof(struct fuse_bpf_aio_req), GFP_KERNEL);
+		aio_req = kmem_cache_zalloc(fuse_bpf_aio_request_cachep, GFP_KERNEL);
 		if (!aio_req)
 			goto out;
-		aio_req->iocb_fuse = iocb;
+
+		aio_req->iocb_orig = iocb;
 		kiocb_clone(&aio_req->iocb, iocb, ff->backing_file);
 		aio_req->iocb.ki_complete = fuse_bpf_aio_rw_complete;
+		refcount_set(&aio_req->ref, 2);
 		ret = vfs_iocb_iter_read(ff->backing_file, &aio_req->iocb, to);
+		fuse_bpf_aio_put(aio_req);
 		if (ret != -EIOCBQUEUED)
 			fuse_bpf_aio_cleanup_handler(aio_req);
 	}
 
-	if (ret >= 0)
-		fa->out_args[0].size = ret;
+	frio->ret = ret;
 
 	/* TODO Need to point value at the buffer for post-modification */
 
@@ -917,7 +936,9 @@ out:
 void *fuse_file_read_iter_finalize(struct fuse_args *fa,
 		struct kiocb *iocb, struct iov_iter *to)
 {
-	return ERR_PTR(fa->out_args[0].size);
+	struct fuse_read_iter_out *frio = fa->out_args[0].value;
+
+	return ERR_PTR(frio->ret);
 }
 
 int fuse_file_write_iter_initialize(
@@ -980,17 +1001,18 @@ int fuse_file_write_iter_backing(struct fuse_args *fa,
 		struct fuse_bpf_aio_req *aio_req;
 
 		ret = -ENOMEM;
-		/* TODO get this from a cache? */
-		aio_req = kzalloc(sizeof(struct fuse_bpf_aio_req), GFP_KERNEL);
+		aio_req = kmem_cache_zalloc(fuse_bpf_aio_request_cachep, GFP_KERNEL);
 		if (!aio_req)
 			goto out;
 
 		file_start_write(ff->backing_file);
 		__sb_writers_release(file_inode(ff->backing_file)->i_sb, SB_FREEZE_WRITE);
-		aio_req->iocb_fuse = iocb;
+		aio_req->iocb_orig = iocb;
 		kiocb_clone(&aio_req->iocb, iocb, ff->backing_file);
 		aio_req->iocb.ki_complete = fuse_bpf_aio_rw_complete;
+		refcount_set(&aio_req->ref, 2);
 		ret = vfs_iocb_iter_write(ff->backing_file, &aio_req->iocb, from);
+		fuse_bpf_aio_put(aio_req);
 		if (ret != -EIOCBQUEUED)
 			fuse_bpf_aio_cleanup_handler(aio_req);
 	}
@@ -1561,7 +1583,7 @@ static int fuse_rename_backing_common(
 	if (target_inode)
 		fsstack_copy_attr_all(target_inode,
 				get_fuse_inode(target_inode)->backing_inode);
-	fsstack_copy_attr_all(newdir, d_inode(new_backing_dir_dentry));
+	fsstack_copy_attr_all(d_inode(oldent), d_inode(old_backing_dentry));
 unlock:
 	unlock_rename(old_backing_dir_dentry, new_backing_dir_dentry);
 put_parents:
@@ -2185,7 +2207,7 @@ void *fuse_symlink_finalize(
 
 int fuse_readdir_initialize(struct fuse_args *fa, struct fuse_read_io *frio,
 			    struct file *file, struct dir_context *ctx,
-			    bool *force_again, bool *allow_force)
+			    bool *force_again, bool *allow_force, bool is_continued)
 {
 	struct fuse_file *ff = file->private_data;
 	u8 *page = (u8 *)__get_free_page(GFP_KERNEL);
@@ -2255,9 +2277,35 @@ static int filldir(struct dir_context *ctx, const char *name, int namelen,
 	return 0;
 }
 
+static int parse_dirfile(char *buf, size_t nbytes, struct dir_context *ctx)
+{
+	while (nbytes >= FUSE_NAME_OFFSET) {
+		struct fuse_dirent *dirent = (struct fuse_dirent *) buf;
+		size_t reclen = FUSE_DIRENT_SIZE(dirent);
+
+		if (!dirent->namelen || dirent->namelen > FUSE_NAME_MAX)
+			return -EIO;
+		if (reclen > nbytes)
+			break;
+		if (memchr(dirent->name, '/', dirent->namelen) != NULL)
+			return -EIO;
+
+		ctx->pos = dirent->off;
+		if (!dir_emit(ctx, dirent->name, dirent->namelen, dirent->ino,
+				dirent->type))
+			break;
+
+		buf += reclen;
+		nbytes -= reclen;
+	}
+
+	return 0;
+}
+
+
 int fuse_readdir_backing(struct fuse_args *fa,
 			 struct file *file, struct dir_context *ctx,
-			 bool *force_again, bool *allow_force)
+			 bool *force_again, bool *allow_force, bool is_continued)
 {
 	struct fuse_file *ff = file->private_data;
 	struct file *backing_dir = ff->backing_file;
@@ -2274,6 +2322,9 @@ int fuse_readdir_backing(struct fuse_args *fa,
 	if (!ec.addr)
 		return -ENOMEM;
 
+	if (!is_continued)
+		backing_dir->f_pos = file->f_pos;
+
 	err = iterate_dir(backing_dir, &ec.ctx);
 	if (ec.offset == 0)
 		*allow_force = false;
@@ -2286,18 +2337,19 @@ int fuse_readdir_backing(struct fuse_args *fa,
 
 void *fuse_readdir_finalize(struct fuse_args *fa,
 			    struct file *file, struct dir_context *ctx,
-			    bool *force_again, bool *allow_force)
+			    bool *force_again, bool *allow_force, bool is_continued)
 {
-	int err = 0;
+	struct fuse_read_out *fro = fa->out_args[0].value;
 	struct fuse_file *ff = file->private_data;
 	struct file *backing_dir = ff->backing_file;
-	struct fuse_read_out *fro = fa->out_args[0].value;
+	int err = 0;
 
-	err = fuse_parse_dirfile(fa->out_args[1].value,
-				 fa->out_args[1].size, file, ctx);
+	err = parse_dirfile(fa->out_args[1].value, fa->out_args[1].size, ctx);
 	*force_again = !!fro->again;
 	if (*force_again && !*allow_force)
 		err = -EINVAL;
+
+	ctx->pos = fro->offset;
 	backing_dir->f_pos = fro->offset;
 
 	free_page((unsigned long) fa->out_args[1].value);
@@ -2334,4 +2386,20 @@ int fuse_access_backing(struct fuse_args *fa, struct inode *inode, int mask)
 void *fuse_access_finalize(struct fuse_args *fa, struct inode *inode, int mask)
 {
 	return NULL;
+}
+
+int __init fuse_bpf_init(void)
+{
+	fuse_bpf_aio_request_cachep = kmem_cache_create("fuse_bpf_aio_req",
+						   sizeof(struct fuse_bpf_aio_req),
+						   0, SLAB_HWCACHE_ALIGN, NULL);
+	if (!fuse_bpf_aio_request_cachep)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void __exit fuse_bpf_cleanup(void)
+{
+	kmem_cache_destroy(fuse_bpf_aio_request_cachep);
 }
