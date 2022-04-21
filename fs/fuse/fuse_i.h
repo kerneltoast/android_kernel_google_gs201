@@ -987,10 +987,6 @@ struct fuse_io_args {
 void fuse_read_args_fill(struct fuse_io_args *ia, struct file *file, loff_t pos,
 			 size_t count, int opcode);
 
-
-int fuse_parse_dirfile(char *buf, size_t nbytes, struct file *file,
-			 struct dir_context *ctx);
-
 /**
  * Send OPEN or OPENDIR request
  */
@@ -1059,7 +1055,7 @@ int fuse_dev_init(void);
 void fuse_dev_cleanup(void);
 
 int fuse_ctl_init(void);
-void __exit fuse_ctl_cleanup(void);
+void fuse_ctl_cleanup(void);
 
 /**
  * Simple request sending that does request allocation and freeing
@@ -1516,8 +1512,16 @@ int fuse_removexattr_backing(struct fuse_args *fa,
 void *fuse_removexattr_finalize(struct fuse_args *fa,
 				struct dentry *dentry, const char *name);
 
+struct fuse_read_iter_out {
+	uint64_t ret;
+};
+struct fuse_file_read_iter_io {
+	struct fuse_read_in fri;
+	struct fuse_read_iter_out frio;
+};
+
 int fuse_file_read_iter_initialize(
-		struct fuse_args *fa, struct fuse_read_in *fri,
+		struct fuse_args *fa, struct fuse_file_read_iter_io *fri,
 		struct kiocb *iocb, struct iov_iter *to);
 int fuse_file_read_iter_backing(struct fuse_args *fa,
 		struct kiocb *iocb, struct iov_iter *to);
@@ -1637,13 +1641,13 @@ struct fuse_read_io {
 
 int fuse_readdir_initialize(struct fuse_args *fa, struct fuse_read_io *frio,
 			    struct file *file, struct dir_context *ctx,
-			    bool *force_again, bool *allow_force);
+			    bool *force_again, bool *allow_force, bool is_continued);
 int fuse_readdir_backing(struct fuse_args *fa,
 			 struct file *file, struct dir_context *ctx,
-			 bool *force_again, bool *allow_force);
+			 bool *force_again, bool *allow_force, bool is_continued);
 void *fuse_readdir_finalize(struct fuse_args *fa,
 			    struct file *file, struct dir_context *ctx,
-			    bool *force_again, bool *allow_force);
+			    bool *force_again, bool *allow_force, bool is_continued);
 
 int fuse_access_initialize(struct fuse_args *fa, struct fuse_access_in *fai,
 			   struct inode *inode, int mask);
@@ -1783,6 +1787,9 @@ struct fuse_err_ret {
 	void *result;
 	bool ret;
 };
+
+int __init fuse_bpf_init(void);
+void __exit fuse_bpf_cleanup(void);
 
 /*
  * expression statement to wrap the backing filter logic
