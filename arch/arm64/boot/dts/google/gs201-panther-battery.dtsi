@@ -27,6 +27,14 @@
 	fragment@battery {
 		target-path = "/";
 		__overlay__ {
+			google_battery: google,battery {
+				google,ttf-temp-idx= <2>;
+				google,ttf-adapter = <3000>;
+				google,ttf-soc-table =  <49 57 74 77 87 89 91 93  96  100>;
+				google,ttf-elap-table = <39 44 57 76 75 84 96 114 150 203>;
+				google,ttf-tier-table = <0 57 77>;
+			};
+
 			google_bms {
 				nvmem-names = "6-00500";
 				/* pack eeprom is available only with P20+ batteries */
