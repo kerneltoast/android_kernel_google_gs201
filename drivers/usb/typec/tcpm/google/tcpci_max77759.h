@@ -74,6 +74,8 @@ struct max77759_plat {
 	bool limit_sink_enable;
 	/* uA */
 	unsigned int limit_sink_current;
+	/* Indicate that the Vbus OVP is restricted to quick ramp-up time for incoming voltage. */
+	bool quick_ramp_vbus_ovp;
 
 	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
 	u8 debug_acc_connected:1;
@@ -81,6 +83,8 @@ struct max77759_plat {
 	u8 sourcing_vbus:1;
 	/* Cache vbus_present as MAX77759 reports vbus present = 0 when vbus < 4V */
 	u8 vbus_present:1;
+	u8 cc1;
+	u8 cc2;
 
 	/* Runtime flags */
 	int frs;
@@ -121,6 +125,7 @@ struct max77759_plat {
 	struct kthread_delayed_work icl_work;
 	struct kthread_delayed_work enable_vbus_work;
 	struct kthread_delayed_work vsafe0v_work;
+	struct kthread_delayed_work reset_ovp_work;
 
 	/* Notifier for data role */
 	struct usb_role_switch *usb_sw;
