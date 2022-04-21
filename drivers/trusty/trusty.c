@@ -24,6 +24,9 @@
 struct trusty_state;
 static struct platform_driver trusty_driver;
 
+static bool use_high_wq;
+module_param(use_high_wq, bool, 0660);
+
 struct trusty_work {
 	struct trusty_state *ts;
 	struct work_struct work;
@@ -38,6 +41,7 @@ struct trusty_state {
 	bool trusty_panicked;
 	struct device *dev;
 	struct workqueue_struct *nop_wq;
+	struct workqueue_struct *nop_wq_high;
 	struct trusty_work __percpu *nop_works;
 	struct list_head nop_queue;
 	spinlock_t nop_lock; /* protects nop_queue */
@@ -799,7 +803,10 @@ void trusty_enqueue_nop(struct device *dev, struct trusty_nop *nop)
 			list_add_tail(&nop->node, &s->nop_queue);
 		spin_unlock_irqrestore(&s->nop_lock, flags);
 	}
-	queue_work(s->nop_wq, &tw->work);
+	if (use_high_wq)
+		queue_work(s->nop_wq_high, &tw->work);
+	else
+		queue_work(s->nop_wq, &tw->work);
 	preempt_enable();
 }
 EXPORT_SYMBOL(trusty_enqueue_nop);
@@ -873,6 +880,13 @@ static int trusty_probe(struct platform_device *pdev)
 		goto err_create_nop_wq;
 	}
 
+	s->nop_wq_high = alloc_workqueue("trusty-nop-wq-high", WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
+	if (!s->nop_wq_high) {
+		ret = -ENODEV;
+		dev_err(&pdev->dev, "Failed create trusty-nop-wq-high\n");
+		goto err_create_nop_wq_high;
+	}
+
 	s->nop_works = alloc_percpu(struct trusty_work);
 	if (!s->nop_works) {
 		ret = -ENOMEM;
@@ -908,6 +922,8 @@ err_add_children:
 	}
 	free_percpu(s->nop_works);
 err_alloc_works:
+	destroy_workqueue(s->nop_wq_high);
+err_create_nop_wq_high:
 	destroy_workqueue(s->nop_wq);
 err_create_nop_wq:
 	trusty_free_msg_buf(s, &pdev->dev);
@@ -937,6 +953,7 @@ static int trusty_remove(struct platform_device *pdev)
 	}
 	free_percpu(s->nop_works);
 	destroy_workqueue(s->nop_wq);
+	destroy_workqueue(s->nop_wq_high);
 
 	mutex_destroy(&s->share_memory_msg_lock);
 	mutex_destroy(&s->smc_lock);
