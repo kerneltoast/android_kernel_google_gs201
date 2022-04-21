@@ -86,6 +86,14 @@
 				hs-clk = <1280>;
 				esc-clk = <20>;
 			};
+			1080x2092 {
+				mode-name = "1080x2092";
+				pmsk = <
+					0x2 0xEE 0x3 0xA155 /* p m s k */
+					>;
+				hs-clk = <730>;
+				esc-clk = <20>;
+			};
 		};
 	};
 
