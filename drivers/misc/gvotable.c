@@ -1352,12 +1352,20 @@ static int debugfs_force_int_value(void *data, u64 val)
 	struct election_slot *slot = data;
 	u64 pre_val = (u64)slot->el->force_result;
 
+	gvotable_lock_election(slot->el);
+
 	slot->el->force_result = (void *)val;
+	gvotable_unlock_result(slot->el);
+
+	if (!slot->el->callback)
+		goto exit_done;
 
 	if (slot->el->force_result_is_enabled && (pre_val != val))
 		slot->el->callback(slot->el, DEBUGFS_FORCE_VOTE_REASON,
 				   slot->el->force_result);
 
+exit_done:
+	gvotable_unlock_callback(slot->el);
 	return 0;
 }
 
