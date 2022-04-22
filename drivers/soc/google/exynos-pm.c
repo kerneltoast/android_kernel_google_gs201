@@ -19,6 +19,8 @@
 
 #define EXYNOS_EINT_PEND(b, x)      ((b) + 0xA00 + (((x) >> 3) * 4))
 #define SHARED_SR0 0x80
+#define WS_BIT_MAILBOX_AOC2AP		(7)
+#define WS2_BIT_MAILBOX_AOCA322AP	(5)
 
 static struct exynos_pm_info *pm_info;
 static struct exynos_pm_dbg *pm_dbg;
@@ -101,7 +103,8 @@ static void exynos_show_wakeup_registers(unsigned int wakeup_stat)
 }
 
 static void exynos_show_wakeup_reason_sysint(unsigned int stat,
-					     struct wakeup_stat_name *ws_names)
+					     struct wakeup_stat_name *ws_names,
+					     int wakeup_stat_id)
 {
 	int bit;
 	unsigned long lstat = stat;
@@ -118,7 +121,8 @@ static void exynos_show_wakeup_reason_sysint(unsigned int stat,
 		}
 		str_idx += strscpy(wake_reason + str_idx, ws_names->name[bit],
 				   MAX_SUSPEND_ABORT_LEN - str_idx);
-		if (bit == 7) {	/* MAILBOX_AOC2AP */
+		if ((wakeup_stat_id == 0 && bit == WS_BIT_MAILBOX_AOC2AP) ||
+		    (wakeup_stat_id == 1 && bit == WS2_BIT_MAILBOX_AOCA322AP)) {
 			aoc_id = __raw_readl(pm_info->mbox_aoc + SHARED_SR0);
 			str_idx += scnprintf(wake_reason + str_idx,
 					     MAX_SUSPEND_ABORT_LEN - str_idx,
@@ -150,7 +154,7 @@ static void exynos_show_wakeup_reason_detail(unsigned int wakeup_stat)
 		if (!wss)
 			continue;
 
-		exynos_show_wakeup_reason_sysint(wss, &pm_info->ws_names[i]);
+		exynos_show_wakeup_reason_sysint(wss, &pm_info->ws_names[i], i);
 	}
 }
 
