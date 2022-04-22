@@ -141,11 +141,9 @@ static void adv_tracer_interrupt_gen(unsigned int id)
 static void __adv_tracer_ipc_send_data(struct adv_tracer_ipc_ch *channel,
 				      struct adv_tracer_ipc_cmd *cmd)
 {
-	spin_lock(&channel->ch_lock);
 	memcpy(channel->cmd, cmd, sizeof(unsigned int) * channel->len);
 	adv_tracer_ipc_write_buffer(channel->buff_regs, channel->cmd, channel->len);
 	adv_tracer_interrupt_gen(channel->id);
-	spin_unlock(&channel->ch_lock);
 }
 
 int adv_tracer_ipc_send_data(unsigned int id, struct adv_tracer_ipc_cmd *cmd)
@@ -161,15 +159,19 @@ int adv_tracer_ipc_send_data(unsigned int id, struct adv_tracer_ipc_cmd *cmd)
 	cmd->cmd_raw.one_way = 0;
 	cmd->cmd_raw.response = 0;
 
+	mutex_lock(&channel->wait_lock);
 	__adv_tracer_ipc_send_data(channel, cmd);
 
 	ret = wait_for_completion_interruptible_timeout(&channel->wait,
 			msecs_to_jiffies(1000));
+	memcpy(cmd, channel->cmd, sizeof(unsigned int) * channel->len);
+	mutex_unlock(&channel->wait_lock);
+
 	if (!ret) {
 		dev_err(eat_info->dev, "%d channel timeout error\n", id);
 		return -EBUSY;
 	}
-	memcpy(cmd, channel->cmd, sizeof(unsigned int) * channel->len);
+
 	return 0;
 }
 EXPORT_SYMBOL(adv_tracer_ipc_send_data);
@@ -190,6 +192,7 @@ int adv_tracer_ipc_send_data_polling_timeout(unsigned int id,
 	cmd->cmd_raw.one_way = 0;
 	cmd->cmd_raw.response = 0;
 
+	spin_lock(&channel->ch_lock);
 	__adv_tracer_ipc_send_data(channel, cmd);
 
 	timeout = ktime_add_ns(ktime_get(), tmout_ns);
@@ -200,15 +203,16 @@ int adv_tracer_ipc_send_data_polling_timeout(unsigned int id,
 	} while (!(_cmd.cmd_raw.response || ktime_after(now, timeout)));
 
 	if (!_cmd.cmd_raw.response) {
+		spin_unlock(&channel->ch_lock);
 		dev_err(eat_info->dev, "%d channel timeout error\n", id);
 		return -EBUSY;
 	}
 	adv_tracer_ipc_read_buffer(cmd->buffer, channel->buff_regs, channel->len);
+	spin_unlock(&channel->ch_lock);
 
 	if (!_cmd.cmd_raw.ok) {
 		dev_err(eat_info->dev, "error return in ipc (%d)\n", id);
 		return -EINVAL;
-
 	}
 
 	return 0;
@@ -236,7 +240,9 @@ int adv_tracer_ipc_send_data_async(unsigned int id,
 	cmd->cmd_raw.one_way = 1;
 	cmd->cmd_raw.response = 0;
 
+	spin_lock(&channel->ch_lock);
 	__adv_tracer_ipc_send_data(channel, cmd);
+	spin_unlock(&channel->ch_lock);
 
 	return 0;
 }
@@ -488,6 +494,7 @@ static int adv_tracer_ipc_channel_probe(void)
 	for (i = 0; i < eat_ipc->num_channels; i++) {
 		init_completion(&eat_ipc->channel[i].wait);
 		spin_lock_init(&eat_ipc->channel[i].ch_lock);
+		mutex_init(&eat_ipc->channel[i].wait_lock);
 	}
 	ret = adv_tracer_ipc_channel_init(EAT_FRM_CHANNEL, SR(16), 4,
 			eat_ipc_callback, FRAMEWORK_NAME);
