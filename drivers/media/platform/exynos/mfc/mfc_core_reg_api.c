@@ -645,7 +645,7 @@ void mfc_core_set_pixel_format(struct mfc_core *core, struct mfc_ctx *ctx,
 	struct mfc_dev *dev = ctx->dev;
 	unsigned int reg = 0;
 	unsigned int pix_val;
-	unsigned int sbwc = 0;
+	unsigned int sbwc = 0, align = 0;
 
 	if (dev->pdata->P010_decoding)
 		ctx->mem_type_10bit = 1;
@@ -713,12 +713,16 @@ void mfc_core_set_pixel_format(struct mfc_core *core, struct mfc_ctx *ctx,
 	case V4L2_PIX_FMT_NV12N_SBWC_8B:
 	case V4L2_PIX_FMT_NV12M_SBWCL_8B:
 	case V4L2_PIX_FMT_NV12N_SBWCL_8B:
-	case V4L2_PIX_FMT_NV12M_SBWC_10B:
-	case V4L2_PIX_FMT_NV12N_SBWC_10B:
 	case V4L2_PIX_FMT_NV12M_SBWCL_10B:
 	case V4L2_PIX_FMT_NV12N_SBWCL_10B:
 		pix_val = 0;
 		sbwc = 1;
+		break;
+	case V4L2_PIX_FMT_NV12M_SBWC_10B:
+	case V4L2_PIX_FMT_NV12N_SBWC_10B:
+		pix_val = 0;
+		sbwc = 1;
+		align = 1;
 		break;
 	default:
 		pix_val = 0;
@@ -736,11 +740,12 @@ void mfc_core_set_pixel_format(struct mfc_core *core, struct mfc_ctx *ctx,
 			__mfc_enc_check_sbwc_option(ctx, &sbwc);
 
 		mfc_set_bits(reg, 0x1, 9, sbwc);
+		mfc_set_bits(reg, 0x1, 10, align);
 	}
 
 	MFC_CORE_WRITEL(reg, MFC_REG_PIXEL_FORMAT);
-	mfc_debug(2, "[FRAME] pix format: %d, mem_type_10bit: %d, sbwc: %d (reg: %#x)\n",
-			pix_val, ctx->mem_type_10bit, sbwc, reg);
+	mfc_debug(2, "[FRAME] pix format: %d, mem_type_10bit: %d, sbwc: %d, align: %d,(reg: %#x)\n",
+			pix_val, ctx->mem_type_10bit, sbwc, align, reg);
 }
 
 void mfc_core_print_hdr_plus_info(struct mfc_core *core, struct mfc_ctx *ctx,
