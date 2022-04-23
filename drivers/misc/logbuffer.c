@@ -32,10 +32,11 @@ struct logbuffer {
 
 	struct miscdevice misc;
 	char name[50];
+	uint suspend_count;
 };
 
-/* Device suspended since last logged. */
-static bool suspend_since_last_logged;
+/* Driver suspended count. */
+static uint driver_suspended_count;
 
 static void __logbuffer_log(struct logbuffer *instance,
 			    const char *tmpbuffer, bool record_utc)
@@ -100,9 +101,9 @@ void logbuffer_vlog(struct logbuffer *instance, const char *fmt,
 	    instance->logbuffer_head == LOG_BUFFER_ENTRIES - 1) {
 		__logbuffer_log(instance, tmpbuffer, true);
 	/* Print UTC when logging after suspend */
-	} else if (suspend_since_last_logged) {
+	} else if (driver_suspended_count != instance->suspend_count) {
 		__logbuffer_log(instance, tmpbuffer, true);
-		suspend_since_last_logged = false;
+		instance->suspend_count = driver_suspended_count;
 	} else if (!fmt) {
 		goto abort;
 	}
@@ -217,7 +218,7 @@ EXPORT_SYMBOL_GPL(logbuffer_unregister);
 
 int logbuffer_suspend(void)
 {
-	suspend_since_last_logged = true;
+	driver_suspended_count += 1;
 	return 0;
 }
 
@@ -228,7 +229,7 @@ static struct syscore_ops logbuffer_ops = {
 static int __init logbuffer_dev_init(void)
 {
 	register_syscore_ops(&logbuffer_ops);
-
+	driver_suspended_count = 0;
 	return 0;
 }
 
