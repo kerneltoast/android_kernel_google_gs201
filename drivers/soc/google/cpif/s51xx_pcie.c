@@ -312,19 +312,22 @@ int s51xx_pcie_request_msi_int(struct pci_dev *pdev, int int_num)
 	return pdev->irq;
 }
 
-static void s51xx_pcie_linkdown_cb(struct exynos_pcie_notify *noti)
+static void s51xx_pcie_event_cb(struct exynos_pcie_notify *noti)
 {
 	struct pci_dev *pdev = (struct pci_dev *)noti->user;
 	struct pci_driver *driver = pdev->driver;
 	struct modem_ctl *mc = container_of(driver, struct modem_ctl, pci_driver);
+	int event = noti->event;
 
-	mif_err("s51xx Link-Down notification callback function!!!\n");
+	mif_err("0x%X pcie event received!\n", event);
 
-	if (mc->pcie_powered_on == false) {
-		mif_info("%s: skip cp crash during dislink sequence\n", __func__);
-		exynos_pcie_set_perst_gpio(mc->pcie_ch_num, 0);
-	} else {
-		s5100_force_crash_exit_ext();
+	if (event & (EXYNOS_PCIE_EVENT_LINKDOWN | EXYNOS_PCIE_EVENT_CPL_TIMEOUT)) {
+		if (mc->pcie_powered_on == false) {
+			mif_info("skip cp crash during dislink sequence\n");
+			exynos_pcie_set_perst_gpio(mc->pcie_ch_num, 0);
+		} else {
+			s5100_force_crash_exit_ext();
+		}
 	}
 }
 
@@ -404,11 +407,12 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	if (s51xx_pcie->doorbell_addr == NULL)
 		mif_err("Can't ioremap doorbell address!!!\n");
 
-	mif_info("Register PCIE notification LINKDOWN event...\n");
-	s51xx_pcie->pcie_event.events = EXYNOS_PCIE_EVENT_LINKDOWN;
+	mif_info("Register PCIE notification LINKDOWN and CPL_TIMEOUT events...\n");
+	s51xx_pcie->pcie_event.events =
+		EXYNOS_PCIE_EVENT_LINKDOWN | EXYNOS_PCIE_EVENT_CPL_TIMEOUT;
 	s51xx_pcie->pcie_event.user = pdev;
 	s51xx_pcie->pcie_event.mode = EXYNOS_PCIE_TRIGGER_CALLBACK;
-	s51xx_pcie->pcie_event.callback = s51xx_pcie_linkdown_cb;
+	s51xx_pcie->pcie_event.callback = s51xx_pcie_event_cb;
 	exynos_pcie_register_event(&s51xx_pcie->pcie_event);
 
 	mif_info("Enable PCI device...\n");
