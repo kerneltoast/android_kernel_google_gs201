@@ -56,8 +56,9 @@
 #ifndef CONFIG_TINY_RCU
 module_param(rcu_expedited, int, 0);
 module_param(rcu_normal, int, 0);
-static int rcu_normal_after_boot = IS_ENABLED(CONFIG_PREEMPT_RT);
-#ifndef CONFIG_PREEMPT_RT
+static int rcu_normal_after_boot =
+	IS_ENABLED(CONFIG_PREEMPT_RT) && !IS_ENABLED(CONFIG_ANDROID);
+#if !defined(CONFIG_PREEMPT_RT) || defined(CONFIG_ANDROID)
 module_param(rcu_normal_after_boot, int, 0);
 #endif
 #endif /* #ifndef CONFIG_TINY_RCU */
