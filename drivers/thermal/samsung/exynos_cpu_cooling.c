@@ -386,11 +386,11 @@ static u32 cpu_freq_to_power(struct exynos_cpu_cooling_device *cpufreq_cdev,
 			int first_cpu = cpumask_first(cpufreq_cdev->policy->related_cpus);
 			struct em_perf_domain *pd = cpu_to_em_pd[first_cpu];
 
-			for (i = 1; i < pd->nr_perf_states; i++)
-				if (freq > pd->table[i].frequency)
+			for (i = 0; i < (pd->nr_perf_states - 1); i++)
+				if (freq <= pd->table[i].frequency)
 					break;
 
-			return pd->table[i - 1].power;
+			return pd->table[i].power;
 		}
 	}
 #endif
@@ -417,11 +417,11 @@ static u32 cpu_power_to_freq(struct exynos_cpu_cooling_device *cpufreq_cdev,
 			int first_cpu = cpumask_first(cpufreq_cdev->policy->related_cpus);
 			struct em_perf_domain *pd = cpu_to_em_pd[first_cpu];
 
-			for (i = 1; i < pd->nr_perf_states; i++)
-				if (power > pd->table[i].power)
+			for (i = 0; i < (pd->nr_perf_states - 1); i++)
+				if (power <= pd->table[i].power)
 					break;
 
-			return pd->table[i - 1].frequency;
+			return pd->table[i].frequency;
 		}
 	}
 #endif
