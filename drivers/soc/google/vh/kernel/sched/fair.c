@@ -291,7 +291,7 @@ static inline bool get_prefer_idle(struct task_struct *p)
 			get_vendor_task_struct(p)->prefer_idle;
 }
 
-static inline bool get_prefer_high_cap(struct task_struct *p)
+bool get_prefer_high_cap(struct task_struct *p)
 {
 	return vg[get_vendor_group(p)].prefer_high_cap;
 }
@@ -683,7 +683,7 @@ struct vendor_group_property *get_vendor_group_property(enum vendor_group group)
 	return &(vg[group]);
 }
 
-bool task_fits_capacity(struct task_struct *p, int cpu,  bool sync_boost)
+static bool task_fits_capacity(struct task_struct *p, int cpu,  bool sync_boost)
 {
 	unsigned long task_util;
 
@@ -962,9 +962,10 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 					exit_lat = idle_state->exit_latency;
 			}
 
-			trace_sched_cpu_util(i, is_idle, exit_lat, cpu_importance, util,
-					       capacity, wake_util, group_capacity, wake_group_util,
-					       spare_cap, task_fits, group_overutilize);
+			trace_sched_cpu_util_cfs(i, is_idle, exit_lat, cpu_importance, util,
+						 capacity, wake_util, group_capacity,
+						 wake_group_util, spare_cap, task_fits,
+						 group_overutilize);
 
 			if (prefer_fit && !task_fits)
 				continue;

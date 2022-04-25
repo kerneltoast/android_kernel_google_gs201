@@ -16,6 +16,8 @@ extern unsigned long task_util(struct task_struct *p);
 extern bool task_may_not_preempt(struct task_struct *task, int cpu);
 extern int cpu_is_idle(int cpu);
 extern int sched_cpu_idle(int cpu);
+extern bool get_prefer_high_cap(struct task_struct *p);
+
 extern unsigned int sched_capacity_margin[CPU_NUM];
 
 /*****************************************************************************/
@@ -54,33 +56,60 @@ static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
+static inline unsigned long capacity_cap(int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	unsigned long max = arch_scale_cpu_capacity(cpu);
+	unsigned long used, irq;
+
+	max -= thermal_load_avg(rq);
+
+	irq = cpu_util_irq(rq);
+
+	if (unlikely(irq >= max))
+		return 1;
+
+	used = irq + scale_irq_capacity(READ_ONCE(rq->avg_dl.util_avg), irq, max);
+
+	if (unlikely(used >= max))
+		return 1;
+
+	return max - used;
+}
+
 
 static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_mask,
 				 struct cpumask *backup_mask)
 {
-	int cpu, best_cpu = -1, unimportant_best_cpu = -1, least_used_best_cpu = -1;
-	unsigned long min_cpu_util = ULONG_MAX;
-	unsigned long min_unimportant_cpu_util = ULONG_MAX;
-	unsigned long min_cpu_capacity = ULONG_MAX;
-	unsigned int min_exit_lat = UINT_MAX;
+	int cpu, best_cpu = -1, unimportant_best_cpu, least_used_best_cpu;
+	unsigned long util, min_cpu_util, min_unimportant_cpu_util;
+	unsigned long capacity, min_cpu_capacity;
+	unsigned int exit_lat, min_exit_lat;
+	unsigned int min_importance, cpu_importance;
+	struct cpuidle_state *idle;
 	bool check_cpu_overutilized = true;
 	int prev_cpu = task_cpu(p);
-	unsigned long min_importance = ULONG_MAX;
-
-	cpumask_clear(backup_mask);
+	bool overutilize;
 
 	if (cpumask_weight(lowest_mask) == 1)
 		return cpumask_first(lowest_mask);
 
 	rcu_read_lock();
 redo:
+	cpumask_clear(backup_mask);
+	min_exit_lat = UINT_MAX;
+	min_cpu_util = ULONG_MAX;
+	min_unimportant_cpu_util = ULONG_MAX;
+	min_cpu_capacity = ULONG_MAX;
+	min_importance = UINT_MAX;
+	unimportant_best_cpu = -1;
+	least_used_best_cpu = -1;
+
 	for_each_cpu(cpu, lowest_mask) {
-		struct cpuidle_state *idle;
-		unsigned long util;
-		unsigned int exit_lat = 0;
-		unsigned long capacity = capacity_orig_of(cpu) - thermal_load_avg(cpu_rq(cpu));
-		unsigned long cpu_importance = READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MIN].value) +
-					       READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MAX].value);
+		exit_lat = 0;
+		capacity = capacity_cap(cpu);
+		cpu_importance = READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MIN].value) +
+				 READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MAX].value);
 
 		if (cpu_is_idle(cpu)) {
 			util = 0;
@@ -95,9 +124,18 @@ redo:
 			}
 		} else {
 			util = cpu_util(cpu) + cpu_util_rt(cpu_rq(cpu));
+
+			if (cpu != prev_cpu)
+				util += task_util(p);
 		}
 
-		trace_sched_rt_cpu_util(cpu, capacity, util, exit_lat, cpu_importance);
+		overutilize = cpu_overutilized(uclamp_rq_util_with(cpu_rq(cpu), util, p), capacity,
+					       cpu);
+
+		trace_sched_cpu_util_rt(cpu, capacity, util, exit_lat, cpu_importance, overutilize);
+
+		if (check_cpu_overutilized && overutilize)
+			continue;
 
 		/* select non-idle cpus without important tasks first */
 		if (exit_lat == 0 && cpu_importance < DEFAULT_IMPRATANCE_THRESHOLD) {
@@ -117,10 +155,6 @@ redo:
 			min_unimportant_cpu_util = util;
 			continue;
 		}
-
-		if (check_cpu_overutilized &&
-		    cpu_overutilized(uclamp_rq_util_with(cpu_rq(cpu), util, p), capacity, cpu))
-			continue;
 
 		/* Always prefer the least loaded cpu. */
 		if (util > min_cpu_util)
@@ -148,9 +182,8 @@ redo:
 		least_used_best_cpu = cpu;
 	}
 
-	/* If there is only 1 or 0 non-important cpu, try to find least_used_best_cpu. */
-	if (cpumask_weight(backup_mask) < 2 &&
-		least_used_best_cpu == -1 && check_cpu_overutilized) {
+	/* If there is no candidate found, redo without overutilize check. */
+	if (unimportant_best_cpu == -1 && least_used_best_cpu == -1 && check_cpu_overutilized) {
 		check_cpu_overutilized = false;
 		goto redo;
 	}
@@ -191,17 +224,18 @@ redo:
 
 static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
 {
-	unsigned int min_cap;
-	unsigned int max_cap;
-	unsigned int cpu_cap;
-	struct rq *rq = cpu_rq(cpu);
+	unsigned long util;
 
-	min_cap = uclamp_eff_value(p, UCLAMP_MIN);
-	max_cap = uclamp_eff_value(p, UCLAMP_MAX);
+	if (cpu >= MAX_CAPACITY_CPU)
+		return true;
 
-	cpu_cap = capacity_orig_of(cpu) - thermal_load_avg(rq);
+	if (get_prefer_high_cap(p) && cpu < MID_CAPACITY_CPU)
+		return false;
 
-	return cpu_cap >= min(min_cap, max_cap);
+	util = clamp(task_util(p), uclamp_eff_value(p, UCLAMP_MIN),
+		     uclamp_eff_value(p, UCLAMP_MAX));
+
+	return capacity_cap(cpu) * SCHED_CAPACITY_SCALE > util * sched_capacity_margin[cpu];
 }
 
 static int find_lowest_rq(struct task_struct *p, struct cpumask *backup_mask)
