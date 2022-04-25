@@ -450,6 +450,7 @@ static bool is_data_xfer(uint32_t cmd)
 	case GSA_MB_CMD_SJTAG_GET_PUB_KEY_HASH:
 	case GSA_MB_CMD_SJTAG_SET_PUB_KEY:
 	case GSA_MB_CMD_SJTAG_GET_CHALLENGE:
+	case GSA_MB_CMD_SJTAG_ENABLE:
 		return true;
 
 	default:
