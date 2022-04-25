@@ -54,8 +54,7 @@ maxim,config {
 	/* COS: 2_Coslight_5mOhm_RC2_model_revB.txt, b/205852816, rc2 model */
 	maxim,cos-a1-2k {
 		maxim,batt-id-kohm = <2>;
-		maxim,model-version = <6>;
-		maxim,force-reset-model-data;
+		maxim,model-version = <7>;
 		maxim,fg-model = /bits/ 16 <
 			0xa500 0xb750 0xb920 0xbb70 0xbcd0 0xbe30 0xbf60 0xc0a0
 			0xc390 0xc680 0xc960 0xcc30 0xd0a0 0xd400 0xd830 0xdc50
@@ -98,8 +97,7 @@ maxim,config {
 	/* LSN: 3_Lishen_5mOhm_RC2_model_revB.txt, 2021-08-23, b/205852816, rc2 model */
 	maxim,lsn-a1-3k {
 		maxim,batt-id-kohm = <3>;
-		maxim,model-version = <6>;
-		maxim,force-reset-model-data;
+		maxim,model-version = <7>;
 		maxim,fg-model = /bits/ 16 <
 			0xa500 0xb750 0xb840 0xb9a0 0xbbe0 0xbcb0 0xbe30 0xbfb0
 			0xc0e0 0xc3f0 0xc760 0xca40 0xcd20 0xd160 0xd500 0xdc40
