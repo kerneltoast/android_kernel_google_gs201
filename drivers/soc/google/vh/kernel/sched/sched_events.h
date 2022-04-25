@@ -341,7 +341,7 @@ TRACE_EVENT(sched_select_task_rq_fair,
 		  __entry->uclamp_max, __entry->prev_cpu, __entry->target_cpu)
 );
 
-TRACE_EVENT(sched_cpu_util,
+TRACE_EVENT(sched_cpu_util_cfs,
 
 	TP_PROTO(int cpu, bool idle_cpu, unsigned int exit_lat, unsigned long cpu_importance,
 		 unsigned long cpu_util, unsigned long capacity, unsigned long wake_util,
@@ -470,12 +470,12 @@ TRACE_EVENT(schedutil_cpu_util_clamp,
 		__entry->util_max)
 );
 
-TRACE_EVENT(sched_rt_cpu_util,
+TRACE_EVENT(sched_cpu_util_rt,
 
 	TP_PROTO(int cpu, unsigned long capacity, unsigned long util, unsigned long exit_lat,
-		 unsigned long cpu_importance),
+		 unsigned long cpu_importance, bool overutilized),
 
-	TP_ARGS(cpu, capacity, util, exit_lat, cpu_importance),
+	TP_ARGS(cpu, capacity, util, exit_lat, cpu_importance, overutilized),
 
 	TP_STRUCT__entry(
 		__field(int,		cpu)
@@ -483,6 +483,7 @@ TRACE_EVENT(sched_rt_cpu_util,
 		__field(unsigned long,	util)
 		__field(unsigned long,	exit_lat)
 		__field(unsigned long,	cpu_importance)
+		__field(int,		overutilized)
 	),
 
 	TP_fast_assign(
@@ -491,11 +492,12 @@ TRACE_EVENT(sched_rt_cpu_util,
 		__entry->util	            = util;
 		__entry->exit_lat           = exit_lat;
 		__entry->cpu_importance	    = cpu_importance;
+		__entry->overutilized	    = overutilized;
 	),
 
-	TP_printk("cpu=%d capacity=%lu util=%lu exit_lat=%lu cpu_importance=%lu",
+	TP_printk("cpu=%d capacity=%lu util=%lu exit_lat=%lu cpu_importance=%lu overutilized=%d",
 		__entry->cpu, __entry->capacity, __entry->util, __entry->exit_lat,
-		__entry->cpu_importance)
+		__entry->cpu_importance, __entry->overutilized)
 );
 
 TRACE_EVENT(sched_find_least_loaded_cpu,
