@@ -324,6 +324,23 @@ static void update_thermal_trace_internal(struct gs_tmu_data *pdata, enum therma
 	trace_clock_set_rate(clock_name, value, raw_smp_processor_id());
 }
 
+static dfs_throttle_cb thermal_dfs_throttle_cb;
+void register_dfs_throttle_cb(dfs_throttle_cb dfs_cb)
+{
+	if (WARN_ON(!dfs_cb)) {
+		pr_err("Failed to register in %s\n",__func__);
+		return;
+	}
+
+	if (WARN_ON(thermal_dfs_throttle_cb)) {
+		pr_err("thermal_dfs_throttle_cb is already set");
+		return;
+	}
+
+	thermal_dfs_throttle_cb = dfs_cb;
+}
+EXPORT_SYMBOL(register_dfs_throttle_cb);
+
 static bool has_tz_pending_irq(struct gs_tmu_data *pdata)
 {
 	struct thermal_zone_data *tz_config_p = &tz_config[pdata->id];
@@ -418,6 +435,12 @@ static int gs_tmu_initialize(struct platform_device *pdev)
 	exynos_acpm_tmu_set_hysteresis(data->id, hysteresis);
 	exynos_acpm_tmu_set_interrupt_enable(data->id, inten);
 
+	/* Initialize dfs thresholds */
+	if (data->has_dfs_support) {
+		data->dfs_trig_threshold = threshold[DFS_IRQ_BIT];
+		data->dfs_clr_threshold  = threshold[DFS_IRQ_BIT] - hysteresis[DFS_IRQ_BIT];
+	}
+
 out:
 	mutex_unlock(&data->lock);
 
@@ -474,6 +497,14 @@ static int gs_get_temp(void *p, int *temp)
 	}
 
 	data->temperature = *temp / 1000;
+
+	if (data->has_dfs_support &&
+		thermal_dfs_throttle_cb &&
+		((data->is_dfs_throttled && (data->temperature < data->dfs_clr_threshold)) ||
+		 (!data->is_dfs_throttled && (data->temperature >= data->dfs_trig_threshold)))) {
+		data->is_dfs_throttled = !data->is_dfs_throttled;
+		thermal_dfs_throttle_cb(&data->dfs_throttled_cpus, data->is_dfs_throttled);
+	}
 
 	if (data->hotplug_enable &&
 		((data->is_cpu_hotplugged_out &&
@@ -1598,6 +1629,10 @@ static int gs_map_dt_data(struct platform_device *pdev)
 			dev_err(&pdev->dev, "No input mpmm_level\n");
 	}
 #endif
+
+	ret = of_property_read_string(pdev->dev.of_node, "dfs_throttled_cpus", &buf);
+	if (!ret)
+		cpulist_parse(buf, &data->dfs_throttled_cpus);
 
 	ret = of_property_read_string(pdev->dev.of_node, "tmu_work_affinity", &buf);
 	if (!ret)

@@ -9,6 +9,7 @@
 #ifndef _GS_TMU_H
 #define _GS_TMU_H
 #include <linux/kthread.h>
+#include <uapi/linux/thermal.h>
 #include <soc/google/exynos_pm_qos.h>
 #include <soc/google/exynos-cpuhp.h>
 
@@ -77,6 +78,8 @@ struct gs_tmu_data {
 	int limited_frequency;
 	int limited_threshold;
 	int limited_threshold_release;
+	int dfs_trig_threshold;
+	int dfs_clr_threshold;
 	struct exynos_pm_qos_request thermal_limit_request;
 	bool limited;
 	void __iomem *base;
@@ -104,12 +107,14 @@ struct gs_tmu_data {
 	bool is_hardlimited;
 	bool is_cpu_hotplugged_out;
 	bool is_cpu_hw_throttled;
+	bool is_dfs_throttled;
 	int temperature;
 	bool use_pi_thermal;
 	struct kthread_delayed_work pi_work;
 	struct gs_pi_param *pi_param;
 	struct cpumask pause_cpus;
 	struct cpumask hotplug_cpus;
+	struct cpumask dfs_throttled_cpus;
 	struct cpumask tmu_work_affinity;
 	struct cpumask hotplug_work_affinity;
 	char cpuhp_name[CPUHP_USER_NAME_LEN + 1];
@@ -264,5 +269,10 @@ enum thermal_pause_state {
 typedef int (*tpu_pause_cb)(enum thermal_pause_state action, void *data);
 
 void register_tpu_thermal_pause_cb(tpu_pause_cb tpu_cb, void *data);
+
+/* Callback for registering to dfs events */
+typedef void (*dfs_throttle_cb)(struct cpumask *maskp, bool is_dfs_throttled);
+
+void register_dfs_throttle_cb(dfs_throttle_cb dfs_cb);
 
 #endif /* _GS101_TMU_H */
