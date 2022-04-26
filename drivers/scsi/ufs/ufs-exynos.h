@@ -160,6 +160,9 @@ struct exynos_ufs {
 	u64 slowio_min_us;
 	u64 slowio[PIXEL_SLOWIO_OP_MAX][PIXEL_SLOWIO_SYS_MAX];
 
+	/* pixel ufs power related statistics */
+	struct pixel_power_stats power_stats;
+
 	/* Pointer to GSA device */
 	struct device *gsa_dev;
 

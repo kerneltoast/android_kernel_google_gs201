@@ -510,6 +510,30 @@ static void __store_cmd_log(struct ufs_hba *hba, u8 event, u8 lun,
 	entry->queue_eh_work = queue_eh_work;
 }
 
+static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba,
+					struct ufshcd_lrb *lrbp, u8 opcode)
+{
+	struct exynos_ufs *ufs = to_exynos_ufs(hba);
+	struct latency_metrics *metric = NULL;
+
+	if (opcode == UPIU_QUERY_OPCODE_SET_FLAG)
+		metric = &ufs->power_stats.fdevinit_set;
+	else if (opcode == UPIU_QUERY_OPCODE_READ_FLAG)
+		metric = &ufs->power_stats.fdevinit_read;
+
+	if (metric) {
+		s64 delta = ktime_to_us(ktime_sub(lrbp->compl_time_stamp,
+						  lrbp->issue_time_stamp));
+
+		WARN_ON(delta < 0);
+
+		metric->count++;
+		metric->time_spent_us += delta;
+		if (delta > metric->max_latency_us)
+			metric->max_latency_us = delta;
+	}
+}
+
 static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 		struct ufshcd_lrb *lrbp, bool is_start)
 {
@@ -537,6 +561,9 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 			event = (is_start) ? EVENT_QUERY_SEND : EVENT_QUERY_COMPL;
 			opcode = hba->dev_cmd.query.request.upiu_req.opcode;
 			idn = hba->dev_cmd.query.request.upiu_req.idn;
+			if (idn == QUERY_FLAG_IDN_FDEVICEINIT &&
+			    event == EVENT_QUERY_COMPL)
+				pixel_ufs_trace_fdeviceinit(hba, lrbp, opcode);
 		}
 	}
 
@@ -1697,6 +1724,7 @@ int pixel_init(struct ufs_hba *hba)
 	int ret;
 
 	memset(&ufs->ufs_stats, 0, sizeof(struct pixel_ufs_stats));
+	memset(&ufs->power_stats, 0, sizeof(struct pixel_power_stats));
 	ufs->ufs_stats.hibern8_flag = false;
 	ufs->always_use_wb = false;
 

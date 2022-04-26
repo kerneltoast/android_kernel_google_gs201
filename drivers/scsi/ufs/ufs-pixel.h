@@ -103,6 +103,28 @@ struct pixel_io_stats {
 	u64 max_diff_total_bytes;
 };
 
+/**
+ * struct latency_metrics - generic metrics collection
+ * @count: total count of operations
+ * @time_spent: total time in microseconds spent executing operation
+ * @max_latency: maximum duration in microseconds of a single operation
+ */
+struct latency_metrics {
+	u64 count;
+	u64 time_spent_us;
+	u64 max_latency_us;
+};
+
+/**
+ * struct pixel_power_stats - power related statistics
+ * @fdevinit_set: metrics for fDeviceInit set operation
+ * @fdevinit_read: metrics for fDeviceInit read operation
+ */
+struct pixel_power_stats {
+	struct latency_metrics fdevinit_set;
+	struct latency_metrics fdevinit_read;
+};
+
 static inline char *parse_opcode(u8 opcode)
 {
 	/* string should be less than 12 byte-long */
