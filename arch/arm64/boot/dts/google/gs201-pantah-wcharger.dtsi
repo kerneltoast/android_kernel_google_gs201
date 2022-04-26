@@ -72,6 +72,9 @@
 		idt,gpio_qien = <&gpp0 0 GPIO_ACTIVE_LOW>;
 		idt,irq_gpio = <&gpa9 5 GPIO_ACTIVE_LOW>;
 
+		/* TXID: Phone type */
+		idt,tx_id_phone_type = /bits/ 8 <3>;
+
 		p9xxx_gpio: p9xxx_gpio {
 			gpio-controller;
 			#gpio-cells = <2>;
