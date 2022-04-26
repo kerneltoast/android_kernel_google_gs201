@@ -23,12 +23,12 @@
 				mpmm_settings = <0x1a>;
 				tpu_con_heavy = <0xf041c3>;
 				tpu_con_light = <0xf041c5>;
-				tpu_clkdivstep = <0x201>;
+				tpu_clkdivstep = <0x1>;
 				gpu_con_heavy = <0xf04385>;
 				gpu_con_light = <0>;
-				gpu_clkdivstep = <0x801>;
-				cpu2_clkdivstep = <0x801>;
-				cpu1_clkdivstep = <0x0>;
+				gpu_clkdivstep = <0x1>;
+				cpu2_clkdivstep = <0x1>;
+				cpu1_clkdivstep = <0x1>;
 				cpu0_clkdivstep = <0x1>;
 				odpm_ratio = <3>;
 				gpios = <&gpa5 5 0>,		/* VDROOP1 */
