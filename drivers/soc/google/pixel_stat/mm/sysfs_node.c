@@ -68,7 +68,7 @@ int pixel_mm_sysfs(void)
 	if (ret)
 		goto remove_stat_sysfs;
 
-	ret = pixel_mm_cma_sysfs(pixel_stat_mm_kobj);
+	ret = create_cma_sysfs(pixel_stat_mm_kobj);
 	if (ret)
 		goto remove_vmscan_sysfs;
 

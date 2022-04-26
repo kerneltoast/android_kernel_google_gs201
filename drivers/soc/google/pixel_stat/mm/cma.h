@@ -4,7 +4,8 @@
 
 struct kobject;
 
-int pixel_mm_cma_sysfs(struct kobject *mm_kobj);
+int create_cma_sysfs(struct kobject *mm_kobj);
+void remove_cma_sysfs(void);
 void vh_cma_alloc_start(void *data, s64 *ts);
 void vh_cma_alloc_finish(void *data, struct cma *cma, struct page *page,
 			 unsigned long count, unsigned int align,
