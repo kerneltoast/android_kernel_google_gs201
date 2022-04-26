@@ -60,10 +60,10 @@
 	(bcl)->pmic_ops->cb_get_vdroop_ok(bcl->intf_pmic_i2c, v) : -ENODEV)
 
 /* helpers for UVLO1 and UVLO2 */
-#define bcl_cb_uvlo1_read(bcl, v)	bcl_cb_uvlo_read(bcl, UVLO1, v)
-#define bcl_cb_uvlo1_write(bcl, v)	bcl_cb_uvlo_write(bcl, UVLO1, v)
-#define bcl_cb_uvlo2_read(bcl, v)	bcl_cb_uvlo_read(bcl, UVLO2, v)
-#define bcl_cb_uvlo2_write(bcl, v)	bcl_cb_uvlo_write(bcl, UVLO2, v)
+#define bcl_cb_uvlo1_read(bcl, v)	bcl_cb_uvlo_read(bcl, TS_UVLO1, v)
+#define bcl_cb_uvlo1_write(bcl, v)	bcl_cb_uvlo_write(bcl, TS_UVLO1, v)
+#define bcl_cb_uvlo2_read(bcl, v)	bcl_cb_uvlo_read(bcl, TS_UVLO2, v)
+#define bcl_cb_uvlo2_write(bcl, v)	bcl_cb_uvlo_write(bcl, TS_UVLO2, v)
 
 /* This driver determines if HW was throttled due to SMPL/OCP */
 
