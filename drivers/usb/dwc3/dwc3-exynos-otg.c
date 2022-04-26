@@ -380,6 +380,7 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 	int ret = 0;
 	int ret1 = -1;
 	int wait_counter = 0;
+	u32 reg;
 
 	__pm_stay_awake(dotg->wakelock);
 
@@ -416,6 +417,11 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 					__func__);
 			goto err1;
 		}
+
+		/* Disable undefined length burst mode */
+		reg = dwc3_readl(dwc->regs, DWC3_GSBUSCFG0);
+		reg &= ~(DWC3_GSBUSCFG0_INCRBRSTEN);
+		dwc3_writel(dwc->regs, DWC3_GSBUSCFG0, reg);
 
 		/* To ignore gadget suspend/resume on host l2 suspend */
 		exynos->dwc->current_dr_role = DWC3_EXYNOS_IGNORE_CORE_OPS;
