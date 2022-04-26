@@ -1,3 +1,22 @@
+
+What:		/sys/devices/platform/<....>ufs/power_stats
+Date:		April, 2022
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This directory contains UFS power related statistical info.
+		fdevinit_read_count: number of time fDeviceInit flag read was
+			issued
+		fdevinit_read_max_latency_us: total amount of time in
+			microseconds fDeviceInit flag read operations consumed
+		fdevinit_read_time_spent_us: maximum latency in microseconds
+			of a single fDeviceInit flag read operation
+		fdevinit_set_count: number of time fDeviceInit flag set was
+			issued
+		fdevinit_set_max_latency_us: total amount of time in
+			microseconds fDeviceInit flag set operations consumed
+		fdevinit_set_time_spent_us: maximum latency in microseconds
+			of a single fDeviceInit flag set operation
+
 What:		/sys/devices/platform/<....>ufs/power_info
 Date:		December, 2020
 Contact:	"Konstantin Vyshetsky" <vkon@google.com>
