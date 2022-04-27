@@ -60,6 +60,7 @@
 #include <linux/dma-map-ops.h>
 #include <soc/google/s2mpu.h>
 #include "../../../iommu/exynos-pcie-iommu-exp.h"
+#include <trace/hooks/pci.h>
 
 struct exynos_pcie g_pcie_rc[MAX_RC_NUM];
 int pcie_is_linkup;	/* checkpatch: do not initialise globals to 0 */
@@ -67,6 +68,7 @@ static struct separated_msi_vector sep_msi_vec[MAX_RC_NUM][PCIE_MAX_SEPA_IRQ_NUM
 /* currnet_cnt & current_cnt2 for EOM test */
 static int current_cnt;
 static int current_cnt2;
+static bool is_vhook_registered;
 
 static struct pci_dev *exynos_pcie_get_pci_dev(struct pcie_port *pp);
 
@@ -83,6 +85,9 @@ static struct exynos_pm_qos_request exynos_pcie_int_qos[MAX_RC_NUM];
 static const struct dma_map_ops pcie_dma_ops;
 static struct device fake_dma_dev;
 #define to_pci_dev_from_dev(dev) container_of((dev), struct pci_dev, dev)
+static void exynos_d3_sleep_hook(void *unused, struct pci_dev *dev,
+				 unsigned int *delay);
+
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 struct phys_mem {
 	struct list_head list;
@@ -4278,6 +4283,15 @@ static int setup_s2mpu_mem(struct device *dev, struct exynos_pcie *exynos_pcie)
 }
 #endif
 
+static void exynos_d3_sleep_hook(void *unused, struct pci_dev *dev,
+				 unsigned int *delay_ms)
+{
+	if (delay_ms) {
+		usleep_range(*delay_ms * 1000, *delay_ms * 1000);
+		*delay_ms = 0;
+	}
+}
+
 static int exynos_pcie_rc_probe(struct platform_device *pdev)
 {
 	struct exynos_pcie *exynos_pcie;
@@ -4298,6 +4312,16 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	if (of_property_read_u32(np, "ch-num", &ch_num)) {
 		dev_err(&pdev->dev, "Failed to parse the channel number\n");
 		return -EINVAL;
+	}
+
+	if (!is_vhook_registered) {
+		ret = register_trace_android_rvh_pci_d3_sleep(exynos_d3_sleep_hook,
+							      NULL);
+		if (ret) {
+			dev_err(&pdev->dev, "PCI sleep hook failed\n");
+			return ret;
+		}
+		is_vhook_registered = true;
 	}
 
 	dev_info(&pdev->dev, "## PCIe ch %d ##\n", ch_num);
