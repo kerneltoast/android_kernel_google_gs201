@@ -126,10 +126,7 @@ static __maybe_unused struct page *try_grab_compound_head(struct page *page,
 		return NULL;
 
 	if (flags & FOLL_GET) {
-		struct page *head = try_get_compound_head(page, refs);
-		if (head)
-			set_page_pinner(head, compound_order(head));
-		return head;
+		return try_get_compound_head(page, refs);
 	} else if (flags & FOLL_PIN) {
 		int orig_refs = refs;
 
@@ -184,8 +181,6 @@ static void put_compound_head(struct page *page, int refs, unsigned int flags)
 			refs *= GUP_PIN_COUNTING_BIAS;
 	}
 
-	if (flags & FOLL_GET)
-		reset_page_pinner(page, compound_order(page));
 	put_page_refs(page, refs);
 }
 
@@ -215,13 +210,7 @@ bool __must_check try_grab_page(struct page *page, unsigned int flags)
 	WARN_ON_ONCE((flags & (FOLL_GET | FOLL_PIN)) == (FOLL_GET | FOLL_PIN));
 
 	if (flags & FOLL_GET) {
-		bool ret = try_get_page(page);
-
-		if (ret) {
-			page = compound_head(page);
-			set_page_pinner(page, compound_order(page));
-		}
-		return ret;
+		return try_get_page(page);
 	} else if (flags & FOLL_PIN) {
 		int refs = 1;
 
@@ -263,24 +252,6 @@ void unpin_user_page(struct page *page)
 	put_compound_head(compound_head(page), 1, FOLL_PIN);
 }
 EXPORT_SYMBOL(unpin_user_page);
-
-/*
- * put_user_page() - release a page obtained using get_user_pages() or
- *                   follow_page(FOLL_GET)
- * @page:            pointer to page to be released
- *
- * Pages that were obtained via get_user_pages()/follow_page(FOLL_GET) must be
- * released via put_user_page.
- * note: If it's not a page from GUP or follow_page(FOLL_GET), it's harmless.
- */
-void put_user_page(struct page *page)
-{
-	struct page *head = compound_head(page);
-
-	reset_page_pinner(head, compound_order(head));
-	put_page(page);
-}
-EXPORT_SYMBOL(put_user_page);
 
 /**
  * unpin_user_pages_dirty_lock() - release and optionally dirty gup-pinned pages
@@ -1769,7 +1740,7 @@ static long __get_user_pages_remote(struct mm_struct *mm,
 				    unsigned int gup_flags, struct page **pages,
 				    struct vm_area_struct **vmas, int *locked)
 {
-	trace_android_vh___get_user_pages_remote(locked, &gup_flags);
+	trace_android_vh___get_user_pages_remote(locked, &gup_flags, pages);
 
 	/*
 	 * Parts of FOLL_LONGTERM behavior are incompatible with
@@ -1909,7 +1880,7 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
 	if (!is_valid_gup_flags(gup_flags))
 		return -EINVAL;
 
-	trace_android_vh_get_user_pages(&gup_flags);
+	trace_android_vh_get_user_pages(&gup_flags, pages);
 
 	return __gup_longterm_locked(current->mm, start, nr_pages,
 				     pages, vmas, gup_flags | FOLL_TOUCH);
@@ -2720,7 +2691,7 @@ static int internal_get_user_pages_fast(unsigned long start,
 	/* Slow path: try to get the remaining pages with get_user_pages */
 	start += nr_pinned << PAGE_SHIFT;
 	pages += nr_pinned;
-	trace_android_vh_internal_get_user_pages_fast(&gup_flags);
+	trace_android_vh_internal_get_user_pages_fast(&gup_flags, pages);
 	ret = __gup_longterm_unlocked(start, nr_pages - nr_pinned, gup_flags,
 				      pages);
 	if (ret < 0) {
@@ -2946,7 +2917,7 @@ long pin_user_pages(unsigned long start, unsigned long nr_pages,
 		return -EINVAL;
 
 	gup_flags |= FOLL_PIN;
-	trace_android_vh_pin_user_pages(&gup_flags);
+	trace_android_vh_pin_user_pages(&gup_flags, pages);
 	return __gup_longterm_locked(current->mm, start, nr_pages,
 				     pages, vmas, gup_flags);
 }
