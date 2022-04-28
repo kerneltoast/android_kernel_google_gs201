@@ -20,11 +20,21 @@
 
 #include <soc/google/pkvm-s2mpu.h>
 
+#define S2MPU_NR_WAYS	4
+
 struct s2mpu_data {
 	struct device *dev;
 	void __iomem *base;
 	bool pkvm_registered;
 	bool always_on;
+};
+
+struct s2mpu_mptc_entry {
+	bool valid;
+	u32 vid;
+	u32 ppn;
+	u32 others;
+	u32 data;
 };
 
 static struct platform_device *__of_get_phandle_pdev(struct device *parent,
@@ -130,13 +140,29 @@ static const char *str_l1entry_prot(u32 l1attr)
 	}
 }
 
+static struct s2mpu_mptc_entry read_mptc(void __iomem *base, u32 set, u32 way)
+{
+	struct s2mpu_mptc_entry entry;
+
+	writel_relaxed(READ_MPTC(set, way), base + REG_NS_READ_MPTC);
+
+	entry.ppn = readl_relaxed(base + REG_NS_READ_MPTC_TAG_PPN),
+	entry.others = readl_relaxed(base + REG_NS_READ_MPTC_TAG_OTHERS),
+	entry.data = readl_relaxed(base + REG_NS_READ_MPTC_DATA),
+
+	entry.valid = FIELD_GET(READ_MPTC_TAG_OTHERS_VALID_BIT, entry.others);
+	entry.vid = FIELD_GET(READ_MPTC_TAG_OTHERS_VID_MASK, entry.others);
+	return entry;
+}
+
 static irqreturn_t s2mpu_irq_handler(int irq, void *ptr)
 {
 	struct s2mpu_data *data = ptr;
 	struct device *dev = data->dev;
 	unsigned int vid, gb;
-	u32 vid_bmap, fault_info, fmpt, smpt;
+	u32 vid_bmap, fault_info, fmpt, smpt, nr_sets, set, way, invalid;
 	phys_addr_t fault_pa;
+	struct s2mpu_mptc_entry mptc;
 	irqreturn_t ret = IRQ_NONE;
 
 	while ((vid_bmap = readl_relaxed(data->base + REG_NS_FAULT_STATUS))) {
@@ -171,6 +197,24 @@ static irqreturn_t s2mpu_irq_handler(int irq, void *ptr)
 		writel_relaxed(BIT(vid), data->base + REG_NS_INTERRUPT_CLEAR);
 		ret = IRQ_HANDLED;
 	}
+
+	dev_err(dev, "================== MPTC ENTRIES ==================\n");
+	nr_sets = FIELD_GET(INFO_NUM_SET_MASK, readl_relaxed(data->base + REG_NS_INFO));
+	for (invalid = 0, set = 0; set < nr_sets; set++) {
+		for (way = 0; way < S2MPU_NR_WAYS; way++) {
+			mptc = read_mptc(data->base, set, way);
+			if (!mptc.valid) {
+				invalid++;
+				continue;
+			}
+
+			dev_err(dev,
+				"  MPTC[set=%u, way=%u]={VID=%u, PPN=%#x, OTHERS=%#x, DATA=%#x}\n",
+				set, way, mptc.vid, mptc.ppn, mptc.others, mptc.data);
+		}
+	}
+	dev_err(dev, "  invalid entries: %u\n", invalid);
+	dev_err(dev, "==================================================\n");
 
 	return ret;
 }
