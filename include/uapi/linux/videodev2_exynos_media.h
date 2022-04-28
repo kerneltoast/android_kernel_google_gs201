@@ -136,39 +136,58 @@
 #define S10B_2B_STRIDE(w)		(__ALIGN_UP(((w + 3) / 4), 16))
 
 /* Compress format */
-#define SBWC_8B_STRIDE(w)		(128 * (((w) + 31) / 32))
-#define SBWC_10B_STRIDE(w)		(160 * (((w) + 31) / 32))
-#define SBWC_HEADER_STRIDE(w)		((((((w) + 63) / 64) + 15) / 16) * 16)
-#define AFBC_8B_STRIDE(w)		__ALIGN_UP(w, 16)
-#define AFBC_10B_STRIDE(w)		__ALIGN_UP(w * 2, 16)
 
-#define SBWC_8B_Y_SIZE(w, h)						\
-	((SBWC_8B_STRIDE(w) * ((__ALIGN_UP((h), 16) + 3) / 4)) + 64)
-#define SBWC_8B_Y_HEADER_SIZE(w, h)					\
-	__ALIGN_UP(((SBWC_HEADER_STRIDE(w) *				\
-	((__ALIGN_UP((h), 16) + 3) / 4)) + 256), 32)
-#define SBWC_8B_CBCR_SIZE(w, h)						\
-	((SBWC_8B_STRIDE(w) * (((__ALIGN_UP((h), 16) / 2) + 3) / 4)) + 64)
-#define SBWC_8B_CBCR_HEADER_SIZE(w, h)					\
-	((SBWC_HEADER_STRIDE(w) *					\
-	(((__ALIGN_UP((h), 16) / 2) + 3) / 4)) + 128)
-#define AFBC_8B_Y_SIZE(w, h)						\
-	(((((w + 31) / 32) * ((h + 7) / 8) * 16 + 127) / 128) * 128 +	\
-	((w + 31) / 32) * ((h + 7) / 8) * 384)
-#define AFBC_10B_Y_SIZE(w, h)						\
-	(((((w + 31) / 32) * ((h + 7) / 8) * 16 + 127) / 128) * 128 +	\
-	((w + 31) / 32) * ((h + 7) / 8) * 512)
+/* SBWC */
+#define __COUNT_BLOCKS(x, a)		(((x) + ((a) - 1)) / (a))
 
-#define SBWC_10B_Y_SIZE(w, h)						\
-	((SBWC_10B_STRIDE(w) * ((__ALIGN_UP((h), 16) + 3) / 4)) + 64)
-#define SBWC_10B_Y_HEADER_SIZE(w, h)					\
-	__ALIGN_UP((((__ALIGN_UP((w), 16) *				\
-	__ALIGN_UP((h), 16) * 2) + 256) - SBWC_10B_Y_SIZE(w, h)), 32)
-#define SBWC_10B_CBCR_SIZE(w, h)					\
-	((SBWC_10B_STRIDE(w) * (((__ALIGN_UP((h), 16) / 2) + 3) / 4)) + 64)
-#define SBWC_10B_CBCR_HEADER_SIZE(w, h)					\
-	(((__ALIGN_UP((w), 16) *					\
-	__ALIGN_UP((h), 16)) + 256) - SBWC_10B_CBCR_SIZE(w, h))
+#define SBWC_HEADER_STRIDE_ALIGN	16
+#define SBWC_PAYLOAD_STRIDE_ALIGN	64
+
+#define SBWC_BLOCK_WIDTH		32
+#define SBWC_BLOCK_HEIGHT		4
+
+#define SBWC_ALIGNED_H(h, a)		__ALIGN_UP((h), a)
+
+#define SBWC_H_BLOCKS(w)		__COUNT_BLOCKS((w), SBWC_BLOCK_WIDTH)
+
+#define SBWC_8B_STRIDE(w)		(__ALIGN_UP((8 / 2) *			\
+						SBWC_BLOCK_WIDTH,		\
+						SBWC_PAYLOAD_STRIDE_ALIGN) *	\
+						SBWC_H_BLOCKS(w))
+#define SBWC_10B_STRIDE(w)		(__ALIGN_UP((10 / 2) *			\
+						SBWC_BLOCK_WIDTH,		\
+						SBWC_PAYLOAD_STRIDE_ALIGN) *	\
+						SBWC_H_BLOCKS(w))
+#define SBWC_HEADER_STRIDE(w)		(__ALIGN_UP(__COUNT_BLOCKS(w,		\
+						SBWC_BLOCK_WIDTH * 2),		\
+						SBWC_HEADER_STRIDE_ALIGN))
+
+#define SBWC_Y_VSTRIDE_BLOCKS(h, a)	__COUNT_BLOCKS(SBWC_ALIGNED_H(h, a),	\
+						SBWC_BLOCK_HEIGHT)
+#define SBWC_CBCR_VSTRIDE_BLOCKS(h, a)	__COUNT_BLOCKS(SBWC_ALIGNED_H(h, a) / 2,\
+						SBWC_BLOCK_HEIGHT)
+
+/* Height aligned to 16 for H.264 */
+#define SBWC_8B_Y_SIZE(w, h)		((SBWC_8B_STRIDE(w) *			\
+					  SBWC_Y_VSTRIDE_BLOCKS(h, 16)) + 64)
+#define SBWC_8B_CBCR_SIZE(w, h)		((SBWC_8B_STRIDE(w) *			\
+					  SBWC_CBCR_VSTRIDE_BLOCKS(h, 16)) + 64)
+
+#define SBWC_8B_Y_HEADER_SIZE(w, h)	((SBWC_HEADER_STRIDE(w) *		\
+					  SBWC_Y_VSTRIDE_BLOCKS(h, 16)) + 256)
+
+#define SBWC_8B_CBCR_HEADER_SIZE(w, h)	((SBWC_HEADER_STRIDE(w) *		\
+					  SBWC_CBCR_VSTRIDE_BLOCKS(h, 16)) + 128)
+
+/* Height aligned to 8 for H.265 and VP9 */
+#define SBWC_10B_Y_SIZE(w, h)		((SBWC_10B_STRIDE(w) *			\
+					  SBWC_Y_VSTRIDE_BLOCKS(h, 8)) + 64)
+#define SBWC_10B_CBCR_SIZE(w, h)	((SBWC_10B_STRIDE(w) *			\
+					  SBWC_CBCR_VSTRIDE_BLOCKS(h, 8)) + 64)
+#define SBWC_10B_Y_HEADER_SIZE(w, h)	((SBWC_HEADER_STRIDE(w) *		\
+					  SBWC_Y_VSTRIDE_BLOCKS(h, 8)) + 256)
+#define SBWC_10B_CBCR_HEADER_SIZE(w, h)	((SBWC_HEADER_STRIDE(w) *		\
+					  SBWC_CBCR_VSTRIDE_BLOCKS(h, 8)) + 128)
 
 /* SBWC - single fd */
 #define SBWC_8B_CBCR_BASE(base, w, h)					\
@@ -194,4 +213,15 @@
 	((base) + SBWCL_8B_Y_SIZE(w, h, r))
 #define SBWCL_10B_CBCR_BASE(base, w, h, r)				\
 	((base) + SBWCL_10B_Y_SIZE(w, h, r))
+
+/* AFBC */
+#define AFBC_8B_STRIDE(w)		__ALIGN_UP(w, 16)
+#define AFBC_10B_STRIDE(w)		__ALIGN_UP(w * 2, 16)
+
+#define AFBC_8B_Y_SIZE(w, h)							\
+	((((((w) + 31) / 32) * (((h) + 7) / 8) * 16 + 127) / 128) * 128 +	\
+	(((w) + 31) / 32) * (((h) + 7) / 8) * 384)
+#define AFBC_10B_Y_SIZE(w, h)							\
+	((((((w) + 31) / 32) * (((h) + 7) / 8) * 16 + 127) / 128) * 128 +	\
+	(((w) + 31) / 32) * (((h) + 7) / 8) * 512)
 #endif /* __LINUX_VIDEODEV2_EXYNOS_MEDIA_H */
