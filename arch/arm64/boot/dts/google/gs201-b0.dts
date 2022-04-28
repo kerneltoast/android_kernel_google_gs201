@@ -64,6 +64,7 @@
 		tmu_work_affinity = "0-7";
 		hotplug_work_affinity = "0-3";
 		has-dfs-support;
+		dfs_throttled_cpus = "4-7";
 	};
 
 	tmuctrl_1: MID@100A0000 {
@@ -88,6 +89,7 @@
 		tmu_work_affinity = "0-7";
 		hotplug_work_affinity = "0-3";
 		has-dfs-support;
+		dfs_throttled_cpus = "4-7";
 	};
 
 	tmuctrl_2: LITTLE@100A0000 {
