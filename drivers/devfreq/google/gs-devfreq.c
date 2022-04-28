@@ -781,6 +781,31 @@ static ssize_t store_debug_scaling_devfreq_min(struct device *dev,
 	return count;
 }
 
+static ssize_t cancel_boot_freq_store(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t count)
+{
+	struct device *parent = dev->parent;
+	struct platform_device *pdev =
+		container_of(parent, struct platform_device, dev);
+	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
+	int ret;
+	bool cancel_flag;
+
+	ret = kstrtobool(buf, &cancel_flag);
+	if (ret) {
+		dev_err(dev, "Failed to store cancel_boot\n");
+		return ret;
+	}
+
+	if (cancel_flag) {
+		exynos_pm_qos_update_request_timeout(&data->boot_pm_qos,
+						     data->boot_freq,
+						     0);
+	}
+	return count;
+}
+
 static ssize_t show_alt_dvfs_info(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -834,6 +859,7 @@ static DEVICE_ATTR(debug_scaling_devfreq_min, 0640,
 static DEVICE_ATTR(debug_scaling_devfreq_max, 0640,
 		   show_debug_scaling_devfreq_max,
 		   store_debug_scaling_devfreq_max);
+static DEVICE_ATTR_WO(cancel_boot_freq);
 
 static ssize_t time_in_state_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
@@ -868,6 +894,7 @@ static struct attribute *exynos_devfreq_sysfs_entries[] = {
 	&dev_attr_debug_scaling_devfreq_min.attr,
 	&dev_attr_debug_scaling_devfreq_max.attr,
 	&dev_attr_alt_dvfs_info.attr,
+	&dev_attr_cancel_boot_freq.attr,
 	NULL,
 };
 
