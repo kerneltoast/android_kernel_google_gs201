@@ -23,6 +23,8 @@ extern ___update_load_sum(u64 now, struct sched_avg *sa,
 			  unsigned long load, unsigned long runnable, int running);
 extern ___update_load_avg(struct sched_avg *sa, unsigned long load);
 
+static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu);
+
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
 /*****************************************************************************/
@@ -84,15 +86,15 @@ static inline unsigned long capacity_cap(int cpu)
 static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_mask,
 				 struct cpumask *backup_mask)
 {
-	int cpu, best_cpu = -1, unimportant_best_cpu, least_used_best_cpu;
+	int cpu, best_cpu = -1, best_busy_cpu, least_used_best_cpu;
 	unsigned long util, min_cpu_util, min_unimportant_cpu_util;
 	unsigned long capacity, min_cpu_capacity;
 	unsigned int exit_lat, min_exit_lat;
-	unsigned int min_importance, cpu_importance;
+	unsigned int best_busy_importance, cpu_importance, least_importance;
 	struct cpuidle_state *idle;
-	bool check_cpu_overutilized = true;
+	bool check_util = true;
 	int prev_cpu = task_cpu(p);
-	bool overutilize;
+	bool overutilize, task_fits;
 
 	if (cpumask_weight(lowest_mask) == 1)
 		return cpumask_first(lowest_mask);
@@ -104,8 +106,9 @@ redo:
 	min_cpu_util = ULONG_MAX;
 	min_unimportant_cpu_util = ULONG_MAX;
 	min_cpu_capacity = ULONG_MAX;
-	min_importance = UINT_MAX;
-	unimportant_best_cpu = -1;
+	best_busy_importance = UINT_MAX;
+	least_importance = UINT_MAX;
+	best_busy_cpu = -1;
 	least_used_best_cpu = -1;
 
 	for_each_cpu(cpu, lowest_mask) {
@@ -132,12 +135,14 @@ redo:
 				util += task_util(p);
 		}
 
+		task_fits = rt_task_fits_capacity(p, cpu);
 		overutilize = cpu_overutilized(uclamp_rq_util_with(cpu_rq(cpu), util, p), capacity,
 					       cpu);
 
-		trace_sched_cpu_util_rt(cpu, capacity, util, exit_lat, cpu_importance, overutilize);
+		trace_sched_cpu_util_rt(cpu, capacity, util, exit_lat, cpu_importance, task_fits,
+					overutilize);
 
-		if (check_cpu_overutilized && overutilize)
+		if (check_util && (!task_fits || overutilize))
 			continue;
 
 		/* select non-idle cpus without important tasks first */
@@ -145,58 +150,66 @@ redo:
 			cpumask_set_cpu(cpu, backup_mask);
 
 			/* Always prefer the least important cpu. */
-			if (min_importance < cpu_importance)
+			if (best_busy_importance < cpu_importance)
 				continue;
 
 			/* If importance is the same, choose the least loaded cpu. */
-			if (min_importance == cpu_importance)
+			if (best_busy_importance == cpu_importance)
 				if (min_unimportant_cpu_util < util)
 					continue;
 
-			min_importance = cpu_importance;
-			unimportant_best_cpu = cpu;
+			best_busy_importance = cpu_importance;
+			best_busy_cpu = cpu;
 			min_unimportant_cpu_util = util;
 			continue;
 		}
 
-		/* Always prefer the least loaded cpu. */
-		if (util > min_cpu_util)
+		/* Always prefer cpu with the least importance. */
+		if (cpu_importance > least_importance)
 			continue;
 
-		/* If util is the same: */
-		if (util == min_cpu_util) {
-			/* Prefer lower exit latency. */
-			if (exit_lat > min_exit_lat)
+		/* If cpu importance is the same: */
+		if (cpu_importance == least_importance) {
+			/* Prefer the least loaded cpu. */
+			if (util > min_cpu_util)
 				continue;
-			/* If exit latency is the same: */
-			if (exit_lat == min_exit_lat) {
-				/* Prefer lower capacity. */
-				if (capacity > min_cpu_capacity )
+
+			/* If util is the same: */
+			if (util == min_cpu_util) {
+				/* Prefer lower exit latency. */
+				if (exit_lat > min_exit_lat)
 					continue;
-				/* If capacity is the same, prefer prev cpu */
-				if (least_used_best_cpu == prev_cpu)
-					continue;
+				/* If exit latency is the same: */
+				if (exit_lat == min_exit_lat) {
+					/* Prefer lower capacity. */
+					if (capacity > min_cpu_capacity )
+						continue;
+					/* If capacity is the same, prefer prev cpu */
+					if (least_used_best_cpu == prev_cpu)
+						continue;
+				}
 			}
 		}
 
+		least_importance = cpu_importance;
 		min_cpu_util = util;
 		min_cpu_capacity = capacity;
 		min_exit_lat = exit_lat;
 		least_used_best_cpu = cpu;
 	}
 
-	/* If there is no candidate found, redo without overutilize check. */
-	if (unimportant_best_cpu == -1 && least_used_best_cpu == -1 && check_cpu_overutilized) {
-		check_cpu_overutilized = false;
+	/* If there is no candidate found, redo without check util. */
+	if (best_busy_cpu == -1 && least_used_best_cpu == -1 && check_util) {
+		check_util = false;
 		goto redo;
 	}
 
 	rcu_read_unlock();
 
-	if (unimportant_best_cpu != -1) {
-		best_cpu = unimportant_best_cpu;
-		/* backup_mask always contains unimportant_best_cpu.  */
-		cpumask_clear_cpu(unimportant_best_cpu, backup_mask);
+	if (best_busy_cpu != -1) {
+		best_cpu = best_busy_cpu;
+		/* backup_mask always contains best_busy_cpu.  */
+		cpumask_clear_cpu(best_busy_cpu, backup_mask);
 
 		/* No other backup, use least_used_best_cpu as backup. */
 		if (cpumask_empty(backup_mask) && least_used_best_cpu != -1)
@@ -208,14 +221,12 @@ redo:
 
 	trace_sched_find_least_loaded_cpu(p, get_vendor_task_struct(p)->group,
 					  uclamp_eff_value(p, UCLAMP_MIN),
-					  uclamp_eff_value(p, UCLAMP_MAX),
-					  check_cpu_overutilized, min_cpu_util,
-					  min_cpu_capacity, min_exit_lat, prev_cpu,
-					  best_cpu, *lowest_mask->bits, *backup_mask->bits);
+					  uclamp_eff_value(p, UCLAMP_MAX), check_util, min_cpu_util,
+					  min_cpu_capacity, min_exit_lat, prev_cpu, best_cpu,
+					  *lowest_mask->bits, *backup_mask->bits);
 
 	return best_cpu;
 }
-
 
 /*****************************************************************************/
 /*                       Modified Code Section                               */
@@ -253,7 +264,7 @@ static int find_lowest_rq(struct task_struct *p, struct cpumask *backup_mask)
 		return cpumask_first(p->cpus_ptr);
 	}
 
-	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, &lowest_mask, rt_task_fits_capacity);
+	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, &lowest_mask, NULL);
 	if (!ret) {
 		return -1;
 	}
@@ -370,7 +381,7 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 out_unlock:
 	rcu_read_unlock();
 out:
-	trace_sched_select_task_rq_rt(p, prev_cpu, target, *new_cpu, sync_wakeup);
+	trace_sched_select_task_rq_rt(p, task_util(p), prev_cpu, target, *new_cpu, sync_wakeup);
 
 	return;
 }

@@ -473,9 +473,9 @@ TRACE_EVENT(schedutil_cpu_util_clamp,
 TRACE_EVENT(sched_cpu_util_rt,
 
 	TP_PROTO(int cpu, unsigned long capacity, unsigned long util, unsigned long exit_lat,
-		 unsigned long cpu_importance, bool overutilized),
+		 unsigned long cpu_importance, bool task_fits, bool overutilized),
 
-	TP_ARGS(cpu, capacity, util, exit_lat, cpu_importance, overutilized),
+	TP_ARGS(cpu, capacity, util, exit_lat, cpu_importance, task_fits, overutilized),
 
 	TP_STRUCT__entry(
 		__field(int,		cpu)
@@ -483,7 +483,8 @@ TRACE_EVENT(sched_cpu_util_rt,
 		__field(unsigned long,	util)
 		__field(unsigned long,	exit_lat)
 		__field(unsigned long,	cpu_importance)
-		__field(int,		overutilized)
+		__field(bool,		task_fits)
+		__field(bool,		overutilized)
 	),
 
 	TP_fast_assign(
@@ -492,38 +493,40 @@ TRACE_EVENT(sched_cpu_util_rt,
 		__entry->util	            = util;
 		__entry->exit_lat           = exit_lat;
 		__entry->cpu_importance	    = cpu_importance;
+		__entry->task_fits	    = task_fits;
 		__entry->overutilized	    = overutilized;
 	),
 
-	TP_printk("cpu=%d capacity=%lu util=%lu exit_lat=%lu cpu_importance=%lu overutilized=%d",
+	TP_printk("cpu=%d capacity=%lu util=%lu exit_lat=%lu cpu_importance=%lu task_fits=%d " \
+		  "overutilized=%d",
 		__entry->cpu, __entry->capacity, __entry->util, __entry->exit_lat,
-		__entry->cpu_importance, __entry->overutilized)
+		__entry->cpu_importance, __entry->task_fits, __entry->overutilized)
 );
 
 TRACE_EVENT(sched_find_least_loaded_cpu,
 
 	TP_PROTO(struct task_struct *tsk, int group, unsigned long uclamp_min,
-		 unsigned long uclamp_max, bool check_cpu_overutilized, unsigned long min_cpu_util,
+		 unsigned long uclamp_max, bool check_util, unsigned long min_cpu_util,
 		 unsigned long min_cpu_capacity, unsigned int min_exit_lat, int prev_cpu,
 		 int best_cpu, unsigned long lowest_mask, unsigned long backup_mask),
 
-	TP_ARGS(tsk, group, uclamp_min, uclamp_max, check_cpu_overutilized, min_cpu_util,
-		min_cpu_capacity, min_exit_lat, prev_cpu, best_cpu, lowest_mask, backup_mask),
+	TP_ARGS(tsk, group, uclamp_min, uclamp_max, check_util, min_cpu_util, min_cpu_capacity,
+		min_exit_lat, prev_cpu, best_cpu, lowest_mask, backup_mask),
 
 	TP_STRUCT__entry(
 		__array(char,		comm, TASK_COMM_LEN)
 		__field(pid_t,		pid)
 		__field(int,		group)
-		__field(unsigned long,		uclamp_min)
-		__field(unsigned long,		uclamp_max)
-		__field(bool,		check_cpu_overutilized)
-		__field(unsigned long,		min_cpu_util)
-		__field(unsigned long,		min_cpu_capacity)
-		__field(unsigned int,		min_exit_lat)
+		__field(unsigned long,	uclamp_min)
+		__field(unsigned long,	uclamp_max)
+		__field(bool,		check_util)
+		__field(unsigned long,	min_cpu_util)
+		__field(unsigned long,	min_cpu_capacity)
+		__field(unsigned int,	min_exit_lat)
 		__field(int,		prev_cpu)
 		__field(int,		best_cpu)
-		__field(unsigned long,		lowest_mask)
-		__field(unsigned long,		backup_mask)
+		__field(unsigned long,	lowest_mask)
+		__field(unsigned long,	backup_mask)
 		),
 
 	TP_fast_assign(
@@ -532,7 +535,7 @@ TRACE_EVENT(sched_find_least_loaded_cpu,
 		__entry->group                   = group;
 		__entry->uclamp_min              = uclamp_min;
 		__entry->uclamp_max              = uclamp_max;
-		__entry->check_cpu_overutilized  = check_cpu_overutilized;
+		__entry->check_util              = check_util;
 		__entry->min_cpu_util            = min_cpu_util;
 		__entry->min_cpu_capacity        = min_cpu_capacity;
 		__entry->min_exit_lat            = min_exit_lat;
@@ -542,24 +545,26 @@ TRACE_EVENT(sched_find_least_loaded_cpu,
 		__entry->backup_mask             = backup_mask;
 		),
 
-	TP_printk("pid=%d comm=%s group=%d uclamp_min=%lu uclamp_max=%lu " \
-		"check_cpu_overutilized=%d min_cpu_util=%lu min_cpu_capacity=%lu " \
-		"min_exit_lat=%u prev_cpu=%d best_cpu=%d lowest_mask=0x%lx backup_mask=0x%lx",
+	TP_printk("pid=%d comm=%s group=%d uclamp_min=%lu uclamp_max=%lu check_util=%d " \
+		"min_cpu_util=%lu min_cpu_capacity=%lu min_exit_lat=%u prev_cpu=%d best_cpu=%d " \
+		"lowest_mask=0x%lx backup_mask=0x%lx",
 		__entry->pid, __entry->comm, __entry->group, __entry->uclamp_min,
-		__entry->uclamp_max, __entry->check_cpu_overutilized, __entry->min_cpu_util,
+		__entry->uclamp_max, __entry->check_util, __entry->min_cpu_util,
 		__entry->min_cpu_capacity, __entry->min_exit_lat, __entry->prev_cpu,
 		__entry->best_cpu, __entry->lowest_mask, __entry->backup_mask)
 );
 
 TRACE_EVENT(sched_select_task_rq_rt,
 
-	TP_PROTO(struct task_struct *tsk, int prev_cpu, int target, int new_cpu, bool sync_wakeup),
+	TP_PROTO(struct task_struct *tsk, unsigned long task_util, int prev_cpu, int target,
+		 int new_cpu, bool sync_wakeup),
 
-	TP_ARGS(tsk, prev_cpu, target, new_cpu, sync_wakeup),
+	TP_ARGS(tsk, task_util, prev_cpu, target, new_cpu, sync_wakeup),
 
 	TP_STRUCT__entry(
 		__array(char,		comm, TASK_COMM_LEN)
 		__field(pid_t,		pid)
+		__field(unsigned long,	task_util)
 		__field(int,		prev_cpu)
 		__field(int,		target)
 		__field(int,		new_cpu)
@@ -569,15 +574,16 @@ TRACE_EVENT(sched_select_task_rq_rt,
 	TP_fast_assign(
 		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
 		__entry->pid             = tsk->pid;
+		__entry->task_util       = task_util;
 		__entry->prev_cpu        = prev_cpu;
 		__entry->target          = target;
 		__entry->new_cpu         = new_cpu;
 		__entry->sync_wakeup     = sync_wakeup;
 		),
 
-	TP_printk("pid=%d comm=%s prev_cpu=%d target=%d new_cpu=%d sync_wakeup=%d",
-		__entry->pid, __entry->comm, __entry->prev_cpu, __entry->target, __entry->new_cpu,
-		__entry->sync_wakeup)
+	TP_printk("pid=%d comm=%s task_util=%lu prev_cpu=%d target=%d new_cpu=%d sync_wakeup=%d",
+		__entry->pid, __entry->comm, __entry->task_util, __entry->prev_cpu, __entry->target,
+		__entry->new_cpu, __entry->sync_wakeup)
 );
 
 #endif /* _SCHED_EVENTS_H */
