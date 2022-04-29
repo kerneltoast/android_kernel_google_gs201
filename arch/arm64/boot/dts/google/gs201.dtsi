@@ -898,7 +898,7 @@
 
 			use_alt_dvfs;
 			polling_ms = <0>;
-			target_load = <20 10 80>;
+			target_load = <60 10 40>;
 			min_sample_time = <20>;
 			hold_sample_time = <60>;
 			hispeed_load = <100>;
