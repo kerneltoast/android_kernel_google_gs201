@@ -993,7 +993,7 @@ void mfc_core_hwlock_handler_irq(struct mfc_core *core, struct mfc_ctx *ctx,
 	struct mfc_core_ctx *core_ctx = core->core_ctx[ctx->num];
 	int new_ctx_index;
 	unsigned long flags;
-	int ret;
+	int ret, need_butler = 0;
 
 	if (core->state == MFCCORE_ERROR) {
 		mfc_core_info("[MSR] Couldn't lock HW. It's Error state\n");
@@ -1002,6 +1002,9 @@ void mfc_core_hwlock_handler_irq(struct mfc_core *core, struct mfc_ctx *ctx,
 
 	spin_lock_irqsave(&core->hwlock.lock, flags);
 	__mfc_print_hwlock(core);
+
+	if ((core_ctx->state == MFCINST_RUNNING) && IS_TWO_MODE2(ctx))
+		need_butler = 1;
 
 	if (core->hwlock.owned_by_irq) {
 		if (core->preempt_core_ctx > MFC_NO_INSTANCE_SET) {
@@ -1083,8 +1086,8 @@ void mfc_core_hwlock_handler_irq(struct mfc_core *core, struct mfc_ctx *ctx,
 		spin_unlock_irqrestore(&core->hwlock.lock, flags);
 	}
 
-	if (IS_TWO_MODE2(ctx) && (core_ctx->state == MFCINST_RUNNING))
-		queue_work(ctx->dev->butler_wq, &ctx->dev->butler_work);
+	if (need_butler)
+		queue_work(core->dev->butler_wq, &core->dev->butler_work);
 
 	__mfc_print_hwlock(core);
 }
