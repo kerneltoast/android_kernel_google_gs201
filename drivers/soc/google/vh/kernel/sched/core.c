@@ -83,13 +83,15 @@ void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p
 	struct vendor_task_struct *vp = get_vendor_task_struct(p);
 	int group;
 
-	group = get_vendor_group(p);
-	raw_spin_lock(&vendor_group_list[group].lock);
+	raw_spin_lock(&vp->lock);
 	if (!vp->queued_to_list) {
+		group = get_vendor_group(p);
+		raw_spin_lock(&vendor_group_list[group].lock);
 		list_add_tail_rcu(&vp->node, &vendor_group_list[group].list);
+		raw_spin_unlock(&vendor_group_list[group].lock);
 		vp->queued_to_list = true;
 	}
-	raw_spin_unlock(&vendor_group_list[group].lock);
+	raw_spin_unlock(&vp->lock);
 }
 
 void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
@@ -102,11 +104,13 @@ void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p
 		update_uclamp_stats(rq->cpu, rq_clock(rq));
 #endif
 
-	group = get_vendor_group(p);
-	raw_spin_lock(&vendor_group_list[group].lock);
+	raw_spin_lock(&vp->lock);
 	if (vp->queued_to_list) {
+		group = get_vendor_group(p);
+		raw_spin_lock(&vendor_group_list[group].lock);
 		list_del_rcu(&vp->node);
+		raw_spin_unlock(&vendor_group_list[group].lock);
 		vp->queued_to_list = false;
 	}
-	raw_spin_unlock(&vendor_group_list[group].lock);
+	raw_spin_unlock(&vp->lock);
 }
