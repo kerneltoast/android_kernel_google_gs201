@@ -497,4 +497,13 @@
 		regulator-boot-on;
 		enable-active-high;
 	};
+
+	disp_vddd: disp-vddd {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vddd";
+		regulator-boot-on;
+		enable-active-high;
+	};
+
 };
