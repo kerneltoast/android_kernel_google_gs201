@@ -13,4 +13,4 @@
 }; /* end of root */
 
 /* default settings built into kernel dt */
-#include "gs201-dpm-userdebug.dtsi"
+#include "gs201-dpm-user.dtsi"
