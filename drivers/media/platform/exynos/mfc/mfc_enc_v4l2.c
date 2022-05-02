@@ -16,6 +16,8 @@
 
 #include "mfc_core_otf.h"
 #include "mfc_sync.h"
+#include "mfc_llc.h"
+#include "mfc_slc.h"
 
 #include "mfc_qos.h"
 #include "mfc_queue.h"
@@ -562,6 +564,7 @@ static int mfc_enc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 	struct mfc_core_ctx *core_ctx;
 	struct mfc_fmt *prev_src_fmt = NULL;
 	struct mfc_fmt *fmt = NULL;
+	int ret = 0;
 
 	mfc_debug_enter();
 
@@ -612,6 +615,21 @@ static int mfc_enc_s_fmt_vid_out_mplane(struct file *file, void *priv,
 					prev_src_fmt->name, ctx->src_fmt->name);
 		else
 			mfc_ctx_info("[DRC] Enc Dynamic Resolution Changed\n");
+
+		if (core_ctx->codec_buffer_allocated) {
+			mfc_debug(2, "[DRC] Release previous codec buffer\n");
+
+			if (core->has_llc && core->llc_on_status)
+				mfc_llc_flush(core);
+
+			if (core->has_slc && core->slc_on_status)
+				mfc_slc_flush(core);
+
+			mfc_release_codec_buffers(core_ctx);
+			ret = mfc_alloc_codec_buffers(core_ctx);
+			if (ret)
+				mfc_err("[DRC] Failed to allocate encoding buffers\n");
+		}
 	}
 
 	mfc_ctx_info("[FRAME] enc src pixelformat : %s\n", ctx->src_fmt->name);

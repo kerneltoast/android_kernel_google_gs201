@@ -404,7 +404,6 @@ int mfc_core_cmd_enc_init_buffers(struct mfc_core *core, struct mfc_ctx *ctx)
 	 * First set the reference frame buffers
 	 */
 	if (!core_ctx->codec_buffer_allocated) {
-		mfc_ctx_info("there isn't codec buffer, re-alloc!\n");
 		ret = mfc_alloc_codec_buffers(core_ctx);
 		if (ret) {
 			mfc_err("Failed to allocate encoding buffers\n");
