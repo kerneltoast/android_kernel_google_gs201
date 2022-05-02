@@ -732,6 +732,7 @@ struct pmucal_seq exit_sleep[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_SET_BIT_ATOMIC, "TOP_OUT", 0x18060000, 0x3920, (0xffffffff << 0), (0xc << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_SET_BIT_ATOMIC, "TOP_OUT", 0x18060000, 0x3920, (0xffffffff << 0), (0xd << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_SET_BIT_ATOMIC, "TOP_OUT", 0x18060000, 0x3920, (0xffffffff << 0), (0xe << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "TREX_D_NOCL1A", 0x20510000, 0x2000, (0xffffffff << 0), (0xf000 << 0), 0, 0, 0xffffffff, 0),
 };
 struct pmucal_seq early_sleep[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "WAKEUP_INT_EN", 0x18060000, 0x3944, (0xffffffff << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
@@ -1337,6 +1338,7 @@ struct pmucal_seq exit_sleep_slcmon[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_SET_BIT_ATOMIC, "TOP_OUT", 0x18060000, 0x3920, (0xffffffff << 0), (0xc << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_SET_BIT_ATOMIC, "TOP_OUT", 0x18060000, 0x3920, (0xffffffff << 0), (0xd << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_SET_BIT_ATOMIC, "TOP_OUT", 0x18060000, 0x3920, (0xffffffff << 0), (0xe << 0), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "TREX_D_NOCL1A", 0x20510000, 0x2000, (0xffffffff << 0), (0xf000 << 0), 0, 0, 0xffffffff, 0),
 };
 struct pmucal_seq early_sleep_slcmon[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "WAKEUP_INT_EN", 0x18060000, 0x3944, (0xffffffff << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
@@ -1388,6 +1390,7 @@ struct pmucal_seq exit_stop[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "BUS_COMPONENT_DRCG_EN", 0x10c20000, 0x0104, (0xffffffff << 0), (0xffffffff << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "BUS_COMPONENT_DRCG_EN", 0x10030000, 0x0104, (0xffffffff << 0), (0xffffffff << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "MISC", 0x14700000, 0x11b4, (0x1 << 8), (0x1 << 8), 0, 0, 0xffffffff, 0),
+	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "TREX_D_NOCL1A", 0x20510000, 0x2000, (0xffffffff << 0), (0xf000 << 0), 0, 0, 0xffffffff, 0),
 };
 struct pmucal_seq early_stop[] = {
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "WAKEUP_INT_EN", 0x18060000, 0x3944, (0xffffffff << 0), (0x0 << 0), 0, 0, 0xffffffff, 0),
