@@ -129,7 +129,7 @@ static int logbuffer_seq_show(struct seq_file *s, void *v)
 	struct logbuffer *instance = (struct logbuffer *)s->private;
 	int tail;
 
-	spin_lock(&instance->logbuffer_lock);
+	spin_lock_irq(&instance->logbuffer_lock);
 	tail = instance->logbuffer_tail;
 	while (tail != instance->logbuffer_head) {
 		seq_printf(s, "%s\n", instance->buffer +
@@ -137,7 +137,7 @@ static int logbuffer_seq_show(struct seq_file *s, void *v)
 		tail = (tail + 1) % LOG_BUFFER_ENTRIES;
 	}
 
-	spin_unlock(&instance->logbuffer_lock);
+	spin_unlock_irq(&instance->logbuffer_lock);
 
 	return 0;
 }
