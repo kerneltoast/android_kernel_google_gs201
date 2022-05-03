@@ -591,11 +591,9 @@ static int gsa_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, s);
 
 	/*
-	 * Set DMA mask and coherent to 32-bit as ATM we cannot use sysmmu.
-	 * The main problem is that GSA can sleep independently from Main AP
-	 * and if GSA is in sleep sysmmu block is powered off.
+	 * Set DMA mask and coherent to 36-bit as it is what GSA supports.
 	 */
-	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
 	if (err) {
 		dev_err(dev, "failed (%d) to setup dma mask\n", err);
 		return err;
