@@ -787,26 +787,24 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 		if (p->prio >= MAX_RT_PRIO)
 			migrate_vendor_group_util(p, vp->group, val);
 		if (p->on_rq) {
+			group = vp->group;
+			raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
 			if (vp->queued_to_list) {
-				group = vp->group;
-				raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
 				list_del_rcu(&vp->node);
-				raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
 				vp->queued_to_list = false;
 			}
+			raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
 		}
-		raw_spin_lock_irqsave(&vp->lock, flags);
 		vp->group = val;
-		raw_spin_unlock_irqrestore(&vp->lock, flags);
 		// task could be dequeued in between, so need to check on_rq again
 		if (p->on_rq) {
+			group = vp->group;
+			raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
 			if (!vp->queued_to_list) {
-				group = vp->group;
-				raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
 				list_add_rcu(&vp->node, &vendor_group_list[group].list);
 				vp->queued_to_list = true;
-				raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
 			}
+			raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
 		}
 		for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
 			uclamp_update_active(p, clamp_id);
@@ -818,30 +816,24 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 			if (p->prio >= MAX_RT_PRIO)
 				migrate_vendor_group_util(t, vp->group, val);
 			if (t->on_rq) {
+				group = vp->group;
+				raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
 				if (vp->queued_to_list) {
-					group = vp->group;
-					raw_spin_lock_irqsave(&vendor_group_list[group].lock,
-							      flags);
 					list_del_rcu(&vp->node);
-					raw_spin_unlock_irqrestore(&vendor_group_list[group].lock,
-								   flags);
 					vp->queued_to_list = false;
 				}
+				raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
 			}
-			raw_spin_lock_irqsave(&vp->lock, flags);
 			vp->group = val;
-			raw_spin_unlock_irqrestore(&vp->lock, flags);
 			// task could be dequeued in between, so need to check on_rq again
 			if (t->on_rq) {
+				group = vp->group;
+				raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
 				if (!vp->queued_to_list) {
-					group = vp->group;
-					raw_spin_lock_irqsave(&vendor_group_list[group].lock,
-							      flags);
 					list_add_rcu(&vp->node, &vendor_group_list[group].list);
-					raw_spin_unlock_irqrestore(&vendor_group_list[group].lock,
-								   flags);
 					vp->queued_to_list = true;
 				}
+				raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
 			}
 			for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
 				uclamp_update_active(t, clamp_id);

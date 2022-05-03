@@ -1355,7 +1355,6 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 	v_tsk->prefer_idle = false;
 	INIT_LIST_HEAD(&v_tsk->node);
 	v_tsk->queued_to_list = false;
-	raw_spin_lock_init(&v_tsk->lock);
 }
 
 void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu, int sd_flag,
