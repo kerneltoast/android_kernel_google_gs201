@@ -13,6 +13,10 @@
 #include "sched_events.h"
 #include "../systrace.h"
 
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
+extern void update_uclamp_stats(int cpu, u64 time);
+#endif
+
 #if IS_ENABLED(CONFIG_PIXEL_EM)
 struct em_perf_domain **vendor_sched_cpu_to_em_pd;
 EXPORT_SYMBOL_GPL(vendor_sched_cpu_to_em_pd);
@@ -32,8 +36,6 @@ unsigned int sched_capacity_margin[CPU_NUM] = { [0 ... CPU_NUM - 1] = DEF_UTIL_T
 static unsigned long scale_freq[CPU_NUM] = { [0 ... CPU_NUM - 1] = SCHED_CAPACITY_SCALE };
 
 static struct vendor_cfs_util vendor_cfs_util[VG_MAX][CPU_NUM];
-
-extern struct vendor_group_list vendor_group_list[VG_MAX];
 
 unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
 				 unsigned long max, enum schedutil_type type,
@@ -258,7 +260,7 @@ static inline unsigned long cfs_rq_load_avg(struct cfs_rq *cfs_rq)
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
-int get_vendor_group(struct task_struct *p)
+static inline int get_vendor_group(struct task_struct *p)
 {
 	return get_vendor_task_struct(p)->group;
 }
@@ -290,7 +292,7 @@ static inline unsigned int get_task_group_throttle(struct task_struct *p)
 	return vg[get_vendor_group(p)].group_throttle;
 }
 
-void init_vendor_group_data(void)
+void init_vendor_group_util(void)
 {
 	int i, j;
 	struct task_struct *p;
@@ -318,11 +320,6 @@ void init_vendor_group_data(void)
 			vendor_cfs_util[group][rq->cpu].util_est += _task_util_est(p);
 		}
 		rq_unlock(rq, &rf);
-	}
-
-	for (i = 0; i < VG_MAX; i++) {
-		INIT_LIST_HEAD(&vendor_group_list[i].list);
-		raw_spin_lock_init(&vendor_group_list[i].lock);
 	}
 }
 
@@ -1201,6 +1198,14 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 	return (freq * sched_capacity_margin[cpu] >> SCHED_CAPACITY_SHIFT) * util / cap;
 }
 
+void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
+{
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
+	if (rq->nr_running == 1)
+		update_uclamp_stats(rq->cpu, rq_clock(rq));
+#endif
+}
+
 static inline bool check_uclamp_threshold(struct task_struct *p, enum uclamp_id clamp_id)
 {
 	if (clamp_id == UCLAMP_MIN && !rt_task(p) &&
@@ -1353,8 +1358,6 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 	v_orig = get_vendor_task_struct(orig);
 	v_tsk->group = v_orig->group;
 	v_tsk->prefer_idle = false;
-	INIT_LIST_HEAD(&v_tsk->node);
-	v_tsk->queued_to_list = false;
 }
 
 void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu, int sd_flag,
