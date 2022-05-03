@@ -1246,7 +1246,7 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 	// would affect task importance in cpu_rq thus affect task placement.
 	// It should have no effect in cpufreq.
 	if (clamp_id == UCLAMP_MAX && p->prio > DEFAULT_PRIO)
-		value = min_t(unsigned int, SCHED_CAPACITY_SCALE - 1, value);
+		value = min_t(unsigned int, UCLAMP_BUCKET_DELTA * (UCLAMP_BUCKETS - 1) - 1, value);
 
 	uc_req.value = value;
 	uc_req.bucket_id = get_bucket_id(value);
