@@ -98,6 +98,19 @@ static struct usb_interface_descriptor etr_miu_interface_alt1_desc = {
 	.bInterfaceProtocol = ETR_MIU_PROTOCOL,
 };
 
+static struct usb_endpoint_descriptor etr_miu_superspeedplus_in_desc = {
+	.bLength = USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType = USB_DT_ENDPOINT,
+	.bEndpointAddress = USB_DIR_IN,
+	.bmAttributes = USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize = cpu_to_le16(1024),
+};
+
+static struct usb_ss_ep_comp_descriptor etr_miu_superspeedplus_bulk_comp_desc = {
+	.bLength = sizeof(etr_miu_superspeedplus_bulk_comp_desc),
+	.bDescriptorType = USB_DT_SS_ENDPOINT_COMP,
+};
+
 static struct usb_endpoint_descriptor etr_miu_superspeed_in_desc = {
 	.bLength = USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType = USB_DT_ENDPOINT,
@@ -145,6 +158,14 @@ static struct usb_descriptor_header *ss_etr_miu_descs[] = {
 	(struct usb_descriptor_header *)&etr_miu_interface_alt1_desc,
 	(struct usb_descriptor_header *)&etr_miu_superspeed_in_desc,
 	(struct usb_descriptor_header *)&etr_miu_superspeed_bulk_comp_desc,
+	NULL,
+};
+
+static struct usb_descriptor_header *ssp_etr_miu_descs[] = {
+	(struct usb_descriptor_header *)&etr_miu_interface_alt0_desc,
+	(struct usb_descriptor_header *)&etr_miu_interface_alt1_desc,
+	(struct usb_descriptor_header *)&etr_miu_superspeedplus_in_desc,
+	(struct usb_descriptor_header *)&etr_miu_superspeedplus_bulk_comp_desc,
 	NULL,
 };
 
@@ -214,10 +235,16 @@ static int etr_miu_function_bind(struct usb_configuration *c,
 			etr_miu_fullspeed_in_desc.bEndpointAddress;
 	}
 
+	/* support super speed plus hardware */
+	if (gadget_is_superspeed_plus(c->cdev->gadget)) {
+		etr_miu_superspeedplus_in_desc.bEndpointAddress =
+			etr_miu_fullspeed_in_desc.bEndpointAddress;
+	}
+
 	DBG(cdev, "%s speed %s: IN/%s\n",
-	    gadget_is_superspeed(c->cdev->gadget) ?
-		    "super" :
-		    gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
+	    (gadget_is_superspeed_plus(c->cdev->gadget) ? "super-plus" :
+	     (gadget_is_superspeed(c->cdev->gadget) ? "super" :
+	      (gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full"))),
 	    f->name, dev->ep_in->name);
 
 	etr_miu_configure_trb(base);
@@ -431,6 +458,7 @@ static struct usb_function *etr_miu_alloc_func(struct usb_function_instance *fi)
 	dev->function.fs_descriptors = fs_etr_miu_descs;
 	dev->function.hs_descriptors = hs_etr_miu_descs;
 	dev->function.ss_descriptors = ss_etr_miu_descs;
+	dev->function.ssp_descriptors = ssp_etr_miu_descs;
 	dev->function.bind = etr_miu_function_bind;
 	dev->function.unbind = etr_miu_function_unbind;
 	dev->function.set_alt = etr_miu_function_set_alt;

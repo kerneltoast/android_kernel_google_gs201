@@ -385,6 +385,9 @@ static int dwc3_otg_start_host(struct otg_fsm *fsm, int on)
 	__pm_stay_awake(dotg->wakelock);
 
 	if (on) {
+		if (!dwc3_otg_check_usb_suspend(exynos))
+			dev_err(dev, "too long to wait for dwc3 suspended\n");
+
 		dotg->otg_connection = 1;
 		exynos->need_dr_role = 1;
 		while (dwc->gadget_driver == NULL) {
