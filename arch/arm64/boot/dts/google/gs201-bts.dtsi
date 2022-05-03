@@ -171,6 +171,12 @@
 			bts-type = <INTERNAL_BTS>;
 			vc-string = "cpu3, cpu2, cpu1, cpu0";
 		};
+		bts_vc_num_12 {
+			reg = <0x0 0x20512000 0x4>;
+			status = "okay";
+			bts-type = <INTERNAL_BTS>;
+			vc-string = "pbcg_trex_d_nocl1a";
+		};
 
 		/* TREX_D_NOCL2A */
 		bts_nocl2a_0 {
