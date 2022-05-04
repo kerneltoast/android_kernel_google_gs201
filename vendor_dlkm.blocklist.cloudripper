@@ -3,6 +3,7 @@ blocklist synadhd
 blocklist focal_touch
 blocklist ftm5
 blocklist goodix_brl_touch
+blocklist nvt_touch
 blocklist sec_touch
 blocklist syna_touch
 blocklist uwb_desense.ko
