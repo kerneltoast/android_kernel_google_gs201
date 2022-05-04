@@ -205,14 +205,14 @@ static ssize_t
 hs_phy_tune_store(struct device *dev,
 		  struct device_attribute *attr, const char *buf, size_t n)
 {
-	char tune_name[30];
+	char tune_name[20];
 	u32 tune_val;
 	struct device_node *tune_node;
 	struct exynos_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
 	int ret, i;
 	u32 tune_num = 0;
 
-	if (sscanf(buf, "%s %x", tune_name, &tune_val) != 2)
+	if (sscanf(buf, "%19s %x", tune_name, &tune_val) != 2)
 		return -EINVAL;
 
 	tune_node = of_parse_phandle(dev->of_node, "hs_tune_param", 0);
@@ -279,7 +279,7 @@ phy_tune_store(struct device *dev,
 	int ret, i;
 	u32 tune_num = 0;
 
-	if (sscanf(buf, "%s %x", tune_name, &tune_val) != 2)
+	if (sscanf(buf, "%29s %x", tune_name, &tune_val) != 2)
 		return -EINVAL;
 
 	tune_node = of_parse_phandle(dev->of_node, "ss_tune_param", 0);
