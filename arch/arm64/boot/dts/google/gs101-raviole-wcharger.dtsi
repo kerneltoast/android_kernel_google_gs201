@@ -30,6 +30,9 @@
 		/* Defender */
 		google,power_mitigate_threshold = <90>;
 
+		/* TXID: Phone type */
+		idt,tx_id_phone_type = /bits/ 8 <2>;
+
 		p9xxx_gpio: p9xxx_gpio {
 			gpio-controller;
 			#gpio-cells = <2>;
