@@ -333,7 +333,7 @@ int adv_tracer_ipc_release_channel(unsigned int id)
 	cmd->cmd_raw.cmd = EAT_IPC_CMD_CH_RELEASE;
 	cmd->buffer[1] = id;
 
-	ret = adv_tracer_ipc_send_data(EAT_FRM_CHANNEL, cmd);
+	ret = adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, cmd);
 	if (ret < 0) {
 		dev_err(eat_info->dev, "channel%d is failed to release\n", id);
 		return ret;
@@ -390,7 +390,7 @@ int adv_tracer_ipc_request_channel(struct device_node *np,
 	cmd.buffer[1] = plugin_len;
 	memcpy(&cmd.buffer[2], plugin_name, sizeof(unsigned int));
 
-	ret = adv_tracer_ipc_send_data(EAT_FRM_CHANNEL, &cmd);
+	ret = adv_tracer_ipc_send_data_polling(EAT_FRM_CHANNEL, &cmd);
 	if (ret) {
 		dev_err(eat_info->dev, "channel%d is failed to request\n",
 				EAT_FRM_CHANNEL);
