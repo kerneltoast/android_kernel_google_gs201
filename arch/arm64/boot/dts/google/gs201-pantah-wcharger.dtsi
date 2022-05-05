@@ -61,6 +61,7 @@
 		idt,max_vout_mv = <19500>;
 		idt,has_wlc_dc = <1>;
 		google,power_mitigate_threshold = <90>;
+		google,has-sw-ramp;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&wc_irq &wc_en>;
