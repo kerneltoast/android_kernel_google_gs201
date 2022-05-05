@@ -18,10 +18,11 @@
 #include <linux/sched/clock.h>
 #include <media/videobuf2-dma-sg.h>
 #include <asm/cacheflush.h>
+#include <uapi/linux/videodev2_exynos_media.h>
 
 #include "mfc_data_struct.h"
 #include "mfc_regs.h"
-#include <uapi/video/mfc_macros.h>
+#include "mfc_macros.h"
 #include "mfc_debug.h"
 #include "mfc_media.h"
 
