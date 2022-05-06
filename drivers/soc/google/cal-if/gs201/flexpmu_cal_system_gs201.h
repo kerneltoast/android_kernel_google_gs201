@@ -6,8 +6,6 @@
 #ifndef ACPM_FRAMEWORK
 /* common sequence descriptor for lpm init. - exposed to common logic */
 struct pmucal_seq pmucal_lpm_init[] = {
-	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "PAD_CTRL_PWR_HOLD", 0x18060000, 0x3e9c, (0x1 << 31), (0x1 << 31), 0, 0, 0xffffffff, 0),
-	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "PAD_CTRL_PWR_HOLD", 0x18060000, 0x3e9c, (0x1 << 8), (0x1 << 8), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CPUCL0_HCHGEN_CLKMUX_CPU", 0x20c00000, 0x0844, (0x7f << 0), (0x1 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CPUCL1_HCHGEN_CLKMUX_CPU", 0x20c10000, 0x0854, (0x7f << 0), (0x1 << 0), 0, 0, 0xffffffff, 0),
 	PMUCAL_SEQ_DESC(PMUCAL_WRITE, "CPUCL2_HCHGEN_CLKMUX_CPU", 0x20c20000, 0x0854, (0x7f << 0), (0x1 << 0), 0, 0, 0xffffffff, 0),
