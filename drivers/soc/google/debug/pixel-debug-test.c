@@ -443,7 +443,9 @@ void debug_trigger_register(struct debug_trigger *soc_trigger, char *arch_name)
 {
 	pr_info("DEBUG TEST: [%s] test triggers are registered!", arch_name);
 	soc_test_trigger.hard_lockup = soc_trigger->hard_lockup;
+#if IS_ENABLED(CONFIG_SOC_GS101)
 	soc_test_trigger.cold_reset = soc_trigger->cold_reset;
+#endif
 	soc_test_trigger.watchdog_emergency_reset =
 		soc_trigger->watchdog_emergency_reset;
 	soc_test_trigger.halt = soc_trigger->halt;
@@ -470,6 +472,7 @@ static void simulate_hardlockup(char *arg)
 
 }
 
+#if IS_ENABLED(CONFIG_SOC_GS101)
 static void simulate_cold_reset(char *arg)
 {
 	pr_crit("called!\n");
@@ -483,6 +486,7 @@ static void simulate_cold_reset(char *arg)
 	/* Should not reach here */
 	pr_crit("failed!\n");
 }
+#endif
 
 static void simulate_watchdog_emergency_reset(char *arg)
 {
@@ -595,7 +599,9 @@ static const struct force_error_item force_error_vector[] = {
 	{ "pcabort",		&simulate_pc_abort },
 	{ "spabort",		&simulate_sp_abort },
 	{ "jumpzero",		&simulate_jump_zero },
+#if IS_ENABLED(CONFIG_SOC_GS101)
 	{ "cold_reset",		&simulate_cold_reset },
+#endif
 	{ "emerg_reset",	&simulate_watchdog_emergency_reset },
 	{ "halt",		&simulate_halt },
 	{ "arraydump",		&simulate_arraydump },
