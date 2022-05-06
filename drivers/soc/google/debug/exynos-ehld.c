@@ -356,8 +356,6 @@ static int exynos_ehld_stop_cpu(unsigned int cpu)
 	if (ehld_main.suspending && cpu == 1)
 		exynos_ehld_stop_cpu(0);
 
-	dbg_snapshot_set_core_pmu_val(EHLD_VAL_PM, cpu);
-
 	ctrl->ehld_running = 0;
 
 	ehld_info(1, "@%s: cpu%u ehld stopping\n", __func__, cpu);
@@ -374,6 +372,8 @@ static int exynos_ehld_stop_cpu(unsigned int cpu)
 						__func__, cpu);
 		hrtimer_cancel(hrtimer);
 	}
+
+	dbg_snapshot_set_core_pmu_val(EHLD_VAL_PM, cpu);
 
 	return 0;
 }
