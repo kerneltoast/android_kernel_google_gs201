@@ -8,6 +8,14 @@ function exit_if_error {
   fi
 }
 
+if [ "${BUILD_AOSP_KERNEL}" = "1" ]; then
+  BUILD_KERNEL=1
+  EXPERIMENTAL_BUILD=0
+elif [ "${BUILD_STAGING_KERNEL}" = "1" ]; then
+  BUILD_KERNEL=1
+  EXPERIMENTAL_BUILD=1
+fi
+
 EXPERIMENTAL_BUILD=${EXPERIMENTAL_BUILD:-0}
 TRIM_NONLISTED_KMI=${TRIM_NONLISTED_KMI:-1}
 LTO=${LTO:-thin}
@@ -33,8 +41,8 @@ if [ "${BUILD_KERNEL}" = "0" ]; then
 else
   USING_PREBUILTS=
   if [ "${EXPERIMENTAL_BUILD}" != "0" ]; then
-    GKI_KERNEL_OUT_DIR=android13-5.10-staging
-    GKI_KERNEL_BUILD_CONFIG=common/build.config.gki.aarch64
+    GKI_KERNEL_OUT_DIR=android13-5.10-pixel-staging
+    GKI_KERNEL_BUILD_CONFIG=aosp-staging/build.config.gki.aarch64
   else
     GKI_KERNEL_OUT_DIR=android13-5.10
     GKI_KERNEL_BUILD_CONFIG=aosp/build.config.gki.aarch64
