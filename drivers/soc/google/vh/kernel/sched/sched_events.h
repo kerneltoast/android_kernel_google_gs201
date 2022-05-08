@@ -506,11 +506,11 @@ TRACE_EVENT(sched_cpu_util_rt,
 TRACE_EVENT(sched_find_least_loaded_cpu,
 
 	TP_PROTO(struct task_struct *tsk, int group, unsigned long uclamp_min,
-		 unsigned long uclamp_max, bool check_util, unsigned long min_cpu_util,
+		 unsigned long uclamp_max, bool check_fit, unsigned long min_cpu_util,
 		 unsigned long min_cpu_capacity, unsigned int min_exit_lat, int prev_cpu,
 		 int best_cpu, unsigned long lowest_mask, unsigned long backup_mask),
 
-	TP_ARGS(tsk, group, uclamp_min, uclamp_max, check_util, min_cpu_util, min_cpu_capacity,
+	TP_ARGS(tsk, group, uclamp_min, uclamp_max, check_fit, min_cpu_util, min_cpu_capacity,
 		min_exit_lat, prev_cpu, best_cpu, lowest_mask, backup_mask),
 
 	TP_STRUCT__entry(
@@ -519,7 +519,7 @@ TRACE_EVENT(sched_find_least_loaded_cpu,
 		__field(int,		group)
 		__field(unsigned long,	uclamp_min)
 		__field(unsigned long,	uclamp_max)
-		__field(bool,		check_util)
+		__field(bool,		check_fit)
 		__field(unsigned long,	min_cpu_util)
 		__field(unsigned long,	min_cpu_capacity)
 		__field(unsigned int,	min_exit_lat)
@@ -535,7 +535,7 @@ TRACE_EVENT(sched_find_least_loaded_cpu,
 		__entry->group                   = group;
 		__entry->uclamp_min              = uclamp_min;
 		__entry->uclamp_max              = uclamp_max;
-		__entry->check_util              = check_util;
+		__entry->check_fit               = check_fit;
 		__entry->min_cpu_util            = min_cpu_util;
 		__entry->min_cpu_capacity        = min_cpu_capacity;
 		__entry->min_exit_lat            = min_exit_lat;
@@ -545,11 +545,11 @@ TRACE_EVENT(sched_find_least_loaded_cpu,
 		__entry->backup_mask             = backup_mask;
 		),
 
-	TP_printk("pid=%d comm=%s group=%d uclamp_min=%lu uclamp_max=%lu check_util=%d " \
+	TP_printk("pid=%d comm=%s group=%d uclamp_min=%lu uclamp_max=%lu check_fit=%d " \
 		"min_cpu_util=%lu min_cpu_capacity=%lu min_exit_lat=%u prev_cpu=%d best_cpu=%d " \
 		"lowest_mask=0x%lx backup_mask=0x%lx",
 		__entry->pid, __entry->comm, __entry->group, __entry->uclamp_min,
-		__entry->uclamp_max, __entry->check_util, __entry->min_cpu_util,
+		__entry->uclamp_max, __entry->check_fit, __entry->min_cpu_util,
 		__entry->min_cpu_capacity, __entry->min_exit_lat, __entry->prev_cpu,
 		__entry->best_cpu, __entry->lowest_mask, __entry->backup_mask)
 );
