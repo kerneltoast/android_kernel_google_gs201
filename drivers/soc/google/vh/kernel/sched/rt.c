@@ -92,7 +92,8 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 	unsigned int exit_lat, min_exit_lat;
 	unsigned int best_busy_importance, cpu_importance, least_importance;
 	struct cpuidle_state *idle;
-	bool check_util = true;
+	bool check_overutilized = true;
+	bool check_fit = true;
 	int prev_cpu = task_cpu(p);
 	bool overutilize, task_fits;
 
@@ -142,7 +143,10 @@ redo:
 		trace_sched_cpu_util_rt(cpu, capacity, util, exit_lat, cpu_importance, task_fits,
 					overutilize);
 
-		if (check_util && (!task_fits || overutilize))
+		if (check_fit && !task_fits)
+			continue;
+
+		if (check_overutilized && overutilize)
 			continue;
 
 		/* select non-idle cpus without important tasks first */
@@ -198,9 +202,15 @@ redo:
 		least_used_best_cpu = cpu;
 	}
 
+	/* If there is no candidate found, redo without check overutilized. */
+	if (best_busy_cpu == -1 && least_used_best_cpu == -1 && check_overutilized) {
+		check_overutilized = false;
+		goto redo;
+	}
+
 	/* If there is no candidate found, redo without check util. */
-	if (best_busy_cpu == -1 && least_used_best_cpu == -1 && check_util) {
-		check_util = false;
+	if (best_busy_cpu == -1 && least_used_best_cpu == -1 && check_fit) {
+		check_fit = false;
 		goto redo;
 	}
 
@@ -221,9 +231,10 @@ redo:
 
 	trace_sched_find_least_loaded_cpu(p, get_vendor_task_struct(p)->group,
 					  uclamp_eff_value(p, UCLAMP_MIN),
-					  uclamp_eff_value(p, UCLAMP_MAX), check_util, min_cpu_util,
-					  min_cpu_capacity, min_exit_lat, prev_cpu, best_cpu,
-					  *lowest_mask->bits, *backup_mask->bits);
+					  uclamp_eff_value(p, UCLAMP_MAX), check_fit,
+					  min_cpu_util, min_cpu_capacity, min_exit_lat,
+					  prev_cpu, best_cpu, *lowest_mask->bits,
+					  *backup_mask->bits);
 
 	return best_cpu;
 }
@@ -235,6 +246,11 @@ redo:
  * This part of code is vendor hook functions, which modify or extend the original
  * functions.
  */
+
+static inline bool rt_task_fits_uclamp_min(struct task_struct *p, int cpu)
+{
+	return capacity_cap(cpu) >= uclamp_eff_value(p, UCLAMP_MIN);
+}
 
 static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
 {
@@ -264,7 +280,8 @@ static int find_lowest_rq(struct task_struct *p, struct cpumask *backup_mask)
 		return cpumask_first(p->cpus_ptr);
 	}
 
-	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, &lowest_mask, NULL);
+	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, &lowest_mask,
+				rt_task_fits_uclamp_min);
 	if (!ret) {
 		return -1;
 	}
