@@ -378,7 +378,7 @@ static ssize_t exynos_pcie_rc_store(struct device *dev, struct device_attribute 
 		dev_info(dev, "PM_POWER_STATE  = 0x%08x\n",
 			 exynos_phy_pcs_read(exynos_pcie, 0x188));
 		exynos_elbi_write(exynos_pcie, 0x1, APP_INIT_RST);
-		break;
+		return count;
 
 	case 16:
 		exynos_pcie_rc_set_outbound_atu(1, 0x47200000, 0x0, SZ_1M);
