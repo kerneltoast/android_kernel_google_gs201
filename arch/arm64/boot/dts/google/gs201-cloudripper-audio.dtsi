@@ -306,6 +306,8 @@
 
 &aoc {
 	aoc-board-cfg = "cr";
+	aoc-board-id = <0x30101>;
+	aoc-board-rev = <0x10000>;
 };
 
 &cs40l26a_haptics {
