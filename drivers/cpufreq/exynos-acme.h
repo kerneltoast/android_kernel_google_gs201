@@ -85,6 +85,11 @@ struct exynos_cpufreq_domain {
 	bool				need_awake;
 
 	struct thermal_cooling_device *cdev;
+
+	/* Thermal pressure */
+	int dfs_throttle_count;
+	unsigned int max_dfs_count;
+	spinlock_t thermal_update_lock;
 };
 
 /*
