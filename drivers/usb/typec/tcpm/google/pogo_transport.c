@@ -36,6 +36,8 @@ enum pogo_event_type {
 	EVENT_DOCKING,
 	/* Enable USB-C data, when pogo usb data is active */
 	EVENT_MOVE_DATA_TO_USB,
+	/* Enable pogo data, when pogo is available */
+	EVENT_MOVE_DATA_TO_POGO,
 	/* Retry reading power supply voltage to detect dock type */
 	EVENT_RETRY_READ_VOLTAGE,
 	/* Reported when data over USB-C is enabled/disabled */
@@ -69,6 +71,8 @@ struct pogo_transport {
 	bool pogo_usb_capable;
 	/* When true, both pogo and usb-c have equal priority. */
 	bool equal_priority;
+	/* When true, pogo takes higher priority */
+	bool force_pogo;
 	struct kthread_worker *wq;
 	/* To read voltage at the pogo pins */
 	struct power_supply *pogo_psy;
@@ -104,6 +108,58 @@ static void update_extcon_dev(struct pogo_transport *pogo_transport, bool docked
 	if (ret)
 		dev_err(pogo_transport->dev, "%s Failed to %s EXTCON_DOCK\n", __func__,
 			docked ? "set" : "clear");
+}
+
+static void switch_to_usbc_locked(struct pogo_transport *pogo_transport)
+{
+	struct max77759_plat *chip = pogo_transport->chip;
+	int ret;
+
+	if (pogo_transport->pogo_usb_active) {
+		ret = extcon_set_state_sync(chip->extcon, EXTCON_USB_HOST, 0);
+		logbuffer_log(chip->log, "%s: %s turning off host for Pogo", __func__, ret < 0 ?
+			      "Failed" : "Succeeded");
+		pogo_transport->pogo_usb_active = false;
+	}
+
+	ret = pinctrl_select_state(pogo_transport->pinctrl, pogo_transport->susp_usb_state);
+	if (ret)
+		dev_err(pogo_transport->dev, "failed to select suspend in usb state ret:%d\n", ret);
+
+	gpio_set_value(pogo_transport->pogo_data_mux_gpio, 0);
+	logbuffer_log(pogo_transport->log, "POGO: data-mux:%d",
+		      gpio_get_value(pogo_transport->pogo_data_mux_gpio));
+	data_alt_path_active(chip, false);
+	enable_data_path_locked(chip);
+}
+
+static void switch_to_pogo_locked(struct pogo_transport *pogo_transport)
+{
+	struct max77759_plat *chip = pogo_transport->chip;
+	int ret;
+
+	data_alt_path_active(chip, true);
+	if (chip->data_active) {
+		ret = extcon_set_state_sync(chip->extcon, chip->active_data_role == TYPEC_HOST ?
+					    EXTCON_USB_HOST : EXTCON_USB, 0);
+
+		logbuffer_log(chip->log, "%s turning off %s", ret < 0 ? "Failed" : "Succeeded",
+			      chip->active_data_role == TYPEC_HOST ? "Host" : "Device");
+		chip->data_active = false;
+	}
+
+	ret = pinctrl_select_state(pogo_transport->pinctrl, pogo_transport->susp_pogo_state);
+	if (ret)
+		dev_err(pogo_transport->dev, "failed to select suspend in pogo state ret:%d\n",
+			ret);
+
+	gpio_set_value(pogo_transport->pogo_data_mux_gpio, 1);
+	logbuffer_log(pogo_transport->log, "POGO: data-mux:%d",
+		      gpio_get_value(pogo_transport->pogo_data_mux_gpio));
+	ret = extcon_set_state_sync(chip->extcon, EXTCON_USB_HOST, 1);
+	logbuffer_log(chip->log, "%s: %s turning on host for Pogo", __func__, ret < 0 ?
+		      "Failed" : "Succeeded");
+	pogo_transport->pogo_usb_active = true;
 }
 
 static void update_pogo_transport(struct kthread_work *work)
@@ -172,19 +228,33 @@ static void update_pogo_transport(struct kthread_work *work)
 	}
 
 	dev_info(pogo_transport->dev,
-		 "%s event:%d force_usb:%d pogo_usb:%d pogo_usb_active:%d data_active:%d voltage_now:%d\n",
-		 __func__,
+		 "event:%d force_usb:%d force_pogo:%d pogo_usb:%d pogo_usb_active:%d data_active:%d voltage_now:%d\n",
 		 event->event_type,
 		 modparam_force_usb ? 1 : 0,
+		 pogo_transport->force_pogo ? 1 : 0,
 		 pogo_transport->pogo_usb_capable ? 1 : 0,
 		 pogo_transport->pogo_usb_active ? 1 : 0,
 		 chip->data_active ? 1 : 0,
 		 voltage_now.intval);
 
 	mutex_lock(&chip->data_path_lock);
-	if (modparam_force_usb) {
+
+	/* Special case for force_usb: ignore everything */
+	if (modparam_force_usb)
 		goto exit;
-	} else if (pogo_transport->pogo_usb_capable && !pogo_transport->pogo_usb_active) {
+
+	/*
+	 * Special case for force_pogo: switch to pogo if available; switch to usbc when undocking.
+	 */
+	if (pogo_transport->force_pogo) {
+		if (pogo_transport->pogo_usb_capable && !pogo_transport->pogo_usb_active)
+			switch_to_pogo_locked(pogo_transport);
+		else if (!pogo_transport->pogo_usb_capable && pogo_transport->pogo_usb_active)
+			switch_to_usbc_locked(pogo_transport);
+		goto exit;
+	}
+
+	if (pogo_transport->pogo_usb_capable && !pogo_transport->pogo_usb_active) {
 		/*
 		 * Pogo treated with same priority as USB-C, hence skip enabling
 		 * pogo usb as USB-C is active.
@@ -193,49 +263,11 @@ static void update_pogo_transport(struct kthread_work *work)
 			dev_info(pogo_transport->dev, "usb active, skipping enable pogo usb\n");
 			goto exit;
 		}
-		data_alt_path_active(chip, true);
-		if (chip->data_active) {
-			ret = extcon_set_state_sync(chip->extcon,
-						    chip->active_data_role == TYPEC_HOST ?
-						    EXTCON_USB_HOST : EXTCON_USB, 0);
-
-			logbuffer_log(chip->log, "%s turning off %s",
-				      ret < 0 ? "Failed" : "Succeeded",
-				      chip->active_data_role == TYPEC_HOST ? "Host" : "Device");
-			chip->data_active = false;
-		}
-
-		ret = pinctrl_select_state(pogo_transport->pinctrl,
-					   pogo_transport->susp_pogo_state);
-		if (ret)
-			dev_err(pogo_transport->dev, "failed to select suspend in ppogo state ret:%d\n",
-				ret);
-
-		gpio_set_value(pogo_transport->pogo_data_mux_gpio, 1);
-		logbuffer_log(pogo_transport->log, "POGO: data-mux:%d",
-			      gpio_get_value(pogo_transport->pogo_data_mux_gpio));
-		ret = extcon_set_state_sync(chip->extcon, EXTCON_USB_HOST, 1);
-		logbuffer_log(chip->log, "%s: %s turning on host for Pogo", __func__, ret < 0 ?
-			      "Failed" : "Succeeded");
-		pogo_transport->pogo_usb_active = true;
+		switch_to_pogo_locked(pogo_transport);
 	} else if ((!pogo_transport->pogo_usb_capable ||
 		    event->event_type == EVENT_MOVE_DATA_TO_USB) &&
 		   pogo_transport->pogo_usb_active) {
-		ret = extcon_set_state_sync(chip->extcon, EXTCON_USB_HOST, 0);
-		logbuffer_log(chip->log, "%s: %s turning off host for Pogo", __func__, ret < 0 ?
-			      "Failed" : "Succeeded");
-		pogo_transport->pogo_usb_active = false;
-
-		ret = pinctrl_select_state(pogo_transport->pinctrl, pogo_transport->susp_usb_state);
-		if (ret)
-			dev_err(pogo_transport->dev, "failed to select suspend in usb state ret:%d\n",
-				ret);
-
-		gpio_set_value(pogo_transport->pogo_data_mux_gpio, 0);
-		logbuffer_log(pogo_transport->log, "POGO: data-mux:%d",
-			      gpio_get_value(pogo_transport->pogo_data_mux_gpio));
-		data_alt_path_active(chip, false);
-		enable_data_path_locked(chip);
+		switch_to_usbc_locked(pogo_transport);
 	}
 exit:
 	mutex_unlock(&chip->data_path_lock);
@@ -593,10 +625,34 @@ static ssize_t move_data_to_usb_store(struct device *dev, struct device_attribut
 }
 static DEVICE_ATTR_WO(move_data_to_usb);
 
+static ssize_t force_pogo_store(struct device *dev, struct device_attribute *attr, const char *buf,
+				size_t size)
+{
+	struct pogo_transport *pogo_transport = dev_get_drvdata(dev);
+	bool force_pogo;
+
+	if (kstrtobool(buf, &force_pogo))
+		return -EINVAL;
+
+	pogo_transport->force_pogo = force_pogo;
+	if (force_pogo)
+		pogo_transport_event(pogo_transport, EVENT_MOVE_DATA_TO_POGO, 0);
+
+	return size;
+}
+
+static ssize_t force_pogo_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct pogo_transport *pogo_transport  = dev_get_drvdata(dev);
+	return sysfs_emit(buf, "%u\n", pogo_transport->force_pogo);
+}
+static DEVICE_ATTR_RW(force_pogo);
+
 static struct attribute *pogo_transport_attrs[] = {
 	&dev_attr_move_data_to_usb.attr,
 	&dev_attr_equal_priority.attr,
 	&dev_attr_pogo_usb_active.attr,
+	&dev_attr_force_pogo.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(pogo_transport);
