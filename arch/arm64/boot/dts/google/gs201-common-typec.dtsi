@@ -28,6 +28,7 @@
 		/* Default OVP IC is SLG59H1313C. Config others in overlay if needed. */
 		ovp-present;
 		in-switch-gpio = <&max777x9_gpio 5 GPIO_ACTIVE_LOW>;
+		quick-ramp-vbus-ovp;
 		conn = <&conn>;
 		orientation-switch;
 
