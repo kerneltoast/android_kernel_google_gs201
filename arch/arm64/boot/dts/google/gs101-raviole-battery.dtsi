@@ -59,6 +59,11 @@
 				google,temp-record-thr = <300 350 400>;
 				google,soc-record-thr = <90 90 95>;
 
+				google,bhi-algo-ver = <1>;
+				google,bhi-fcn-count = <3>;
+				google,bhi-status-marginal = <80>;
+				google,bhi-status-need-rep = <70>;
+
 				#thermal-sensor-cells = <0>;
 				#cooling-cells = <2>;
 			};

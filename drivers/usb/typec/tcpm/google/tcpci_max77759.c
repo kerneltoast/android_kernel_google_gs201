@@ -51,6 +51,8 @@
 
 #define PD_ACTIVITY_TIMEOUT_MS				10000
 #define VSAFE0V_DEBOUNCE_MS				15
+/* tCCDebounce max 200ms + tVbusON max 275ms */
+#define VBUS_RAMPUP_TIMEOUT_MS				475
 
 #define GBMS_MODE_VOTABLE "CHARGER_MODE"
 
@@ -79,6 +81,7 @@ enum gbms_charger_modes {
 #define VOLTAGE_ALARM_HI_DIS_MV		21000
 #define VOLTAGE_ALARM_LOW_EN_MV		1500
 #define VOLTAGE_ALARM_LOW_DIS_MV	0
+#define VBUS_PRESENT_THRESHOLD_MV	4000
 
 #define FLOATING_CABLE_OR_SINK_INSTANCE_THRESHOLD	10
 #define AUTO_ULTRA_LOW_POWER_MODE_REENABLE_MS		600000
@@ -87,6 +90,29 @@ enum gbms_charger_modes {
 #define REGMAP_REG_COUNT			(REGMAP_REG_MAX_ADDR + 1)
 
 #define SRC_CURRENT_LIMIT_MA		0
+
+#define tcpc_presenting_rd(reg, cc) \
+	(!(TCPC_ROLE_CTRL_DRP & (reg)) && \
+	 (((reg) & (TCPC_ROLE_CTRL_## cc ##_MASK << TCPC_ROLE_CTRL_## cc ##_SHIFT)) == \
+	  (TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_## cc ##_SHIFT)))
+
+#define cc_open_or_toggling(cc1, cc2) \
+	(((cc1) == TYPEC_CC_OPEN) && ((cc2) == TYPEC_CC_OPEN))
+
+#define rp_3a_detected(cc1, cc2) \
+	((((cc1) == TYPEC_CC_RP_3_0) && ((cc2) == TYPEC_CC_OPEN)) || \
+	 (((cc1) == TYPEC_CC_OPEN) && ((cc2) == TYPEC_CC_RP_3_0)))
+
+#define rp_1a5_detected(cc1, cc2) \
+	((((cc1) == TYPEC_CC_RP_1_5) && ((cc2) == TYPEC_CC_OPEN)) || \
+	 (((cc1) == TYPEC_CC_OPEN) && ((cc2) == TYPEC_CC_RP_1_5)))
+
+#define rp_def_detected(cc1, cc2) \
+	((((cc1) == TYPEC_CC_RP_DEF) && ((cc2) == TYPEC_CC_OPEN)) || \
+	 (((cc1) == TYPEC_CC_OPEN) && ((cc2) == TYPEC_CC_RP_DEF)))
+
+#define port_is_sink(cc1, cc2) \
+	(rp_def_detected(cc1, cc2) || rp_1a5_detected(cc1, cc2) || rp_3a_detected(cc1, cc2))
 
 static struct logbuffer *tcpm_log;
 
@@ -890,6 +916,9 @@ static void process_power_status(struct max77759_plat *chip)
 	logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
 	tcpm_vbus_change(tcpci->port);
 
+	if (chip->quick_ramp_vbus_ovp && chip->vbus_present)
+		kthread_cancel_delayed_work_sync(&chip->reset_ovp_work);
+
 	/* TODO: remove this cc event b/211341677 */
 	if (!strncmp(boot_mode_string, "charger", strlen("charger")) && chip->vbus_present) {
 		dev_info(chip->dev, "WA: trigger cc event in charger mode");
@@ -1019,6 +1048,84 @@ static void floating_cable_sink_detected_handler_locked(struct max77759_plat *ch
 	}
 }
 
+static void reset_ovp_work(struct kthread_work *work)
+{
+	struct max77759_plat *chip  =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct max77759_plat, reset_ovp_work);
+	u16 vbus_mv = max77759_get_vbus_voltage_mv(chip->client);
+
+	logbuffer_log(chip->log, "%s: vbus %u mv", __func__, vbus_mv);
+
+	if (vbus_mv > VBUS_PRESENT_THRESHOLD_MV)
+		return;
+
+	gpio_set_value_cansleep(chip->in_switch_gpio, !chip->in_switch_gpio_active_high);
+	mdelay(10);
+	gpio_set_value_cansleep(chip->in_switch_gpio, chip->in_switch_gpio_active_high);
+
+	logbuffer_log(chip->log, "ovp reset done");
+}
+
+static enum typec_cc_status tcpci_to_typec_cc(unsigned int cc, bool sink)
+{
+	switch (cc) {
+	case 0x1:
+		return sink ? TYPEC_CC_RP_DEF : TYPEC_CC_RA;
+	case 0x2:
+		return sink ? TYPEC_CC_RP_1_5 : TYPEC_CC_RD;
+	case 0x3:
+		if (sink)
+			return TYPEC_CC_RP_3_0;
+		fallthrough;
+	case 0x0:
+	default:
+		return TYPEC_CC_OPEN;
+	}
+}
+
+static void max77759_cache_cc(struct max77759_plat *chip)
+{
+	struct tcpci *tcpci = chip->tcpci;
+	enum typec_cc_status cc1, cc2;
+	u8 reg, role_control;
+	int ret;
+
+	ret = max77759_read8(tcpci->regmap, TCPC_ROLE_CTRL, &role_control);
+	if (ret < 0)
+		return;
+
+	ret = max77759_read8(tcpci->regmap, TCPC_CC_STATUS, &reg);
+	if (ret < 0)
+		return;
+
+	cc1 = tcpci_to_typec_cc((reg >> TCPC_CC_STATUS_CC1_SHIFT) &
+				TCPC_CC_STATUS_CC1_MASK,
+				reg & TCPC_CC_STATUS_TERM ||
+				tcpc_presenting_rd(role_control, CC1));
+	cc2 = tcpci_to_typec_cc((reg >> TCPC_CC_STATUS_CC2_SHIFT) &
+				TCPC_CC_STATUS_CC2_MASK,
+				reg & TCPC_CC_STATUS_TERM ||
+				tcpc_presenting_rd(role_control, CC2));
+
+	/*
+	 * If the Vbus OVP is restricted to quick ramp-up time for incoming Vbus to work properly,
+	 * queue a delayed work to check the Vbus status later. Cancel the delayed work once the CC
+	 * is back to Open as we won't expect that Vbus is coming.
+	 */
+	if (chip->quick_ramp_vbus_ovp) {
+		if (cc_open_or_toggling(chip->cc1, chip->cc2) && port_is_sink(cc1, cc2))
+			kthread_mod_delayed_work(chip->wq, &chip->reset_ovp_work,
+						 msecs_to_jiffies(VBUS_RAMPUP_TIMEOUT_MS));
+		else if (cc_open_or_toggling(cc1, cc2))
+			kthread_cancel_delayed_work_sync(&chip->reset_ovp_work);
+	}
+
+	logbuffer_log(chip->log, "cc1: %u -> %u cc2: %u -> %u", chip->cc1, cc1, chip->cc2, cc2);
+	chip->cc1 = cc1;
+	chip->cc2 = cc2;
+}
+
 static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				 struct logbuffer *log)
 {
@@ -1130,6 +1237,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		if (!chip->contaminant_detection || !tcpm_is_toggling(tcpci->port) ||
 		    !process_contaminant_alert(chip->contaminant, false, true)) {
 			tcpm_cc_change(tcpci->port);
+			max77759_cache_cc(chip);
 			/* TCPM has detected valid CC terminations */
 			if (!tcpm_is_toggling(tcpci->port)) {
 				chip->floating_cable_or_sink_detected = 0;
@@ -1242,10 +1350,20 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		 * short time and then drop to 0 (Vsafe0V), and ramp up to some HIGH voltage
 		 * (e.g Vsafe5V). To ignore the unwanted Vsafe0V event, queue a delayed work and
 		 * re-check the voltage after VSAFE0V_DEBOUNCE_MS.
+		 *
+		 * The OVP which is restricted to quick ramp-up Vbus is the same as the one
+		 * mentioned above. Thus re-use the same flag chip->quick_ramp_vbus_ovp.
 		 */
-		if (!chip->vsafe0v && vsafe0v)
-			kthread_mod_delayed_work(chip->wq, &chip->vsafe0v_work,
-						 msecs_to_jiffies(VSAFE0V_DEBOUNCE_MS));
+		if (chip->quick_ramp_vbus_ovp) {
+			if (!chip->vsafe0v && vsafe0v)
+				kthread_mod_delayed_work(chip->wq, &chip->vsafe0v_work,
+							 msecs_to_jiffies(VSAFE0V_DEBOUNCE_MS));
+		} else if (vsafe0v) {
+			chip->vbus_present = 0;
+			logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__,
+				      chip->vbus_present);
+			tcpm_vbus_change(tcpci->port);
+		}
 
 		chip->vsafe0v = vsafe0v;
 	}
@@ -2309,6 +2427,15 @@ static int max77759_probe(struct i2c_client *client,
 	kthread_init_delayed_work(&chip->icl_work, icl_work_item);
 	kthread_init_delayed_work(&chip->enable_vbus_work, enable_vbus_work);
 	kthread_init_delayed_work(&chip->vsafe0v_work, vsafe0v_debounce_work);
+
+	/*
+	 * b/218797880 Some OVP chips are restricted to quick Vin ramp-up time which means that if
+	 * the ramp-up time is longer than a certain value, the OVP will keep being disabled if the
+	 * status of the ON pin has been already set to active.
+	 */
+	chip->quick_ramp_vbus_ovp = of_property_read_bool(dn, "quick-ramp-vbus-ovp");
+	if (chip->quick_ramp_vbus_ovp)
+		kthread_init_delayed_work(&chip->reset_ovp_work, reset_ovp_work);
 
 	chip->psy_notifier.notifier_call = psy_changed;
 	ret = power_supply_reg_notifier(&chip->psy_notifier);

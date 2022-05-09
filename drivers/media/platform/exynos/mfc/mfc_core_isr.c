@@ -1605,7 +1605,7 @@ static int __mfc_handle_seq_enc(struct mfc_core *core, struct mfc_ctx *ctx)
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
 	struct mfc_buf *dst_mb;
-	int ret, index;
+	int index;
 
 	enc->header_size = mfc_core_get_enc_strm_size();
 	mfc_debug(2, "[STREAM] encoded slice type: %d, header size: %d, display order: %d\n",
@@ -1663,21 +1663,6 @@ static int __mfc_handle_seq_enc(struct mfc_core *core, struct mfc_ctx *ctx)
 
 	/* If the ROI is enabled at SEQ_START, clear ROI_ENABLE bit */
 	mfc_core_clear_roi_enable(core);
-
-	if (core_ctx->codec_buffer_allocated) {
-		mfc_debug(2, "[DRC] previous codec buffer is exist\n");
-
-		if (core->has_llc && core->llc_on_status)
-			mfc_llc_flush(core);
-
-		if (core->has_slc && core->slc_on_status)
-			mfc_slc_flush(core);
-
-		mfc_release_codec_buffers(core_ctx);
-	}
-	ret = mfc_alloc_codec_buffers(core_ctx);
-	if (ret)
-		mfc_err("Failed to allocate encoding buffers\n");
 
 	mfc_change_state(core_ctx, MFCINST_HEAD_PARSED);
 
