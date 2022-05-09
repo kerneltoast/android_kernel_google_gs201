@@ -93,7 +93,8 @@ struct exynos_ehld_ctrl {
 	struct perf_event		*event;
 	struct exynos_ehld_data		data;
 	void __iomem			*dbg_base;
-	int				ehld_running;
+	int				ehld_running;  /* CPUHP state */
+	int				ehld_cpupm;    /* CPUPM state */
 	raw_spinlock_t			lock;
 	bool				need_to_task;
 };
@@ -324,6 +325,7 @@ static int exynos_ehld_start_cpu(unsigned int cpu)
 	}
 
 	ctrl->ehld_running = 1;
+	ctrl->ehld_cpupm = 0;
 	ehld_info(1, "@%s: cpu%u ehld running\n", __func__, cpu);
 
 	if (!ehld_main.dbgc.support)
@@ -357,6 +359,7 @@ static int exynos_ehld_stop_cpu(unsigned int cpu)
 		exynos_ehld_stop_cpu(0);
 
 	ctrl->ehld_running = 0;
+	ctrl->ehld_cpupm = 1;
 
 	ehld_info(1, "@%s: cpu%u ehld stopping\n", __func__, cpu);
 
@@ -406,7 +409,8 @@ void exynos_ehld_event_raw_update(unsigned int cpu, bool update_val)
 	data = &ctrl->data;
 	count = ++data->data_ptr & (NUM_TRACE - 1);
 	data->time[count] = cpu_clock(cpu);
-	if (sjtag_is_locked() || cpu_is_offline(cpu) || !ctrl->ehld_running) {
+	if (sjtag_is_locked() || cpu_is_offline(cpu) || !ctrl->ehld_running ||
+	    ctrl->ehld_cpupm) {
 		val = EHLD_VAL_PM;
 		data->event[count] = val;
 		data->pmpcsr[count] = 0;
@@ -495,31 +499,63 @@ void exynos_ehld_event_raw_dump_allcpu(void)
 		exynos_ehld_event_raw_dump(cpu, false);
 }
 
-static int exynos_ehld_cpu_online(unsigned int cpu)
+static int exynos_ehld_cpu_pm_exit(unsigned int cpu)
 {
 	struct exynos_ehld_ctrl *ctrl;
 	unsigned long flags;
 
 	ctrl = per_cpu_ptr(&ehld_ctrl, cpu);
-
 	raw_spin_lock_irqsave(&ctrl->lock, flags);
-	ctrl->ehld_running = 1;
-	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
+	if (!ctrl->ehld_running)
+		goto out;
 
+	if (ehld_main.dbgc.support && !ehld_main.dbgc.use_tick_timer &&
+	    !ehld_main.suspending && !hrtimer_active(&ctrl->hrtimer)) {
+		hrtimer_start(&ctrl->hrtimer,
+			      ns_to_ktime(ehld_main.dbgc.interval * 1000 * 1000),
+			      HRTIMER_MODE_REL_PINNED);
+	}
+
+	/*
+	 * When a CPU core exits PM, we cannot use a constant value
+	 * (EHLD_VAL_PM_POST or zero) here as the wake-up value.
+	 * This is because CPU enters and exits PM frequently, and
+	 * debug core keeps observing the core PMU value frequently.
+	 * A single constant value will look like the core is stuck.
+	 *
+	 * Instead, need to show progress. In the optimal world, we
+	 * would just pull the PMU retired instruction counter here,
+	 * just like the hrtimer callback does. But experimentation
+	 * shows that PMU returns zero rather frequently here.
+	 *
+	 * Thus, we will need to use CPU clock as the initial value.
+	 */
+	dbg_snapshot_set_core_pmu_val(cpu_clock(cpu), cpu);
+	ctrl->ehld_cpupm = 0;
+out:
+	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 	return 0;
 }
 
-static int exynos_ehld_cpu_predown(unsigned int cpu)
+static int exynos_ehld_cpu_pm_enter(unsigned int cpu)
 {
 	struct exynos_ehld_ctrl *ctrl;
 	unsigned long flags;
 
 	ctrl = per_cpu_ptr(&ehld_ctrl, cpu);
-
 	raw_spin_lock_irqsave(&ctrl->lock, flags);
-	ctrl->ehld_running = 0;
-	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
+	if (!ctrl->ehld_running)
+		goto out;
 
+	if (ehld_main.dbgc.support && !ehld_main.dbgc.use_tick_timer &&
+	    !ehld_main.suspending && hrtimer_active(&ctrl->hrtimer)) {
+		hrtimer_cancel(&ctrl->hrtimer);
+	}
+
+	dbg_snapshot_set_core_pmu_val(EHLD_VAL_PM_PREPARE, cpu);
+	ctrl->ehld_cpupm = 1;
+out:
+	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
 	return 0;
 }
 
@@ -626,8 +662,7 @@ static int exynos_ehld_c2_pm_enter_notifier(struct notifier_block *self,
 
 	switch (action) {
 	case CPU_PM_ENTER:
-		dbg_snapshot_set_core_pmu_val(EHLD_VAL_PM_PREPARE, cpu);
-		exynos_ehld_cpu_predown(cpu);
+		exynos_ehld_cpu_pm_enter(cpu);
 		break;
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
@@ -651,22 +686,7 @@ static int exynos_ehld_c2_pm_exit_notifier(struct notifier_block *self,
 		break;
 	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
-		exynos_ehld_cpu_online(cpu);
-		/*
-		 * When a CPU core exits PM, we cannot use a constant value
-		 * (EHLD_VAL_PM_POST or zero) here as the wake-up value.
-		 * This is because CPU enters and exits PM frequently, and
-		 * debug core keeps observing the core PMU value frequently.
-		 * A single constant value will look like the core is stuck.
-		 *
-		 * Instead, need to show progress. In the optimal world, we
-		 * would just pull the PMU retired instruction counter here,
-		 * just like the hrtimer callback does. But experimentation
-		 * shows that PMU returns zero rather frequently here.
-		 *
-		 * Thus, we will need to use CPU clock as the initial value.
-		 */
-		dbg_snapshot_set_core_pmu_val(cpu_clock(cpu), cpu);
+		exynos_ehld_cpu_pm_exit(cpu);
 		break;
 	case CPU_CLUSTER_PM_ENTER:
 		break;
@@ -878,14 +898,14 @@ static int exynos_ehld_setup(void)
 	register_reboot_notifier(&exynos_ehld_reboot_block);
 	atomic_notifier_chain_register(&panic_notifier_list, &exynos_ehld_panic_block);
 
+	/* register cpu pm notifier for C2 */
+	cpu_pm_register_notifier(&exynos_ehld_c2_pm_enter_nb);
+	cpu_pm_register_notifier(&exynos_ehld_c2_pm_exit_nb);
+
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "exynos-ehld:online",
 			exynos_ehld_start_cpu, exynos_ehld_stop_cpu);
 	if (ret > 0)
 		ret = 0;
-
-	/* register cpu pm notifier for C2 */
-	cpu_pm_register_notifier(&exynos_ehld_c2_pm_enter_nb);
-	cpu_pm_register_notifier(&exynos_ehld_c2_pm_exit_nb);
 
 	return ret;
 }
