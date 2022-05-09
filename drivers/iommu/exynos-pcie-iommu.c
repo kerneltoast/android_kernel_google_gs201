@@ -938,6 +938,13 @@ static int exynos_iommu_map_once(unsigned long l_iova, phys_addr_t paddr,
 
 	BUG_ON(domain->pgtable == NULL);
 
+	/* Check it is over section size at one request. */
+	if ((l_iova & 0xfffff) + size > SZ_1M) {
+		pr_err("Don't allow : address + size over is section size (0x%llx + 0x%lx)\n",
+			iova, size);
+		return -EINVAL;
+	}
+
 	entry = section_entry(domain->pgtable, iova);
 
 	pent = alloc_lv2entry(domain, entry, iova,
@@ -1010,15 +1017,6 @@ int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 		size += SZ_4K;
 	}
 
-	if (g_sysmmu_drvdata[hsi_block_num]->use_map_once) {
-		/* Check it is over section size at one request. */
-		if (size < SZ_1M && (iova & 0xfffff) + size > SZ_1M) {
-			pr_err("Don't allow : address + size over section size (0x%lx + 0x%lx)\n",
-					iova, size);
-			return -EINVAL;
-		}
-	}
-
 	/* Check for debugging */
 	changed_iova = iova;
 	changed_size = size;
@@ -1040,10 +1038,10 @@ int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 	spin_lock_irqsave(&domain->pgtablelock, flags);
 
 	if (g_sysmmu_drvdata[hsi_block_num]->use_map_once) {
-		if (size < SZ_1M) { /* This code assume that there is no LARGE Pages(64KB) */
+		if (size < SZ_64K) { /* This code assume that there is no LARGE Pages(64KB) */
 			ret = exynos_iommu_map_once(iova, paddr, size, prot, domain);
-
-			goto end_map;
+			if (ret == 0)
+				goto end_map;
 		}
 	}
 
@@ -1187,7 +1185,7 @@ size_t pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num)
 	spin_lock_irqsave(&domain->pgtablelock, flags);
 
 	if (g_sysmmu_drvdata[hsi_block_num]->use_map_once) {
-		if (size < SZ_1M) { /* This code assume that there is no LARGE Pages(64KB) */
+		if (size < SZ_64K) { /* This code assume that there is no LARGE Pages(64KB) */
 			unmapped = exynos_iommu_unmap_once(iova, size, domain);
 			if (unmapped == size)
 				goto end_unmap;
