@@ -74,13 +74,6 @@ struct uclamp_stats {
 	u64 effect_time_in_state_max[UCLAMP_STATS_SLOTS];
 };
 
-struct vendor_cfs_util {
-	raw_spinlock_t lock;
-	struct sched_avg avg;
-	unsigned long util_removed;
-	unsigned int util_est;
-};
-
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 				      unsigned long cap, int cpu);
 
@@ -88,6 +81,17 @@ enum vendor_group_attribute {
 	VTA_TASK_GROUP,
 	VTA_PROC_GROUP,
 };
+
+struct vendor_task_group_struct {
+	enum vendor_group group;
+};
+
+ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[4], struct vendor_task_group_struct t);
+
+static inline struct vendor_task_group_struct *get_vendor_task_group_struct(struct task_group *tg)
+{
+	return (struct vendor_task_group_struct *)tg->android_vendor_data1;
+}
 
 struct vendor_rq_struct {
 	raw_spinlock_t lock;
