@@ -35,8 +35,6 @@ extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum
 extern struct vendor_group_property *get_vendor_group_property(enum vendor_group group);
 static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id);
 
-extern void migrate_vendor_group_util(struct task_struct *p, unsigned int old, unsigned int new);
-
 static struct uclamp_se uclamp_default[UCLAMP_CNT];
 unsigned int pmu_poll_time_ms = 10;
 bool pmu_poll_enabled;
@@ -781,8 +779,6 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 	switch (vta) {
 	case VTA_TASK_GROUP:
 		vp = get_vendor_task_struct(p);
-		if (p->prio >= MAX_RT_PRIO)
-			migrate_vendor_group_util(p, vp->group, val);
 		vp->group = val;
 		for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
 			uclamp_update_active(p, clamp_id);
@@ -790,8 +786,6 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 	case VTA_PROC_GROUP:
 		for_each_thread(p, t) {
 			vp = get_vendor_task_struct(t);
-			if (p->prio >= MAX_RT_PRIO)
-				migrate_vendor_group_util(t, vp->group, val);
 			vp->group = val;
 			for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
 				uclamp_update_active(t, clamp_id);
