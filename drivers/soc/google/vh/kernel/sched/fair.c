@@ -355,7 +355,7 @@ static inline void update_vendor_group_util(u64 now, struct cfs_rq *cfs_rq,
 	unsigned long removed_util;
 	u32 divider;
 
-	if (curr && entity_is_task(curr))
+	if (curr)
 		group = get_vendor_group(task_of(curr));
 
 	for (i = 0; i < VG_MAX; i++) {
