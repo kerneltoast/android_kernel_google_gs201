@@ -13,6 +13,7 @@
 #include <linux/bitops.h>
 #include <linux/of_irq.h>
 #include <linux/delay.h>
+#include <linux/cpuidle.h>
 #include <soc/google/exynos-itmon.h>
 #include <soc/google/debug-snapshot.h>
 
@@ -1901,8 +1902,13 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 	struct itmon_dev *itmon = (struct itmon_dev *)data;
 	struct itmon_platdata *pdata = itmon->pdata;
 	struct itmon_nodegroup *group = NULL;
+	struct cpuidle_driver *drv;
 	bool ret;
 	int i;
+
+	drv = cpuidle_get_driver();
+	if (drv)
+		cpuidle_driver_state_disabled(drv, 1, true);
 
 	itmon_pattern_reset(itmon);
 	dbg_snapshot_itmon_irq_received();
@@ -1927,6 +1933,9 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 		if (!pdata->in_do_policy)
 			itmon_do_dpm_policy(itmon);
 	}
+
+	if (drv)
+		cpuidle_driver_state_disabled(drv, 1, false);
 
 	return IRQ_HANDLED;
 }
