@@ -356,4 +356,6 @@
 
 &aoc {
 	aoc-board-cfg = "sl2";
+	aoc-board-id = <0x201>;
+	aoc-board-rev = <0x101>;
 };
