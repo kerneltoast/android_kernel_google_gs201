@@ -11,6 +11,8 @@
 
 &aoc {
 	aoc-board-cfg = "wf2";
+	aoc-board-id = <0x201>;
+	aoc-board-rev = <0x201>;
 };
 
 &m_ldo30_reg {

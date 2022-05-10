@@ -11,4 +11,6 @@
 
 &aoc {
 	aoc-board-cfg = "o6";
+	aoc-board-id = <0x20302>;
+	aoc-board-rev = <0x10000>;
 };
