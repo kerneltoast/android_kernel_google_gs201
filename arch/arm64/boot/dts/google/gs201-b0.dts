@@ -18,6 +18,7 @@
 };
 
 #include "gs201.dtsi"
+#include "gs201-sysmmu_sync.dtsi"
 
 &mfc {
 	ip_ver = <0x15060000>;
@@ -39,6 +40,116 @@
 };
 &bts_smc3 {
 	reg = <0x0 0x20B4F258 0x4>;
+};
+
+&s2mpu_aur_idma {
+	sysmmu_syncs = <&sysmmu_sync_aur_idma>;
+};
+&s2mpu_aur_inst_data {
+	sysmmu_syncs = <&sysmmu_sync_aur_inst_data>;
+};
+&s2mpu_bo {
+	sysmmu_syncs = <&sysmmu_sync_bo>;
+};
+&s2mpu_cpucl0 {
+	sysmmu_syncs = <&sysmmu_sync_cpucl0>;
+};
+&s2mpu_csis0 {
+	sysmmu_syncs = <&sysmmu_sync_csis0>;
+};
+&s2mpu_csis1 {
+	sysmmu_syncs = <&sysmmu_sync_csis1>;
+};
+&s2mpu_dns {
+	sysmmu_syncs = <&sysmmu_sync_dns>;
+};
+&s2mpu_dpu0 {
+	sysmmu_syncs = <&sysmmu_sync_dpu0>;
+};
+&s2mpu_dpu1 {
+	sysmmu_syncs = <&sysmmu_sync_dpu1>;
+};
+&s2mpu_dpu2 {
+	sysmmu_syncs = <&sysmmu_sync_dpu2>;
+};
+&s2mpu_eh {
+	sysmmu_syncs = <&sysmmu_sync_eh>;
+};
+&s2mpu_g2d0 {
+	sysmmu_syncs = <&sysmmu_sync_g2d0>;
+};
+&s2mpu_g2d1 {
+	sysmmu_syncs = <&sysmmu_sync_g2d1>;
+};
+&s2mpu_g2d2 {
+	sysmmu_syncs = <&sysmmu_sync_g2d2>;
+};
+&s2mpu_g3aa {
+	sysmmu_syncs = <&sysmmu_sync_g3aa>;
+};
+&s2mpu_g3d {
+	sysmmu_syncs = <&sysmmu_sync_g3d0 &sysmmu_sync_g3d1
+			&sysmmu_sync_g3d2 &sysmmu_sync_g3d3>;
+};
+&s2mpu_gdc0 {
+	sysmmu_syncs = <&sysmmu_sync_gdc0>;
+};
+&s2mpu_gdc1 {
+	sysmmu_syncs = <&sysmmu_sync_gdc1>;
+};
+&s2mpu_gdc2 {
+	sysmmu_syncs = <&sysmmu_sync_gdc2>;
+};
+&s2mpu_gsa {
+	sysmmu_syncs = <&sysmmu_sync_gsa>;
+};
+&s2mpu_hsi0 {
+	sysmmu_syncs = <&sysmmu_sync_hsi0>;
+};
+&s2mpu_hsi1 {
+	sysmmu_syncs = <&sysmmu_sync_hsi1>;
+};
+&s2mpu_hsi2 {
+	sysmmu_syncs = <&sysmmu_sync_hsi2>;
+};
+&s2mpu_ipp {
+	sysmmu_syncs = <&sysmmu_sync_ipp>;
+};
+&s2mpu_mcsc0 {
+	sysmmu_syncs = <&sysmmu_sync_mcsc0>;
+};
+&s2mpu_mcsc1 {
+	sysmmu_syncs = <&sysmmu_sync_mcsc1>;
+};
+&s2mpu_mcsc2 {
+	sysmmu_syncs = <&sysmmu_sync_mcsc2>;
+};
+&s2mpu_mfc0 {
+	sysmmu_syncs = <&sysmmu_sync_mfc0>;
+};
+&s2mpu_mfc1 {
+	sysmmu_syncs = <&sysmmu_sync_mfc1>;
+};
+&s2mpu_misc {
+	sysmmu_syncs = <&sysmmu_sync_misc>;
+};
+&s2mpu_tnr0 {
+	sysmmu_syncs = <&sysmmu_sync_tnr0>;
+};
+&s2mpu_tnr1 {
+	sysmmu_syncs = <&sysmmu_sync_tnr1>;
+};
+&s2mpu_tnr2 {
+	sysmmu_syncs = <&sysmmu_sync_tnr2>;
+};
+&s2mpu_tnr3 {
+	sysmmu_syncs = <&sysmmu_sync_tnr3>;
+};
+&s2mpu_tnr4 {
+	sysmmu_syncs = <&sysmmu_sync_tnr4>;
+};
+&s2mpu_tpu {
+	sysmmu_syncs = <&sysmmu_sync_tpu>;
 };
 
 / {
