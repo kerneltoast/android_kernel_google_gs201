@@ -492,7 +492,7 @@ static int gsa_data_xfer_prepare_locked(struct gsa_mbox *mb)
 	++mb->wake_ref_cnt;
 
 	/* resume gsa s2mpu */
-	ret = pm_runtime_get_sync(mb->s2mpu);
+	ret = pkvm_s2mpu_resume(mb->s2mpu);
 	if (ret < 0) {
 		dev_err(mb->s2mpu, "failed to resume s2mpu (%d)\n", ret);
 		goto err_s2mpu_resume;
@@ -527,7 +527,7 @@ static void gsa_data_xfer_finish_locked(struct gsa_mbox *mb)
 	}
 
 	/* suspend gsa s2mpu */
-	rc = pm_runtime_put_sync_suspend(mb->s2mpu);
+	rc = pkvm_s2mpu_suspend(mb->s2mpu);
 	if (rc < 0) {
 		dev_err(mb->s2mpu, "failed to suspend s2mpu (%d), leaking wakelock\n", rc);
 		return;

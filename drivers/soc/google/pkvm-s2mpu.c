@@ -252,17 +252,18 @@ static struct s2mpu_data *s2mpu_dev_data(struct device *dev)
 	return platform_get_drvdata(to_platform_device(dev));
 }
 
-static int s2mpu_suspend(struct device *dev)
+int pkvm_s2mpu_suspend(struct device *dev)
 {
 	struct s2mpu_data *data = s2mpu_dev_data(dev);
 
-	if (data->pkvm_registered)
+	if (data->pkvm_registered && !data->always_on)
 		return pkvm_iommu_suspend(dev);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pkvm_s2mpu_suspend);
 
-static int s2mpu_resume(struct device *dev)
+int pkvm_s2mpu_resume(struct device *dev)
 {
 	struct s2mpu_data *data = s2mpu_dev_data(dev);
 
@@ -272,6 +273,7 @@ static int s2mpu_resume(struct device *dev)
 	writel_relaxed(0, data->base + REG_NS_CTRL0);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pkvm_s2mpu_resume);
 
 static int s2mpu_late_suspend(struct device *dev)
 {
@@ -286,7 +288,7 @@ static int s2mpu_late_suspend(struct device *dev)
 		return 0;
 
 	dev->power.must_resume = true;
-	return s2mpu_suspend(dev);
+	return pkvm_s2mpu_suspend(dev);
 }
 
 static int s2mpu_late_resume(struct device *dev)
@@ -299,7 +301,7 @@ static int s2mpu_late_resume(struct device *dev)
 	if (pm_runtime_status_suspended(dev))
 		return 0;
 
-	return s2mpu_resume(dev);
+	return pkvm_s2mpu_resume(dev);
 }
 
 static int s2mpu_probe(struct platform_device *pdev)
@@ -308,7 +310,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
 	struct s2mpu_data *data;
-	bool off_at_boot;
+	bool off_at_boot, has_pd;
 	int ret;
 
 	data = devm_kmalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -331,6 +333,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 
 	data->always_on = !!of_get_property(np, "always-on", NULL);
 	off_at_boot = !!of_get_property(np, "off-at-boot", NULL);
+	has_pd = !!of_get_property(np, "power-domains", NULL);
 
 	/*
 	 * Try to parse IRQ information. This is optional as it only affects
@@ -357,9 +360,10 @@ static int s2mpu_probe(struct platform_device *pdev)
 	 * the state the hypervisor sets on suspend.
 	 */
 	if (!off_at_boot)
-		WARN_ON(s2mpu_suspend(dev));
+		WARN_ON(pkvm_s2mpu_suspend(dev));
 
-	pm_runtime_enable(dev);
+	if (has_pd || data->always_on)
+		pm_runtime_enable(dev);
 	if (data->always_on)
 		pm_runtime_get_sync(dev);
 
@@ -367,7 +371,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops s2mpu_pm_ops = {
-	SET_RUNTIME_PM_OPS(s2mpu_suspend, s2mpu_resume, NULL)
+	SET_RUNTIME_PM_OPS(pkvm_s2mpu_suspend, pkvm_s2mpu_resume, NULL)
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(s2mpu_late_suspend, s2mpu_late_resume)
 };
 

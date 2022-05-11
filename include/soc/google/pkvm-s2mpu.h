@@ -10,6 +10,9 @@
 
 int pkvm_s2mpu_of_link(struct device *parent);
 
+int pkvm_s2mpu_suspend(struct device *dev);
+int pkvm_s2mpu_resume(struct device *dev);
+
 static inline bool pkvm_s2mpu_ready(struct device *dev)
 {
 	return !!platform_get_drvdata(to_platform_device(dev));
