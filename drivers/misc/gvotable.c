@@ -84,6 +84,9 @@ struct gvotable_election {
 	gvotable_v2sfn_t vote2str;
 	bool	is_int_type;	/* int-type debugfs entries */
 	bool	is_bool_type;
+
+	/* some int-type votables must not have the force_int_* debugfs entry */
+	bool	disable_force_int_entry;
 };
 
 #define gvotable_lock_result(el) mutex_lock(&(el)->re_lock)
@@ -640,6 +643,17 @@ struct gvotable_election *gvotable_election_get_handle(const char *name)
 	return (slot) ? slot->el : NULL;
 }
 EXPORT_SYMBOL_GPL(gvotable_election_get_handle);
+
+int gvotable_disable_force_int_entry(struct gvotable_election *el)
+{
+	if (!el || el->has_name)
+		return -EINVAL;
+
+	el->disable_force_int_entry = true;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(gvotable_disable_force_int_entry);
 
 /* Set name of an election (makes election available for lookup) */
 int gvotable_election_set_name(struct gvotable_election *el, const char *name)
@@ -1440,10 +1454,13 @@ static int gvotable_debugfs_create_el_int(struct election_slot *slot)
 
 	debugfs_create_file("cast_int_vote", 0200, slot->de, slot,
 			    &debugfs_cast_int_vote_fops);
-	debugfs_create_file("force_int_value", 0200, slot->de, slot,
-			    &debugfs_force_int_value_fops);
-	debugfs_create_file("force_int_active", 0200, slot->de, slot,
-			    &debugfs_force_int_active_fops);
+
+	if (!slot->el->disable_force_int_entry) {
+		debugfs_create_file("force_int_value", 0200, slot->de, slot,
+				&debugfs_force_int_value_fops);
+		debugfs_create_file("force_int_active", 0200, slot->de, slot,
+				&debugfs_force_int_active_fops);
+	}
 
 	return 0;
 }

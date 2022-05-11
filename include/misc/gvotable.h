@@ -116,5 +116,6 @@ int gvotable_v2s_uint(char *str, size_t len, const void *vote);
 int gvotable_v2s_uint_hex(char *str, size_t len, const void *vote);
 void gvotable_set_vote2str(struct gvotable_election *el,
 			   gvotable_v2sfn_t vote2str);
+int gvotable_disable_force_int_entry(struct gvotable_election *el);
 
 #endif /* __GOOGLE_GVOTABLE_H_*/
