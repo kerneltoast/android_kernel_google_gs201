@@ -1072,6 +1072,18 @@ static struct attribute *dwc3_exynos_otg_attrs[] = {
 };
 ATTRIBUTE_GROUPS(dwc3_exynos_otg);
 
+static int dwc3_exynos_s2mpu_disable(struct dwc3_exynos *exynos)
+{
+	return (IS_ENABLED(CONFIG_PKVM_S2MPU) && exynos->s2mpu)
+		? pkvm_s2mpu_suspend(exynos->s2mpu) : 0;
+}
+
+static int dwc3_exynos_s2mpu_enable(struct dwc3_exynos *exynos)
+{
+	return (IS_ENABLED(CONFIG_PKVM_S2MPU) && exynos->s2mpu)
+		? pkvm_s2mpu_resume(exynos->s2mpu) : 0;
+}
+
 static int dwc3_exynos_probe(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos;
@@ -1080,6 +1092,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	struct device_node	*node = dev->of_node, *dwc3_np;
 	int			ret;
 	struct phy		*temp_usb_phy;
+	struct device		*s2mpu = NULL;
 
 	temp_usb_phy = devm_phy_get(dev, "usb2-phy");
 	if (IS_ERR(temp_usb_phy)) {
@@ -1088,11 +1101,11 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	}
 
 	if (IS_ENABLED(CONFIG_PKVM_S2MPU)) {
-		ret = pkvm_s2mpu_of_link(dev);
-		if (ret == -EAGAIN)
+		s2mpu = pkvm_s2mpu_of_parse(dev);
+		if (IS_ERR(s2mpu))
+			return PTR_ERR(s2mpu);
+		if (s2mpu && !pkvm_s2mpu_ready(s2mpu))
 			return -EPROBE_DEFER;
-		else if (ret)
-			return ret;
 	}
 
 	exynos = devm_kzalloc(dev, sizeof(*exynos), GFP_KERNEL);
@@ -1108,6 +1121,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, exynos);
 
 	exynos->dev = dev;
+	exynos->s2mpu = s2mpu;
 
 	exynos->idle_ip_index = exynos_get_idle_ip_index(dev_name(dev));
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 0);
@@ -1125,6 +1139,10 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 		dwc3_exynos_clk_unprepare(exynos);
 		return ret;
 	}
+
+	ret = dwc3_exynos_s2mpu_enable(exynos);
+	if (ret)
+		return ret;
 
 	ret = dwc3_exynos_extcon_register(exynos);
 	if (ret < 0) {
@@ -1220,6 +1238,7 @@ populate_err:
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
 vdd33_err:
+	dwc3_exynos_s2mpu_disable(exynos);
 	dwc3_exynos_clk_disable(exynos);
 	dwc3_exynos_clk_unprepare(exynos);
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 1);
@@ -1249,6 +1268,7 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev)) {
+		dwc3_exynos_s2mpu_disable(exynos);
 		dwc3_exynos_clk_disable(exynos);
 		pm_runtime_set_suspended(&pdev->dev);
 	}
@@ -1359,6 +1379,7 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 		return 0;
 	}
 
+	dwc3_exynos_s2mpu_disable(exynos);
 	dwc3_exynos_clk_disable(exynos);
 
 	/* inform what USB state is idle to IDLE_IP */
@@ -1393,6 +1414,12 @@ static int dwc3_exynos_runtime_resume(struct device *dev)
 		return ret;
 	}
 
+	ret = dwc3_exynos_s2mpu_enable(exynos);
+	if (ret) {
+		dev_err(dev, "%s: s2mpu_resume failed\n", __func__);
+		return ret;
+	}
+
 	pm_runtime_mark_last_busy(dev);
 	return 0;
 }
@@ -1406,6 +1433,7 @@ static int dwc3_exynos_suspend(struct device *dev)
 	if (pm_runtime_suspended(dev))
 		return 0;
 
+	dwc3_exynos_s2mpu_disable(exynos);
 	dwc3_exynos_clk_disable(exynos);
 
 	return 0;
@@ -1419,6 +1447,12 @@ static int dwc3_exynos_resume(struct device *dev)
 	ret = dwc3_exynos_clk_enable(exynos);
 	if (ret) {
 		dev_err(dev, "%s: clk_enable failed\n", __func__);
+		return ret;
+	}
+
+	ret = dwc3_exynos_s2mpu_enable(exynos);
+	if (ret) {
+		dev_err(dev, "%s: s2mpu_resume failed\n", __func__);
 		return ret;
 	}
 

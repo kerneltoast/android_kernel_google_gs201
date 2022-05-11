@@ -89,6 +89,8 @@ struct dwc3_exynos {
 	struct clk		**clocks;
 	struct clk		*bus_clock;
 
+	struct device		*s2mpu;
+
 	struct regulator	*vdd33;
 	struct regulator	*vdd10;
 
@@ -135,4 +137,3 @@ void dwc3_exynos_gadget_disconnect_proc(struct dwc3 *dwc);
 int dwc3_core_susphy_set(struct dwc3 *dwc, int on);
 int dwc3_gadget_ep_custom_transfer(struct usb_ep *ep, dma_addr_t trb_dma);
 #endif /* __LINUX_USB_DWC3_EXYNOS_H */
-
