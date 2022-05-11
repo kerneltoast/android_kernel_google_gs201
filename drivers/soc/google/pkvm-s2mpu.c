@@ -85,6 +85,18 @@ int pkvm_s2mpu_of_link(struct device *parent)
 }
 EXPORT_SYMBOL_GPL(pkvm_s2mpu_of_link);
 
+struct device *pkvm_s2mpu_of_parse(struct device *parent)
+{
+	struct platform_device *pdev;
+
+	pdev = __of_get_phandle_pdev(parent, "s2mpu", 0);
+	if (IS_ERR_OR_NULL(pdev))
+		return ERR_PTR(PTR_ERR(pdev));
+
+	return &pdev->dev;
+}
+EXPORT_SYMBOL_GPL(pkvm_s2mpu_of_parse);
+
 static const char *str_fault_direction(u32 fault_info)
 {
 	return (fault_info & FAULT_INFO_RW_BIT) ? "write" : "read";
