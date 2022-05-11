@@ -563,7 +563,7 @@ int smp_call_function_single_async(int cpu, struct __call_single_data *csd)
 {
 	int err = 0;
 
-	preempt_disable();
+	migrate_disable();
 
 	if (csd->flags & CSD_FLAG_LOCK) {
 		err = -EBUSY;
@@ -576,7 +576,7 @@ int smp_call_function_single_async(int cpu, struct __call_single_data *csd)
 	err = generic_exec_single(cpu, csd);
 
 out:
-	preempt_enable();
+	migrate_enable();
 
 	return err;
 }
