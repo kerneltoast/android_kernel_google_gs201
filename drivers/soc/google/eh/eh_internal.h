@@ -91,6 +91,9 @@ struct eh_device {
 	/* EH clock */
 	struct clk *clk;
 
+	/* EH S2MPU device */
+	struct device *s2mpu;
+
 	int error_irq;
 
 	/*
