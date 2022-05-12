@@ -59,7 +59,7 @@
 	};
 	spi17_cs_off: spi17-cs-off {
 		samsung,pins = "gpa4-3";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 		samsung,pin-val = <0>;
