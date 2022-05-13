@@ -274,6 +274,8 @@
 
 				/* Thread priority */
 				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <0>;
 			};
 
 			/* FRONT CAMERA DOKKAEBI */
@@ -356,6 +358,8 @@
 
 				/* Thread priority */
 				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <1>;
 			};
 
 			/* REAR ULTRA WIDE CAMERA SANDWORM */
@@ -438,6 +442,8 @@
 
 				/* Thread priority */
 				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <2>;
 			};
 
 			/* EEPROM GARGOYLE for NAGUAL*/
@@ -480,6 +486,8 @@
 				power-down-seq-delays-us =
 					<1000
 					 1000>;
+
+				i2c-lock-group-id = <0>;
 			};
 
 			/* EEPROM SMAUG for DOKKAEBI */
@@ -515,6 +523,8 @@
 					"regulator";
 				power-down-seq-delays-us =
 					<1000>;
+
+				i2c-lock-group-id = <1>;
 			};
 
 			/* EEPROM SMAUG for SANDWORM */
@@ -550,6 +560,8 @@
 					"regulator";
 				power-down-seq-delays-us =
 					<1000>;
+
+				i2c-lock-group-id = <2>;
 			};
 
 			/* Actuator SLENDERMAN for NAGUAL*/
@@ -595,6 +607,8 @@
 
 				/* Thread priority */
 				periodic-io-thread-priority = <99>;
+
+				i2c-lock-group-id = <0>;
 			};
 
 			/* Ois GARGOYLE for NAGUAL*/
@@ -647,6 +661,8 @@
 
 				/* Thread priority */
 				periodic-io-thread-priority = <99>;
+
+				i2c-lock-group-id = <0>;
 			};
 
 			flash0: flash@0 {
