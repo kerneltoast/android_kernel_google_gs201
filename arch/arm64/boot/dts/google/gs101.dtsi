@@ -813,6 +813,9 @@
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
 
+			/* boot_info */
+			boot_info = <60 2730000>;
+
 			dfs_id = <ACPM_DVFS_MIF>;
 			acpm-ipc-channel = <1>;
 			use_acpm = "true";
@@ -880,6 +883,9 @@
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
+
+			/* boot_info */
+			boot_info = <60 465000>;
 
 			bts_update = "false";
 			dfs_id = <ACPM_DVFS_INT>;
