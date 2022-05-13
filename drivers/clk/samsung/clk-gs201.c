@@ -21,6 +21,54 @@
 #include "../../soc/google/cal-if/gs201/clkout_gs201.h"
 #include "composite.h"
 
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+#include <linux/arm-smccc.h>
+
+#define PAD_CTRL_CLKOUT0 0x18063e80
+#define PAD_CTRL_CLKOUT1 0x18063e84
+
+static const phys_addr_t clkout_addresses[] = {
+	0x1a000810,
+	0x18000810,
+	0x25a00810,
+	0x1ca00810,
+	0x1E080810,
+	0x20c00810,
+	0x20C00814,
+	0x20c10810,
+	0x20c20810,
+	0x1a400810,
+	0x1c200810,
+	0x1b000810,
+	0x1c000818,
+	0x17000810,
+	0x1c600810,
+	0x1a800810,
+	0x27f00810,
+	0x27f00814,
+	0x1d000810,
+	0x11000810,
+	0x11800810,
+	0x14400810,
+	0x1ac00810,
+	0x1b400810,
+	0x1b700810,
+	0x1c800810,
+	0x20800810,
+	0x10010810,
+	0x1e000810,
+	0x20000810,
+	0x1e800810,
+	0x1f000810,
+	0x1aa00810,
+	0x10800810,
+	0x10c00810,
+	0x1bc00810,
+	0x1cc00810
+};
+#endif
+
 static struct samsung_clk_provider *gs201_clk_provider;
 /*
  * list of controller registers to be saved and restored during a
@@ -1502,6 +1550,121 @@ static struct init_vclk gs201_clkout_vclks[] = {
 		NULL),
 };
 
+#ifdef CONFIG_DEBUG_FS
+static int pad_clkout0_get(void *data, u64 *val)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SMC_CMD_PRIV_REG, PAD_CTRL_CLKOUT0,
+		      PRIV_REG_OPTION_READ, 0, 0, 0, 0, 0, &res);
+	*val =  (u64)(res.a0 & 0xFFFFFFFFUL);
+
+	return 0;
+}
+
+static int pad_clkout0_set(void *data, u64 val)
+{
+	int ret = 0;
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SMC_CMD_PRIV_REG, PAD_CTRL_CLKOUT0,
+		      PRIV_REG_OPTION_WRITE, val, 0, 0, 0, 0, &res);
+	if (res.a0 != 0) {
+		pr_err("error writing to pad_clkout0 err=%lu\n", res.a0);
+		ret = res.a0;
+	}
+
+	return ret;
+}
+
+static int pad_clkout1_get(void *data, u64 *val)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SMC_CMD_PRIV_REG, PAD_CTRL_CLKOUT1,
+		      PRIV_REG_OPTION_READ, 0, 0, 0, 0, 0, &res);
+	*val =  (u64)(res.a0 & 0xFFFFFFFFUL);
+
+	return 0;
+}
+
+static int pad_clkout1_set(void *data, u64 val)
+{
+	int ret = 0;
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SMC_CMD_PRIV_REG, PAD_CTRL_CLKOUT1,
+		      PRIV_REG_OPTION_WRITE, val, 0, 0, 0, 0, &res);
+	if (res.a0 != 0) {
+		pr_err("error writing to pad_clkout1 err=%lu\n", res.a0);
+		ret = res.a0;
+	}
+
+	return ret;
+}
+
+static int clkout_addr_get(void *data, u64 *val)
+{
+	struct samsung_clk_provider *scp = data;
+	*val = scp->clkout_addr;
+	return 0;
+}
+
+static int clkout_addr_set(void *data, u64 val)
+{
+	int i;
+	struct samsung_clk_provider *scp = data;
+
+	for (i = 0; i < ARRAY_SIZE(clkout_addresses); i++)
+		if (clkout_addresses[i] == val)
+			break;
+
+	if (i >= ARRAY_SIZE(clkout_addresses)) {
+		pr_err("error address not found\n");
+		return -ENODEV;
+	}
+
+	scp->clkout_addr = val;
+
+	return 0;
+}
+
+static int clkout_val_get(void *data, u64 *val)
+{
+	u32 __iomem *addr;
+	struct samsung_clk_provider *scp = data;
+
+	addr = ioremap(scp->clkout_addr, SZ_4);
+	*val = (u64)ioread32(addr);
+
+	return 0;
+}
+
+static int clkout_val_set(void *data, u64 val)
+{
+	u32 __iomem *addr;
+	struct samsung_clk_provider *scp = data;
+
+	addr = ioremap(scp->clkout_addr, SZ_4);
+	iowrite32((u32)val, addr);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(pad_clkout0_fops, pad_clkout0_get,
+			 pad_clkout0_set, "0x%08llx\n");
+
+DEFINE_DEBUGFS_ATTRIBUTE(pad_clkout1_fops, pad_clkout1_get,
+			 pad_clkout1_set, "0x%08llx\n");
+
+DEFINE_DEBUGFS_ATTRIBUTE(clkout_addr_fops, clkout_addr_get,
+			 clkout_addr_set, "0x%16llx\n");
+
+DEFINE_DEBUGFS_ATTRIBUTE(clkout_val_fops, clkout_val_get,
+			 clkout_val_set, "0x%08llx\n");
+
+#endif
+
 static const struct of_device_id ext_clk_match[] = {
 	{.compatible = "samsung,gs201-oscclk", .data = (void *)0},
 	{},
@@ -1511,6 +1674,9 @@ static int gs201_clock_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	void __iomem *reg_base;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *root;
+#endif
 
 	if (!np)
 		panic("%s: unable to determine soc\n", __func__);
@@ -1720,6 +1886,18 @@ static int gs201_clock_probe(struct platform_device *pdev)
 				1);
 
 	samsung_clk_of_add_provider(np, gs201_clk_provider);
+
+#ifdef CONFIG_DEBUG_FS
+	root = debugfs_create_dir("xclkout", NULL);
+	debugfs_create_file("pad_clkout0", 0644, root, gs201_clk_provider,
+			    &pad_clkout0_fops);
+	debugfs_create_file("pad_clkout1", 0644, root, gs201_clk_provider,
+			    &pad_clkout1_fops);
+	debugfs_create_file("clkout_addr", 0644, root, gs201_clk_provider,
+			    &clkout_addr_fops);
+	debugfs_create_file("clkout_val", 0644, root, gs201_clk_provider,
+			    &clkout_val_fops);
+#endif
 
 	pr_info("GS201: Clock setup completed\n");
 

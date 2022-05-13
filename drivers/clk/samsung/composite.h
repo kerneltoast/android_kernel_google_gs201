@@ -23,6 +23,9 @@ struct samsung_clk_provider {
 	void __iomem *reg_base;
 	struct clk_onecell_data clk_data;
 	spinlock_t lock;
+#ifdef CONFIG_DEBUG_FS
+	phys_addr_t clkout_addr;
+#endif
 };
 
 /*
