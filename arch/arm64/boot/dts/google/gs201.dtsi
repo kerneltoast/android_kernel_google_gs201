@@ -883,6 +883,9 @@
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
 
+			/* boot_info */
+			boot_info = <60 2730000>;
+
 			dfs_id = <ACPM_DVFS_MIF>;
 			acpm-ipc-channel = <1>;
 			use_acpm = "true";
@@ -942,6 +945,9 @@
 
 			freq_info = <100000 100000 100000 100000 533000 533000>;
 			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
+
+			/* boot_info */
+			boot_info = <60 465000>;
 
 			/* governor data */
 			governor = <SIMPLE_INTERACTIVE>;
