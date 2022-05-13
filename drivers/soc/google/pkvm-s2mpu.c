@@ -43,6 +43,7 @@ static const struct of_device_id sysmmu_sync_of_match[];
 
 static int nr_devs_total;
 static atomic_t nr_devs_registered = ATOMIC_INIT(0);
+static atomic_t nr_devs_pkvm_registered = ATOMIC_INIT(0);
 
 static struct platform_device *__of_get_phandle_pdev(struct device *parent,
 						     const char *prop, int index)
@@ -369,7 +370,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct resource *res;
 	struct s2mpu_data *data;
-	bool off_at_boot, has_pd;
+	bool off_at_boot, has_pd, no_pkvm;
 	int ret, nr_devs;
 
 	data = devm_kmalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -393,6 +394,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 	data->always_on = !!of_get_property(np, "always-on", NULL);
 	off_at_boot = !!of_get_property(np, "off-at-boot", NULL);
 	has_pd = !!of_get_property(np, "power-domains", NULL);
+	no_pkvm = !!of_get_property(np, "no-pkvm", NULL);
 
 	/*
 	 * Try to parse IRQ information. This is optional as it only affects
@@ -401,29 +403,37 @@ static int s2mpu_probe(struct platform_device *pdev)
 	 */
 	s2mpu_probe_irq(pdev, data);
 
-	ret = pkvm_iommu_s2mpu_register(dev, res->start);
-	if (ret && ret != -ENODEV) {
-		dev_err(dev, "could not register: %d\n", ret);
-		return ret;
+	if (!no_pkvm) {
+		ret = pkvm_iommu_s2mpu_register(dev, res->start);
+		if (ret && ret != -ENODEV) {
+			dev_err(dev, "could not register: %d\n", ret);
+			return ret;
+		}
+		data->pkvm_registered = ret != -ENODEV;
+	} else {
+		data->pkvm_registered = false;
 	}
-
-	data->pkvm_registered = ret != -ENODEV;
 
 	if (data->pkvm_registered) {
 		ret = sysmmu_sync_probe(dev);
 		if (ret)
 			return ret;
+
+		atomic_inc(&nr_devs_pkvm_registered);
 	}
 
 	platform_set_drvdata(pdev, data);
 	nr_devs = atomic_inc_return(&nr_devs_registered);
 
-	if (data->pkvm_registered)
-		dev_info(dev, "registered with hypervisor [%d/%d]\n", nr_devs, nr_devs_total);
-	else
-		dev_warn(dev, "hypervisor disabled, control from kernel\n");
+	if (data->pkvm_registered) {
+		dev_info(dev, "registered with the hypervisor [%d/%d]\n",
+			 nr_devs, nr_devs_total);
+	} else {
+		dev_warn(dev, "controlled from the kernel [%d/%d]\n",
+			 nr_devs, nr_devs_total);
+	}
 
-	if (data->pkvm_registered && nr_devs == nr_devs_total) {
+	if (nr_devs == nr_devs_total && atomic_read(&nr_devs_pkvm_registered)) {
 		ret = pkvm_iommu_finalize();
 		if (!ret)
 			pr_info("list of devices successfully finalized\n");
