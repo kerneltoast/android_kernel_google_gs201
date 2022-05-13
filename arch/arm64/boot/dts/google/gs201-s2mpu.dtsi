@@ -142,6 +142,7 @@
 		reg = <0x0 0x11070000 0x10000>;
 		interrupts = <GIC_SPI IRQ_SYSMMU_USB_S2_HSI0 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&pd_hsi0>;
+		no-pkvm; // TODO: b/228791172
 	};
 
 	s2mpu_hsi1: s2mpu_hsi1@11880000 {
