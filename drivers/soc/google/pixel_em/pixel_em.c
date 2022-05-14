@@ -8,7 +8,9 @@
 
 #define pr_fmt(fmt) "pixel-em: " fmt
 
+#include <linux/arch_topology.h>
 #include <linux/bitops.h>
+#include <linux/cpufreq.h>
 #include <linux/cpumask.h>
 #include <linux/energy_model.h>
 #include <linux/kobject.h>
@@ -20,6 +22,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#include "../vh/include/pixel_em.h"
+
 #if IS_ENABLED(CONFIG_VH_SCHED)
 extern struct em_perf_domain **vendor_sched_cpu_to_em_pd;
 #endif
@@ -29,19 +33,27 @@ extern struct em_perf_domain **exynos_cpu_cooling_cpu_to_em_pd;
 #endif
 
 static int pixel_em_max_cpu;
-static int pixel_em_num_cpu_pds;
+static int pixel_em_num_clusters;
 
-static struct em_perf_domain **em_pds;
-static struct em_perf_domain **em_pds_backup;
-static struct em_perf_domain **cpu_to_em_pd;
-static int *em_pd_to_cpu; // Map em_pd indice to the first CPU of a PD.
+static struct mutex profile_list_lock;
+static LIST_HEAD(profile_list);
+static struct pixel_em_profile *active_profile;
 
-static struct mutex sysfs_em_pd_lock; // Synchronize sysfs EM table accesses.
+static struct mutex sysfs_lock; // Synchronize sysfs calls.
 static struct kobject *primary_sysfs_folder;
+static struct kobject *profiles_sysfs_folder;
 
 static struct platform_device *platform_dev;
 
-static int pixel_em_count_cpu_pds(void)
+static struct pixel_em_profile *generate_default_em_profile(const char *);
+static void pixel_em_free_profile(struct pixel_em_profile *);
+static int pixel_em_publish_profile(struct pixel_em_profile *);
+static void pixel_em_unpublish_profile(struct pixel_em_profile *);
+
+
+
+
+static int pixel_em_count_clusters(void)
 {
 	int res = 0;
 
@@ -63,178 +75,245 @@ static int pixel_em_count_cpu_pds(void)
 	return res;
 }
 
-static struct em_perf_domain *clone_pd(const struct em_perf_domain *original_pd)
-{
-	struct em_perf_domain *pd;
-
-	pd = kzalloc(sizeof(*pd) + cpumask_size(), GFP_KERNEL);
-	if (!pd)
-		return NULL;
-
-	cpumask_copy(em_span_cpus(pd), em_span_cpus(original_pd));
-
-	pd->nr_perf_states = original_pd->nr_perf_states;
-	pd->milliwatts = original_pd->milliwatts;
-
-	pd->table = kcalloc(original_pd->nr_perf_states, sizeof(struct em_perf_state), GFP_KERNEL);
-	if (!pd->table) {
-		kfree(pd);
-		return NULL;
-	}
-
-	memcpy(pd->table, original_pd->table,
-	       sizeof(struct em_perf_state) * original_pd->nr_perf_states);
-
-	return pd;
-}
-
-static void copy_pd_table(struct em_perf_domain *dest_pd, const struct em_perf_domain *orig_pd)
-{
-	int perf_state_id;
-
-	if (dest_pd->nr_perf_states != orig_pd->nr_perf_states) {
-		pr_err("Trying to copy PDs of different sizes %d and %d!\n",
-		       dest_pd->nr_perf_states,
-		       orig_pd->nr_perf_states);
-		return;
-	}
-
-	for (perf_state_id = 0; perf_state_id < orig_pd->nr_perf_states; perf_state_id++) {
-		dest_pd->table[perf_state_id].power = orig_pd->table[perf_state_id].power;
-		dest_pd->table[perf_state_id].cost = orig_pd->table[perf_state_id].cost;
-	}
-}
-
-static void free_pd(const struct em_perf_domain *pd)
-{
-	if (!pd)
-		return;
-
-	kfree(pd->table);
-	kfree(pd);
-}
-
 static int pixel_em_init_cpu_layout(void)
 {
-	cpumask_t unmatched_cpus;
-	int current_pd_id = 0;
-	int num_cpu_pds;
+	int num_clusters;
 
-	num_cpu_pds = pixel_em_count_cpu_pds();
-	if (num_cpu_pds <= 0)
-		return num_cpu_pds;
-	pixel_em_num_cpu_pds = num_cpu_pds;
+	num_clusters = pixel_em_count_clusters();
+	if (num_clusters <= 0)
+		return num_clusters;
+	pixel_em_num_clusters = num_clusters;
 
 	pixel_em_max_cpu = cpumask_last(cpu_possible_mask);
-
-	cpu_to_em_pd = kcalloc(pixel_em_max_cpu + 1, sizeof(*cpu_to_em_pd), GFP_KERNEL);
-	if (!cpu_to_em_pd)
-		return -ENOMEM;
-
-	em_pd_to_cpu = kcalloc(num_cpu_pds, sizeof(*em_pd_to_cpu), GFP_KERNEL);
-	if (!em_pd_to_cpu)
-		return -ENOMEM;
-
-	em_pds = kcalloc(num_cpu_pds, sizeof(*em_pds), GFP_KERNEL);
-	if (!em_pds)
-		return -ENOMEM;
-
-	em_pds_backup = kcalloc(num_cpu_pds, sizeof(*em_pds_backup), GFP_KERNEL);
-	if (!em_pds_backup)
-		return -ENOMEM;
-
-	cpumask_copy(&unmatched_cpus, cpu_possible_mask);
-
-	while (!cpumask_empty(&unmatched_cpus)) {
-		int first_cpu = cpumask_first(&unmatched_cpus);
-		int pd_cpu;
-		struct em_perf_domain *pd = em_cpu_get(first_cpu);
-		// pd is guaranteed not to be NULL, as pixel_em_count_cpu_pds completed earlier.
-
-		em_pd_to_cpu[current_pd_id] = first_cpu;
-
-		em_pds[current_pd_id] = clone_pd(pd);
-		if (!em_pds[current_pd_id])
-			return -ENOMEM;
-
-		em_pds_backup[current_pd_id] = clone_pd(em_pds[current_pd_id]);
-		if (!em_pds_backup[current_pd_id])
-			return -ENOMEM;
-
-		for_each_cpu(pd_cpu, em_span_cpus(pd)) {
-			pr_debug("For CPU %d's domain, seeing CPU %d.\n", first_cpu, pd_cpu);
-			cpu_to_em_pd[pd_cpu] = em_pds[current_pd_id];
-		}
-
-		cpumask_xor(&unmatched_cpus, &unmatched_cpus, em_span_cpus(pd));
-		current_pd_id++;
-	}
 
 	return 0;
 }
 
-static ssize_t sysfs_profile_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+static bool verify_profile_name(char *name)
 {
-	ssize_t res = 0;
-	int pd_id;
+	char *iter = name;
 
-	mutex_lock(&sysfs_em_pd_lock);
-	for (pd_id = 0; pd_id < pixel_em_num_cpu_pds; pd_id++) {
-		int perf_state_id;
-
-		res += sysfs_emit_at(buf, res, "cpu%d {\n", em_pd_to_cpu[pd_id]);
-
-		for (perf_state_id = 0;
-		     perf_state_id < em_pds[pd_id]->nr_perf_states;
-		     perf_state_id++)
-			res += sysfs_emit_at(buf,
-					     res,
-					     "%lu %lu\n",
-					     em_pds[pd_id]->table[perf_state_id].frequency,
-					     em_pds[pd_id]->table[perf_state_id].power);
-
-		res += sysfs_emit_at(buf, res, "}\n");
-	}
-	mutex_unlock(&sysfs_em_pd_lock);
-	return res;
-}
-
-static void update_em_entry(int cpu_id, unsigned long freq, unsigned long power)
-{
-	int target_opp_index = 0;
-	int max_freq_index;
-	unsigned long max_freq;
-
-	while (target_opp_index < cpu_to_em_pd[cpu_id]->nr_perf_states) {
-		if (cpu_to_em_pd[cpu_id]->table[target_opp_index].frequency >= freq)
-			break;
-		target_opp_index++;
+	if (*name == '\0') {
+		pr_err("Empty profile name!\n");
+		return false;
 	}
 
-	max_freq_index = cpu_to_em_pd[cpu_id]->nr_perf_states - 1;
-	max_freq = cpu_to_em_pd[cpu_id]->table[max_freq_index].frequency;
+	while (*iter) {
+		if ((*iter >= 'a' && *iter <= 'z') ||
+		    (*iter >= 'A' && *iter <= 'Z') ||
+		    (*iter >= '0' && *iter <= '9') ||
+		    (*iter == '-' || *iter == '_') ) {
+			iter++;
+		} else {
+			pr_err("Invalid character '%c' in profile name!\n", *iter);
+			return false;
+		}
+	}
 
-	cpu_to_em_pd[cpu_id]->table[target_opp_index].power = power;
-	cpu_to_em_pd[cpu_id]->table[target_opp_index].cost = div64_u64(max_freq * power, freq);
-	pr_info("Updating cpu_em[%d][%luKHz] to {%lu mW, %lu cost}.\n",
-		cpu_id,
-		freq,
-		power,
-		cpu_to_em_pd[cpu_id]->table[target_opp_index].cost);
+	return true;
 }
 
-static int parse_profile(const char *profile, int profile_length)
+static struct pixel_em_profile *find_profile(const char *name)
 {
-	char *profile_dup = kstrndup(profile, profile_length, GFP_KERNEL);
+	struct pixel_em_profile *profile;
+	struct list_head *pos;
+
+	mutex_lock(&profile_list_lock);
+	list_for_each(pos, &profile_list) {
+		profile = list_entry(pos, struct pixel_em_profile, list);
+		if (strcmp(name, profile->name) == 0) {
+			mutex_unlock(&profile_list_lock);
+			return profile;
+		}
+	}
+	mutex_unlock(&profile_list_lock);
+
+	return NULL;
+}
+
+
+static void apply_profile(struct pixel_em_profile *profile)
+{
+	int cluster_id;
+
+	pr_info("Switching to profile %s...\n", profile->name);
+
+	WRITE_ONCE(active_profile, profile);
+
+	for (cluster_id = 0; cluster_id < profile->num_clusters; cluster_id++) {
+		struct pixel_em_cluster *cluster = &profile->clusters[cluster_id];
+		int cluster_cap = cluster->opps[cluster->num_opps - 1].capacity;
+		int cpu;
+		struct cpufreq_policy *policy;
+
+		for_each_cpu(cpu, &cluster->cpus) {
+			WRITE_ONCE(per_cpu(cpu_scale, cpu), cluster_cap);
+		}
+
+		cpu = cpumask_first(&cluster->cpus);
+		policy = cpufreq_cpu_get(cpu);
+		if (policy) {
+			schedule_work(&policy->update);
+			cpufreq_cpu_put(policy);
+		} else {
+			pr_err("Could not find cpufreq policy for CPU %d!\n", cpu);
+		}
+	}
+}
+
+static bool update_em_entry(struct pixel_em_profile *profile,
+			    int cpu,
+			    unsigned int freq,
+			    unsigned int cap,
+			    unsigned int power)
+{
+	int cluster_id;
+	int opp_id;
+
+	for (cluster_id = 0; cluster_id < profile->num_clusters; cluster_id++) {
+		struct pixel_em_cluster *cluster = &profile->clusters[cluster_id];
+		unsigned long max_freq = cluster->opps[cluster->num_opps - 1].freq;
+
+		if (!cpumask_test_cpu(cpu, &cluster->cpus))
+			continue;
+
+		for (opp_id = 0; opp_id < cluster->num_opps; opp_id++) {
+			if (cluster->opps[opp_id].freq == freq) {
+				cluster->opps[opp_id].capacity = cap;
+				cluster->opps[opp_id].power = power;
+				cluster->opps[opp_id].cost = (max_freq * power) / freq;
+				return true;
+			}
+		}
+	}
+
+	pr_err("Could not find OPP for CPU %d, freq %u in profile '%s'!\n",
+	       cpu,
+	       freq,
+	       profile->name);
+
+	return false;
+}
+
+static void update_profile(struct pixel_em_profile *dst, const struct pixel_em_profile *src)
+{
+	int cluster_id;
+	int opp_id;
+
+	if (dst->num_clusters != src->num_clusters) {
+		pr_err("Cannot update incompatible profiles (different num_clusters)!\n");
+		return;
+	}
+
+	for (cluster_id = 0; cluster_id < dst->num_clusters; cluster_id++) {
+		struct pixel_em_cluster *dst_cluster = &dst->clusters[cluster_id];
+		struct pixel_em_cluster *src_cluster = &src->clusters[cluster_id];
+
+		if (dst_cluster->num_opps != src_cluster->num_opps) {
+			pr_err("Cannot update incompatible profiles (different num_opps)!\n");
+			return;
+		}
+
+		if (!cpumask_equal(&dst_cluster->cpus, &src_cluster->cpus)) {
+			pr_err("Cannot update incompatible profiles (different CPU masks)!\n");
+			return;
+		}
+
+		for (opp_id = 0; opp_id < src_cluster->num_opps; opp_id++) {
+			if (dst_cluster->opps[opp_id].freq != src_cluster->opps[opp_id].freq) {
+				pr_err("Cannot update incompatible profiles (different CPU freqs)!\n");
+				return;
+			}
+			dst_cluster->opps[opp_id].capacity = src_cluster->opps[opp_id].capacity;
+			dst_cluster->opps[opp_id].power = src_cluster->opps[opp_id].power;
+			dst_cluster->opps[opp_id].cost = src_cluster->opps[opp_id].cost;
+		}
+	}
+}
+
+// Checks that frequencies, capacities and powers are ascending on every cluster.
+static bool check_profile_consistency(const struct pixel_em_profile *profile)
+{
+	int cluster_id;
+	int opp_id;
+
+	for (cluster_id = 0; cluster_id < profile->num_clusters; cluster_id++) {
+		struct pixel_em_cluster *cluster = &profile->clusters[cluster_id];
+		for (opp_id = 1; opp_id < cluster->num_opps; opp_id++) {
+			if (cluster->opps[opp_id].freq <= cluster->opps[opp_id -1].freq) {
+				pr_err("Non-ascending frequency in profile (freq: %u KHz)!\n",
+				       cluster->opps[opp_id].freq);
+				return false;
+			}
+			if (cluster->opps[opp_id].capacity <= cluster->opps[opp_id -1].capacity) {
+				pr_err("Non-ascending capacity in profile (capacity: %u)!\n",
+				       cluster->opps[opp_id].capacity);
+				return false;
+			}
+			if (cluster->opps[opp_id].power <= cluster->opps[opp_id -1].power) {
+				pr_err("Non-ascending power in profile (power: %u mW)!\n",
+				       cluster->opps[opp_id].power);
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+static void scale_profile_capacities(struct pixel_em_profile *profile)
+{
+	int cluster_id;
+	int opp_id;
+	unsigned int orig_max_cap = 0;
+	const unsigned int scaling_target = 1024;
+
+	for (cluster_id = 0; cluster_id < profile->num_clusters; cluster_id++) {
+		struct pixel_em_cluster *cluster = &profile->clusters[cluster_id];
+		orig_max_cap = max(orig_max_cap, cluster->opps[cluster->num_opps - 1].capacity);
+	}
+
+	for (cluster_id = 0; cluster_id < profile->num_clusters; cluster_id++) {
+		struct pixel_em_cluster *cluster = &profile->clusters[cluster_id];
+		for (opp_id = 0; opp_id < cluster->num_opps; opp_id++) {
+			cluster->opps[opp_id].capacity *= scaling_target;
+			cluster->opps[opp_id].capacity /= orig_max_cap;
+		}
+	}
+}
+
+static int parse_profile(const char *profile_input, int profile_input_length)
+{
+	char *profile_input_dup = kstrndup(profile_input, profile_input_length, GFP_KERNEL);
 	char *cur_line;
-	char *sep_iterator = profile_dup;
-
+	char *sep_iterator = profile_input_dup;
+	char *profile_name;
+	struct pixel_em_profile *profile;
+	struct pixel_em_profile *pre_existing_profile;
 	int current_cpu_id = -1;
+	int res = profile_input_length;
 
-	int res = 0;
+	if (!profile_input_dup) {
+		res = -ENOMEM;
+		goto early_return;
+	}
 
-	if (!profile_dup)
-		return -ENOMEM;
+	profile_name = strsep(&sep_iterator, "\n");
+	if (!profile_name || !verify_profile_name(profile_name)) {
+		res = -EINVAL;
+		goto early_return;
+	}
+
+	profile = generate_default_em_profile(profile_name);
+	if (!profile) {
+		res = -EINVAL;
+		goto early_return;
+	}
+
+	pre_existing_profile = find_profile(profile->name);
+	if (pre_existing_profile) {
+		pr_info("Updating profile %s...\n", profile->name);
+	}
 
 	while ((cur_line = strsep(&sep_iterator, "\n"))) {
 		char *skipped_blanks = skip_spaces(cur_line);
@@ -246,85 +325,376 @@ static int parse_profile(const char *profile, int profile_length)
 			if (sscanf(skipped_blanks + 3, "%d", &current_cpu_id) != 1) {
 				pr_err("Error when parsing '%s'!\n", skipped_blanks);
 				res = -EINVAL;
-				break;
+				goto early_return;
 			}
 			if (current_cpu_id < 0 || current_cpu_id > pixel_em_max_cpu) {
 				pr_err("Invalid CPU specified on line '%s'!\n", skipped_blanks);
 				res = -EINVAL;
-				break;
+				goto early_return;
 			}
 			pr_debug("Setting active CPU to %d...\n", current_cpu_id);
 		} else if (skipped_blanks[0] != '\0' && skipped_blanks[0] != '}') {
-			unsigned long freq = 0;
-			unsigned long power = 0;
+			unsigned int freq = 0;
+			unsigned int cap = 0;
+			unsigned int power = 0;
 
 			if (current_cpu_id == -1) {
 				pr_err("Error: no CPU id specified before parsing '%s'!\n",
 				       skipped_blanks);
 				res = -EINVAL;
-				break;
+				goto early_return;
 			}
-			if (sscanf(skipped_blanks, "%lu %lu", &freq, &power) != 2) {
+			if (sscanf(skipped_blanks, "%u %u %u", &freq, &cap, &power) != 3) {
 				pr_err("Error when parsing '%s'!\n", skipped_blanks);
 				res = -EINVAL;
-				break;
+				goto early_return;
 			}
-			pr_info("Scanned freq %luKHz, power %lumW for CPU%d.\n",
-				freq,
-				power,
-				current_cpu_id);
-			if (freq == 0 || power == 0) {
-				pr_err("Illegal freq/power combination specified: %lu, %lu.\n",
+			if (freq == 0 || cap == 0 || power == 0) {
+				pr_err("Illegal freq/cap/power combination specified: %u, %u, %u.\n",
 				       freq,
+				       cap,
 				       power);
 				res = -EINVAL;
-				break;
+				goto early_return;
 			}
 
-			update_em_entry(current_cpu_id, freq, power);
+			update_em_entry(profile, current_cpu_id, freq, cap, power);
 		}
 	}
 
-	kfree(profile_dup);
+	if (!check_profile_consistency(profile)) {
+		res = -EINVAL;
+		goto early_return;
+	}
+
+	scale_profile_capacities(profile);
+
+	if (!pre_existing_profile) {
+		int file_res = pixel_em_publish_profile(profile);
+		if (file_res) {
+			pixel_em_free_profile(profile);
+			res = file_res;
+			goto early_return;
+		}
+	} else {
+		update_profile(pre_existing_profile, profile);
+		pixel_em_free_profile(profile);
+		profile = pre_existing_profile;
+		if (profile == active_profile)
+			apply_profile(profile);
+	}
+
+early_return:
+	kfree(profile_input_dup);
+	if (res < 0) {
+		pixel_em_free_profile(profile);
+	} else {
+		pr_info("Successfully created/updated profile '%s'!\n", profile->name);
+	}
+
 	return res;
 }
 
-static ssize_t sysfs_profile_store(struct kobject *kobj,
-				   struct kobj_attribute *attr,
-				   const char *buf,
-				   size_t count)
+static bool generate_em_cluster(struct pixel_em_cluster *dst, struct em_perf_domain *pd)
 {
-	bool parse_successful;
+    int first_cpu = cpumask_first(em_span_cpus(pd));
+    int cpu_scale = topology_get_cpu_scale(first_cpu);
+	int max_freq_index = pd->nr_perf_states - 1;
+	unsigned long max_freq = pd->table[max_freq_index].frequency;
+	int opp_id;
 
-	if (strncasecmp(buf, "default", sizeof("default") - 1) == 0) {
-		int pd_id;
+	cpumask_copy(&dst->cpus, em_span_cpus(pd));
 
-		mutex_lock(&sysfs_em_pd_lock);
-		pr_info("Restoring default profile.\n");
-		for (pd_id = 0; pd_id < pixel_em_num_cpu_pds; pd_id++)
-			copy_pd_table(em_pds[pd_id], em_pds_backup[pd_id]);
-		mutex_unlock(&sysfs_em_pd_lock);
-		return count;
+	dst->num_opps = pd->nr_perf_states;
+
+	dst->opps = kcalloc(dst->num_opps, sizeof(*dst->opps), GFP_KERNEL);
+	if (!dst->opps)
+		return false;
+
+	for (opp_id = 0; opp_id < pd->nr_perf_states; opp_id++) {
+		dst->opps[opp_id].freq = pd->table[opp_id].frequency;
+		dst->opps[opp_id].power = pd->table[opp_id].power;
+		dst->opps[opp_id].cost = pd->table[opp_id].cost;
+		dst->opps[opp_id].capacity = (dst->opps[opp_id].freq * cpu_scale) / max_freq;
 	}
 
-	mutex_lock(&sysfs_em_pd_lock);
-	parse_successful = parse_profile(buf, count);
-	mutex_unlock(&sysfs_em_pd_lock);
-
-	return parse_successful ? count : -EINVAL;
+	return true;
 }
 
-static struct kobj_attribute profile_attr = __ATTR(profile,
-						   0660,
-						   sysfs_profile_show,
-						   sysfs_profile_store);
+static void deallocate_em_cluster(struct pixel_em_cluster *dst)
+{
+	kfree(dst->opps);
+	dst->opps = NULL;
+}
+
+// Returns a valid pixel_em_profile based on default system parameters. This
+// profile is NOT yet registered in the profile list, nor associated to sysfs.
+static struct pixel_em_profile *generate_default_em_profile(const char *name)
+{
+	struct pixel_em_profile *res;
+	cpumask_t unmatched_cpus;
+	int current_cluster_id = 0;
+
+	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	if (!res)
+		goto failed_res_allocation;
+
+	res->name = kstrdup(name, GFP_KERNEL);
+	if (!res->name)
+		goto failed_name_allocation;
+
+	res->num_clusters = pixel_em_num_clusters;
+
+	res->clusters = kcalloc(res->num_clusters, sizeof(*res->clusters), GFP_KERNEL);
+	if (!res->clusters)
+		goto failed_clusters_allocation;
+
+	res->cpu_to_cluster = kcalloc(pixel_em_max_cpu, sizeof(*res->cpu_to_cluster), GFP_KERNEL);
+	if (!res->cpu_to_cluster)
+		goto failed_cpu_to_cluster_allocation;
+
+
+	cpumask_copy(&unmatched_cpus, cpu_possible_mask);
+
+	while (!cpumask_empty(&unmatched_cpus)) {
+		int first_cpu = cpumask_first(&unmatched_cpus);
+		struct em_perf_domain *pd = em_cpu_get(first_cpu);
+		// pd is guaranteed not to be NULL, as pixel_em_count_clusters completed earlier.
+		int pd_cpu;
+
+		if (!generate_em_cluster(&res->clusters[current_cluster_id], pd)) {
+			do {
+				deallocate_em_cluster(&res->clusters[current_cluster_id]);
+			} while (--current_cluster_id >= 0);
+			goto failed_cluster_generation;
+		}
+
+		for_each_cpu(pd_cpu, em_span_cpus(pd)) {
+			res->cpu_to_cluster[pd_cpu] = &res->clusters[current_cluster_id];
+		}
+
+		cpumask_xor(&unmatched_cpus, &unmatched_cpus, em_span_cpus(pd));
+		current_cluster_id++;
+	}
+
+	INIT_LIST_HEAD(&res->list);
+
+	return res;
+
+failed_cluster_generation:
+	kfree(res->cpu_to_cluster);
+
+failed_cpu_to_cluster_allocation:
+	kfree(res->clusters);
+
+failed_clusters_allocation:
+	kfree(res->name);
+
+failed_name_allocation:
+	kfree(res);
+
+failed_res_allocation:
+	return NULL;
+}
+
+static ssize_t sysfs_write_profile_store(struct kobject *kobj,
+					 struct kobj_attribute *attr,
+					 const char *buf,
+					 size_t count)
+{
+	int parse_result;
+
+	mutex_lock(&sysfs_lock);
+	parse_result = parse_profile(buf, count);
+	mutex_unlock(&sysfs_lock);
+
+	return parse_result;
+}
+
+static struct kobj_attribute write_profile_attr = __ATTR(write_profile,
+							 0220,
+							 NULL,
+							 sysfs_write_profile_store);
+
+static ssize_t sysfs_active_profile_show(struct kobject *kobj,
+					 struct kobj_attribute *attr,
+					 char *buf)
+{
+	ssize_t res = 0;
+	struct pixel_em_profile *profile_snapshot;
+
+	mutex_lock(&sysfs_lock);
+
+	profile_snapshot = READ_ONCE(active_profile);
+
+	res = profile_snapshot
+		? sysfs_emit(buf, "%s\n", profile_snapshot->name)
+		: -EINVAL;
+
+	mutex_unlock(&sysfs_lock);
+	return res;
+}
+
+static ssize_t sysfs_active_profile_store(struct kobject *kobj,
+					  struct kobj_attribute *attr,
+					  const char *buf,
+					  size_t count)
+{
+	int res = count;
+	char *profile_name = kstrndup(buf, count, GFP_KERNEL);
+	char *iter = profile_name;
+	struct pixel_em_profile *profile;
+
+	if (!profile_name)
+		return -ENOMEM;
+
+	while (*iter) {
+		if (*iter == '\n') {
+			*iter = '\0';
+			break;
+		}
+		iter++;
+	}
+
+	mutex_lock(&sysfs_lock);
+	profile = find_profile(profile_name);
+	if (profile)
+		apply_profile(profile);
+	else
+		res = -EINVAL;
+	mutex_unlock(&sysfs_lock);
+
+	kfree(profile_name);
+	return res;
+}
+
+static struct kobj_attribute active_profile_attr = __ATTR(active_profile,
+							  0664,
+							  sysfs_active_profile_show,
+							  sysfs_active_profile_store);
+
+struct profile_sysfs_helper {
+	struct kobj_attribute kobj_attr;
+	struct pixel_em_profile *profile;
+};
+
+static ssize_t sysfs_profile_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	ssize_t res = 0;
+	int cluster_id;
+	struct pixel_em_profile *profile = ((struct profile_sysfs_helper *) attr)->profile;
+
+	mutex_lock(&sysfs_lock);
+
+	res += sysfs_emit_at(buf, res, "%s\n", profile->name);
+
+	for (cluster_id = 0; cluster_id < profile->num_clusters; cluster_id++) {
+		int opp_id;
+		int first_cpu = cpumask_first(&profile->clusters[cluster_id].cpus);
+
+		res += sysfs_emit_at(buf, res, "cpu%d {\n", first_cpu);
+
+		for (opp_id = 0;
+		     opp_id < profile->clusters[cluster_id].num_opps;
+		     opp_id++)
+			res += sysfs_emit_at(buf,
+					     res,
+					     "%u %d %d\n",
+					     profile->clusters[cluster_id].opps[opp_id].freq,
+					     profile->clusters[cluster_id].opps[opp_id].capacity,
+					     profile->clusters[cluster_id].opps[opp_id].power);
+
+		res += sysfs_emit_at(buf, res, "}\n");
+	}
+	mutex_unlock(&sysfs_lock);
+	return res;
+}
+
+// Creates a sysfs file for the target profile (in the profiles/ folder), and also adds the
+// profile to the profiles list.
+static int pixel_em_publish_profile(struct pixel_em_profile *profile)
+{
+	profile->sysfs_helper = kzalloc(sizeof(*profile->sysfs_helper), GFP_KERNEL);
+	if (!profile->sysfs_helper)
+		return -ENOMEM;
+
+	profile->sysfs_helper->profile = profile;
+	sysfs_attr_init(&profile->sysfs_helper->kobj_attr);
+	profile->sysfs_helper->kobj_attr.attr.name = profile->name;
+	profile->sysfs_helper->kobj_attr.attr.mode = 0664;
+	profile->sysfs_helper->kobj_attr.show = sysfs_profile_show;
+
+	if (sysfs_create_file(profiles_sysfs_folder, &profile->sysfs_helper->kobj_attr.attr)) {
+		pr_err("Failed to create profile file for '%s'!\n", profile->name);
+		kfree(profile->sysfs_helper);
+		profile->sysfs_helper = NULL;
+		return -EINVAL;
+	}
+
+	mutex_lock(&profile_list_lock);
+	list_add(&profile->list, &profile_list);
+	mutex_unlock(&profile_list_lock);
+	return 0;
+}
+
+static void pixel_em_unpublish_profile(struct pixel_em_profile *profile)
+{
+	if (!profile->sysfs_helper)
+		return;
+
+	mutex_lock(&profile_list_lock);
+	list_del(&profile->list);
+	mutex_unlock(&profile_list_lock);
+
+	sysfs_remove_file(profiles_sysfs_folder, &profile->sysfs_helper->kobj_attr.attr);
+	kfree(profile->sysfs_helper);
+	profile->sysfs_helper = NULL;
+}
+
+static void pixel_em_free_profile(struct pixel_em_profile *profile)
+{
+	int cluster_id;
+
+	if (!profile)
+		return;
+
+	if (profile->sysfs_helper) {
+		// When a profile was published (i.e. got sysfs files / was inserted in
+		// the profiles list), we cannot guarantee that no driver client retains
+		// a reference to it: the sysfs file can be removed, but the rest of the
+		// profile cannot be deallocated.
+		pixel_em_unpublish_profile(profile);
+		return;
+	}
+
+	kfree(profile->name);
+
+	for (cluster_id = 0; cluster_id < profile->num_clusters; cluster_id++) {
+		deallocate_em_cluster(&profile->clusters[cluster_id]);
+	}
+	kfree(profile->clusters);
+	kfree(profile);
+}
 
 static void pixel_em_clean_up_sysfs_nodes(void)
 {
 	if (!primary_sysfs_folder)
 		return;
 
-	sysfs_remove_file(primary_sysfs_folder, &profile_attr.attr);
+	sysfs_remove_file(primary_sysfs_folder, &active_profile_attr.attr);
+	sysfs_remove_file(primary_sysfs_folder, &write_profile_attr.attr);
+
+	if (profiles_sysfs_folder) {
+		struct pixel_em_profile *profile;
+		struct list_head *pos, *tmp;
+
+		list_for_each_safe(pos, tmp, &profile_list) {
+			profile = list_entry(pos, struct pixel_em_profile, list);
+			pixel_em_free_profile(profile);
+		}
+		kobject_put(profiles_sysfs_folder);
+		profiles_sysfs_folder = NULL;
+	}
 
 	kobject_put(primary_sysfs_folder);
 	primary_sysfs_folder = NULL;
@@ -333,18 +703,30 @@ static void pixel_em_clean_up_sysfs_nodes(void)
 static int pixel_em_initialize_sysfs_nodes(void)
 {
 	if (primary_sysfs_folder) {
-		pr_err("Sysfs nodes already initialized!");
+		pr_err("Sysfs nodes already initialized!\n");
 		return -EINVAL;
 	}
 
 	primary_sysfs_folder = kobject_create_and_add("pixel_em", kernel_kobj);
 	if (!primary_sysfs_folder) {
-		pr_err("Failed to create primary sysfs folder!");
+		pr_err("Failed to create primary sysfs folder!\n");
 		return -EINVAL;
 	}
 
-	if (sysfs_create_file(primary_sysfs_folder, &profile_attr.attr)) {
-		pr_err("Failed to create profile file!\n");
+	profiles_sysfs_folder = kobject_create_and_add("profiles", primary_sysfs_folder);
+	if (!profiles_sysfs_folder) {
+		pr_err("Failed to create profiles sysfs folder!\n");
+		return -EINVAL;
+	}
+
+
+	if (sysfs_create_file(primary_sysfs_folder, &write_profile_attr.attr)) {
+		pr_err("Failed to create write_profile file!\n");
+		return -EINVAL;
+	}
+
+	if (sysfs_create_file(primary_sysfs_folder, &active_profile_attr.attr)) {
+		pr_err("Failed to create active_profile file!\n");
 		return -EINVAL;
 	}
 
@@ -364,42 +746,19 @@ static void pixel_em_drv_undo_probe(void)
 		// the pointers may have been shared with other drivers without reference tracking).
 		// => If platform_dev is NULL, free these pointers (if they're not NULL themselves).
 		//    Otherwise, set them to NULL without freeing.
-		kfree(cpu_to_em_pd);
-
-		if (em_pds) {
-			int i;
-
-			for (i = 0; i < pixel_em_num_cpu_pds; i++) {
-				if (em_pds[i])
-					free_pd(em_pds[i]);
-			}
-			kfree(em_pds);
-		}
 	}
 
-	kfree(em_pd_to_cpu);
-	em_pd_to_cpu = NULL;
-
-	if (em_pds_backup) {
-		int i;
-
-		for (i = 0; i < pixel_em_num_cpu_pds; i++) {
-			if (em_pds_backup[i])
-				free_pd(em_pds_backup[i]);
-		}
-		kfree(em_pds_backup);
-		em_pds_backup = NULL;
-	}
-
-	cpu_to_em_pd = NULL;
-	em_pds = NULL;
 	platform_dev = NULL;
 }
 
 static int pixel_em_drv_probe(struct platform_device *dev)
 {
 	int res;
-	const char *dt_profile;
+	struct pixel_em_profile *default_profile;
+
+	mutex_init(&sysfs_lock);
+	mutex_init(&profile_list_lock);
+	INIT_LIST_HEAD(&profile_list);
 
 	res = pixel_em_init_cpu_layout();
 	if (res < 0) {
@@ -407,17 +766,10 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 		return res;
 	}
 
-	if (of_property_read_string(dev->dev.of_node, "profile", &dt_profile)) {
-		pr_info("Could not find EM profile in device tree.\n");
-	} else {
-		int pd_id;
-
-		pr_info("Loading profile from DT.\n");
-		parse_profile(dt_profile, strlen(dt_profile));
-
-		// Override backup values with DT profile.
-		for (pd_id = 0; pd_id < pixel_em_num_cpu_pds; pd_id++)
-			copy_pd_table(em_pds_backup[pd_id], em_pds[pd_id]);
+	default_profile = generate_default_em_profile("default");
+	if (default_profile == NULL) {
+		pixel_em_drv_undo_probe();
+		return -ENOMEM;
 	}
 
 	res = pixel_em_initialize_sysfs_nodes();
@@ -426,21 +778,27 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 		return res;
 	}
 
+	res = pixel_em_publish_profile(default_profile);
+	if (res) {
+		pixel_em_drv_undo_probe();
+		return res;
+	}
+
+	active_profile = default_profile;
+
 	// Probe is successful => do not attempt to free pixel_em_max_cpu or cpu_to_em_pd.
 	platform_dev = dev;
 
 	// Register EM table to all needed drivers here.
 #if IS_ENABLED(CONFIG_VH_SCHED)
-	pr_info("Publishing PDs to vh_sched!\n");
-	WRITE_ONCE(vendor_sched_cpu_to_em_pd, cpu_to_em_pd);
+	pr_info("Publishing EM profile to vh_sched!\n");
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
-	pr_info("Publishing PDs to exynos_cpu_cooling!\n");
-	WRITE_ONCE(exynos_cpu_cooling_cpu_to_em_pd, cpu_to_em_pd);
+	pr_info("Publishing EM profile to exynos_cpu_cooling!\n");
 #endif
 
-	return res;
+	return 0;
 }
 
 static int pixel_em_drv_remove(struct platform_device *dev)
@@ -469,7 +827,6 @@ static struct platform_driver pixel_em_platform_driver = {
 
 static int __init pixel_em_init(void)
 {
-	mutex_init(&sysfs_em_pd_lock);
 	if (platform_driver_register(&pixel_em_platform_driver))
 		pr_err("Error when registering driver!\n");
 
