@@ -25,7 +25,7 @@
 #include "../vh/include/pixel_em.h"
 
 #if IS_ENABLED(CONFIG_VH_SCHED)
-extern struct em_perf_domain **vendor_sched_cpu_to_em_pd;
+extern struct pixel_em_profile **vendor_sched_pixel_em_profile;
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
@@ -818,6 +818,7 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 	// Register EM table to all needed drivers here.
 #if IS_ENABLED(CONFIG_VH_SCHED)
 	pr_info("Publishing EM profile to vh_sched!\n");
+	WRITE_ONCE(vendor_sched_pixel_em_profile, &active_profile);
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
