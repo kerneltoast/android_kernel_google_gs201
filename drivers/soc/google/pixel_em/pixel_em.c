@@ -29,7 +29,7 @@ extern struct pixel_em_profile **vendor_sched_pixel_em_profile;
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
-extern struct em_perf_domain **exynos_cpu_cooling_cpu_to_em_pd;
+extern struct pixel_em_profile **exynos_cpu_cooling_pixel_em_profile;
 #endif
 
 static int pixel_em_max_cpu;
@@ -49,8 +49,6 @@ static struct pixel_em_profile *generate_default_em_profile(const char *);
 static void pixel_em_free_profile(struct pixel_em_profile *);
 static int pixel_em_publish_profile(struct pixel_em_profile *);
 static void pixel_em_unpublish_profile(struct pixel_em_profile *);
-
-
 
 
 static int pixel_em_count_clusters(void)
@@ -823,6 +821,7 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
 	pr_info("Publishing EM profile to exynos_cpu_cooling!\n");
+	WRITE_ONCE(exynos_cpu_cooling_pixel_em_profile, &active_profile);
 #endif
 
 	return 0;
