@@ -24,6 +24,7 @@ DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 unsigned int __read_mostly vendor_sched_uclamp_threshold;
 unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INIT_SCALE;
 bool __read_mostly vendor_sched_npi_packing = true; //non prefer idle packing
+bool __read_mostly vendor_sched_reduce_prefer_idle = true;
 struct proc_dir_entry *vendor_sched;
 extern unsigned int sched_capacity_margin[CPU_NUM];
 
@@ -958,6 +959,37 @@ static ssize_t npi_packing_store(struct file *filp,
 
 PROC_OPS_RW(npi_packing);
 
+static int reduce_prefer_idle_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%s\n", vendor_sched_reduce_prefer_idle ? "true" : "false");
+
+	return 0;
+}
+
+static ssize_t reduce_prefer_idle_store(struct file *filp, const char __user *ubuf,
+					size_t count, loff_t *pos)
+{
+	bool enable;
+	char buf[MAX_PROC_SIZE];
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, count))
+		return -EFAULT;
+
+	buf[count] = '\0';
+
+	if (kstrtobool(buf, &enable))
+		return -EINVAL;
+
+	vendor_sched_reduce_prefer_idle = enable;
+
+	return count;
+}
+
+PROC_OPS_RW(reduce_prefer_idle);
+
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 static int uclamp_stats_show(struct seq_file *m, void *v)
 {
@@ -1311,6 +1343,7 @@ static struct pentry entries[] = {
 	PROC_ENTRY(util_threshold),
 	PROC_ENTRY(util_post_init_scale),
 	PROC_ENTRY(npi_packing),
+	PROC_ENTRY(reduce_prefer_idle),
 	PROC_ENTRY(dump_task),
 	// pmu limit attribute
 	PROC_ENTRY(pmu_poll_time),

@@ -25,6 +25,7 @@ EXPORT_SYMBOL_GPL(vendor_sched_cpu_to_em_pd);
 extern unsigned int vendor_sched_uclamp_threshold;
 extern unsigned int vendor_sched_util_post_init_scale;
 extern bool vendor_sched_npi_packing;
+extern bool vendor_sched_reduce_prefer_idle;
 
 static struct vendor_group_property vg[VG_MAX];
 
@@ -260,11 +261,15 @@ static inline bool get_prefer_idle(struct task_struct *p)
 	// For group based prefer_idle vote, filter our smaller or low prio or
 	// have throttled uclamp.max settings
 	// Ignore all checks, if the prefer_idle is from per-task API.
-	return (vg[get_vendor_task_struct(p)->group].prefer_idle &&
-		task_util_est(p) >= vendor_sched_uclamp_threshold &&
-		p->prio <= DEFAULT_PRIO &&
-		uclamp_eff_value(p, UCLAMP_MAX) == SCHED_CAPACITY_SCALE) ||
+	if (vendor_sched_reduce_prefer_idle)
+		return (vg[get_vendor_task_struct(p)->group].prefer_idle &&
+			task_util_est(p) >= vendor_sched_uclamp_threshold &&
+			p->prio <= DEFAULT_PRIO &&
+			uclamp_eff_value(p, UCLAMP_MAX) == SCHED_CAPACITY_SCALE) ||
 			get_vendor_task_struct(p)->prefer_idle;
+	else
+		return vg[get_vendor_task_struct(p)->group].prefer_idle ||
+		       get_vendor_task_struct(p)->prefer_idle;
 }
 
 bool get_prefer_high_cap(struct task_struct *p)
