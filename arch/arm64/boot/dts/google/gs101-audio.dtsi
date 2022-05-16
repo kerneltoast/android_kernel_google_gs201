@@ -530,11 +530,11 @@
 			dai_fe_ims_rx: fe_ims_rx {
 				dai-name = "audio_immersive";
 				stream-name = "audio_immersive";
-				id = <IDX_IMS_RX>;
+				id = <IDX_IMSV_RX>;
 				dynamic;
 				playback;
 				cpu {
-					sound-dai = <&aud_aoc_path IDX_IMS_RX>;
+					sound-dai = <&aud_aoc_path IDX_IMSV_RX>;
 				};
 				platform {
 					rx1 {

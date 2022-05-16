@@ -47,6 +47,8 @@
 				google,cv-tier-ov-cnt = <10>;
 				google,cv-tier-switch-cnt = <3>;
 
+				google,eeprom-pairing;
+
 				/* rest charging */
 				google,chg-rest-rate = <15>;
 				google,chg-rest-soc = <80>;
