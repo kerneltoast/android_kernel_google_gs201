@@ -4,8 +4,6 @@
  * Author: David Brazdil <dbrazdil@google.com>
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/io.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
@@ -40,9 +38,6 @@ struct s2mpu_mptc_entry {
 };
 
 static const struct of_device_id sysmmu_sync_of_match[];
-
-static int nr_devs_total;
-static atomic_t nr_devs_registered = ATOMIC_INIT(0);
 
 static struct platform_device *__of_get_phandle_pdev(struct device *parent,
 						     const char *prop, int index)
@@ -370,7 +365,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct s2mpu_data *data;
 	bool off_at_boot, has_pd;
-	int ret, nr_devs;
+	int ret;
 
 	data = devm_kmalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -408,28 +403,15 @@ static int s2mpu_probe(struct platform_device *pdev)
 	}
 
 	data->pkvm_registered = ret != -ENODEV;
-
 	if (data->pkvm_registered) {
 		ret = sysmmu_sync_probe(dev);
 		if (ret)
 			return ret;
+	} else {
+		dev_warn(dev, "pKVM disabled, control from kernel\n");
 	}
 
 	platform_set_drvdata(pdev, data);
-	nr_devs = atomic_inc_return(&nr_devs_registered);
-
-	if (data->pkvm_registered)
-		dev_info(dev, "registered with hypervisor [%d/%d]\n", nr_devs, nr_devs_total);
-	else
-		dev_warn(dev, "hypervisor disabled, control from kernel\n");
-
-	if (data->pkvm_registered && nr_devs == nr_devs_total) {
-		ret = pkvm_iommu_finalize();
-		if (!ret)
-			pr_info("list of devices successfully finalized\n");
-		else
-			pr_err("could not finalize: %d\n", ret);
-	}
 
 	/*
 	 * Most S2MPUs are in an allow-all state at boot. Call the hypervisor
@@ -471,19 +453,7 @@ static struct platform_driver s2mpu_driver = {
 	},
 };
 
-static int s2mpu_driver_register(struct platform_driver *driver)
-{
-	struct device_node *np;
-
-	for_each_matching_node(np, driver->driver.of_match_table)
-		if (of_device_is_available(np))
-			nr_devs_total++;
-	pr_info("%d devices to be initialized\n", nr_devs_total);
-
-	return platform_driver_register(driver);
-}
-
-module_driver(s2mpu_driver, s2mpu_driver_register, platform_driver_unregister);
+module_platform_driver(s2mpu_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("David Brazdil <dbrazdil@google.com>");
