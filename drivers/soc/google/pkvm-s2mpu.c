@@ -37,8 +37,6 @@ struct s2mpu_mptc_entry {
 	u32 data;
 };
 
-static const struct of_device_id sysmmu_sync_of_match[];
-
 static struct platform_device *__of_get_phandle_pdev(struct device *parent,
 						     const char *prop, int index)
 {
@@ -318,46 +316,6 @@ static int s2mpu_late_resume(struct device *dev)
 	return pkvm_s2mpu_resume(dev);
 }
 
-static int sysmmu_sync_probe(struct device *parent)
-{
-	struct platform_device *pdev;
-	struct resource *res;
-	int i, ret;
-
-	for (i = 0; (pdev = __of_get_phandle_pdev(parent, "sysmmu_syncs", i)); i++) {
-		if (IS_ERR(pdev))
-			return PTR_ERR(pdev);
-
-		if (!of_match_device(sysmmu_sync_of_match, &pdev->dev)) {
-			dev_err(parent, "%s is not sysmmu_sync compatible",
-				dev_name(&pdev->dev));
-			return -EINVAL;
-		}
-
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res) {
-			dev_err(&pdev->dev, "failed to parse 'reg'");
-			return -EINVAL;
-		}
-
-		if (!devm_request_mem_region(&pdev->dev, res->start,
-					     resource_size(res),
-					     dev_name(&pdev->dev))) {
-			dev_err(&pdev->dev, "failed to request mmio region");
-			return -EINVAL;
-		}
-
-		ret = pkvm_iommu_sysmmu_sync_register(&pdev->dev, res->start,
-						      parent);
-		if (ret) {
-			dev_err(&pdev->dev, "could not register: %d\n", ret);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int s2mpu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -403,13 +361,8 @@ static int s2mpu_probe(struct platform_device *pdev)
 	}
 
 	data->pkvm_registered = ret != -ENODEV;
-	if (data->pkvm_registered) {
-		ret = sysmmu_sync_probe(dev);
-		if (ret)
-			return ret;
-	} else {
+	if (!data->pkvm_registered)
 		dev_warn(dev, "pKVM disabled, control from kernel\n");
-	}
 
 	platform_set_drvdata(pdev, data);
 
@@ -432,11 +385,6 @@ static int s2mpu_probe(struct platform_device *pdev)
 static const struct dev_pm_ops s2mpu_pm_ops = {
 	SET_RUNTIME_PM_OPS(pkvm_s2mpu_suspend, pkvm_s2mpu_resume, NULL)
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(s2mpu_late_suspend, s2mpu_late_resume)
-};
-
-static const struct of_device_id sysmmu_sync_of_match[] = {
-	{ .compatible = "google,sysmmu_sync" },
-	{},
 };
 
 static const struct of_device_id s2mpu_of_match[] = {
