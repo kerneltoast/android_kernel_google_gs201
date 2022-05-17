@@ -24,4 +24,5 @@
 	max77759,wlc-en =  <&gpp27 3 GPIO_ACTIVE_HIGH>;
 	max77759,wlc-vout_is_invalid = <&p9xxx_gpio 14 GPIO_ACTIVE_HIGH>;
 	max77759,wlc-vbus_en = <&p9xxx_gpio 15 GPIO_ACTIVE_HIGH>;
+	max77759,gpio_dc_switch = <&s2mpg10_gpio 0 GPIO_ACTIVE_HIGH>;
 };
