@@ -544,6 +544,10 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 			goto err1;
 		}
 
+		ret = usb_gadget_activate(dwc->gadget);
+		if (ret < 0)
+			dev_err(dev, "USB gadget activate failed with %d\n", ret);
+
 		dwc3_otg_set_peripheral_mode(dotg);
 
 		dev_dbg(dev, "%s: start check usb configuration timer\n", __func__);
@@ -560,6 +564,10 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 
 		if (exynos->extra_delay)
 			msleep(100);
+
+		ret = usb_gadget_deactivate(dwc->gadget);
+		if (ret < 0)
+			dev_err(dev, "USB gadget deactivate failed with %d\n", ret);
 
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
 err1:
