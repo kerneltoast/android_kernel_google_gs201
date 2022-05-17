@@ -76,6 +76,10 @@ struct max77759_plat {
 	unsigned int limit_sink_current;
 	/* Indicate that the Vbus OVP is restricted to quick ramp-up time for incoming voltage. */
 	bool quick_ramp_vbus_ovp;
+	/* Set true to vote "limit_accessory_current" on USB ICL */
+	bool limit_accessory_enable;
+	/* uA */
+	unsigned int limit_accessory_current;
 
 	/* True when TCPC is in SINK DEBUG ACCESSORY CONNECTED state */
 	u8 debug_acc_connected:1;

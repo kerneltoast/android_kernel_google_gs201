@@ -36,6 +36,7 @@
 
 #define TCPCI_MODE_VOTER	"TCPCI"
 #define LIMIT_SINK_VOTER	"LIMIT_SINK_CURRENT_VOTER"
+#define LIMIT_ACCESSORY_VOTER	"LIMIT_ACCESSORY_CURRENT_VOTER"
 
 #define TCPC_RECEIVE_BUFFER_COUNT_OFFSET                0
 #define TCPC_RECEIVE_BUFFER_FRAME_TYPE_OFFSET           1
@@ -398,6 +399,75 @@ static ssize_t usb_limit_source_enable_store(struct device *dev, struct device_a
 }
 static DEVICE_ATTR_RW(usb_limit_source_enable);
 
+static ssize_t usb_limit_accessory_enable_show(struct device *dev, struct device_attribute *attr,
+					  char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return sysfs_emit(buf, "%u\n", chip->limit_accessory_enable);
+};
+
+/* usb_limit_accessory_current has to be set before usb_limit_accessory_enable is invoked */
+static ssize_t usb_limit_accessory_enable_store(struct device *dev, struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	bool enable;
+	int ret;
+
+	if (kstrtobool(buf, &enable) < 0)
+		return -EINVAL;
+
+	if (enable) {
+		ret = gvotable_cast_vote(chip->usb_icl_el, LIMIT_ACCESSORY_VOTER,
+					 (void *)(long)chip->limit_accessory_current, true);
+		if (ret < 0) {
+			dev_err(chip->dev, "Cannot set accessory current %d uA (%d)\n",
+				chip->limit_accessory_current, ret);
+			goto exit;
+		}
+	} else {
+		ret = gvotable_cast_vote(chip->usb_icl_el, LIMIT_ACCESSORY_VOTER, 0, false);
+		if (ret < 0) {
+			dev_err(chip->dev, "Cannot unvote for accessory current (%d)\n", ret);
+			goto exit;
+		}
+	}
+
+	chip->limit_accessory_enable = enable;
+
+exit:
+	return count;
+}
+static DEVICE_ATTR_RW(usb_limit_accessory_enable);
+
+static ssize_t usb_limit_accessory_current_show(struct device *dev, struct device_attribute *attr,
+						char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return sysfs_emit(buf, "%u\n", chip->limit_accessory_current);
+};
+
+static ssize_t usb_limit_accessory_current_store(struct device *dev, struct device_attribute *attr,
+						 const char *buf, size_t count)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	/* Never accept current over 3A */
+	if (val > 3000000)
+		return -EINVAL;
+
+	chip->limit_accessory_current = val;
+
+	return count;
+}
+static DEVICE_ATTR_RW(usb_limit_accessory_current);
+
 static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_frs,
 	&dev_attr_bc12_enabled,
@@ -409,6 +479,8 @@ static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_usb_limit_sink_enable,
 	&dev_attr_usb_limit_sink_current,
 	&dev_attr_usb_limit_source_enable,
+	&dev_attr_usb_limit_accessory_enable,
+	&dev_attr_usb_limit_accessory_current,
 	NULL
 };
 
