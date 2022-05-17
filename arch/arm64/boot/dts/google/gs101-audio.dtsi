@@ -543,6 +543,21 @@
 				};
 			};
 
+			dai_fe_cap_inj_rx: fe_capture_inject_rx {
+				dai-name = "audio_capture_inject";
+				stream-name = "audio_capture_inject";
+				id = <IDX_CAP_INJ_RX>;
+				playback;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_CAP_INJ_RX>;
+				};
+				platform {
+					rx1 {
+						of_drv = <&aoc_incall_ep>;
+					};
+				};
+			};
+
 			dai_be_i2s0_rx: be_i2s0_rx {
 				dai-name = "I2S_0_RX Playback";
 				stream-name = "I2S_0_RX Playback";
