@@ -1074,9 +1074,6 @@ ATTRIBUTE_GROUPS(dwc3_exynos_otg);
 
 static int dwc3_exynos_s2mpu_disable(struct dwc3_exynos *exynos)
 {
-	if (exynos->dotg && exynos->dotg->otg_connection == 1)
-		return -ECANCELED;
-
 	return (IS_ENABLED(CONFIG_PKVM_S2MPU) && exynos->s2mpu)
 		? pkvm_s2mpu_suspend(exynos->s2mpu) : 0;
 }
