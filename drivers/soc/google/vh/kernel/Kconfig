@@ -80,3 +80,7 @@ config VH_PREEMPTIRQ_TRACEPOINTS
         depends on VH_SCHED
         default m
 
+config USE_GROUP_THROTTLE
+        bool "Use group throttle of vendor groups"
+        depends on VH_SCHED
+        default n
