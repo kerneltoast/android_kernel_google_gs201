@@ -131,10 +131,10 @@ redo:
 			}
 		} else {
 			util = cpu_util(cpu) + cpu_util_rt(cpu_rq(cpu));
-
-			if (cpu != prev_cpu)
-				util += task_util(p);
 		}
+
+		if (cpu != prev_cpu)
+			util += task_util(p);
 
 		task_fits = rt_task_fits_capacity(p, cpu);
 		overutilize = cpu_overutilized(uclamp_rq_util_with(cpu_rq(cpu), util, p), capacity,
