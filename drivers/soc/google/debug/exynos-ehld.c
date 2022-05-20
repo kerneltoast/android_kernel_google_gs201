@@ -509,12 +509,17 @@ static int exynos_ehld_cpu_pm_exit(unsigned int cpu)
 	if (!ctrl->ehld_running)
 		goto out;
 
-	if (ehld_main.dbgc.support && !ehld_main.dbgc.use_tick_timer &&
-	    !ehld_main.suspending && !hrtimer_active(&ctrl->hrtimer)) {
-		hrtimer_start(&ctrl->hrtimer,
-			      ns_to_ktime(ehld_main.dbgc.interval * 1000 * 1000),
-			      HRTIMER_MODE_REL_PINNED);
-	}
+	/*
+	 * WAR for b/233011236
+	 * Do not touch hrtimers in EHLD CPUPM callbacks
+	 *
+	 * if (ehld_main.dbgc.support && !ehld_main.dbgc.use_tick_timer &&
+	 *     !ehld_main.suspending && !hrtimer_active(&ctrl->hrtimer)) {
+	 *     hrtimer_start(&ctrl->hrtimer,
+	 *                   ns_to_ktime(ehld_main.dbgc.interval * 1000 * 1000),
+	 *                   HRTIMER_MODE_REL_PINNED);
+	 * }
+	 */
 
 	/*
 	 * When a CPU core exits PM, we cannot use a constant value
@@ -547,10 +552,15 @@ static int exynos_ehld_cpu_pm_enter(unsigned int cpu)
 	if (!ctrl->ehld_running)
 		goto out;
 
-	if (ehld_main.dbgc.support && !ehld_main.dbgc.use_tick_timer &&
-	    !ehld_main.suspending && hrtimer_active(&ctrl->hrtimer)) {
-		hrtimer_cancel(&ctrl->hrtimer);
-	}
+	/*
+	 * WAR for b/233011236
+	 * Do not touch hrtimers in EHLD CPUPM callbacks
+	 *
+	 * if (ehld_main.dbgc.support && !ehld_main.dbgc.use_tick_timer &&
+	 *     !ehld_main.suspending && hrtimer_active(&ctrl->hrtimer)) {
+	 *     hrtimer_cancel(&ctrl->hrtimer);
+	 * }
+	 */
 
 	dbg_snapshot_set_core_pmu_val(EHLD_VAL_PM_PREPARE, cpu);
 	ctrl->ehld_cpupm = 1;
