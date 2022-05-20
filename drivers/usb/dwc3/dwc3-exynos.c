@@ -1161,6 +1161,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 
 	exynos_usbdrd_vdd_hsi_manual_control(1);
 	exynos_usbdrd_ldo_manual_control(1);
+	exynos_usbdrd_s2mpu_manual_control(1);
 
 	if (node) {
 		ret = of_platform_populate(node, NULL, NULL, dev);
