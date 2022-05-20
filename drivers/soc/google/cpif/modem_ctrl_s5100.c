@@ -772,7 +772,6 @@ static void gpio_power_wreset_cp(struct modem_ctl *mc)
 #if !IS_ENABLED(CONFIG_CP_WRESET_WA)
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 0, 50);
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 0, 50);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 1, 50);
 	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 1, 50);
 #endif
 }
