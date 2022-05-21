@@ -503,6 +503,7 @@
 		compatible = "samsung,exynos-reboot";
 		syscon = <&pmu_system_controller>;
 		reboot-cmd-offset = <0x0810>;
+		force-warm-reboot-on-thermal-shutdown;
 	};
 
 	gpio_keys: gpio_keys {
