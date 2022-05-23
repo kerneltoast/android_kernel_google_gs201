@@ -755,6 +755,8 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 {
 	int res;
 	struct pixel_em_profile *default_profile;
+	int num_dt_profiles;
+	int i;
 
 	mutex_init(&sysfs_lock);
 	mutex_init(&profile_list_lock);
@@ -782,6 +784,30 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 	if (res) {
 		pixel_em_drv_undo_probe();
 		return res;
+	}
+
+	num_dt_profiles = of_property_count_strings(dev->dev.of_node, "profiles");
+	if (num_dt_profiles >= 0)
+		pr_info("Loading %d profile(s).\n", num_dt_profiles);
+
+	for (i = 0; i < num_dt_profiles; i++) {
+		const char *profile_body;
+		int res = of_property_read_string_index(dev->dev.of_node,
+							"profiles",
+							i,
+							&profile_body);
+		if (!res) {
+			res = parse_profile(profile_body, strlen(profile_body));
+			if (res <= 0) {
+				pr_err("Error parsing profile #%d.\n", i);
+				pixel_em_drv_undo_probe();
+				return res;
+			}
+		} else {
+			pr_err("Error retrieving profile #%d.\n", i);
+			pixel_em_drv_undo_probe();
+			return res;
+		}
 	}
 
 	active_profile = default_profile;
