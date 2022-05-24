@@ -22,7 +22,7 @@ GKI_PREBUILTS_DIR=${2:-${CUR_DIR}/prebuilts/boot-artifacts/kernel/}
 GKI_BUILD=$1
 ALLOW_PREBUILTS_MISMATCH=${ALLOW_PREBUILTS_MISMATCH:-0}
 USE_UNSIGNED_USER_IMG=${USE_UNSIGNED_USER_IMG:-0}
-BASE_TARGET="gsi_arm64"
+BASE_TARGET="gki_arm64"
 FETCH_ARTIFACT_CMD="/google/data/ro/projects/android/fetch_artifact"
 IMG_ZIP_BASE="${BASE_TARGET}-img-${GKI_BUILD}"
 
