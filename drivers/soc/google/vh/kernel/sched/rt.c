@@ -474,3 +474,19 @@ void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsigned int 
 
 	p->se.avg.last_update_time = 0;
 }
+
+void vh_dump_throttled_rt_tasks_mod(void *data, int cpu, u64 clock, ktime_t rt_period,
+				    u64 rt_runtime, s64 rt_period_timer_expires)
+{
+#ifdef CONFIG_SCHED_INFO
+	printk_deferred("RT %s (%d) run %llu ns over rt throttled threshold %llu ns on cpu %d",
+			current->comm,
+			current->pid,
+			clock - current->sched_info.last_arrival,
+			rt_runtime,
+			cpu);
+#else
+	printk_deferred("RT %s (%d) run over rt throttled threshold %llu ns on cpu %d",
+			current->comm, current->pid, rt_runtime, cpu);
+#endif
+}
