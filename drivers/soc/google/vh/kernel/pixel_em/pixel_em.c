@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-#include "../vh/include/pixel_em.h"
+#include "../../include/pixel_em.h"
 
 #if IS_ENABLED(CONFIG_VH_SCHED)
 extern struct pixel_em_profile **vendor_sched_pixel_em_profile;

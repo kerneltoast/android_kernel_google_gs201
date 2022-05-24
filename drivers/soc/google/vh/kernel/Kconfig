@@ -45,6 +45,13 @@ config VH_SYSTRACE
 
           If in doubt, say N.
 
+config PIXEL_EM
+        tristate "Enable Pixel Energy Model driver"
+        depends on VH_KERNEL
+        default m
+        help
+          Support Pixel Energy Model.
+
 config VH_THERMAL
         tristate "Vendor hooks for kernel thermal"
         depends on VH_KERNEL

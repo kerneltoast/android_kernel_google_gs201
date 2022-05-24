@@ -204,13 +204,6 @@ config BOARD_GS201_HYBRID
 	help
 	GS201 Hybrid Zebu Emulator System, it is support for Android Platform
 
-config PIXEL_EM
-	tristate "Enable Pixel Energy Model driver"
-	depends on VH_KERNEL
-	default n
-	help
-	Support Pixel Energy Model.
-
 config PIXEL_STAT
 	tristate "Enable Pixel statistics"
 	default n

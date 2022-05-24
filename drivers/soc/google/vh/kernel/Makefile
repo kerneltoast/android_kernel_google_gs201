@@ -20,3 +20,6 @@ obj-$(CONFIG_VH_CGROUP)	+= cgroup/
 
 # vh/kernel/i2c
 obj-$(CONFIG_VH_I2C)     += i2c/
+
+# vh/kernel/pixel_em
+obj-$(CONFIG_PIXEL_EM)   += pixel_em/
