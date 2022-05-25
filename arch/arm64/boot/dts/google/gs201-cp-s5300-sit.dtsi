@@ -441,6 +441,14 @@
 						iod,attrs = <(IO_ATTR_MULTI_CH)>;
 						iod,ch_count = <8>;
 					};
+					io_device_14 {
+						iod,name = "oem_test";
+						iod,ch = <137>;
+						iod,format = <IPC_RAW>;
+						iod,io_type = <IODEV_IPC>;
+						iod,link_type = <LINKDEV_PCIE>;
+						iod,attrs = <(0x0)>;
+					};
 				};
 			};
 
