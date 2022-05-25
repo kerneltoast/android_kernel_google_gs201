@@ -617,7 +617,7 @@ static int pixel_em_publish_profile(struct pixel_em_profile *profile)
 		return -ENOMEM;
 
 	profile->sysfs_helper->profile = profile;
-	sysfs_attr_init(&profile->sysfs_helper->kobj_attr);
+	sysfs_attr_init(&profile->sysfs_helper->kobj_attr.attr);
 	profile->sysfs_helper->kobj_attr.attr.name = profile->name;
 	profile->sysfs_helper->kobj_attr.attr.mode = 0664;
 	profile->sysfs_helper->kobj_attr.show = sysfs_profile_show;
