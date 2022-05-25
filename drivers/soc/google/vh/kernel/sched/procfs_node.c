@@ -13,6 +13,7 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <kernel/sched/sched.h>
+#include <trace/events/power.h>
 
 #include "sched_priv.h"
 
@@ -44,6 +45,9 @@ extern void pmu_poll_enable(void);
 extern void pmu_poll_disable(void);
 
 #define MAX_PROC_SIZE 128
+
+static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "cam_power", "bg", "sys_bg",
+				       "nnapi", "rt", "dex2oat", "ota", "sf"};
 
 #define PROC_OPS_RW(__name) \
 		static int __name##_proc_open(\
@@ -717,6 +721,15 @@ static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id
 	unsigned long flags;
 	struct list_head *head = &vendor_group_list[group].list;
 
+	if (trace_clock_set_rate_enabled()) {
+		char trace_name[32] = {0};
+		struct vendor_group_property *gp = get_vendor_group_property(group);
+		scnprintf(trace_name, sizeof(trace_name), "%s_grp_%s",
+			clamp_id  == UCLAMP_MIN ? "UCLAMP_MIN" : "UCLAMP_MAX", GRP_NAME[group]);
+		trace_clock_set_rate(trace_name, gp->uc_req[clamp_id].value,
+				raw_smp_processor_id());
+	}
+
 	raw_spin_lock_irqsave(&vendor_group_list[group].lock, flags);
 	vendor_group_list[group].cur_iterator = NULL;
 	raw_spin_unlock_irqrestore(&vendor_group_list[group].lock, flags);
@@ -879,9 +892,6 @@ SET_VENDOR_GROUP_STORE(sf, VG_SF);
 // Create per-task attribute nodes
 PER_TASK_BOOL_ATTRIBUTE(prefer_idle);
 PER_TASK_BOOL_ATTRIBUTE(uclamp_fork_reset);
-
-static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "cam_power", "bg", "sys_bg",
-				       "nnapi", "rt", "dex2oat", "ota", "sf"};
 
 static int dump_task_show(struct seq_file *m, void *v)
 {									      \
