@@ -1044,10 +1044,37 @@ void vh_arch_set_freq_scale_pixel_mod(void *data, const struct cpumask *cpus,
 				      unsigned long max, unsigned long *scale)
 {
 	int i;
+#if IS_ENABLED(CONFIG_PIXEL_EM)
+	{
+		struct pixel_em_profile **profile_ptr_snapshot;
+		profile_ptr_snapshot = READ_ONCE(vendor_sched_pixel_em_profile);
+		if (profile_ptr_snapshot) {
+			struct pixel_em_profile *profile = READ_ONCE(*profile_ptr_snapshot);
+			if (profile) {
+				struct pixel_em_cluster *cluster;
+				struct pixel_em_opp *max_opp;
+				struct pixel_em_opp *opp;
+
+				cluster = profile->cpu_to_cluster[cpumask_first(cpus)];
+				max_opp = &cluster->opps[cluster->num_opps - 1];
+
+				for (i = 0; i < cluster->num_opps; i++) {
+					opp = &cluster->opps[i];
+					if (opp->freq >= freq)
+						break;
+				}
+
+				*scale = (opp->capacity << SCHED_CAPACITY_SHIFT) /
+					  max_opp->capacity;
+			}
+		}
+	}
+#endif
 
 	for_each_cpu(i, cpus)
 		scale_freq[i] = *scale;
 }
+EXPORT_SYMBOL_GPL(vh_arch_set_freq_scale_pixel_mod);
 
 void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost)
 {
