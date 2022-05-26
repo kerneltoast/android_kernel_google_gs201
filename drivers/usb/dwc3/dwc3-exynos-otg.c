@@ -559,15 +559,15 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		del_timer_sync(&exynos->usb_connect_timer);
 
 		if (exynos->config.is_not_vbus_pad && exynos_usbdrd_get_ldo_status() &&
-				!dotg->in_shutdown)
+				!dotg->in_shutdown) {
 			dwc3_exynos_gadget_disconnect_proc(dwc);
+			ret = usb_gadget_deactivate(dwc->gadget);
+			if (ret < 0)
+				dev_err(dev, "USB gadget deactivate failed with %d\n", ret);
+		}
 
 		if (exynos->extra_delay)
 			msleep(100);
-
-		ret = usb_gadget_deactivate(dwc->gadget);
-		if (ret < 0)
-			dev_err(dev, "USB gadget deactivate failed with %d\n", ret);
 
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
 err1:
