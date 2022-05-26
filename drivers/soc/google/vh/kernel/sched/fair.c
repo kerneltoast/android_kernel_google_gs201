@@ -726,7 +726,8 @@ static u64 __sched_period(unsigned long nr_running)
 		return sysctl_sched_latency;
 }
 
-static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool sync_boost)
+static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool sync_boost,
+		cpumask_t *valid_mask)
 {
 	struct root_domain *rd;
 	struct perf_domain *pd;
@@ -773,7 +774,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 		pd_most_unimportant_cpu = -1;
 		pd_best_packing_cpu = -1;
 
-		for_each_cpu_and(i, perf_domain_span(pd), p->cpus_ptr) {
+		for_each_cpu_and(i, perf_domain_span(pd), valid_mask ? valid_mask : p->cpus_ptr) {
 			if (i >= CPU_NUM)
 				break;
 
@@ -1386,6 +1387,30 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 	v_tsk->queued_to_list = false;
 }
 
+void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
+	const struct cpumask *cpu_valid_mask,
+	const struct cpumask *new_mask, int *dest_cpu)
+{
+	cpumask_t valid_mask;
+
+	cpumask_and(&valid_mask, cpu_valid_mask, new_mask);
+
+	/* find a cpu again for the running/runnable/waking tasks if their
+	 * current cpu are not allowed
+	 */
+	if ((p->on_cpu || p->state == TASK_WAKING || task_on_rq_queued(p)) &&
+		!cpumask_test_cpu(task_cpu(p), new_mask)) {
+		*dest_cpu = find_energy_efficient_cpu(p, task_cpu(p), false, &valid_mask);
+
+		if (*dest_cpu == -1)
+			*dest_cpu = nr_cpu_ids;
+	}
+
+	trace_cpumask_any_and_distribute(p, &valid_mask, *dest_cpu);
+
+	return;
+}
+
 void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu, int sd_flag,
 				       int wake_flags, int *target_cpu)
 {
@@ -1429,7 +1454,7 @@ void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int pr
 	}
 
 	if (sd_flag & SD_BALANCE_WAKE) {
-		*target_cpu = find_energy_efficient_cpu(p, prev_cpu, sync_boost);
+		*target_cpu = find_energy_efficient_cpu(p, prev_cpu, sync_boost, NULL);
 	}
 
 out:
