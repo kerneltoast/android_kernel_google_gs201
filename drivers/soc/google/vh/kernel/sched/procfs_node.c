@@ -202,7 +202,7 @@ static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "cam_power", "b
 			if (val > 1024)							      \
 				return -EINVAL;						      \
 			if (val == gp->uc_req[__cid].value)				      \
-				return -EINVAL;						      \
+				return count;						      \
 			gp->uc_req[__cid].value = val;					      \
 			gp->uc_req[__cid].bucket_id = get_bucket_id(val);		      \
 			gp->uc_req[__cid].user_defined = false;				      \
