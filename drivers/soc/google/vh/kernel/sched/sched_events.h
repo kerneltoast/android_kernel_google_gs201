@@ -270,6 +270,35 @@ TRACE_EVENT(sched_setscheduler_uclamp,
 		__entry->pid, __entry->comm, __entry->clamp_id, __entry->value)
 );
 
+TRACE_EVENT(cpumask_any_and_distribute,
+
+	TP_PROTO(struct task_struct *tsk, cpumask_t *valid_mask, int dest_cpu),
+
+	TP_ARGS(tsk, valid_mask, dest_cpu),
+
+	TP_STRUCT__entry(
+		__array(char, comm, TASK_COMM_LEN)
+		__field(pid_t,			pid)
+		__field(pid_t,			tgid)
+		__field(unsigned int,	state)
+		__field(unsigned long,	valid_mask)
+		__field(int,			dest_cpu)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid             	= tsk->pid;
+		__entry->tgid             	= tsk->tgid;
+		__entry->state             	= tsk->state;
+		__entry->valid_mask       	= *valid_mask->bits;
+		__entry->dest_cpu           = dest_cpu;
+	),
+
+	TP_printk("pid=%d tgid=%d comm=%s state=%04x, valid_mask=0x%lx, dest_cpu=%d",
+		__entry->pid, __entry->tgid, __entry->comm, __entry->state,
+		__entry->valid_mask, __entry->dest_cpu)
+);
+
 TRACE_EVENT(sched_find_energy_efficient_cpu,
 
 	TP_PROTO(struct task_struct *tsk, unsigned long task_util, bool prefer_idle,

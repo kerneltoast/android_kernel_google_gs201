@@ -52,6 +52,9 @@ extern void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsign
 extern void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
 extern void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
 
+extern void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
+	const struct cpumask *cpu_valid_mask, const struct cpumask *new_mask, int *dest_cpu);
+
 extern struct cpufreq_governor sched_pixel_gov;
 
 extern int pmu_poll_init(void);
@@ -157,6 +160,11 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_cpumask_any_and_distribute(
+		rvh_cpumask_any_and_distribute, NULL);
 	if (ret)
 		return ret;
 
