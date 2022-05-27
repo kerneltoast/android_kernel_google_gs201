@@ -652,7 +652,7 @@
 				};
 
 				ch12: channel@11 {
-					rail-name = "LDO28M";
+					rail-name = "BUCK6M";
 					channel_enabled;
 				};
 			};
