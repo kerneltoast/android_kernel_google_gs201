@@ -195,12 +195,6 @@ static bool sw_fifo_empty(struct eh_sw_fifo *fifo)
 /*
  * - Primitive functions for Emerald Hill HW
  */
-static inline void eh_write_register(struct eh_device *eh_dev,
-				     unsigned int offset, unsigned long val)
-{
-	writeq(val, eh_dev->regs + offset);
-}
-
 static inline unsigned long eh_read_register(struct eh_device *eh_dev,
 					     unsigned int offset)
 {
@@ -257,7 +251,7 @@ static inline void update_fifo_write_index(struct eh_device *eh_dev)
 				       eh_dev->fifo_color_mask;
 
 	eh_dev->write_index = next_write_idx;
-	eh_write_register(eh_dev, EH_REG_CDESC_WRIDX, next_write_idx);
+	writeq(next_write_idx, eh_dev->regs + EH_REG_CDESC_WRIDX);
 }
 
 static inline void update_fifo_complete_index(struct eh_device *eh_dev)
@@ -310,7 +304,7 @@ static int eh_reset(struct eh_device *eh_dev)
 	if (eh_dev->quirks & EH_QUIRK_IGNORE_GCTRL_RESET)
 		return 0;
 
-	eh_write_register(eh_dev, EH_REG_GCTRL, -1);
+	writeq(-1, eh_dev->regs + EH_REG_GCTRL);
 	for (trial = 0; trial < EH_RESET_MAX_TRIAL; trial++) {
 		if (!eh_read_register(eh_dev, EH_REG_GCTRL))
 			return 0;
@@ -345,7 +339,7 @@ static void eh_compr_fifo_init(struct eh_device *eh_dev)
 
 	/* FIFO reset: reset hardware write/read/complete index registers */
 	data = 1UL << EH_CDESC_CTRL_FIFO_RESET;
-	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
+	writeq(data, eh_dev->regs + EH_REG_CDESC_CTRL);
 	do {
 		udelay(1);
 		data = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
@@ -357,11 +351,11 @@ static void eh_compr_fifo_init(struct eh_device *eh_dev)
 
 	/* program FIFO memory location and size */
 	data = (unsigned long)virt_to_phys(eh_dev->fifo) | __ffs(eh_dev->fifo_size);
-	eh_write_register(eh_dev, EH_REG_CDESC_LOC, data);
+	writeq(data, eh_dev->regs + EH_REG_CDESC_LOC);
 
 	/* enable compression */
 	data = 1UL << EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT;
-	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
+	writeq(data, eh_dev->regs + EH_REG_CDESC_CTRL);
 }
 
 /* Set up constant parts of descriptors */
@@ -460,8 +454,6 @@ static int request_to_hw_fifo(struct eh_device *eh_dev, struct page *page,
 	if (wake_up)
 		wake_up(&eh_dev->comp_wq);
 
-	/* write barrier to force writes to be visible everywhere */
-	wmb();
 	update_fifo_write_index(eh_dev);
 	spin_unlock(&eh_dev->fifo_prod_lock);
 
@@ -530,7 +522,7 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 	if (error) {
 		pr_err("error interrupt was active\n");
 		eh_dump_regs(eh_dev);
-		eh_write_register(eh_dev, EH_REG_INTRP_STS_ERROR, error);
+		writeq(error, eh_dev->regs + EH_REG_INTRP_STS_ERROR);
 	}
 
 	return IRQ_HANDLED;
@@ -974,7 +966,7 @@ static int eh_hw_init(struct eh_device *eh_dev, unsigned short fifo_size,
 	eh_compr_fifo_init(eh_dev);
 
 	/* enable all the interrupts */
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, 0);
+	writeq(0, eh_dev->regs + EH_REG_INTRP_MASK_ERROR);
 
 	return 0;
 
@@ -1122,14 +1114,17 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	}
 
 	csize_data = slen << EH_DCMD_CSIZE_SIZE_SHIFT;
-	eh_write_register(eh_dev, EH_REG_DCMD_CSIZE(index), csize_data);
+	/*
+	 * HW starts decompression only after setting status bits to "PEND",
+	 * so we could relax until setting the DEST register.
+	 */
+	writeq_relaxed(csize_data, eh_dev->regs + EH_REG_DCMD_CSIZE(index));
 
 #ifdef CONFIG_GOOGLE_EH_DCMD_STATUS_IN_MEMORY
 	eh_dev->decompr_status[index] = EH_DCMD_PENDING
 					<< EH_DCMD_DEST_STATUS_SHIFT;
-	eh_write_register(eh_dev, EH_REG_DCMD_RES(index),
-			  1UL << 63 |
-				  virt_to_phys(&eh_dev->decompr_status[index]));
+	writeq_relaxed(1UL << 63 | virt_to_phys(&eh_dev->decompr_status[index]),
+		       eh_dev->regs + EH_REG_DCMD_RES(index));
 #endif
 
 	src_data = (__ffs(alignment) - 5) << EH_DCMD_BUF_SIZE_SHIFT;
@@ -1140,12 +1135,12 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	 * Later, if multiple buffers want to be supported, we need to revisit
 	 * here.
 	 */
-	eh_write_register(eh_dev, EH_REG_DCMD_BUF0(index), src_data);
+	writeq_relaxed(src_data, eh_dev->regs + EH_REG_DCMD_BUF0(index));
 
 	dst_data = page_to_phys(dst_page);
 	dst_data |= ((unsigned long)EH_DCMD_PENDING)
 		    << EH_DCMD_DEST_STATUS_SHIFT;
-	eh_write_register(eh_dev, EH_REG_DCMD_DEST(index), dst_data);
+	writeq(dst_data, eh_dev->regs + EH_REG_DCMD_DEST(index));
 }
 
 int eh_compress_page(struct eh_device *eh_dev, struct page *page, void *priv)
@@ -1380,14 +1375,14 @@ static int eh_suspend(struct device *dev)
 	}
 
 	/* disable all interrupts */
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, ~0UL);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, ~0UL);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, ~0UL);
+	writeq(~0UL, eh_dev->regs + EH_REG_INTRP_MASK_ERROR);
+	writeq(~0UL, eh_dev->regs + EH_REG_INTRP_MASK_CMP);
+	writeq(~0UL, eh_dev->regs + EH_REG_INTRP_MASK_DCMP);
 
 	/* disable compression FIFO */
 	data = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
 	data &= ~(1UL << EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT);
-	eh_write_register(eh_dev, EH_REG_CDESC_CTRL, data);
+	writeq(data, eh_dev->regs + EH_REG_CDESC_CTRL);
 
 	/* disable EH clock */
 	clk_disable_unprepare(eh_dev->clk);
@@ -1417,9 +1412,9 @@ static int eh_resume(struct device *dev)
 	eh_compr_fifo_init(eh_dev);
 
 	/* re-enable all interrupts */
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, 0);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, 0);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, 0);
+	writeq(0, eh_dev->regs + EH_REG_INTRP_MASK_ERROR);
+	writeq(0, eh_dev->regs + EH_REG_INTRP_MASK_CMP);
+	writeq(0, eh_dev->regs + EH_REG_INTRP_MASK_DCMP);
 
 	dev_dbg(dev, "EH resumed\n");
 	return 0;
