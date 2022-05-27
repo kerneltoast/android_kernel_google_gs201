@@ -1127,10 +1127,13 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 
 	src_data = (__ffs(alignment) - 5) << EH_DCMD_BUF_SIZE_SHIFT;
 	src_data |= src_paddr;
+
+	/*
+	 * Only BUF0 is using now so don't set rest of buffers for performance.
+	 * Later, if multiple buffers want to be supported, we need to revisit
+	 * here.
+	 */
 	eh_write_register(eh_dev, EH_REG_DCMD_BUF0(index), src_data);
-	eh_write_register(eh_dev, EH_REG_DCMD_BUF1(index), 0);
-	eh_write_register(eh_dev, EH_REG_DCMD_BUF2(index), 0);
-	eh_write_register(eh_dev, EH_REG_DCMD_BUF3(index), 0);
 
 	dst_data = page_to_phys(dst_page);
 	dst_data |= ((unsigned long)EH_DCMD_PENDING)
