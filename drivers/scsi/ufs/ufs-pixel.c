@@ -1629,6 +1629,12 @@ static void pixel_ufs_update_sysfs(void *data, struct ufs_hba *hba)
 	queue_work(system_highpri_wq, &ufs->update_sysfs_work);
 }
 
+static void pixel_ufs_update_sdev(void *data, struct scsi_device *sdev)
+{
+	/* do not use slow FUA */
+	sdev->broken_fua = 1;
+}
+
 void pixel_print_cmd_log(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
@@ -1692,6 +1698,11 @@ int pixel_init(struct ufs_hba *hba)
 
 	ret = register_trace_android_vh_ufs_check_int_errors(
 				pixel_ufs_check_int_errors, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_ufs_update_sdev(
+				pixel_ufs_update_sdev, NULL);
 	if (ret)
 		return ret;
 
