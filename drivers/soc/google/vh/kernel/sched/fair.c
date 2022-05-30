@@ -13,10 +13,6 @@
 #include "sched_events.h"
 #include "../systrace.h"
 
-#if IS_ENABLED(CONFIG_UCLAMP_STATS)
-extern void update_uclamp_stats(int cpu, u64 time);
-#endif
-
 #if IS_ENABLED(CONFIG_PIXEL_EM)
 struct em_perf_domain **vendor_sched_cpu_to_em_pd;
 EXPORT_SYMBOL_GPL(vendor_sched_cpu_to_em_pd);
@@ -33,6 +29,8 @@ unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD };
 static unsigned long scale_freq[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
+
+extern struct vendor_group_list vendor_group_list[VG_MAX];
 
 unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
 				 unsigned long max, enum schedutil_type type,
@@ -256,13 +254,14 @@ static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
+
 static inline bool get_prefer_idle(struct task_struct *p)
 {
 	// For group based prefer_idle vote, filter our smaller or low prio or
 	// have throttled uclamp.max settings
 	// Ignore all checks, if the prefer_idle is from per-task API.
 	if (vendor_sched_reduce_prefer_idle)
-		return (vg[get_vendor_task_struct(p)->group].prefer_idle &&
+		return (vg[get_vendor_group(p)].prefer_idle &&
 			task_util_est(p) >= vendor_sched_uclamp_threshold &&
 			p->prio <= DEFAULT_PRIO &&
 			uclamp_eff_value(p, UCLAMP_MAX) == SCHED_CAPACITY_SCALE) ||
@@ -274,18 +273,18 @@ static inline bool get_prefer_idle(struct task_struct *p)
 
 bool get_prefer_high_cap(struct task_struct *p)
 {
-	return vg[get_vendor_task_struct(p)->group].prefer_high_cap;
+	return vg[get_vendor_group(p)].prefer_high_cap;
 }
 
 static inline bool get_task_spreading(struct task_struct *p)
 {
-	return vg[get_vendor_task_struct(p)->group].task_spreading;
+	return vg[get_vendor_group(p)].task_spreading;
 }
 
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
 static inline unsigned int get_task_group_throttle(struct task_struct *p)
 {
-	return vg[get_vendor_task_struct(p)->group].group_throttle;
+	return vg[get_vendor_group(p)].group_throttle;
 }
 
 static inline unsigned int get_group_throttle(struct task_group *tg)
@@ -293,6 +292,17 @@ static inline unsigned int get_group_throttle(struct task_group *tg)
 	return vg[get_vendor_task_group_struct(tg)->group].group_throttle;
 }
 #endif
+
+void init_vendor_group_data(void)
+{
+	int i;
+
+	for (i = 0; i < VG_MAX; i++) {
+		INIT_LIST_HEAD(&vendor_group_list[i].list);
+		raw_spin_lock_init(&vendor_group_list[i].lock);
+		vendor_group_list[i].cur_iterator = NULL;
+	}
+}
 
 #if defined(CONFIG_UCLAMP_TASK) && defined(CONFIG_FAIR_GROUP_SCHED)
 static inline unsigned long cpu_util_cfs_group_mod_no_est(struct rq *rq)
@@ -1031,14 +1041,6 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 	return (freq * sched_capacity_margin[cpu] >> SCHED_CAPACITY_SHIFT) * util / cap;
 }
 
-void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
-{
-#if IS_ENABLED(CONFIG_UCLAMP_STATS)
-	if (rq->nr_running == 1)
-		update_uclamp_stats(rq->cpu, rq_clock(rq));
-#endif
-}
-
 static inline bool check_uclamp_threshold(struct task_struct *p, enum uclamp_id clamp_id)
 {
 	if (clamp_id == UCLAMP_MIN && !rt_task(p) &&
@@ -1328,6 +1330,9 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 	v_orig = get_vendor_task_struct(orig);
 	v_tsk->group = v_orig->group;
 	v_tsk->prefer_idle = false;
+	INIT_LIST_HEAD(&v_tsk->node);
+	raw_spin_lock_init(&v_tsk->lock);
+	v_tsk->queued_to_list = false;
 }
 
 void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu, int sd_flag,
@@ -1383,7 +1388,7 @@ void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int pr
 out:
 	trace_sched_select_task_rq_fair(p, task_util_est(p),
 					sync_wakeup, prefer_prev, sync_boost,
-					get_vendor_task_struct(p)->group,
+					get_vendor_group(p),
 					uclamp_eff_value(p, UCLAMP_MIN),
 					uclamp_eff_value(p, UCLAMP_MAX),
 					prev_cpu, *target_cpu);

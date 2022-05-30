@@ -33,8 +33,11 @@ enum vendor_group {
 };
 
 struct vendor_task_struct {
+	raw_spinlock_t lock;
 	enum vendor_group group;
 	unsigned long direct_reclaim_ts;
+	struct list_head node;
+	bool queued_to_list;
 	bool uclamp_fork_reset;
 	bool prefer_idle;
 };
@@ -45,6 +48,11 @@ ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[64], struct vendor_task
 static inline struct vendor_task_struct *get_vendor_task_struct(struct task_struct *p)
 {
 	return (struct vendor_task_struct *)p->android_vendor_data1;
+}
+
+static inline int get_vendor_group(struct task_struct *p)
+{
+	return get_vendor_task_struct(p)->group;
 }
 
 #endif

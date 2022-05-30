@@ -443,6 +443,7 @@
 		swreset-system-offset = <0x3A00>;
 		swreset-system-trigger = <0x2>;
 		reboot-cmd-offset = <0x0810>;
+		force-warm-reboot-on-thermal-shutdown;
 	};
 
 	gpio_keys: gpio_keys {

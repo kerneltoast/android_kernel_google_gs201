@@ -48,6 +48,24 @@
 	WRITE_ONCE(*ptr, res);					\
 } while (0)
 
+#define __container_of(ptr, type, member) ({			\
+	void *__mptr = (void *)(ptr);				\
+	((type *)(__mptr - offsetof(type, member))); })
+
+#define remove_from_vendor_group_list(__node, __group) do {	\
+	raw_spin_lock(&vendor_group_list[__group].lock);	\
+	if (__node == vendor_group_list[__group].cur_iterator)	\
+		vendor_group_list[__group].cur_iterator = (__node)->prev;	\
+	list_del_init(__node);					\
+	raw_spin_unlock(&vendor_group_list[__group].lock);	\
+} while (0)
+
+#define add_to_vendor_group_list(__node, __group) do {		\
+	raw_spin_lock(&vendor_group_list[__group].lock);	\
+	list_add_tail(__node, &vendor_group_list[__group].list);	\
+	raw_spin_unlock(&vendor_group_list[__group].lock);	\
+} while (0)
+
 struct vendor_group_property {
 	bool prefer_idle;
 	bool prefer_high_cap;
@@ -72,6 +90,13 @@ struct uclamp_stats {
 	u64 time_in_state_max[UCLAMP_STATS_SLOTS];
 	u64 effect_time_in_state_min[UCLAMP_STATS_SLOTS];
 	u64 effect_time_in_state_max[UCLAMP_STATS_SLOTS];
+};
+
+
+struct vendor_group_list {
+	struct list_head list;
+	raw_spinlock_t lock;
+	struct list_head *cur_iterator;
 };
 
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
