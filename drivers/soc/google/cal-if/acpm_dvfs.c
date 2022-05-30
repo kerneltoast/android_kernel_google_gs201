@@ -147,7 +147,12 @@ int exynos_acpm_set_policy(unsigned int id, unsigned long policy)
 	int ret;
 
 	config.cmd = cmd;
-	config.response = true;
+	if (id == GET_IDX(ACPM_DVFS_MIF) || id == GET_IDX(ACPM_DVFS_INT) ||
+		id == GET_IDX(ACPM_DVFS_CPUCL0) || id == GET_IDX(ACPM_DVFS_CPUCL1) ||
+		id == GET_IDX(ACPM_DVFS_CPUCL2))
+		config.response = false;
+	else
+		config.response = true;
 	config.cmd[0] = id;
 	config.cmd[1] = policy;
 	config.cmd[2] = POLICY_REQ;

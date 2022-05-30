@@ -22,6 +22,7 @@
 
 #include <soc/google/exynos-dm.h>
 #include "vh/kernel/systrace.h"
+#include <dt-bindings/clock/gs201.h>
 
 #define DM_EMPTY	0xFF
 static struct exynos_dm_device *exynos_dm;
@@ -808,7 +809,12 @@ int policy_update_call_to_DM(int dm_type, u32 min_freq, u32 max_freq)
 			goto out;
 		}
 		config.cmd = cmd;
-		config.response = true;
+		if (dm->cal_id == ACPM_DVFS_MIF || dm->cal_id == ACPM_DVFS_INT ||
+			dm->cal_id == ACPM_DVFS_CPUCL0 || dm->cal_id == ACPM_DVFS_CPUCL1 ||
+			dm->cal_id == ACPM_DVFS_CPUCL2)
+			config.response = false;
+		else
+			config.response = true;
 		config.cmd[0] = GET_IDX(dm->cal_id);
 		config.cmd[1] = max_freq;
 		config.cmd[2] = POLICY_REQ;

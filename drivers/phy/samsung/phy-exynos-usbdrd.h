@@ -205,6 +205,7 @@ struct exynos_usbdrd_phy {
 	struct extcon_dev *edev;
 	struct notifier_block usb_nb;
 	struct notifier_block usb_host_nb;
+	struct device *s2mpu;
 
 	/* eom related parameters */
 	struct usb_eom_result_s *eom_result;

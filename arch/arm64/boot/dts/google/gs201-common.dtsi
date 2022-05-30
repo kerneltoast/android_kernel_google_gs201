@@ -357,7 +357,7 @@
 };
 
 &sysmmu_hsi1 {
-	use-map-once = "false";
+	use-map-once = "true";
 	status = "okay";
 };
 

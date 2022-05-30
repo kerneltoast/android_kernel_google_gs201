@@ -791,7 +791,7 @@ static size_t exynos_iommu_unmap(unsigned long l_iova, size_t size,
 	atomic_t *lv2entcnt = &domain->lv2entcnt[lv1ent_offset(iova)];
 
 	if (WARN_ON(!domain->pgtable))
-		return -EINVAL;
+		return 0;
 
 	sent = section_entry(domain->pgtable, iova);
 
@@ -928,8 +928,11 @@ static inline int check_memory_validation(phys_addr_t paddr)
 }
 
 static int exynos_iommu_map_once(unsigned long l_iova, phys_addr_t paddr,
-				size_t size, int prot, struct exynos_iommu_domain *domain)
+				size_t size, int prot, struct exynos_iommu_domain *domain,
+				int hsi_block_num)
 {
+	struct sysmmu_drvdata *drvdata = g_sysmmu_drvdata[hsi_block_num];
+	struct device *dev = drvdata->sysmmu;
 	sysmmu_pte_t *entry, *pent;
 	sysmmu_iova_t iova = (sysmmu_iova_t)l_iova;
 	int i, cnt, ret = 0;
@@ -939,9 +942,10 @@ static int exynos_iommu_map_once(unsigned long l_iova, phys_addr_t paddr,
 	BUG_ON(domain->pgtable == NULL);
 
 	/* Check it is over section size at one request. */
-	if ((l_iova & 0xfffff) + size > SZ_1M) {
-		pr_err("Don't allow : address + size over is section size (0x%llx + 0x%lx)\n",
-			iova, size);
+	if ((iova & ~SECT_MASK) + size > SECT_SIZE) {
+		dev_err_ratelimited(dev,
+			"%s: Don't allow address + size over is section size (0x%llx + 0x%zx)\n",
+			__func__, iova, size);
 		return -EINVAL;
 	}
 
@@ -952,17 +956,18 @@ static int exynos_iommu_map_once(unsigned long l_iova, phys_addr_t paddr,
 			GFP_ATOMIC);
 	if (IS_ERR(pent)) {
 		ret = PTR_ERR(pent);
-		pr_err("Can't alloc LV2 table!\n");
+		dev_err_ratelimited(dev, "%s: Can't alloc LV2 table!\n", __func__);
 		return ret;
 	}
-
 
 	cnt = size / SZ_4K;
 	for (i = 0; i < cnt; i++, pent++) {
 		if (!lv2ent_fault(pent)) {
 			sysmmu_pte_t *refcnt_buf;
 
-			pr_err("Duplicated Memory Allocation : PTE will be overwritten!\n");
+			dev_err_ratelimited(dev,
+				"%s: Duplicated Memory Allocation : PTE will be overwritten!\n",
+				__func__);
 			/* Duplicated IOMMU map 4KB */
 			refcnt_buf = pent + NUM_LV2ENTRIES;
 			*refcnt_buf = *refcnt_buf + 1;
@@ -975,11 +980,6 @@ static int exynos_iommu_map_once(unsigned long l_iova, phys_addr_t paddr,
 	}
 	pgtable_flush(pent - cnt, pent);
 	atomic_sub(cnt, pgcnt);
-
-
-	if (ret)
-		pr_err("%s: Failed(%d) to map %#zx bytes @ %#llx\n",
-				__func__, ret, size, iova);
 
 	return ret;
 }
@@ -1039,7 +1039,8 @@ int pcie_iommu_map(unsigned long iova, phys_addr_t paddr, size_t size,
 
 	if (g_sysmmu_drvdata[hsi_block_num]->use_map_once) {
 		if (size < SZ_64K) { /* This code assume that there is no LARGE Pages(64KB) */
-			ret = exynos_iommu_map_once(iova, paddr, size, prot, domain);
+			ret = exynos_iommu_map_once(
+				iova, paddr, size, prot, domain, hsi_block_num);
 			if (ret == 0)
 				goto end_map;
 		}
@@ -1092,8 +1093,10 @@ end_map:
 EXPORT_SYMBOL_GPL(pcie_iommu_map);
 
 static size_t exynos_iommu_unmap_once(unsigned long l_iova, size_t size,
-				struct exynos_iommu_domain *domain)
+				struct exynos_iommu_domain *domain, int hsi_block_num)
 {
+	struct sysmmu_drvdata *drvdata = g_sysmmu_drvdata[hsi_block_num];
+	struct device *dev = drvdata->sysmmu;
 	sysmmu_iova_t iova = (sysmmu_iova_t)l_iova;
 	sysmmu_pte_t *sent, *pent;
 	atomic_t *lv2entcnt = &domain->lv2entcnt[lv1ent_offset(iova)];
@@ -1101,11 +1104,19 @@ static size_t exynos_iommu_unmap_once(unsigned long l_iova, size_t size,
 
 	BUG_ON(domain->pgtable == NULL);
 
+	/* Check it is over section size at one request. */
+	if ((iova & ~SECT_MASK) + size > SECT_SIZE) {
+		dev_err_ratelimited(dev,
+			"%s: Don't allow address + size over is section size (0x%llx + 0x%zx)\n",
+			__func__, iova, size);
+		return 0;
+	}
+
 	sent = section_entry(domain->pgtable, iova);
 
 	if (unlikely(lv1ent_fault(sent))) {
-		pr_info("%s : LV1 entry fault!\n", __func__);
-		return -EINVAL;
+		dev_err_ratelimited(dev, "%s : LV1 entry fault!\n", __func__);
+		return 0;
 	}
 
 	/* lv1ent_page(sent) == true here */
@@ -1125,7 +1136,9 @@ static size_t exynos_iommu_unmap_once(unsigned long l_iova, size_t size,
 
 		refcnt_buf = (pent + NUM_LV2ENTRIES);
 		if (*refcnt_buf != 0) {
-			pr_err("VA : 0x%lx's ref conunt is not 0! - SKIP unmap\n", l_iova);
+			dev_err_ratelimited(dev,
+				"%s: VA: 0x%llx's ref conunt is not 0 - SKIP unmap\n",
+				__func__, iova);
 			*refcnt_buf = *refcnt_buf - 1;
 			atomic_inc(lv2entcnt);
 			continue;
@@ -1186,7 +1199,7 @@ size_t pcie_iommu_unmap(unsigned long iova, size_t size, int hsi_block_num)
 
 	if (g_sysmmu_drvdata[hsi_block_num]->use_map_once) {
 		if (size < SZ_64K) { /* This code assume that there is no LARGE Pages(64KB) */
-			unmapped = exynos_iommu_unmap_once(iova, size, domain);
+			unmapped = exynos_iommu_unmap_once(iova, size, domain, hsi_block_num);
 			if (unmapped == size)
 				goto end_unmap;
 		}
@@ -1438,7 +1451,7 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 		 data->hsi_block_num, data->pcie_vid);
 	dev_info(dev, "L1Page Table Address : 0x%pap(phys)\n", &data->pgtable);
 
-	dev_info(data->sysmmu, "is probed. Version %d.%d.%d\n",
+	dev_info(dev, "is probed. Version %d.%d.%d\n",
 		 MMU_MAJ_VER(data->version),
 		 MMU_MIN_VER(data->version),
 		 MMU_REV_VER(data->version));

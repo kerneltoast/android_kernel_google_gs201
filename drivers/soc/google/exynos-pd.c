@@ -129,6 +129,18 @@ static void exynos_pd_power_on_pre(struct exynos_pm_domain *pd)
 	}
 }
 
+static void exynos_pd_power_on_post(struct exynos_pm_domain *pd)
+{
+	if (pd->cal_pdid == HSI0_CAL_PDID)
+		exynos_usbdrd_s2mpu_manual_control(1);
+}
+
+static void exynos_pd_power_off_pre(struct exynos_pm_domain *pd)
+{
+	if (pd->cal_pdid == HSI0_CAL_PDID)
+		exynos_usbdrd_s2mpu_manual_control(0);
+}
+
 static void exynos_pd_power_off_post(struct exynos_pm_domain *pd)
 {
 	if (!pd->skip_idle_ip)
@@ -184,6 +196,8 @@ static int __exynos_pd_power_on(struct exynos_pm_domain *pd)
 		ret = -EAGAIN;
 		goto acc_unlock;
 	}
+
+	exynos_pd_power_on_post(pd);
 
 	pd->pd_stat.on_count++;
 	pd->pd_stat.last_on_time = ktime_get_boottime();
@@ -254,6 +268,8 @@ static int __exynos_pd_power_off(struct exynos_pm_domain *pd)
 		pr_debug("pd_power_off:(%s) is already OFF\n", pd->name);
 		goto acc_unlock;
 	}
+
+	exynos_pd_power_off_pre(pd);
 
 	ret = pd->pd_control(pd->cal_pdid, 0);
 
