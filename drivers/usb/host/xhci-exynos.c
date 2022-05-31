@@ -13,6 +13,7 @@
 
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
+#include <linux/extcon.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/of.h>
@@ -51,13 +52,49 @@ static const struct xhci_driver_overrides xhci_exynos_overrides __initconst = {
 	.bus_resume = xhci_exynos_bus_resume,
 };
 
+static void xhci_exynos_portsc2_power_off(struct xhci_hcd_exynos *xhci_exynos)
+{
+	void __iomem *portsc = xhci_exynos->usb2_portsc;
+	u32 reg;
+
+	dev_info(xhci_exynos->dev, "turn off USB2 port\n");
+	spin_lock(&xhci_exynos->xhcioff_lock);
+
+	reg = readl(portsc);
+	reg &= ~PORT_POWER;
+	writel(reg, portsc);
+
+	spin_unlock(&xhci_exynos->xhcioff_lock);
+}
+
 int xhci_exynos_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_exynos_priv *priv = hcd_to_xhci_exynos_priv(hcd);
 	struct xhci_hcd_exynos *xhci_exynos = priv->xhci_exynos;
+	static int host_disabled_count = 1;
 	int ret;
 
 	ret = xhci_address_device(hcd, udev);
+
+	mutex_lock(&xhci_exynos->count_lock);
+
+	if (xhci_exynos->accessory_state) {
+		if (ret)
+			xhci_exynos->set_addr_error_count++;
+		else
+			xhci_exynos->set_addr_error_count = 0;
+
+		if (xhci_exynos->set_addr_error_count > 1) {
+			/* Disable USB enumeration */
+			ret = -ENOTCONN;
+			dev_err(xhci_exynos->dev,
+				"force disable USB enumeration, err count:%d\n",
+				host_disabled_count++);
+		}
+	}
+
+	mutex_unlock(&xhci_exynos->count_lock);
+
 	udev->dev.platform_data  = xhci_exynos;
 
 	return ret;
@@ -97,6 +134,13 @@ int xhci_exynos_bus_suspend(struct usb_hcd *hcd)
 		/* Vote to turn off tcxo when suspend with USB2 */
 		pmucal_tcxo_demand(false);
 	}
+
+	mutex_lock(&xhci_exynos->count_lock);
+
+	if (xhci_exynos->set_addr_error_count > 1)
+		xhci_exynos_portsc2_power_off(xhci_exynos);
+
+	mutex_unlock(&xhci_exynos->count_lock);
 
 	xhci_exynos_wake_lock(xhci_exynos, main_hcd, 0);
 
@@ -438,6 +482,53 @@ void xhci_exynos_unregister_notify(void)
 	usb_unregister_notify(&dev_nb);
 }
 
+static int xhci_exynos_accessory_notifier(struct notifier_block *nb,
+				     unsigned long action, void *dev)
+{
+	struct xhci_hcd_exynos *xhci_exynos =
+			container_of(nb, struct xhci_hcd_exynos, accessory_nb);
+
+	xhci_exynos->accessory_state = !!action;
+
+	/* clear the count when accessory state is change. */
+	mutex_lock(&xhci_exynos->count_lock);
+	xhci_exynos->set_addr_error_count = 0;
+	mutex_unlock(&xhci_exynos->count_lock);
+
+	return NOTIFY_OK;
+}
+
+static int xhci_exynos_extcon_register(struct xhci_hcd_exynos *xhci_exynos)
+{
+	int ret = 0;
+	struct device *tmpdev;
+	bool find_extcon = false;
+
+	for (tmpdev = xhci_exynos->dev; tmpdev; tmpdev = tmpdev->parent) {
+		if (of_property_read_bool(tmpdev->of_node, "extcon")) {
+			find_extcon = true;
+			break;
+		}
+	}
+
+	if (!find_extcon)
+		return -EINVAL;
+
+	xhci_exynos->edev = extcon_get_edev_by_phandle(tmpdev, 1);
+	if (IS_ERR_OR_NULL(xhci_exynos->edev)) {
+		dev_err(xhci_exynos->dev, "couldn't get extcon\n");
+		return xhci_exynos->edev ? PTR_ERR(xhci_exynos->edev) : -ENODEV;
+	}
+
+	xhci_exynos->accessory_nb.notifier_call = xhci_exynos_accessory_notifier;
+	ret = extcon_register_notifier(xhci_exynos->edev, EXTCON_DOCK,
+				       &xhci_exynos->accessory_nb);
+	if (ret < 0)
+		dev_err(xhci_exynos->dev, "couldn't register notifier for EXTCON_DOCK\n");
+
+	return ret;
+}
+
 static ssize_t
 xhci_exynos_ss_compliance_show(struct device *dev,
 			     struct device_attribute *attr,
@@ -711,12 +802,18 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, xhci_exynos);
 
 	spin_lock_init(&xhci_exynos->xhcioff_lock);
+	mutex_init(&xhci_exynos->count_lock);
 
 	xhci_exynos->usb3_portsc = hcd->regs + PORTSC_OFFSET;
+	xhci_exynos->usb2_portsc = hcd->regs + PORTSC2_OFFSET;
 	xhci_exynos->is_otg_only = 1;
 	xhci_exynos->port_state = PORT_EMPTY;
 
 	xhci_exynos_register_notify();
+
+	ret = xhci_exynos_extcon_register(xhci_exynos);
+	if (ret)
+		goto unregister_notify;
 
 	/*
 	 * Not all platforms have clks so it is not an error if the
@@ -725,12 +822,12 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	xhci->reg_clk = devm_clk_get_optional(&pdev->dev, "reg");
 	if (IS_ERR(xhci->reg_clk)) {
 		ret = PTR_ERR(xhci->reg_clk);
-		goto unregister_notify;
+		goto unregister_extcon;
 	}
 
 	ret = clk_prepare_enable(xhci->reg_clk);
 	if (ret)
-		goto unregister_notify;
+		goto unregister_extcon;
 
 	xhci->clk = devm_clk_get_optional(&pdev->dev, NULL);
 	if (IS_ERR(xhci->clk)) {
@@ -833,6 +930,9 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_forbid(&pdev->dev);
 
+	if (extcon_get_state(xhci_exynos->edev, EXTCON_DOCK) > 0)
+		xhci_exynos->accessory_state = true;
+
 	return 0;
 
 
@@ -850,6 +950,9 @@ disable_clk:
 
 disable_reg_clk:
 	clk_disable_unprepare(xhci->reg_clk);
+
+unregister_extcon:
+	extcon_unregister_notifier(xhci_exynos->edev, EXTCON_DOCK, &xhci_exynos->accessory_nb);
 
 unregister_notify:
 	xhci_exynos_unregister_notify();
@@ -888,6 +991,10 @@ static int xhci_exynos_remove(struct platform_device *dev)
 	wakeup_source_unregister(xhci_exynos->shared_wakelock);
 
 	xhci_exynos_unregister_notify();
+
+	if (xhci_exynos->edev)
+		extcon_unregister_notifier(xhci_exynos->edev, EXTCON_DOCK,
+					   &xhci_exynos->accessory_nb);
 
 	if (!rhdev || !srhdev)
 		goto remove_hcd;

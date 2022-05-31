@@ -11,7 +11,8 @@
 
 #include "xhci.h"	/* for hcd_to_xhci() */
 
-#define PORTSC_OFFSET		0x430
+#define PORTSC_OFFSET		0x430   /* portsc of USB3 */
+#define PORTSC2_OFFSET		0x420	/* portsc of USB2 */
 #define DIS_RX_DETECT		BIT(9)
 #define USB_CLASS_BILLBOARD	0x11
 
@@ -33,13 +34,20 @@ struct xhci_hcd_exynos {
 	struct wakeup_source	*shared_wakelock;
 
 	void __iomem		*usb3_portsc;
+	void __iomem		*usb2_portsc;
 	spinlock_t 		xhcioff_lock;
+	struct mutex		count_lock;
 	int 			is_otg_only;
 	int 			port_off_done;
 	int 			port_set_delayed;
+	int			set_addr_error_count;
 	u32 			portsc_control_priority;
 	enum usb_port_state	port_state;
+	bool			accessory_state;
 	bool			ap_suspend_enabled;
+
+	struct extcon_dev	*edev;
+	struct notifier_block	accessory_nb;
 };
 
 struct xhci_exynos_priv {
