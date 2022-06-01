@@ -18,18 +18,51 @@
 #include <dt-bindings/soc/google/gs101-devfreq.h>
 #include <trace/events/power.h>
 #include "../governor.h"
-
+#include "governor_memlat.h"
 
 #define MEMLAT_DEVFREQ_MODULE_NAME	"gs101-memlat-devfreq"
 #define HZ_PER_KHZ	1000
 
+static struct exynos_pm_qos_request *memlat_cpu_qos_array[CONFIG_VH_SCHED_CPU_NR];
+static struct device  *memlat_dev_array[CONFIG_VH_SCHED_CPU_NR];
+static spinlock_t memlat_cpu_lock;
+static int memlat_cpuidle_state_aware[CONFIG_VH_SCHED_CPU_NR];
+
 static int gs_memlat_devfreq_target(struct device *parent,
-				  unsigned long *target_freq, u32 flags)
+				    unsigned long *target_freq, u32 flags)
 {
 	struct platform_device *pdev = container_of(parent, struct platform_device, dev);
 	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
+	struct devfreq *df = data->devfreq;
+	struct memlat_node *node = df->data;
+	struct memlat_hwmon *hw = node->hw;
+	struct memlat_mon *mon = to_mon(hw);
+	unsigned int active_cpu = cpumask_first(&mon->cpus);
+	unsigned int cpu;
+
+	for_each_online_cpu(cpu) {
+			if (READ_ONCE(memlat_cpu_qos_array[cpu]) && active_cpu!= cpu) {
+				if ((memlat_cpuidle_state_aware[cpu] ==
+					DEEP_MEMLAT_CPUIDLE_STATE_AWARE
+					&& hw->get_cpu_idle_state(cpu) > 0)
+					|| memlat_cpuidle_state_aware[cpu] ==
+					ALL_MEMLAT_CPUIDLE_STATE_AWARE) {
+				exynos_pm_qos_update_request(
+					memlat_cpu_qos_array[cpu], data->min_freq);
+				spin_lock(&memlat_cpu_lock);
+				memlat_cpu_qos_array[cpu] = NULL;
+				spin_unlock(&memlat_cpu_lock);
+				trace_clock_set_rate(dev_name(memlat_dev_array[cpu]),
+						     data->min_freq, cpu);
+			}
+		}
+	}
 
 	if (exynos_pm_qos_request_active(&data->sys_pm_qos_min)) {
+		spin_lock(&memlat_cpu_lock);
+		memlat_cpu_qos_array[active_cpu] = &data->sys_pm_qos_min;
+		memlat_dev_array[active_cpu] = data->dev;
+		spin_unlock(&memlat_cpu_lock);
 		exynos_pm_qos_update_request(&data->sys_pm_qos_min, *target_freq);
 		trace_clock_set_rate(dev_name(data->dev), *target_freq, raw_smp_processor_id());
 	}
@@ -51,6 +84,9 @@ static int gs_memlat_devfreq_get_cur_freq(struct device *dev,
 	return ret;
 }
 
+/*********************************************************************
+ *                       DEVFREQ SYSFS                               *
+ *********************************************************************/
 static ssize_t show_scaling_devfreq_min(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -100,6 +136,40 @@ static ssize_t store_scaling_devfreq_min(struct device *dev,
 static DEVICE_ATTR(scaling_devfreq_min, 0440, show_scaling_devfreq_min,
 		   store_scaling_devfreq_min);
 
+static ssize_t memlat_cpuidle_state_aware_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	ssize_t count = 0;
+	struct device *parent = dev->parent;
+	struct platform_device *pdev =
+			container_of(parent, struct platform_device, dev);
+	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
+
+	count += sysfs_emit_at(buf, count, "%d\n", memlat_cpuidle_state_aware[data->cpu]);
+
+	return count;
+}
+
+static ssize_t memlat_cpuidle_state_aware_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	int ret;
+	struct device *parent = dev->parent;
+	struct platform_device *pdev =
+			container_of(parent, struct platform_device, dev);
+	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
+
+	ret = kstrtoint(buf, 10, &memlat_cpuidle_state_aware[data->cpu]);
+	if (ret != 1)
+		return -EINVAL;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(memlat_cpuidle_state_aware);
+
 #ifdef CONFIG_OF
 static int exynos_devfreq_parse_dt(struct device_node *np,
 				   struct exynos_devfreq_data *data)
@@ -119,6 +189,8 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 		return -ENODEV;
 	if (of_property_read_u32(np, "pm_qos_class_max",
 				 &data->pm_qos_class_max))
+		return -ENODEV;
+	if (of_property_read_u32(np, "cpu", &data->cpu))
 		return -ENODEV;
 
 #if IS_ENABLED(CONFIG_ECT)
@@ -205,6 +277,7 @@ static int gs_memlat_devfreq_probe(struct platform_device *pdev)
 	data->dev = &pdev->dev;
 
 	mutex_init(&data->lock);
+	spin_lock_init(&memlat_cpu_lock);
 
 	/* parsing devfreq dts data for exynos */
 	ret = exynos_devfreq_parse_dt(data->dev->of_node, data);
@@ -253,6 +326,12 @@ static int gs_memlat_devfreq_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(data->dev,
 		  "failed create sysfs for devfreq pm_qos_min\n");
+
+	ret = sysfs_create_file(&data->devfreq->dev.kobj,
+				&dev_attr_memlat_cpuidle_state_aware.attr);
+	if (ret)
+		dev_warn(data->dev,
+		  "failed create sysfs for devfreq memlat_cpuidle_enable\n");
 
 	dev_info(data->dev, "devfreq is initialized!!\n");
 

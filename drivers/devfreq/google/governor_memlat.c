@@ -27,19 +27,6 @@
 #define CREATE_TRACE_POINTS
 #include "governor_memlat_trace.h"
 
-struct memlat_node {
-	unsigned int ratio_ceil;
-	unsigned int stall_floor;
-	bool mon_started;
-	bool already_zero;
-	struct list_head list;
-	void *orig_data;
-	struct memlat_hwmon *hw;
-	struct devfreq_governor *gov;
-	struct attribute_group *attr_grp;
-	unsigned long resume_freq;
-};
-
 static LIST_HEAD(memlat_list);
 static DEFINE_MUTEX(list_lock);
 

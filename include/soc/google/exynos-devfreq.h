@@ -139,6 +139,7 @@ struct exynos_devfreq_data {
 	struct clk				*clk;
 
 	bool					devfreq_disabled;
+	u32		cpu;
 
 	u32		devfreq_type;
 
