@@ -1289,7 +1289,7 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 			data->is_hardlimited = false;
 			pr_info_ratelimited("%s: clear hard limit, is_hardlimited = %d, pid swithed_on = %d\n",
 					    data->tmu_name, data->is_hardlimited,
-					    data->pi_param->switched_on);
+					    data->use_pi_thermal ? data->pi_param->switched_on : 0);
 		}
 	} else {
 		if (data->temperature >= data->hardlimit_threshold) {
@@ -1323,7 +1323,7 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 			pr_info_ratelimited("%s: %s set cur_state to hardlimit cooling state %d, is_hardlimited = %d, pid swithed_on = %d\n",
 					    data->tmu_name, cdev->type,
 					    data->hardlimit_cooling_state, data->is_hardlimited,
-					    data->pi_param->switched_on);
+					    data->use_pi_thermal ? data->pi_param->switched_on : 0);
 		}
 	}
 	update_thermal_trace(data, HARD_LIMIT, data->is_hardlimited);
