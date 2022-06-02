@@ -55,11 +55,69 @@ static int trusty_log_size_set(const char *val, const struct kernel_param *kp)
 
 static int trusty_log_size_get(char *buffer, const struct kernel_param *kp)
 {
-	sprintf(buffer, "%zu", log_size_param);
-	return strlen(buffer);
+	return scnprintf(buffer, PAGE_SIZE, "%zu\n", log_size_param);
 }
 
 module_param_call(log_size, trusty_log_size_set, trusty_log_size_get, NULL,
+		  0644);
+
+/*
+ * The "log_to_dmesg" parameter can have three values: "never", "always",
+ * and "until_first_reader". "never" indicates Trusty logs will never be
+ * copied to the linux kernel log, while "always" indicates they will always
+ * be copied to the linux kernel log. In both cases Trusty logs can still
+ * be read from the /dev/trusty-logX virtual file. In the case of "always"
+ * that may mean logs show up duplicated in logcat.
+ * The third option, "until_first_reader", copies Trusty logs to the linux
+ * kernel log, but only until /dev/trusty-logX is first opened. After that
+ * Trusty logs will no longer be copied to the kernel log and are only
+ * available from /dev/trusty-logX.
+ */
+
+enum log_to_dmesg_options {
+	NEVER,
+	ALWAYS,
+	UNTIL_FIRST_READER
+};
+
+static const char * const log_to_dmesg_opt_names[] = {
+	"never", "always", "until_first_reader"
+};
+
+static int log_to_dmesg_param = NEVER;
+
+static int trusty_log_mode_set(const char *val, const struct kernel_param *kp)
+{
+	int i = sysfs_match_string(log_to_dmesg_opt_names, val);
+	if (i < 0)
+		return i;
+
+	log_to_dmesg_param = i;
+	return 0;
+}
+
+static int trusty_log_mode_get(char *buffer, const struct kernel_param *kp)
+{
+	int i;
+
+	/*
+	 * Output buffer is PAGE_SIZE, of which we'll use only 35 bytes,
+	 * so bounds checks are not necessary in the following code.
+	 */
+	*buffer = 0;
+	for (i = 0; i < ARRAY_SIZE(log_to_dmesg_opt_names); i++) {
+		if (log_to_dmesg_param == i)
+			strcat(buffer, "[");
+		strcat(buffer, log_to_dmesg_opt_names[i]);
+		if (log_to_dmesg_param == i)
+			strcat(buffer, "]");
+		strcat(buffer, " ");
+	}
+	strcat(buffer, "\n");
+	return strlen(buffer);
+}
+
+module_param_call(log_to_dmesg, trusty_log_mode_set, trusty_log_mode_get, NULL,
 		  0644);
 /*
  * If we log too much and a UART or other slow source is connected, we can stall
@@ -70,6 +128,10 @@ module_param_call(log_size, trusty_log_size_set, trusty_log_size_get, NULL,
  */
 static struct ratelimit_state trusty_log_rate_limit =
 	RATELIMIT_STATE_INIT("trusty_log", 1 * HZ, 100);
+
+module_param_named(log_ratelimit_burst, trusty_log_rate_limit.burst, int, 0644);
+module_param_named(log_ratelimit_interval, trusty_log_rate_limit.interval, int,
+		   0644);
 
 /**
  * struct trusty_log_sfile - trusty log misc device state
@@ -87,6 +149,8 @@ struct trusty_log_sfile {
  * struct trusty_log_sink_state - trusty log sink state
  *
  * @get:              current read unwrapped index
+ * @last_successful_next:
+ *                    index for the next line after the last successful get
  * @trusty_panicked:  trusty panic status at the start of the sink interation
  *                    (only used for kernel log sink)
  * @sfile:            seq_file used for sinking to a virtual file (misc device);
@@ -103,6 +167,7 @@ struct trusty_log_sfile {
  */
 struct trusty_log_sink_state {
 	u32 get;
+	u32 last_successful_next;
 	bool trusty_panicked;
 
 	/* virtual file sink specific attributes */
@@ -115,6 +180,11 @@ struct trusty_log_state {
 	struct device *trusty_dev;
 	struct trusty_log_sfile log_sfile;
 
+	/*
+	 * This lock is here to ensure only one consumer will read
+	 * from the log ring buffer at a time.
+	 */
+	spinlock_t lock;
 	struct log_rb *log;
 	struct trusty_log_sink_state klog_sink;
 
@@ -129,6 +199,7 @@ struct trusty_log_state {
 	/* this lock protects access to wake_put */
 	spinlock_t wake_up_lock;
 	u32 last_wake_put;
+	bool have_first_reader;
 };
 
 static inline u32 u32_add_overflow(u32 a, u32 b)
@@ -233,6 +304,9 @@ static void trusty_log_show(struct trusty_log_state *s,
 	u32 alloc, put, get;
 	int read_chars;
 
+	if (sink->sfile && sink == &s->klog_sink)
+		dev_warn(s->dev, "klog_sink has seq_file\n");
+
 	/*
 	 * For this ring buffer, at any given point, alloc >= put >= get.
 	 * The producer side of the buffer is not locked, so the put and alloc
@@ -287,6 +361,8 @@ static void trusty_log_show(struct trusty_log_state *s,
 		if (sink->trusty_panicked ||
 		    __ratelimit(&trusty_log_rate_limit)) {
 			dev_info(s->dev, "%s", s->line_buffer);
+			/* next line after last successful get */
+			sink->last_successful_next = sink->get;
 		}
 	}
 }
@@ -430,13 +506,18 @@ static int trusty_log_seq_show(struct seq_file *sfile, void *v)
 
 static void trusty_dump_logs(struct trusty_log_state *s)
 {
+	u32 start;
 	int rc;
 	/*
-	 * note: klog_sink.get initialized to zero by kzalloc
+	 * note: klopg_sink.get and last_successful_next
+	 * initialized to zero by kzalloc
 	 */
 	s->klog_sink.trusty_panicked = trusty_get_panic_status(s->trusty_dev);
 
-	rc = trusty_log_start(s, &s->klog_sink, s->klog_sink.get);
+	start = s->klog_sink.trusty_panicked ?
+			s->klog_sink.last_successful_next :
+			s->klog_sink.get;
+	rc = trusty_log_start(s, &s->klog_sink, start);
 	if (rc < 0)
 		return;
 
@@ -462,6 +543,13 @@ static int trusty_log_call_notify(struct notifier_block *nb,
 		wake_up_all(&s->poll_waiters);
 	}
 	spin_unlock_irqrestore(&s->wake_up_lock, flags);
+	if (log_to_dmesg_param == ALWAYS ||
+	    (log_to_dmesg_param == UNTIL_FIRST_READER &&
+	     !s->have_first_reader)) {
+		spin_lock_irqsave(&s->lock, flags);
+		trusty_dump_logs(s);
+		spin_unlock_irqrestore(&s->lock, flags);
+	}
 	return NOTIFY_OK;
 }
 
@@ -491,6 +579,7 @@ const struct seq_operations trusty_log_seq_ops = {
 static int trusty_log_sfile_dev_open(struct inode *inode, struct file *file)
 {
 	struct trusty_log_sfile *ls;
+	struct trusty_log_state *s;
 	struct seq_file *sfile;
 	int rc;
 
@@ -517,6 +606,8 @@ static int trusty_log_sfile_dev_open(struct inode *inode, struct file *file)
 		return -EINVAL;
 
 	sfile->private = ls;
+	s = container_of(ls, struct trusty_log_state, log_sfile);
+	s->have_first_reader = true;
 	return 0;
 }
 
@@ -540,13 +631,15 @@ static unsigned int trusty_log_sfile_dev_poll(struct file *filp,
 	log = s->log;
 
 	/*
-	 * Userspace has read up to filp->f_pos so far. Update klog_sink
+	 * Userspace has read up to sfile->index so far. Update klog_sink
 	 * to indicate that, so that we don't end up dumping the entire
-	 * Trusty log in case of panic.
+	 * Trusty log in case of panic. Only do this when not logging to
+	 * klog_sink, since logging to klog_sink already updates this.
 	 */
-	s->klog_sink.get = (u32)filp->f_pos;
+	if (log_to_dmesg_param != ALWAYS)
+		s->klog_sink.last_successful_next = (u32)sfile->index;
 
-	if (log->put != (u32)filp->f_pos) {
+	if (log->put != (u32)sfile->index) {
 		/* data ready to read */
 		return EPOLLIN | EPOLLRDNORM;
 	}
@@ -639,6 +732,7 @@ static int trusty_log_init(struct platform_device *pdev)
 		goto error_alloc_state;
 	}
 
+	spin_lock_init(&s->lock);
 	s->dev = &pdev->dev;
 	s->trusty_dev = s->dev->parent;
 
