@@ -33,6 +33,13 @@
 
 #include "exynos-acme.h"
 #include "../soc/google/vh/kernel/systrace.h"
+
+#if IS_ENABLED(CONFIG_PIXEL_EM)
+#include "../soc/google/vh/include/pixel_em.h"
+struct pixel_em_profile **exynos_acme_pixel_em_profile;
+EXPORT_SYMBOL_GPL(exynos_acme_pixel_em_profile);
+#endif
+
 /*
  * list head of cpufreq domain
  */
@@ -201,6 +208,11 @@ static void update_thermal_pressure(struct exynos_cpufreq_domain *domain, int df
 	cpumask_t *maskp = &domain->cpus;
 	struct cpufreq_policy *policy = cpufreq_cpu_get(cpumask_first(maskp));
 	unsigned long max_capacity, min_capacity, capacity;
+#if IS_ENABLED(CONFIG_PIXEL_EM)
+	struct pixel_em_profile **profile_ptr_snapshot, *profile = NULL;
+	struct pixel_em_cluster *em_cluster;
+	int i;
+#endif
 
 	if (!policy)
 		return;
@@ -215,7 +227,27 @@ static void update_thermal_pressure(struct exynos_cpufreq_domain *domain, int df
 	BUG_ON(domain->dfs_throttle_count < 0);
 	BUG_ON(domain->dfs_throttle_count > domain->max_dfs_count);
 
+#if IS_ENABLED(CONFIG_PIXEL_EM)
+	profile_ptr_snapshot = READ_ONCE(exynos_acme_pixel_em_profile);
+
+	if (profile_ptr_snapshot)
+		profile = READ_ONCE(*profile_ptr_snapshot);
+
+	if (profile) {
+		em_cluster = profile->cpu_to_cluster[cpumask_first(maskp)];
+		for (i = 0; i < em_cluster->num_opps - 1; i++) {
+			if (em_cluster->opps[i].freq >= policy->max)
+				break;
+		}
+		capacity = (domain->dfs_throttle_count > 0) ?
+			em_cluster->opps[0].capacity : em_cluster->opps[i].capacity;
+	} else {
+		capacity = (domain->dfs_throttle_count > 0) ? min_capacity : capacity;
+	}
+#else
 	capacity = (domain->dfs_throttle_count > 0) ? min_capacity : capacity;
+#endif
+
 	arch_set_thermal_pressure(maskp, max_capacity - capacity);
 	spin_unlock(&domain->thermal_update_lock);
 
