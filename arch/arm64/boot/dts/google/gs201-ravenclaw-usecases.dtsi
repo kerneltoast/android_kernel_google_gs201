@@ -22,8 +22,7 @@
 	/* b/202526678 handles for WLC_RX->WLC_RX+GPIO */
 	max77759,wlc-en =  <&gpp0 0 GPIO_ACTIVE_HIGH>;
 	max77759,wlc-vout_is_invalid = <&p9xxx_gpio 14 GPIO_ACTIVE_HIGH>;
-	/* b/202526678 add inhibit pin */
-	max77759,wlc-vbus_en = <&p9xxx_gpio 15 GPIO_ACTIVE_HIGH>;
+	max77759,cpout-en = <&p9xxx_gpio 1 GPIO_ACTIVE_HIGH>;
 	/* for OTG related usecase*/
 	max77759,rx-to-rx-otg-en; /* support RX -> RX+OTG */
 	max77759,ext-otg-only; /* use external OTG only */
