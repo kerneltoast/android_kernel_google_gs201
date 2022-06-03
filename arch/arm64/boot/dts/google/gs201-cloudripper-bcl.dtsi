@@ -21,11 +21,11 @@
 				google,sub-power = <&s2mpg13mfd>;
 				ppm_settings = <0>;
 				mpmm_settings = <0x1a>;
-				tpu_con_heavy = <0xf041c3>;
-				tpu_con_light = <0xf041c5>;
+				tpu_con_heavy = <0xfff041c3>;
+				tpu_con_light = <0xfff041c1>;
 				tpu_clkdivstep = <0x1>;
-				gpu_con_heavy = <0xf04385>;
-				gpu_con_light = <0>;
+				gpu_con_heavy = <0xfff04385>;
+				gpu_con_light = <0xfff041c1>;
 				gpu_clkdivstep = <0x1>;
 				cpu2_clkdivstep = <0x1>;
 				cpu1_clkdivstep = <0x1>;
