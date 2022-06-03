@@ -159,27 +159,6 @@ static void __mfc_set_dec_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 		mfc_debug(2, "[SBWC] 10B stride [0] %d [1] %d header [0] %d [1] %d\n",
 				raw->stride[0], raw->stride[1], raw->stride_2bits[0], raw->stride_2bits[1]);
 		break;
-	/* for compress lossy format (SBWCL) */
-	case V4L2_PIX_FMT_NV12M_SBWCL_8B:
-		raw->stride[0] = SBWCL_8B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
-		raw->stride[1] = SBWCL_8B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
-		raw->stride[2] = 0;
-		raw->stride_2bits[0] = 0;
-		raw->stride_2bits[1] = 0;
-		raw->stride_2bits[2] = 0;
-		mfc_debug(2, "[SBWCL] 8B stride [0] %d [1] %d header [0] %d [1] %d\n",
-				raw->stride[0], raw->stride[1], raw->stride_2bits[0], raw->stride_2bits[1]);
-		break;
-	case V4L2_PIX_FMT_NV12M_SBWCL_10B:
-		raw->stride[0] = SBWCL_10B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
-		raw->stride[1] = SBWCL_10B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
-		raw->stride[2] = 0;
-		raw->stride_2bits[0] = 0;
-		raw->stride_2bits[1] = 0;
-		raw->stride_2bits[2] = 0;
-		mfc_debug(2, "[SBWCL] 10B stride [0] %d [1] %d header [0] %d [1] %d\n",
-				raw->stride[0], raw->stride[1], raw->stride_2bits[0], raw->stride_2bits[1]);
-		break;
 	default:
 		mfc_ctx_err("Invalid pixelformat : %s\n", fmt->name);
 		break;
@@ -268,6 +247,7 @@ static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 		break;
 	/* for compress lossy format (SBWCL) */
 	case V4L2_PIX_FMT_NV12M_SBWCL_8B:
+	case V4L2_PIX_FMT_NV12N_SBWCL_8B:
 		raw->stride[0] = SBWCL_8B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
 		raw->stride[1] = SBWCL_8B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
 		mfc_debug(2, "[SBWCL] 8B stride [0] %d [1] %d header [0] %d [1] %d\n",
@@ -275,6 +255,7 @@ static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 				raw->stride_2bits[0], raw->stride_2bits[1]);
 		break;
 	case V4L2_PIX_FMT_NV12M_SBWCL_10B:
+	case V4L2_PIX_FMT_NV12N_SBWCL_10B:
 		raw->stride[0] = SBWCL_10B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
 		raw->stride[1] = SBWCL_10B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
 		mfc_debug(2, "[SBWCL] 10B stride [0] %d [1] %d header [0] %d [1] %d\n",
