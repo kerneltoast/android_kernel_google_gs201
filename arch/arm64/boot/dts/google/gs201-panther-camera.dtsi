@@ -271,6 +271,9 @@
 					 0
 					 6000
 					 0>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
 			};
 
 			/* FRONT CAMERA DOKKAEBI */
@@ -350,6 +353,9 @@
 					 0
 					 0
 					 1000>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
 			};
 
 			/* REAR ULTRA WIDE CAMERA SANDWORM */
@@ -429,6 +435,9 @@
 					 0
 					 0
 					 1000>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
 			};
 
 			/* EEPROM GARGOYLE for NAGUAL*/
