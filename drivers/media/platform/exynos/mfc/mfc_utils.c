@@ -61,35 +61,23 @@ int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb)
 	return 0;
 }
 
-void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
+static void __mfc_set_dec_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 {
 	struct mfc_raw_info *raw;
-	int stride_align, stride, stride_type;
+	int stride_align, y_stride, stride_type;
 
 	raw = &ctx->raw_buf;
-	if (ctx->type == MFCINST_DECODER) {
-		stride_align = ctx->dev->pdata->stride_align;
-		stride = ALIGN(ctx->img_width, stride_align);
-		stride_type = ctx->dev->pdata->stride_type;
-	} else {
-		/* Encoder stride uses the user stride */
-		stride_align = 16;
-		stride_type = 0;
-		stride = ctx->buf_stride;
-		if (stride % stride_align != 0) {
-			mfc_ctx_err("[FRAME] MFC needs multiple of %dByte alignment for stride (%d)\n",
-					stride_align, stride);
-			stride = ALIGN(ctx->img_width, stride_align);
-		}
-	}
+	stride_align = ctx->dev->pdata->stride_align;
+	y_stride = ALIGN(ctx->img_width, stride_align);
+	stride_type = ctx->dev->pdata->stride_type;
 
 	switch (fmt->fourcc) {
 	case V4L2_PIX_FMT_YUV420M:
 	case V4L2_PIX_FMT_YUV420N:
 	case V4L2_PIX_FMT_YVU420M:
-		raw->stride[0] = stride;
-		raw->stride[1] = ALIGN(stride >> 1, 16);
-		raw->stride[2] = ALIGN(stride >> 1, 16);
+		raw->stride[0] = y_stride;
+		raw->stride[1] = ALIGN(y_stride >> 1, stride_align);
+		raw->stride[2] = ALIGN(y_stride >> 1, stride_align);
 		break;
 	case V4L2_PIX_FMT_NV12MT_16X16:
 	case V4L2_PIX_FMT_NV12MT:
@@ -98,8 +86,8 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	case V4L2_PIX_FMT_NV21M:
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
-		raw->stride[0] = stride;
-		raw->stride[1] = stride;
+		raw->stride[0] = y_stride;
+		raw->stride[1] = y_stride;
 		raw->stride[2] = 0;
 		break;
 	case V4L2_PIX_FMT_NV12M_S10B:
@@ -118,38 +106,17 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	case V4L2_PIX_FMT_NV21M_P010:
 	case V4L2_PIX_FMT_NV61M_P210:
 	case V4L2_PIX_FMT_NV16M_P210:
-		if ((ctx->type == MFCINST_DECODER) && ctx->dev->pdata->stride_type) {
+		if (ctx->dev->pdata->stride_type) {
 			raw->stride[0] = ALIGN(ctx->img_width * 2, stride_align);
 			raw->stride[1] = ALIGN(ctx->img_width * 2, stride_align);
 		} else {
-			raw->stride[0] = stride * 2;
-			raw->stride[1] = stride * 2;
+			raw->stride[0] = y_stride * 2;
+			raw->stride[1] = y_stride * 2;
 		}
 		raw->stride[2] = 0;
 		raw->stride_2bits[0] = 0;
 		raw->stride_2bits[1] = 0;
 		raw->stride_2bits[2] = 0;
-		break;
-	case V4L2_PIX_FMT_RGB24:
-		ctx->rgb_bpp = 24;
-		raw->stride[0] = stride * (ctx->rgb_bpp / 8);
-		raw->stride[1] = 0;
-		raw->stride[2] = 0;
-		break;
-	case V4L2_PIX_FMT_RGB565:
-		ctx->rgb_bpp = 16;
-		raw->stride[0] = stride * (ctx->rgb_bpp / 8);
-		raw->stride[1] = 0;
-		raw->stride[2] = 0;
-		break;
-	case V4L2_PIX_FMT_RGB32X:
-	case V4L2_PIX_FMT_BGR32:
-	case V4L2_PIX_FMT_ARGB32:
-	case V4L2_PIX_FMT_RGB32:
-		ctx->rgb_bpp = 32;
-		raw->stride[0] = stride * (ctx->rgb_bpp / 8);
-		raw->stride[1] = 0;
-		raw->stride[2] = 0;
 		break;
 	/* for compress format (SBWC) */
 	case V4L2_PIX_FMT_NV12M_SBWC_8B:
@@ -199,6 +166,126 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 		mfc_ctx_err("Invalid pixelformat : %s\n", fmt->name);
 		break;
 	}
+}
+
+static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
+{
+	struct mfc_raw_info *raw;
+	int i, y_stride, stride_align = 16;
+
+	y_stride = ctx->bytesperline[0];
+
+	raw = &ctx->raw_buf;
+	for (i = 0; i < MFC_MAX_PLANES; i++) {
+		raw->stride[i] = 0;
+		raw->stride_2bits[i] = 0;
+	}
+
+	switch (fmt->fourcc) {
+	case V4L2_PIX_FMT_YUV420M:
+	case V4L2_PIX_FMT_YUV420N:
+	case V4L2_PIX_FMT_YVU420M:
+	case V4L2_PIX_FMT_NV12MT_16X16:
+	case V4L2_PIX_FMT_NV12MT:
+	case V4L2_PIX_FMT_NV12M:
+	case V4L2_PIX_FMT_NV12N:
+	case V4L2_PIX_FMT_NV21M:
+	case V4L2_PIX_FMT_NV16M:
+	case V4L2_PIX_FMT_NV61M:
+		/* use user stride */
+		for (i = 0; i < ctx->src_fmt->num_planes; i++) {
+			raw->stride[i] = ctx->bytesperline[i];
+			if (!raw->stride[i])
+				raw->stride[i] = ALIGN(ctx->img_width, stride_align);
+		}
+		break;
+	case V4L2_PIX_FMT_RGB24:
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_RGB32X:
+	case V4L2_PIX_FMT_BGR32:
+	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_RGB32:
+		raw->stride[0] = y_stride * (ctx->rgb_bpp / 8);
+		break;
+	case V4L2_PIX_FMT_NV12M_P010:
+	case V4L2_PIX_FMT_NV21M_P010:
+	case V4L2_PIX_FMT_NV61M_P210:
+	case V4L2_PIX_FMT_NV16M_P210:
+		raw->stride[0] = y_stride * 2;
+		raw->stride[1] = y_stride * 2;
+		break;
+	case V4L2_PIX_FMT_NV12M_S10B:
+	case V4L2_PIX_FMT_NV12N_10B:
+	case V4L2_PIX_FMT_NV21M_S10B:
+	case V4L2_PIX_FMT_NV16M_S10B:
+	case V4L2_PIX_FMT_NV61M_S10B:
+		raw->stride[0] = S10B_8B_STRIDE(ctx->img_width);
+		raw->stride[1] = S10B_8B_STRIDE(ctx->img_width);
+		raw->stride_2bits[0] = S10B_2B_STRIDE(ctx->img_width);
+		raw->stride_2bits[1] = S10B_2B_STRIDE(ctx->img_width);
+		break;
+	/* for compress format (SBWC) */
+	case V4L2_PIX_FMT_NV12M_SBWC_8B:
+	case V4L2_PIX_FMT_NV12N_SBWC_8B:
+		raw->stride[0] = SBWC_8B_STRIDE(ctx->img_width);
+		raw->stride[1] = SBWC_8B_STRIDE(ctx->img_width);
+		raw->stride_2bits[0] = SBWC_HEADER_STRIDE(ctx->img_width);
+		raw->stride_2bits[1] = SBWC_HEADER_STRIDE(ctx->img_width);
+		mfc_debug(2, "[SBWC] 8B stride [0] %d [1] %d header [0] %d [1] %d\n",
+				raw->stride[0], raw->stride[1],
+				raw->stride_2bits[0], raw->stride_2bits[1]);
+		break;
+	case V4L2_PIX_FMT_NV12M_SBWC_10B:
+	case V4L2_PIX_FMT_NV12N_SBWC_10B:
+		raw->stride[0] = SBWC_10B_STRIDE(ctx->img_width);
+		raw->stride[1] = SBWC_10B_STRIDE(ctx->img_width);
+		raw->stride_2bits[0] = SBWC_HEADER_STRIDE(ctx->img_width);
+		raw->stride_2bits[1] = SBWC_HEADER_STRIDE(ctx->img_width);
+		mfc_debug(2, "[SBWC] 10B stride [0] %d [1] %d header [0] %d [1] %d\n",
+				raw->stride[0], raw->stride[1],
+				raw->stride_2bits[0], raw->stride_2bits[1]);
+		break;
+	/* for compress lossy format (SBWCL) */
+	case V4L2_PIX_FMT_NV12M_SBWCL_8B:
+		raw->stride[0] = SBWCL_8B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
+		raw->stride[1] = SBWCL_8B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
+		mfc_debug(2, "[SBWCL] 8B stride [0] %d [1] %d header [0] %d [1] %d\n",
+				raw->stride[0], raw->stride[1],
+				raw->stride_2bits[0], raw->stride_2bits[1]);
+		break;
+	case V4L2_PIX_FMT_NV12M_SBWCL_10B:
+		raw->stride[0] = SBWCL_10B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
+		raw->stride[1] = SBWCL_10B_STRIDE(ctx->img_width, ctx->sbwcl_ratio);
+		mfc_debug(2, "[SBWCL] 10B stride [0] %d [1] %d header [0] %d [1] %d\n",
+				raw->stride[0], raw->stride[1],
+				raw->stride_2bits[0], raw->stride_2bits[1]);
+		break;
+	default:
+		mfc_ctx_err("Invalid pixelformat : %s\n", fmt->name);
+		break;
+	}
+
+	/* Check only HW limitation (16 align) */
+	for (i = 0; i < ctx->src_fmt->num_planes; i++) {
+		if ((raw->stride[i] % stride_align) != 0) {
+			mfc_ctx_err("[FRAME] Forced to change stride[%d] %d for %dbyte alignment\n",
+					i, raw->stride[i], stride_align);
+			raw->stride[i] = ALIGN(raw->stride[i], stride_align);
+		}
+	}
+}
+
+void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
+{
+	/*
+	 * Decoder: Use stride alignment value defined in DT.
+	 *	    (Largest limitation among SoC IPs)
+	 * Encoder: Use the stride value that the user set when s_fmt.
+	 */
+	if (ctx->type == MFCINST_DECODER)
+		__mfc_set_dec_stride(ctx, fmt);
+	else
+		__mfc_set_enc_stride(ctx, fmt);
 }
 
 void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)

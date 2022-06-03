@@ -66,7 +66,9 @@ static int __mfc_core_otf_set_buf_info(struct mfc_ctx *ctx)
 	ctx->img_height = buf_info->height;
 	ctx->crop_width = buf_info->width;
 	ctx->crop_height = buf_info->height;
-	ctx->buf_stride = ALIGN(ctx->img_width, 16);
+	/* (v)OTF supports only 2plane format */
+	ctx->raw_buf.stride[0] = ALIGN(ctx->img_width, 16);
+	ctx->raw_buf.stride[1] = ALIGN(ctx->img_width, 16);
 
 	/* calculate source size */
 	mfc_enc_calc_src_size(ctx);
