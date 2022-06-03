@@ -59,3 +59,5 @@ obj-$(CONFIG_PIXEL_STAT)		+= pixel_stat/
 obj-$(CONFIG_DBGCORE_DUMP)		+= dbgcore-dump.o
 
 obj-$(CONFIG_EXYNOS_SECURE_LOG) 	+= exynos-seclog.o
+
+obj-$(CONFIG_BOOT_CONTROL)	 	+= boot_control/
