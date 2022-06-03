@@ -28,8 +28,6 @@ static struct vendor_group_property vg[VG_MAX];
 
 unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD };
-static unsigned long scale_freq[CPU_NUM] = {
-			[0 ... CPU_NUM-1] = SCHED_CAPACITY_SCALE };
 
 extern struct vendor_group_list vendor_group_list[VG_MAX];
 
@@ -133,7 +131,7 @@ static unsigned long capacity_curr_of(int cpu)
 {
 	unsigned long max_cap = cpu_rq(cpu)->cpu_capacity_orig;
 
-	return cap_scale(max_cap, scale_freq[cpu]);
+	return cap_scale(max_cap, per_cpu(freq_scale, cpu));
 }
 
 /* Runqueue only has SCHED_IDLE tasks enqueued */
@@ -1039,42 +1037,37 @@ out:
 	return best_energy_cpu;
 }
 
+#if IS_ENABLED(CONFIG_PIXEL_EM)
 void vh_arch_set_freq_scale_pixel_mod(void *data, const struct cpumask *cpus,
 				      unsigned long freq,
 				      unsigned long max, unsigned long *scale)
 {
 	int i;
-#if IS_ENABLED(CONFIG_PIXEL_EM)
-	{
-		struct pixel_em_profile **profile_ptr_snapshot;
-		profile_ptr_snapshot = READ_ONCE(vendor_sched_pixel_em_profile);
-		if (profile_ptr_snapshot) {
-			struct pixel_em_profile *profile = READ_ONCE(*profile_ptr_snapshot);
-			if (profile) {
-				struct pixel_em_cluster *cluster;
-				struct pixel_em_opp *max_opp;
-				struct pixel_em_opp *opp;
+	struct pixel_em_profile **profile_ptr_snapshot;
+	profile_ptr_snapshot = READ_ONCE(vendor_sched_pixel_em_profile);
+	if (profile_ptr_snapshot) {
+		struct pixel_em_profile *profile = READ_ONCE(*profile_ptr_snapshot);
+		if (profile) {
+			struct pixel_em_cluster *cluster;
+			struct pixel_em_opp *max_opp;
+			struct pixel_em_opp *opp;
 
-				cluster = profile->cpu_to_cluster[cpumask_first(cpus)];
-				max_opp = &cluster->opps[cluster->num_opps - 1];
+			cluster = profile->cpu_to_cluster[cpumask_first(cpus)];
+			max_opp = &cluster->opps[cluster->num_opps - 1];
 
-				for (i = 0; i < cluster->num_opps; i++) {
-					opp = &cluster->opps[i];
-					if (opp->freq >= freq)
-						break;
-				}
-
-				*scale = (opp->capacity << SCHED_CAPACITY_SHIFT) /
-					  max_opp->capacity;
+			for (i = 0; i < cluster->num_opps; i++) {
+				opp = &cluster->opps[i];
+				if (opp->freq >= freq)
+					break;
 			}
+
+			*scale = (opp->capacity << SCHED_CAPACITY_SHIFT) /
+				  max_opp->capacity;
 		}
 	}
-#endif
-
-	for_each_cpu(i, cpus)
-		scale_freq[i] = *scale;
 }
 EXPORT_SYMBOL_GPL(vh_arch_set_freq_scale_pixel_mod);
+#endif
 
 void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost)
 {

@@ -16,11 +16,13 @@
 
 extern void init_uclamp_stats(void);
 extern int create_procfs_node(void);
+#if IS_ENABLED(CONFIG_PIXEL_EM)
 extern void vh_arch_set_freq_scale_pixel_mod(void *data,
 					     const struct cpumask *cpus,
 					     unsigned long freq,
 					     unsigned long max,
 					     unsigned long *scale);
+#endif
 extern void vh_set_sugov_sched_attr_pixel_mod(void *data, struct sched_attr *attr);
 extern void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost);
 extern void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
@@ -142,9 +144,11 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 
+#if IS_ENABLED(CONFIG_PIXEL_EM)
 	ret = register_trace_android_vh_arch_set_freq_scale(vh_arch_set_freq_scale_pixel_mod, NULL);
 	if (ret)
 		return ret;
+#endif
 
 	ret = register_trace_android_vh_setscheduler_uclamp(
 		vh_sched_setscheduler_uclamp_pixel_mod, NULL);
