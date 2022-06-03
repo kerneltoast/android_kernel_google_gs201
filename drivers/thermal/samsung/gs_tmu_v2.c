@@ -50,6 +50,7 @@
 #define frac_to_int(x) ((x) >> FRAC_BITS)
 
 #define INVALID_TRIP -1
+#define INVALID_CONTROL_TEMP -1
 
 enum tmu_type_t {
 	TMU_TYPE_CPU = 0,
@@ -715,6 +716,7 @@ static void reset_pi_params(struct gs_tmu_data *data)
 	s64 i = int_to_frac(data->pi_param->i_max);
 
 	data->pi_param->err_integral = div_frac(i, data->pi_param->k_i);
+	data->pi_param->prev_control_temp = INVALID_CONTROL_TEMP;
 }
 
 static void allow_maximum_power(struct gs_tmu_data *data)
@@ -801,6 +803,20 @@ static u32 pi_calculate(struct gs_tmu_data *data, int control_temp,
 	return power_range;
 }
 
+static int gs_pi_calculate_control_temp(struct gs_pi_param *params, int control_temp)
+{
+	/* Smooth transition is applied only for decreasing control temperatures. For increasing
+	   temperatures and non-positive control step sizes, the transition will be immediate */
+	if ((params->prev_control_temp <= control_temp) || (params->control_temp_step <= 0)) {
+		params->prev_control_temp = control_temp;
+		return control_temp;
+	}
+
+	params->prev_control_temp -= params->control_temp_step;
+	params->prev_control_temp = max(params->prev_control_temp, control_temp);
+	return params->prev_control_temp;
+}
+
 static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 {
 	struct thermal_zone_device *tz = data->tzd;
@@ -830,6 +846,9 @@ static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 		return -ENODEV;
 
 	cdev->ops->state2power(cdev, 0, &max_power);
+
+	if (params->prev_control_temp != control_temp)
+		control_temp = gs_pi_calculate_control_temp(params, control_temp);
 
 	power_range = pi_calculate(data, control_temp, max_power);
 
@@ -1691,6 +1710,13 @@ static int gs_map_dt_data(struct platform_device *pdev)
 		else
 			params->integral_cutoff = value;
 
+		ret = of_property_read_u32(pdev->dev.of_node, "control_temp_step",
+					   &value);
+		if (ret < 0)
+			dev_err(&pdev->dev, "No input control_temp_step\n");
+		else
+			params->control_temp_step = value;
+
 		ret = of_property_read_u32(pdev->dev.of_node, "sustainable_power",
 					   &value);
 		if (ret < 0)
@@ -2354,6 +2380,7 @@ create_s32_param_attr(k_pu);
 create_s32_param_attr(k_i);
 create_s32_param_attr(i_max);
 create_s32_param_attr(integral_cutoff);
+create_s32_param_attr(control_temp_step);
 
 static struct attribute *gs_tmu_attrs[] = {
 	&dev_attr_pause_cpus_temp.attr,
@@ -2372,6 +2399,7 @@ static struct attribute *gs_tmu_attrs[] = {
 	&dev_attr_k_i.attr,
 	&dev_attr_i_max.attr,
 	&dev_attr_integral_cutoff.attr,
+	&dev_attr_control_temp_step.attr,
 	&dev_attr_pause_time_in_state_ms.attr,
 	&dev_attr_pause_total_count.attr,
 	&dev_attr_pause_reset.attr,
