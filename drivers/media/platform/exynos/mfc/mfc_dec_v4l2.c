@@ -166,6 +166,7 @@ static void __mfc_dec_fix_10bit_memtype(struct mfc_ctx *ctx, unsigned int format
 		ctx->mem_type_10bit = 0;
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
+	case V4L2_PIX_FMT_NV12N_P010:
 	case V4L2_PIX_FMT_NV16M_P210:
 	case V4L2_PIX_FMT_NV21M_P010:
 	case V4L2_PIX_FMT_NV61M_P210:

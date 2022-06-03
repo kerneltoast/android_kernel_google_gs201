@@ -56,6 +56,7 @@
 #define V4L2_PIX_FMT_NV16M_P210		v4l2_fourcc('P', 'M', '1', '6')
 #define V4L2_PIX_FMT_NV61M_P210		v4l2_fourcc('P', 'M', '6', '1')
 
+#define V4L2_PIX_FMT_NV12N_P010		v4l2_fourcc('N', 'P', '1', '2')
 #define V4L2_PIX_FMT_NV12_P010		v4l2_fourcc('P', 'N', '1', '2')
 
 /* 12 Y/CbCr 4:2:0 SBWC */

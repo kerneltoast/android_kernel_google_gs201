@@ -82,7 +82,6 @@ static void __mfc_set_dec_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	case V4L2_PIX_FMT_NV12MT_16X16:
 	case V4L2_PIX_FMT_NV12MT:
 	case V4L2_PIX_FMT_NV12M:
-	case V4L2_PIX_FMT_NV12N:
 	case V4L2_PIX_FMT_NV21M:
 	case V4L2_PIX_FMT_NV16M:
 	case V4L2_PIX_FMT_NV61M:
@@ -117,6 +116,25 @@ static void __mfc_set_dec_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 		raw->stride_2bits[0] = 0;
 		raw->stride_2bits[1] = 0;
 		raw->stride_2bits[2] = 0;
+		break;
+	/* non-contiguous single fd format without extra */
+	case V4L2_PIX_FMT_NV12N:
+		if (stride_align < 64) {
+			mfc_ctx_info("[FRAME] Forced to change stride align %d -> %dbyte\n",
+					stride_align, 64);
+			stride_align = 64;
+		}
+		raw->stride[0] = ALIGN(ctx->img_width, stride_align);
+		raw->stride[1] = ALIGN(ctx->img_width, stride_align);
+		break;
+	case V4L2_PIX_FMT_NV12N_P010:
+		if (stride_align < 128) {
+			mfc_ctx_info("[FRAME] Forced to change stride align %d -> %dbyte\n",
+					stride_align, 128);
+			stride_align = 128;
+		}
+		raw->stride[0] = ALIGN(ctx->img_width * 2, stride_align);
+		raw->stride[1] = ALIGN(ctx->img_width * 2, stride_align);
 		break;
 	/* for compress format (SBWC) */
 	case V4L2_PIX_FMT_NV12M_SBWC_8B:
@@ -174,6 +192,8 @@ static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	int i, y_stride, stride_align = 16;
 
 	y_stride = ctx->bytesperline[0];
+	if (!y_stride)
+		y_stride = ALIGN(ctx->img_width, stride_align);
 
 	raw = &ctx->raw_buf;
 	for (i = 0; i < MFC_MAX_PLANES; i++) {
@@ -208,6 +228,7 @@ static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 		raw->stride[0] = y_stride * (ctx->rgb_bpp / 8);
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
+	case V4L2_PIX_FMT_NV12N_P010:
 	case V4L2_PIX_FMT_NV21M_P010:
 	case V4L2_PIX_FMT_NV61M_P210:
 	case V4L2_PIX_FMT_NV16M_P210:
@@ -265,7 +286,17 @@ static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 		break;
 	}
 
-	/* Check only HW limitation (16 align) */
+	/*
+	 * Check only HW limitation
+	 * - default: 16byte aligned stride
+	 * - single 8bit: 64byte aligned stride
+	 * - single 10bit: 128byte aligned stride
+	 */
+	if (fmt->fourcc == V4L2_PIX_FMT_NV12N)
+		stride_align = 64;
+	else if (fmt->fourcc == V4L2_PIX_FMT_NV12N_P010)
+		stride_align = 128;
+
 	for (i = 0; i < ctx->src_fmt->num_planes; i++) {
 		if ((raw->stride[i] % stride_align) != 0) {
 			mfc_ctx_err("[FRAME] Forced to change stride[%d] %d for %dbyte alignment\n",
@@ -352,14 +383,19 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 		raw->plane_size_2bits[0] = NV12N_10B_Y_2B_SIZE(ctx->img_width, ctx->img_height);
 		raw->plane_size_2bits[1] = NV12N_10B_CBCR_2B_SIZE(ctx->img_width, ctx->img_height);
 		break;
-	case V4L2_PIX_FMT_NV12N:
-		raw->plane_size[0] = NV12N_Y_SIZE(ctx->img_width, ctx->img_height);
-		raw->plane_size[1] = NV12N_CBCR_SIZE(ctx->img_width, ctx->img_height);
-		break;
 	case V4L2_PIX_FMT_YUV420N:
 		raw->plane_size[0] = YUV420N_Y_SIZE(ctx->img_width, ctx->img_height);
 		raw->plane_size[1] = YUV420N_CB_SIZE(ctx->img_width, ctx->img_height);
 		raw->plane_size[2] = YUV420N_CR_SIZE(ctx->img_width, ctx->img_height);
+		break;
+	/* non-contiguous single fd format without extra */
+	case V4L2_PIX_FMT_NV12N:
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16);
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) / 2;
+		break;
+	case V4L2_PIX_FMT_NV12N_P010:
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16);
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) / 2;
 		break;
 	/* for compress format (SBWC) */
 	case V4L2_PIX_FMT_NV12M_SBWC_8B:
@@ -467,10 +503,6 @@ void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 		raw->plane_size_2bits[0] = NV12M_Y_2B_SIZE(ctx->img_width, ctx->img_height);
 		raw->plane_size_2bits[1] = NV12M_CBCR_2B_SIZE(ctx->img_width, ctx->img_height);
 		break;
-	case V4L2_PIX_FMT_NV12N:
-		raw->plane_size[0] = NV12N_Y_SIZE(ctx->img_width, ctx->img_height);
-		raw->plane_size[1] = NV12N_CBCR_SIZE(ctx->img_width, ctx->img_height);
-		break;
 	case V4L2_PIX_FMT_NV12MT_16X16:
 	case V4L2_PIX_FMT_NV12M:
 	case V4L2_PIX_FMT_NV21M:
@@ -506,6 +538,15 @@ void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 	case V4L2_PIX_FMT_ARGB32:
 	case V4L2_PIX_FMT_RGB32:
 		raw->plane_size[0] = raw->stride[0] * ctx->img_height + extra;
+		break;
+	/* non-contiguous single fd format without extra */
+	case V4L2_PIX_FMT_NV12N:
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16);
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) / 2;
+		break;
+	case V4L2_PIX_FMT_NV12N_P010:
+		raw->plane_size[0] = raw->stride[0] * ALIGN(ctx->img_height, 16);
+		raw->plane_size[1] = raw->stride[1] * ALIGN(ctx->img_height, 16) / 2;
 		break;
 	/* for compress format (SBWC) */
 	case V4L2_PIX_FMT_NV12M_SBWC_8B:
@@ -573,16 +614,14 @@ void mfc_calc_base_addr(struct mfc_ctx *ctx, struct vb2_buffer *vb,
 				struct mfc_fmt *fmt)
 {
 	struct mfc_buf *buf = vb_to_mfc_buf(vb);
+	struct mfc_raw_info *raw;
 	dma_addr_t start_raw;
 	int i;
 
+	raw = &ctx->raw_buf;
 	start_raw = mfc_mem_get_daddr_vb(vb, 0);
 
 	switch (fmt->fourcc) {
-	case V4L2_PIX_FMT_NV12N:
-		buf->addr[0][0] = start_raw;
-		buf->addr[0][1] = NV12N_CBCR_BASE(start_raw, ctx->img_width, ctx->img_height);
-		break;
 	case V4L2_PIX_FMT_NV12N_10B:
 		buf->addr[0][0] = start_raw;
 		buf->addr[0][1] = NV12N_10B_CBCR_BASE(start_raw, ctx->img_width, ctx->img_height);
@@ -591,6 +630,11 @@ void mfc_calc_base_addr(struct mfc_ctx *ctx, struct vb2_buffer *vb,
 		buf->addr[0][0] = start_raw;
 		buf->addr[0][1] = YUV420N_CB_BASE(start_raw, ctx->img_width, ctx->img_height);
 		buf->addr[0][2] = YUV420N_CR_BASE(start_raw, ctx->img_width, ctx->img_height);
+		break;
+	case V4L2_PIX_FMT_NV12N:
+	case V4L2_PIX_FMT_NV12N_P010:
+		buf->addr[0][0] = start_raw;
+		buf->addr[0][1] = start_raw + raw->plane_size[0];
 		break;
 	case V4L2_PIX_FMT_NV12N_SBWC_8B:
 		buf->addr[0][0] = start_raw;

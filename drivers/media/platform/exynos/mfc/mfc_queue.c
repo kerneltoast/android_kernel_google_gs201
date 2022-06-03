@@ -783,17 +783,18 @@ void __mfc_update_base_addr_dpb(struct mfc_ctx *ctx, struct mfc_buf *buf,
 					int index)
 {
 	struct mfc_dec *dec = ctx->dec_priv;
-	dma_addr_t start_raw;
-	size_t offset;
+	struct mfc_raw_info *raw;
+	size_t offset = 0;
 	int i;
 
 	if (ctx->dst_fmt->mem_planes == 1) {
-		start_raw = buf->addr[0][0];
+		raw = &ctx->raw_buf;
 
 		for (i = 0; i < ctx->dst_fmt->num_planes; i++) {
-			offset = buf->addr[0][i] - start_raw;
-			start_raw = buf->addr[0][i];
-			buf->addr[0][i] = dec->dpb[index].addr[i] + offset;
+			buf->addr[0][i] = dec->dpb[index].addr[0] + offset;
+			offset += raw->plane_size[i];
+			if (IS_2BIT_NEED(ctx))
+				offset += raw->plane_size_2bits[i];
 		}
 	} else {
 		for (i = 0; i < ctx->dst_fmt->mem_planes; i++)

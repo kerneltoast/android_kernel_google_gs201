@@ -676,6 +676,7 @@ void mfc_core_set_pixel_format(struct mfc_core *core, struct mfc_ctx *ctx,
 		pix_val = 0;
 		break;
 	case V4L2_PIX_FMT_NV12M_P010:
+	case V4L2_PIX_FMT_NV12N_P010:
 	case V4L2_PIX_FMT_NV16M_P210:
 		ctx->mem_type_10bit = 1;
 		pix_val = 0;

@@ -317,6 +317,7 @@ static void __mfc_enc_check_format(struct mfc_ctx *ctx)
 		break;
 	case V4L2_PIX_FMT_NV12M_S10B:
 	case V4L2_PIX_FMT_NV12M_P010:
+	case V4L2_PIX_FMT_NV12N_P010:
 	case V4L2_PIX_FMT_NV21M_S10B:
 	case V4L2_PIX_FMT_NV21M_P010:
 		mfc_debug(2, "[FRAME][10BIT] is 10bit format\n");
