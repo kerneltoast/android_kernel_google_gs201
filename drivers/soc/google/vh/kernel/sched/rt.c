@@ -96,6 +96,7 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 	bool check_fit = true;
 	int prev_cpu = task_cpu(p);
 	bool overutilize, task_fits;
+	bool is_idle;
 
 	if (cpumask_weight(lowest_mask) == 1)
 		return cpumask_first(lowest_mask);
@@ -113,13 +114,13 @@ redo:
 	least_used_best_cpu = -1;
 
 	for_each_cpu(cpu, lowest_mask) {
+		is_idle = cpu_is_idle(cpu);
 		exit_lat = 0;
 		capacity = capacity_cap(cpu);
 		cpu_importance = READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MIN].value) +
 				 READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MAX].value);
 
-		if (cpu_is_idle(cpu)) {
-			util = 0;
+		if (is_idle) {
 			idle = idle_get_state(cpu_rq(cpu));
 
 			if (idle)
@@ -129,10 +130,9 @@ redo:
 				exit_lat = 0;
 				cpu_importance = 0;
 			}
-		} else {
-			util = cpu_util(cpu) + cpu_util_rt(cpu_rq(cpu));
 		}
 
+		util = cpu_util(cpu) + cpu_util_rt(cpu_rq(cpu));
 		if (cpu != prev_cpu)
 			util += task_util(p);
 
@@ -148,6 +148,10 @@ redo:
 
 		if (check_overutilized && overutilize)
 			continue;
+
+		// To prefer idle cpu than non-idle cpu
+		if (is_idle)
+			util = 0;
 
 		/* select non-idle cpus without important tasks first */
 		if (exit_lat == 0 && cpu_importance < DEFAULT_IMPRATANCE_THRESHOLD) {
@@ -229,8 +233,7 @@ redo:
 		best_cpu = least_used_best_cpu;
 	}
 
-	trace_sched_find_least_loaded_cpu(p, get_vendor_task_struct(p)->group,
-					  uclamp_eff_value(p, UCLAMP_MIN),
+	trace_sched_find_least_loaded_cpu(p, get_vendor_group(p), uclamp_eff_value(p, UCLAMP_MIN),
 					  uclamp_eff_value(p, UCLAMP_MAX), check_fit,
 					  min_cpu_util, min_cpu_capacity, min_exit_lat,
 					  prev_cpu, best_cpu, *lowest_mask->bits,
