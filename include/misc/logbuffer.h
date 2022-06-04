@@ -11,6 +11,7 @@
 struct logbuffer;
 #if IS_ENABLED(CONFIG_GOOGLE_LOGBUFFER)
 void logbuffer_log(struct logbuffer *instance, const char *fmt, ...);
+void logbuffer_logk(struct logbuffer *instance, int loglevel, const char *fmt, ...);
 void logbuffer_vlog(struct logbuffer *instance, const char *fmt,
 		    va_list args);
 /*
@@ -23,6 +24,10 @@ struct logbuffer *logbuffer_register(const char *name);
 void logbuffer_unregister(struct logbuffer *instance);
 #else
 static inline void logbuffer_log(struct logbuffer *instance, const char *fmt, ...)
+{
+}
+
+static inline void logbuffer_logk(struct logbuffer *instance, int loglevel, const char *fmt, ...)
 {
 }
 

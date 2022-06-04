@@ -124,6 +124,26 @@ void logbuffer_log(struct logbuffer *instance, const char *fmt, ...)
 }
 EXPORT_SYMBOL_GPL(logbuffer_log);
 
+void logbuffer_logk(struct logbuffer *instance, int loglevel, const char *fmt, ...)
+{
+	char log[LOG_BUFFER_ENTRY_SIZE];
+	uint16_t random_number;
+	va_list args;
+
+	if (!fmt || !instance)
+		return;
+
+	get_random_bytes(&random_number, sizeof(random_number));
+
+	va_start(args, fmt);
+	scnprintf(log, LOG_BUFFER_ENTRY_SIZE, "[%5u] %s", random_number, fmt);
+	logbuffer_vlog(instance, log, args);
+	scnprintf(log, LOG_BUFFER_ENTRY_SIZE, "[%5u] %s: %s\n", random_number, instance->name, fmt);
+	vprintk_emit(0, loglevel, NULL, log, args);
+	va_end(args);
+}
+EXPORT_SYMBOL_GPL(logbuffer_logk);
+
 static int logbuffer_seq_show(struct seq_file *s, void *v)
 {
 	struct logbuffer *instance = (struct logbuffer *)s->private;
