@@ -4,7 +4,7 @@ EXTRA_CFLAGS += -I$(srctree)
 
 # vendor sched module
 obj-$(CONFIG_VH_SCHED) += vh_sched.o
-vh_sched-y += core.o fair.o init.o procfs_node.o rt.o cpufreq_gov.o acpu.o
+vh_sched-y += core.o fair.o init.o procfs_node.o rt.o cpufreq_gov.o acpu.o sched_lib.o
 
 # vendor sched tracing module
 obj-$(CONFIG_VH_SCHED) += sched_tp.o
