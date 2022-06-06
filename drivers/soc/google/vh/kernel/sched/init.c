@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <trace/hooks/sched.h>
 #include <trace/hooks/topology.h>
+#include <trace/hooks/cpufreq.h>
 
 #include "sched_priv.h"
 
@@ -54,6 +55,12 @@ extern void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_st
 
 extern void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
 	const struct cpumask *cpu_valid_mask, const struct cpumask *new_mask, int *dest_cpu);
+
+extern void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy,
+						unsigned int *max_freq);
+
+extern void vh_sched_setaffinity_mod(void *data, struct task_struct *task,
+					const struct cpumask *in_mask, int *skip);
 
 extern struct cpufreq_governor sched_pixel_gov;
 
@@ -165,6 +172,14 @@ static int vh_sched_init(void)
 
 	ret = register_trace_android_rvh_cpumask_any_and_distribute(
 		rvh_cpumask_any_and_distribute, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_show_max_freq(android_vh_show_max_freq, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_sched_setaffinity_early(vh_sched_setaffinity_mod, NULL);
 	if (ret)
 		return ret;
 
