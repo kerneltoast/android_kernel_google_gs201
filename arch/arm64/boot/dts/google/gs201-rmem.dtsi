@@ -124,13 +124,16 @@
 
 			header: header {
 				reg = <0 DSS_HEADER_ADDR DSS_HEADER_SIZE>;
+				no-map;
 			};
 			log_kevents: log_kevents {
 				reg = <0 DSS_LOG_KEVENTS_ADDR
 						DSS_LOG_KEVENTS_SIZE>;
+				no-map;
 			};
 			log_bcm: log_bcm {
 				reg = <0 DSS_LOG_BCM_ADDR DSS_LOG_BCM_SIZE>;
+				no-map;
 			};
 			log_s2d: log_s2d {
 				reg = <0 DSS_LOG_S2D_ADDR DSS_LOG_S2D_SIZE>;
@@ -139,21 +142,26 @@
 			log_arrdumpreset: log_array_reset {
 				reg = <0 DSS_LOG_ARRAYRESET_ADDR
 						DSS_LOG_ARRAYRESET_SIZE>;
+				no-map;
 			};
 			log_arrdumppanic: log_array_panic {
 				reg = <0 DSS_LOG_ARRAYPANIC_ADDR
 						DSS_LOG_ARRAYPANIC_SIZE>;
+				no-map;
 			};
 			log_slcdump: log_slcdump {
 				reg = <0 DSS_LOG_SLCDUMP_ADDR
 						DSS_LOG_SLCDUMP_SIZE>;
+				no-map;
 			};
 			log_preslcdump: log_preslcdump {
 				reg = <0 DSS_LOG_PRE_SLCDUMP_ADDR
 						DSS_LOG_SLCDUMP_SIZE>;
+				no-map;
 			};
 			log_itmon: log_itmon {
 				reg = <0 DSS_LOG_ITMON_ADDR DSS_LOG_ITMON_SIZE>;
+				no-map;
 			};
 		};
 

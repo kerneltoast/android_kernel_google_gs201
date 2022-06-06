@@ -179,6 +179,10 @@
 		tmu_name = "AUR";
 		id = <6>;
 		ect_nouse;
+		hardlimit_enable;
+		hardlimit_clr_threshold = <103>;
+		hardlimit_threshold = <105>;
+		hardlimit_cooling_state = <THERMAL_NO_LIMIT>;
 		#thermal-sensor-cells = <0>;
 		tmu_work_affinity = "0-7";
 	};
@@ -522,12 +526,12 @@
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
 				};
-				aur_alert1: aur-alert1 {
+				aur_switch_on: aur-switch-on {
 					temperature = <80000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "active";
 				};
-				aur_alert2: aur-alert2 {
+				aur_control_temp: aur-control-temp {
 					temperature = <100000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
@@ -542,12 +546,12 @@
 					hysteresis = <2000>; /* millicelsius */
 					type = "active";
 				};
-				aur_alert5: aur-alert5 {
-					temperature = <106000>; /* millicelsius */
+				aur_hardlimit: aur-hardlimit {
+					temperature = <105000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "active";
 				};
-				aur_alert6: aur-alert6 {
+				aur_dfs: aur-dfs {
 					temperature = <110000>; /* millicelsius */
 					hysteresis = <5000>; /* millicelsius */
 					type = "active";
@@ -556,6 +560,12 @@
 					temperature = <120000>; /* millicelsius */
 					hysteresis = <3000>; /* millicelsius */
 					type = "hot";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&aur_control_temp>;
+					cooling-device = <&gxp_cooling 0 0>;
 				};
 			};
 		};

@@ -85,6 +85,9 @@
 			302000  151000      0     70      1        0        0        0       0     0
 		>;
 
+		/* DVFS step up value */
+		gpu_dvfs_step_up_val = <2>;
+
 		/* DVFS Level locks */
 		gpu_dvfs_max_freq = <800000>;
 		gpu_dvfs_min_freq = <250000>;

@@ -6,6 +6,11 @@
  *
  */
 
+/* Display: Cheetah VDDD-supply's power source */
+&m_buck6_reg {
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
 /* Display: vci-supply voltage */
 &m_ldo27_reg {
 	regulator-min-microvolt = <CHEETAH_VCI_MICROVOLT>;

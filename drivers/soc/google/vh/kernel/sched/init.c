@@ -16,11 +16,13 @@
 
 extern void init_uclamp_stats(void);
 extern int create_procfs_node(void);
+#if IS_ENABLED(CONFIG_PIXEL_EM)
 extern void vh_arch_set_freq_scale_pixel_mod(void *data,
 					     const struct cpumask *cpus,
 					     unsigned long freq,
 					     unsigned long max,
 					     unsigned long *scale);
+#endif
 extern void vh_set_sugov_sched_attr_pixel_mod(void *data, struct sched_attr *attr);
 extern void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost);
 extern void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
@@ -51,6 +53,9 @@ extern void rvh_update_rt_rq_load_avg_pixel_mod(void *data, u64 now, struct rq *
 extern void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsigned int new_cpu);
 extern void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
 extern void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
+
+extern void vh_dump_throttled_rt_tasks_mod(void *data, int cpu, u64 clock, ktime_t rt_period,
+					   u64 rt_runtime, s64 rt_period_timer_expires);
 
 extern struct cpufreq_governor sched_pixel_gov;
 
@@ -139,9 +144,11 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 
+#if IS_ENABLED(CONFIG_PIXEL_EM)
 	ret = register_trace_android_vh_arch_set_freq_scale(vh_arch_set_freq_scale_pixel_mod, NULL);
 	if (ret)
 		return ret;
+#endif
 
 	ret = register_trace_android_vh_setscheduler_uclamp(
 		vh_sched_setscheduler_uclamp_pixel_mod, NULL);
@@ -157,6 +164,11 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_dump_throttled_rt_tasks(vh_dump_throttled_rt_tasks_mod,
+								NULL);
 	if (ret)
 		return ret;
 

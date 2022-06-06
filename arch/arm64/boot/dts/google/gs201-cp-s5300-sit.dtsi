@@ -197,8 +197,8 @@
 							enable = <1>;
 							measure = <TPMON_MEASURE_TP>;
 							proto = <TPMON_PROTO_ALL>;
-							boost_threshold = <250 1600>;
-							unboost_threshold_mbps = <100 600>;
+							boost_threshold = <500 1600>;
+							unboost_threshold_mbps = <200 600>;
 						};
 					};
 
@@ -224,7 +224,7 @@
 						level = <0 1014000>;
 
 						boost0 {
-							enable = <1>;
+							enable = <0>;
 							measure = <TPMON_MEASURE_TP>;
 							proto = <TPMON_PROTO_TCP>;
 							boost_threshold = <1100>;
@@ -251,7 +251,7 @@
 						boost_name = "CL1";
 						target = <TPMON_TARGET_CPU_CL1>;
 						extra_idx = <4>;
-						level = <0 1663000>;
+						level = <0 799000>;
 
 						boost0 {
 							enable = <1>;

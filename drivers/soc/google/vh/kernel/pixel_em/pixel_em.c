@@ -26,6 +26,11 @@
 
 #if IS_ENABLED(CONFIG_VH_SCHED)
 extern struct pixel_em_profile **vendor_sched_pixel_em_profile;
+extern void vh_arch_set_freq_scale_pixel_mod(void *data,
+					     const struct cpumask *cpus,
+					     unsigned long freq,
+					     unsigned long max,
+					     unsigned long *scale);
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
@@ -144,13 +149,35 @@ static void apply_profile(struct pixel_em_profile *profile)
 		int cpu;
 		struct cpufreq_policy *policy;
 
-		for_each_cpu(cpu, &cluster->cpus) {
-			WRITE_ONCE(per_cpu(cpu_scale, cpu), cluster_cap);
-		}
-
 		cpu = cpumask_first(&cluster->cpus);
 		policy = cpufreq_cpu_get(cpu);
 		if (policy) {
+			unsigned int cur_freq;
+
+			spin_lock(&policy->transition_lock);
+
+			cur_freq = policy->cur;
+
+			for_each_cpu(cpu, &cluster->cpus) {
+				WRITE_ONCE(per_cpu(cpu_scale, cpu), cluster_cap);
+			}
+
+#if IS_ENABLED(CONFIG_VH_SCHED)
+			{
+				unsigned int max_freq = cluster->opps[cluster->num_opps - 1].freq;
+				unsigned long new_freq_scale;
+				vh_arch_set_freq_scale_pixel_mod(NULL,
+								 &cluster->cpus,
+								 cur_freq,
+								 max_freq,
+								 &new_freq_scale);
+				for_each_cpu(cpu, &cluster->cpus) {
+					WRITE_ONCE(per_cpu(freq_scale, cpu), new_freq_scale);
+				}
+			}
+#endif
+			spin_unlock(&policy->transition_lock);
+
 			schedule_work(&policy->update);
 			cpufreq_cpu_put(policy);
 		} else {
