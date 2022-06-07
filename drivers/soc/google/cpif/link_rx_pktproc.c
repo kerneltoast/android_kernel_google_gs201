@@ -1673,6 +1673,29 @@ static int pktproc_create_buffer_manager(struct pktproc_queue *q, u64 ap_desc_pb
 	return 0;
 }
 
+static void pktproc_adjust_size(struct pktproc_adaptor *ppa)
+{
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	ppa->skb_padding_size = SKB_FRONT_PADDING;
+#else
+	if (ppa->use_netrx_mng)
+		ppa->skb_padding_size = SKB_FRONT_PADDING;
+	else
+		ppa->skb_padding_size = 0;
+#endif
+
+	ppa->true_packet_size = ppa->max_packet_size;
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	ppa->true_packet_size += ppa->skb_padding_size;
+	ppa->true_packet_size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+
+	mif_info("adjusted iommu required:%u true_packet_size:%lu\n",
+		 ppa->true_packet_size, roundup_pow_of_two(ppa->true_packet_size));
+	ppa->true_packet_size = roundup_pow_of_two(ppa->true_packet_size);
+	ppa->space_margin = PAGE_FRAG_CACHE_MAX_SIZE / ppa->true_packet_size;
+#endif
+}
+
 static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 {
 	mif_dt_read_u64(np, "pktproc_cp_base", ppa->cp_base);
@@ -1765,16 +1788,7 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 		return -EINVAL;
 	}
 
-	ppa->true_packet_size = ppa->max_packet_size;
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-	ppa->true_packet_size += ppa->skb_padding_size;
-	ppa->true_packet_size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-
-	mif_info("adjusted iommu required:%u true_packet_size:%lu\n",
-		 ppa->true_packet_size, roundup_pow_of_two(ppa->true_packet_size));
-	ppa->true_packet_size = roundup_pow_of_two(ppa->true_packet_size);
-	ppa->space_margin = PAGE_FRAG_CACHE_MAX_SIZE / ppa->true_packet_size;
-#endif
+	pktproc_adjust_size(ppa);
 
 	return 0;
 }
@@ -1876,15 +1890,6 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 			 ppa->buff_rgn_size, ppa->num_queue, buff_size_by_q);
 	} else
 		accum_buff_size = 0;
-
-#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
-	ppa->skb_padding_size = SKB_FRONT_PADDING;
-#else
-	if (ppa->use_netrx_mng)
-		ppa->skb_padding_size = SKB_FRONT_PADDING;
-	else
-		ppa->skb_padding_size = 0;
-#endif
 
 	/* Create queue */
 	for (i = 0; i < ppa->num_queue; i++) {
