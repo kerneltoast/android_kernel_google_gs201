@@ -712,6 +712,7 @@ void mfc_core_set_pixel_format(struct mfc_core *core, struct mfc_ctx *ctx,
 	/* for compress format (SBWC) */
 	case V4L2_PIX_FMT_NV12M_SBWC_8B:
 	case V4L2_PIX_FMT_NV12N_SBWC_8B:
+	case V4L2_PIX_FMT_NV21M_SBWC_8B:
 	case V4L2_PIX_FMT_NV12M_SBWCL_8B:
 	case V4L2_PIX_FMT_NV12N_SBWCL_8B:
 	case V4L2_PIX_FMT_NV12M_SBWCL_10B:
@@ -721,6 +722,7 @@ void mfc_core_set_pixel_format(struct mfc_core *core, struct mfc_ctx *ctx,
 		break;
 	case V4L2_PIX_FMT_NV12M_SBWC_10B:
 	case V4L2_PIX_FMT_NV12N_SBWC_10B:
+	case V4L2_PIX_FMT_NV21M_SBWC_10B:
 		pix_val = 0;
 		sbwc = 1;
 		align = 1;
