@@ -2354,6 +2354,9 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 #if IS_ENABLED(CONFIG_PCI_MSI)
 	if (val_irq2 & IRQ_MSI_RISING_ASSERT && exynos_pcie->use_msi) {
+		if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep)
+			return IRQ_HANDLED;
+
 		dw_handle_msi_irq(pp);
 
 		/* Mask & Clear MSI to pend MSI interrupt.
@@ -3756,6 +3759,8 @@ int exynos_pcie_rc_set_enable_wake(struct irq_data *data, unsigned int enable)
 	int ret = 0;
 	struct pcie_port *pp = data->parent_data->domain->host_data;
 
+	pr_info("%s: enable = %d\n", __func__, enable);
+
 	if (pp == NULL) {
 		pr_err("Warning: exynos_pcie_rc_set_enable_wake: not exist pp\n");
 		return -EINVAL;
@@ -4547,10 +4552,16 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+	u32 val;
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		dev_info(dev, "PCIe PMU ISOLATION\n");
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
+	} else if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep) {
+		dev_info(dev, "PCIe on sleep... suspend\n");
+		val = exynos_elbi_read(exynos_pcie, PCIE_IRQ2_EN);
+		val |= IRQ_MSI_CTRL_EN_RISING_EDG;
+		exynos_elbi_write(exynos_pcie, val, PCIE_IRQ2_EN);
 	}
 
 	return 0;
@@ -4560,12 +4571,18 @@ static int exynos_pcie_rc_resume_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 	struct dw_pcie *pci = exynos_pcie->pci;
+	u32 val;
 
 	dev_dbg(dev, "## RESUME[%s] pcie_is_linkup: %d)\n", __func__, pcie_is_linkup);
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		dev_dbg(dev, "[%s] dislink state after resume -> phy pwr off\n", __func__);
 		exynos_pcie_rc_resumed_phydown(&pci->pp);
+	} else if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep) {
+		dev_info(dev, "PCIe on sleep resume...\n");
+		val = exynos_elbi_read(exynos_pcie, PCIE_IRQ2_EN);
+		val &= ~IRQ_MSI_CTRL_EN_RISING_EDG;
+		exynos_elbi_write(exynos_pcie, val, PCIE_IRQ2_EN);
 	}
 
 	return 0;
