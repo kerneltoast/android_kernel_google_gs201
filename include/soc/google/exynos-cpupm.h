@@ -25,6 +25,7 @@ extern void exynos_update_ip_idle_status(int index, int idle);
 extern int exynos_get_idle_ip_index(const char *name);
 extern void disable_power_mode(int cpu, int type);
 extern void enable_power_mode(int cpu, int type);
+extern bool system_is_in_itmon;
 #else
 static inline int exynos_cpupm_notifier_register(struct notifier_block *nb) { return 0; }
 static inline void exynos_update_ip_idle_status(int index, int idle) { return; }
