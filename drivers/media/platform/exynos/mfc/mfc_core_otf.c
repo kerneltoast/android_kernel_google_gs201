@@ -66,9 +66,13 @@ static int __mfc_core_otf_set_buf_info(struct mfc_ctx *ctx)
 	ctx->img_height = buf_info->height;
 	ctx->crop_width = buf_info->width;
 	ctx->crop_height = buf_info->height;
-	/* (v)OTF supports only 2plane format */
-	ctx->raw_buf.stride[0] = ALIGN(ctx->img_width, 16);
-	ctx->raw_buf.stride[1] = ALIGN(ctx->img_width, 16);
+	if (ctx->src_fmt->fourcc == V4L2_PIX_FMT_NV12N) {
+		ctx->bytesperline[0] = NV12N_STRIDE(ctx->img_width);
+		ctx->bytesperline[1] = NV12N_STRIDE(ctx->img_width);
+	} else {
+		mfc_ctx_err("[OTF] not supported format(0x%x)\n", ctx->src_fmt->fourcc);
+		return -EINVAL;
+	}
 
 	/* calculate source size */
 	mfc_enc_calc_src_size(ctx);
