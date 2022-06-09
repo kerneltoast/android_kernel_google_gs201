@@ -88,10 +88,8 @@
 #define __ALIGN_UP(x, a)		(((x) + ((a) - 1)) & ~((a) - 1))
 #endif
 
-#define NV12N_Y_SIZE(w, h)			\
-	(__ALIGN_UP((w), 16) * __ALIGN_UP((h), 16) + 256)
-#define NV12N_CBCR_SIZE(w, h)			\
-(__ALIGN_UP((__ALIGN_UP((w), 16) * (__ALIGN_UP((h), 16) / 2) + 256), 16))
+#define NV12N_Y_SIZE(w, h)		(__ALIGN_UP((w), 64) * __ALIGN_UP((h), 16))
+#define NV12N_CBCR_SIZE(w, h)		(__ALIGN_UP((w), 64) * __ALIGN_UP((h), 16) / 2)
 #define NV12N_CBCR_BASE(base, w, h)		\
 	((base) + NV12N_Y_SIZE((w), (h)))
 #define NV12N_10B_Y_8B_SIZE(w, h)		\
