@@ -183,6 +183,7 @@ static inline int mfc_check_mb_flag(struct mfc_buf *mfc_buf, enum mfc_mb_flag f)
 void mfc_core_handle_error(struct mfc_core *core);
 
 int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb);
+unsigned int mfc_get_uncomp_format(struct mfc_ctx *ctx, u32 org_fmt);
 void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt);
 void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx);
 void mfc_enc_calc_src_size(struct mfc_ctx *ctx);

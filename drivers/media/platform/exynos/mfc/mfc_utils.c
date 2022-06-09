@@ -61,6 +61,37 @@ int mfc_check_vb_with_fmt(struct mfc_fmt *fmt, struct vb2_buffer *vb)
 	return 0;
 }
 
+unsigned int mfc_get_uncomp_format(struct mfc_ctx *ctx, u32 org_fmt)
+{
+	u32 uncomp_pixfmt = 0;
+
+	switch (org_fmt) {
+	case V4L2_PIX_FMT_NV12M_SBWC_8B:
+		uncomp_pixfmt = V4L2_PIX_FMT_NV12M;
+		break;
+	case V4L2_PIX_FMT_NV21M_SBWC_8B:
+		uncomp_pixfmt = V4L2_PIX_FMT_NV21M;
+		break;
+	case V4L2_PIX_FMT_NV12N_SBWC_8B:
+		uncomp_pixfmt = V4L2_PIX_FMT_NV12N;
+		break;
+	case V4L2_PIX_FMT_NV12M_SBWC_10B:
+		uncomp_pixfmt = V4L2_PIX_FMT_NV12M_P010;
+		break;
+	case V4L2_PIX_FMT_NV21M_SBWC_10B:
+		uncomp_pixfmt = V4L2_PIX_FMT_NV21M_P010;
+		break;
+	case V4L2_PIX_FMT_NV12N_SBWC_10B:
+		uncomp_pixfmt = V4L2_PIX_FMT_NV12N_10B;
+		break;
+	default:
+		mfc_ctx_err("[SBWC] Cannot find uncomp format: %d\n", org_fmt);
+		break;
+	}
+
+	return uncomp_pixfmt;
+}
+
 static void __mfc_set_dec_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 {
 	struct mfc_raw_info *raw;

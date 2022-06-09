@@ -444,31 +444,15 @@ static void __mfc_dec_uncomp_format(struct mfc_ctx *ctx)
 {
 	struct mfc_dec *dec = ctx->dec_priv;
 	u32 org_fmt = ctx->dst_fmt->fourcc;
+	u32 uncomp_fmt = 0;
 
-	switch (org_fmt) {
-		case V4L2_PIX_FMT_NV12M_SBWC_8B:
-			dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12M;
-			break;
-		case V4L2_PIX_FMT_NV21M_SBWC_8B:
-			dec->uncomp_pixfmt = V4L2_PIX_FMT_NV21M;
-			break;
-		case V4L2_PIX_FMT_NV12N_SBWC_8B:
-			dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12N;
-			break;
-		case V4L2_PIX_FMT_NV12M_SBWC_10B:
-			if (ctx->mem_type_10bit)
-				dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12M_P010;
-			else
-				dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12M_S10B;
-			break;
-		case V4L2_PIX_FMT_NV12N_SBWC_10B:
-			dec->uncomp_pixfmt = V4L2_PIX_FMT_NV12N_10B;
-			break;
-		default:
-			mfc_ctx_err("[SBWC] Cannot find uncomp format: %d\n", org_fmt);
-			break;
+	uncomp_fmt = mfc_get_uncomp_format(ctx, org_fmt);
+	if (uncomp_fmt) {
+		dec->uncomp_fmt = __mfc_dec_find_format(ctx, uncomp_fmt);
+		if (dec->uncomp_fmt)
+			mfc_debug(2, "[SBWC] Uncompressed format is %s\n",
+					dec->uncomp_fmt->name);
 	}
-	mfc_debug(2, "[SBWC] Uncompressed format is %d\n", dec->uncomp_pixfmt);
 }
 
 static int __mfc_dec_update_disp_res(struct mfc_ctx *ctx, struct v4l2_format *f)
@@ -1288,7 +1272,10 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 		ctrl->value = MFC_DRIVER_INFO;
 		break;
 	case V4L2_CID_MPEG_VIDEO_UNCOMP_FMT:
-		ctrl->value = dec->uncomp_pixfmt;
+		if (dec->uncomp_fmt)
+			ctrl->value = dec->uncomp_fmt->fourcc;
+		else
+			ctrl->value = 0;
 		break;
 	case V4L2_CID_MPEG_VIDEO_GET_DISPLAY_DELAY:
 		/* These context information is need to for only maincore */

@@ -69,30 +69,7 @@ static void __mfc_enc_uncomp_format(struct mfc_ctx *ctx)
 	u32 org_fmt = ctx->src_fmt->fourcc;
 	u32 uncomp_fmt = 0;
 
-	switch (org_fmt) {
-		case V4L2_PIX_FMT_NV12M_SBWC_8B:
-			uncomp_fmt = V4L2_PIX_FMT_NV12M;
-			break;
-		case V4L2_PIX_FMT_NV21M_SBWC_8B:
-			uncomp_fmt = V4L2_PIX_FMT_NV21M;
-			break;
-		case V4L2_PIX_FMT_NV12N_SBWC_8B:
-			uncomp_fmt = V4L2_PIX_FMT_NV12N;
-			break;
-		case V4L2_PIX_FMT_NV12M_SBWC_10B:
-			if (ctx->mem_type_10bit)
-				uncomp_fmt = V4L2_PIX_FMT_NV12M_P010;
-			else
-				uncomp_fmt = V4L2_PIX_FMT_NV12M_S10B;
-			break;
-		case V4L2_PIX_FMT_NV12N_SBWC_10B:
-			uncomp_fmt = V4L2_PIX_FMT_NV12N_10B;
-			break;
-		default:
-			mfc_ctx_err("[SBWC] Cannot find uncomp format: %d\n", org_fmt);
-			break;
-	}
-
+	uncomp_fmt = mfc_get_uncomp_format(ctx, org_fmt);
 	if (uncomp_fmt) {
 		enc->uncomp_fmt = __mfc_enc_find_format(ctx, uncomp_fmt);
 		if (enc->uncomp_fmt)

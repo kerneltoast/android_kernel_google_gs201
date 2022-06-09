@@ -2047,7 +2047,7 @@ struct mfc_dec {
 	unsigned int decoding_order;
 	unsigned int frame_display_delay;
 
-	unsigned int uncomp_pixfmt;
+	struct mfc_fmt *uncomp_fmt;
 
 	/* for Dynamic DPB */
 	struct dpb_table dpb[MFC_MAX_DPBS];
