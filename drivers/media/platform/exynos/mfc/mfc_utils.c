@@ -331,6 +331,7 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx, struct mfc_raw_info *raw, struct
 {
 	int i;
 	int extra = MFC_LINEAR_BUF_SIZE;
+	int check_min_dpb_size = 1;
 
 	mfc_set_linear_stride_size(ctx, raw, fmt);
 
@@ -424,26 +425,35 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx, struct mfc_raw_info *raw, struct
 	}
 
 	/*
-	 * In case of 10bit,
-	 * we do not update to min dpb size.
-	 * Because min size may be different from the 10bit mem_type be used.
-	 *
-	 * If SBWC is turned off by driver,
-	 * min dpb size should not be updated.
-	 * Because the format is changed, the calculated value based on SBWC can't be used.
+	 * The min DPB size returned by firmware may be larger than
+	 * the DPB size calculated by the driver in the following situation.
+	 * - Change 10bit mem_type at INIT_BUF.
+	 * - Change SBWC format at INIT_BUF.
+	 * - Use format without extra bytes. (V4L2_PIX_FMT_NV12N, V4L2_PIX_FMT_NV12N_P010)
+	 * In the above case, if the driver forcibly changes the DPB size,
+	 * it fails due to buffer size error at V4L2 Qbuf.
+	 * And when F/W really needs min DPB size in scenario like VP9 interframe DRC,
+	 * if the driver does not force change the DPB size,
+	 * No.57(INSUFFICIENT_DPB_SIZE) error occurs in F/W.
 	 */
-	for (i = 0; i < raw->num_planes; i++) {
-		if (!ctx->is_10bit && !ctx->sbwc_disabled
-				&& (raw->plane_size[i] < ctx->min_dpb_size[i])) {
-			mfc_ctx_info("[FRAME] plane[%d] size is changed %d -> %d\n",
-					i, raw->plane_size[i], ctx->min_dpb_size[i]);
-			raw->plane_size[i] = ctx->min_dpb_size[i];
-		}
-		if (IS_2BIT_NEED(ctx) &&
-				(raw->plane_size_2bits[i] < ctx->min_dpb_size_2bits[i])) {
-			mfc_ctx_info("[FRAME] 2bit plane[%d] size is changed %d -> %d\n",
-					i, raw->plane_size_2bits[i], ctx->min_dpb_size_2bits[i]);
-			raw->plane_size_2bits[i] = ctx->min_dpb_size_2bits[i];
+	if (ctx->is_10bit || ctx->sbwc_disabled || (fmt->fourcc == V4L2_PIX_FMT_NV12N) ||
+			(fmt->fourcc == V4L2_PIX_FMT_NV12N_P010))
+		check_min_dpb_size = 0;
+
+	if (check_min_dpb_size) {
+		for (i = 0; i < raw->num_planes; i++) {
+			if (raw->plane_size[i] < ctx->min_dpb_size[i]) {
+				mfc_ctx_info("[FRAME] plane[%d] size %d / min size %d\n",
+						i, raw->plane_size[i], ctx->min_dpb_size[i]);
+				raw->plane_size[i] = ctx->min_dpb_size[i];
+			}
+			if (IS_2BIT_NEED(ctx) &&
+					(raw->plane_size_2bits[i] < ctx->min_dpb_size_2bits[i])) {
+				mfc_ctx_info("[FRAME] 2bit plane[%d] size %d / min size %d\n",
+						i, raw->plane_size_2bits[i],
+						ctx->min_dpb_size_2bits[i]);
+				raw->plane_size_2bits[i] = ctx->min_dpb_size_2bits[i];
+			}
 		}
 	}
 
