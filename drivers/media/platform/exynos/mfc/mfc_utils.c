@@ -92,12 +92,10 @@ unsigned int mfc_get_uncomp_format(struct mfc_ctx *ctx, u32 org_fmt)
 	return uncomp_pixfmt;
 }
 
-static void __mfc_set_dec_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
+static void __mfc_set_dec_stride(struct mfc_ctx *ctx, struct mfc_raw_info *raw, struct mfc_fmt *fmt)
 {
-	struct mfc_raw_info *raw;
 	int stride_align, y_stride, stride_type;
 
-	raw = &ctx->raw_buf;
 	stride_align = ctx->dev->pdata->stride_align;
 	y_stride = ALIGN(ctx->img_width, stride_align);
 	stride_type = ctx->dev->pdata->stride_type;
@@ -196,16 +194,14 @@ static void __mfc_set_dec_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	}
 }
 
-static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
+static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_raw_info *raw, struct mfc_fmt *fmt)
 {
-	struct mfc_raw_info *raw;
 	int i, y_stride, stride_align = 16;
 
 	y_stride = ctx->bytesperline[0];
 	if (!y_stride)
 		y_stride = ALIGN(ctx->img_width, stride_align);
 
-	raw = &ctx->raw_buf;
 	for (i = 0; i < MFC_MAX_PLANES; i++) {
 		raw->stride[i] = 0;
 		raw->stride_2bits[i] = 0;
@@ -318,7 +314,7 @@ static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	}
 }
 
-void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
+void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_raw_info *raw, struct mfc_fmt *fmt)
 {
 	/*
 	 * Decoder: Use stride alignment value defined in DT.
@@ -326,20 +322,18 @@ void mfc_set_linear_stride_size(struct mfc_ctx *ctx, struct mfc_fmt *fmt)
 	 * Encoder: Use the stride value that the user set when s_fmt.
 	 */
 	if (ctx->type == MFCINST_DECODER)
-		__mfc_set_dec_stride(ctx, fmt);
+		__mfc_set_dec_stride(ctx, raw, fmt);
 	else
-		__mfc_set_enc_stride(ctx, fmt);
+		__mfc_set_enc_stride(ctx, raw, fmt);
 }
 
-void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
+void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx, struct mfc_raw_info *raw, struct mfc_fmt *fmt)
 {
-	struct mfc_raw_info *raw;
 	int i;
 	int extra = MFC_LINEAR_BUF_SIZE;
 
-	mfc_set_linear_stride_size(ctx, ctx->dst_fmt);
+	mfc_set_linear_stride_size(ctx, raw, fmt);
 
-	raw = &ctx->raw_buf;
 	raw->total_plane_size = 0;
 
 	for (i = 0; i < raw->num_planes; i++) {
@@ -347,7 +341,7 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 		raw->plane_size_2bits[i] = 0;
 	}
 
-	switch (ctx->dst_fmt->fourcc) {
+	switch (fmt->fourcc) {
 	case V4L2_PIX_FMT_NV12M_S10B:
 	case V4L2_PIX_FMT_NV21M_S10B:
 		raw->plane_size[0] = NV12M_Y_SIZE(ctx->img_width, ctx->img_height);
@@ -425,7 +419,7 @@ void mfc_dec_calc_dpb_size(struct mfc_ctx *ctx)
 		raw->plane_size_2bits[1] = SBWC_10B_CBCR_HEADER_SIZE(ctx->img_width, ctx->img_height);
 		break;
 	default:
-		mfc_ctx_err("Invalid pixelformat : %s\n", ctx->dst_fmt->name);
+		mfc_ctx_err("Invalid pixelformat : %s\n", fmt->name);
 		break;
 	}
 
@@ -489,8 +483,6 @@ void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 	struct mfc_raw_info *raw;
 	int i, extra;
 
-	mfc_set_linear_stride_size(ctx, ctx->src_fmt);
-
 	raw = &ctx->raw_buf;
 	raw->total_plane_size = 0;
 	extra = MFC_LINEAR_BUF_SIZE;
@@ -499,6 +491,8 @@ void mfc_enc_calc_src_size(struct mfc_ctx *ctx)
 		raw->plane_size[i] = 0;
 		raw->plane_size_2bits[i] = 0;
 	}
+
+	mfc_set_linear_stride_size(ctx, raw, ctx->src_fmt);
 
 	switch (ctx->src_fmt->fourcc) {
 	case V4L2_PIX_FMT_YUV420M:

@@ -603,7 +603,7 @@ static int mfc_dec_g_fmt_vid_cap_mplane(struct file *file, void *priv,
 		   of the movie, the buffer is bigger and
 		   further processing stages should crop to this
 		   rectangle. */
-		mfc_dec_calc_dpb_size(ctx);
+		mfc_dec_calc_dpb_size(ctx, &ctx->raw_buf, ctx->dst_fmt);
 
 		if (IS_LOW_MEM) {
 			unsigned int dpb_size;

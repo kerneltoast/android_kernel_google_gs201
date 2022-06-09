@@ -1078,7 +1078,8 @@ static int __mfc_core_nal_q_run_in_buf_enc(struct mfc_core *core, struct mfc_cor
 			pInStr->ParamChange |= (MFC_ENC_SRC_SBWC_ON << 14);
 		}
 
-		mfc_set_linear_stride_size(ctx, (is_uncomp ? enc->uncomp_fmt : ctx->src_fmt));
+		mfc_set_linear_stride_size(ctx, &ctx->raw_buf,
+				(is_uncomp ? enc->uncomp_fmt : ctx->src_fmt));
 
 		for (i = 0; i < raw->num_planes; i++) {
 			pInStr->SourcePlaneStride[i] = raw->stride[i];
