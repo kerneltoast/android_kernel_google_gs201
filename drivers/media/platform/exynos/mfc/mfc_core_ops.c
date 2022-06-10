@@ -239,7 +239,7 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 		 * for the next DRM operation after normal FW + HW operation.
 		 */
 		if (!core->curr_core_ctx_is_drm)
-			mfc_core_cache_flush(core, ctx->is_drm, MFC_CACHEFLUSH, 0);
+			mfc_core_cache_flush(core, ctx->is_drm, MFC_CACHEFLUSH, 0, 0);
 		mfc_core_change_fw_state(core, 0, MFC_FW_INITIALIZED, 0);
 #if IS_ENABLED(CONFIG_EXYNOS_IMGLOADER)
 		imgloader_shutdown(&core->mfc_imgloader_desc);
@@ -261,7 +261,7 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 		 * for the next normal operation after DRM FW + HW operation.
 		 */
 		if (core->curr_core_ctx_is_drm)
-			mfc_core_cache_flush(core, ctx->is_drm, MFC_CACHEFLUSH, 0);
+			mfc_core_cache_flush(core, ctx->is_drm, MFC_CACHEFLUSH, 0, 0);
 		mfc_core_change_fw_state(core, 1, MFC_FW_INITIALIZED, 0);
 		mfc_core_protection_off(core);
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
@@ -711,7 +711,7 @@ void mfc_core_instance_cache_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 	mfc_core_pm_clock_on(core);
 	mfc_core_cache_flush(core, ctx->is_drm,
 			core->last_cmd_has_cache_flush ? MFC_NO_CACHEFLUSH : MFC_CACHEFLUSH,
-			drm_switch);
+			drm_switch, 0);
 	mfc_core_pm_clock_off(core);
 }
 
