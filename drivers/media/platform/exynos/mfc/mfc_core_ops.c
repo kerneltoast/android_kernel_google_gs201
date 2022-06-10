@@ -700,9 +700,23 @@ err_open:
 	return ret;
 }
 
-int mfc_core_instance_move_to(struct mfc_core *core, struct mfc_ctx *ctx)
+void mfc_core_instance_cache_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	int drm_switch = 0;
+
+	if (core->curr_core_ctx_is_drm != ctx->is_drm)
+		drm_switch = 1;
+
+	core->curr_core_ctx = ctx->num;
+	mfc_core_pm_clock_on(core);
+	mfc_core_cache_flush(core, ctx->is_drm,
+			core->last_cmd_has_cache_flush ? MFC_NO_CACHEFLUSH : MFC_CACHEFLUSH,
+			drm_switch);
+	mfc_core_pm_clock_off(core);
+}
+
+int mfc_core_instance_move_to(struct mfc_core *core, struct mfc_ctx *ctx)
+{
 	int ret;
 
 	ret = __mfc_core_instance_init(core, ctx);
@@ -713,14 +727,7 @@ int mfc_core_instance_move_to(struct mfc_core *core, struct mfc_ctx *ctx)
 
 	if (core->num_inst > 1) {
 		mfc_debug(2, "to core-%d already working, send cache_flush only\n", core->id);
-
-		if (core->curr_core_ctx_is_drm != ctx->is_drm)
-			drm_switch = 1;
-
-		core->curr_core_ctx = ctx->num;
-		mfc_core_pm_clock_on(core);
-		mfc_core_cache_flush(core, ctx->is_drm, MFC_CACHEFLUSH, drm_switch);
-		mfc_core_pm_clock_off(core);
+		mfc_core_instance_cache_flush(core, ctx);
 	}
 
 	mfc_ctx_info("to core-%d is ready to move\n", core->id);

@@ -1256,6 +1256,8 @@ struct mfc_core_ops {
 			struct mfc_ctx *ctx);
 	int (*instance_open)(struct mfc_core *core,
 			struct mfc_ctx *ctx);
+	int (*instance_cache_flush)(struct mfc_core *core,
+			struct mfc_ctx *ctx);
 	int (*instance_move_to)(struct mfc_core *core,
 			struct mfc_ctx *ctx);
 	int (*instance_move_from)(struct mfc_core *core,
