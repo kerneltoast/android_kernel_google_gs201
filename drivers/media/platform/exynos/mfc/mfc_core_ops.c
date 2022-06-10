@@ -271,7 +271,7 @@ static int __mfc_core_deinit(struct mfc_core *core, struct mfc_ctx *ctx)
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 		__mfc_core_unprot_firmware(core, ctx);
 #endif
-		core->curr_core_ctx_is_drm = 0;
+		mfc_core_change_attribute(core, 0);
 		mfc_core_change_fw_state(core, 1, MFC_FW_LOADED, 0);
 	}
 

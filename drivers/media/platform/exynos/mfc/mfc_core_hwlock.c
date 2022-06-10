@@ -649,7 +649,7 @@ void mfc_core_cache_flush(struct mfc_core *core, int is_drm,
 		mfc_core_debug(2, "Done register clear\n");
 	}
 
-	core->curr_core_ctx_is_drm = is_drm;
+	mfc_core_change_attribute(core, is_drm);
 
 	/* drm_switch may not occur when cache flush is required during migration. */
 	if (!drm_switch)
@@ -923,7 +923,7 @@ int mfc_core_just_run(struct mfc_core *core, int new_ctx_index)
 	if (core->curr_core_ctx_is_drm != ctx->is_drm)
 		drm_switch = 1;
 	else
-		core->curr_core_ctx_is_drm = ctx->is_drm;
+		mfc_core_change_attribute(core, ctx->is_drm);
 
 	mfc_debug(2, "drm_switch = %d, is_drm = %d\n", drm_switch, ctx->is_drm);
 
