@@ -147,8 +147,8 @@ static inline void mfc_core_risc_on(struct mfc_core *core)
 {
 	mfc_core_clean_dev_int_flags(core);
 
-	MFC_CORE_WRITEL(0x1, MFC_REG_RISC_ON);
 	MFC_CORE_WRITEL(0x0, MFC_REG_MFC_OFF);
+	MFC_CORE_WRITEL(0x1, MFC_REG_RISC_ON);
 	mfc_core_debug(1, "RISC_ON\n");
 	MFC_TRACE_CORE(">> RISC ON\n");
 }
