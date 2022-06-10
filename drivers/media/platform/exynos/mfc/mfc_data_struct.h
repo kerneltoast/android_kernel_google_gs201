@@ -523,6 +523,7 @@ struct mfc_core_lock {
 struct mfc_pm {
 	struct clk	*clock;
 	atomic_t	pwr_ref;
+	atomic_t	protect_ref;
 	struct device	*device;
 	spinlock_t	clklock;
 
