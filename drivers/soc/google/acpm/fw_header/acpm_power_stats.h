@@ -69,6 +69,7 @@ enum fvp_domains {
 	DOMAIN_CPUCL0,
 	DOMAIN_CPUCL1,
 	DOMAIN_CPUCL2,
+	DOMAIN_AUR,
 	NUM_DOMAINS,
 };
 
