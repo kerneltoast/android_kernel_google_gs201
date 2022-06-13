@@ -41,6 +41,8 @@
 	synaptics,spi-block-delay-us = <0>;
 	synaptics,pixels-per-mm = <20>;
 	synaptics,compression-threshold = <15>;
+	synaptics,grip-delta-threshold = <50>;
+	synaptics,grip-border-threshold = <50>;
 	synaptics,panel_map = <&sdc_s6e3hc3_c10>,
 			      <&sdc_s6e3hc4>,
 			      <&boe_nt37290>;

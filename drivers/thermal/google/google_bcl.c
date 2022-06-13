@@ -335,20 +335,30 @@ static int triggered_read_level(void *data, int *val, int id)
 	struct bcl_device *bcl_dev = data;
 	u64 micro_unit[ODPM_CHANNEL_MAX];
 	u64 odpm_current = 0;
+	bool state = true;
 	int polarity = (id == SMPL_WARN) ? 0 : 1;
-	int gpio_pin = (id == UVLO1) ? bcl_dev->vdroop1_pin : bcl_dev->vdroop2_pin;
+	int gpio_pin = bcl_dev->vdroop1_pin;
 	int gpio_level = (id >= UVLO1 && id <= BATOILO) ? gpio_get_value(gpio_pin) :
 			gpio_get_value(bcl_dev->bcl_pin[id]);
 
+	if (id >= UVLO2 && id <= BATOILO) {
+		if (bcl_cb_vdroop_ok(bcl_dev, &state) < 0) {
+			*val = 0;
+			return -EINVAL;
+		} else
+			gpio_level = (state) ? 0 : 1;
+	}
 	/* Check polarity */
-	if (gpio_level == polarity) {
+	if ((gpio_level == polarity) || (bcl_dev->bcl_tz_cnt[id] == 1)) {
 		*val = bcl_dev->bcl_lvl[id] + THERMAL_HYST_LEVEL;
-		bcl_dev->bcl_tz_cnt[id] += 1;
+		bcl_dev->bcl_tz_cnt[id] = 0;
+		mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
+				 msecs_to_jiffies(THRESHOLD_DELAY_MS));
 		return 0;
 	}
 	if (id >= UVLO1 && id <= BATOILO) {
-		*val = bcl_dev->bcl_lvl[id];
-		bcl_dev->bcl_tz_cnt[id] = 0;
+		/* Zero is applied in case bcl_lvl[id] has a different value */
+		*val = 0;
 		return 0;
 	}
 
@@ -365,13 +375,13 @@ static int triggered_read_level(void *data, int *val, int id)
 		mutex_unlock(&bcl_dev->main_odpm->lock);
 	}
 
-	*val = bcl_dev->bcl_lvl[id];
+	*val = 0;
 	if (odpm_current > (bcl_dev->bcl_lvl[id] / bcl_dev->odpm_ratio)) {
 		*val = bcl_dev->bcl_lvl[id] + THERMAL_HYST_LEVEL;
-		bcl_dev->bcl_tz_cnt[id] += 1;
+		bcl_dev->bcl_tz_cnt[id] = 0;
 		/* Only queue work if threshold stays high */
-		queue_delayed_work(system_wq, &bcl_dev->bcl_irq_work[id],
-				   msecs_to_jiffies(THRESHOLD_DELAY_MS));
+		mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
+				 msecs_to_jiffies(THRESHOLD_DELAY_MS));
 	} else
 		bcl_dev->bcl_tz_cnt[id] = 0;
 	return 0;
@@ -441,18 +451,10 @@ static irqreturn_t irq_handler(int irq, void *data)
 		atomic_inc(&bcl_dev->bcl_cnt[idx]);
 		ocpsmpl_read_stats(bcl_dev, &bcl_dev->bcl_stats[idx], bcl_dev->batt_psy);
 	}
-	if (bcl_dev->bcl_tz_cnt[idx] == 0) {
-		bcl_dev->bcl_tz_cnt[idx] += 1;
-		queue_delayed_work(system_wq, &bcl_dev->bcl_irq_work[idx],
-				   msecs_to_jiffies(THRESHOLD_DELAY_MS));
-
-		/* Minimize the amount of thermal update by only triggering
-		 * update every THRESHOLD_DELAY_MS.
-		 */
-		if (bcl_dev->bcl_tz[idx]) {
-			thermal_zone_device_update(bcl_dev->bcl_tz[idx],
-						   THERMAL_EVENT_UNSPECIFIED);
-		}
+	if ((bcl_dev->bcl_tz[idx]) && (bcl_dev->bcl_tz_cnt[idx] == 0)) {
+		bcl_dev->bcl_tz_cnt[idx] = 1;
+		bcl_dev->bcl_tz[idx]->temperature = 0;
+		thermal_zone_device_update(bcl_dev->bcl_tz[idx], THERMAL_EVENT_UNSPECIFIED);
 	}
 	return IRQ_HANDLED;
 }
@@ -462,12 +464,6 @@ static void google_warn_work(struct work_struct *work, int idx)
 	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
 						  bcl_irq_work[idx].work);
 
-	if (bcl_dev->bcl_tz[idx] && (bcl_dev->bcl_tz_cnt[idx] > 0)) {
-		/* Only queue work if threshold stays high */
-		queue_delayed_work(system_wq, &bcl_dev->bcl_irq_work[idx],
-				   msecs_to_jiffies(THRESHOLD_DELAY_MS));
-		bcl_dev->bcl_tz_cnt[idx] = 0;
-	}
 	if (bcl_dev->bcl_tz[idx])
 		thermal_zone_device_update(bcl_dev->bcl_tz[idx], THERMAL_EVENT_UNSPECIFIED);
 }
@@ -3162,7 +3158,11 @@ void google_bcl_irq_changed(struct bcl_device *bcl_dev, int index)
 		return;
 	atomic_inc(&bcl_dev->bcl_cnt[index]);
 	ocpsmpl_read_stats(bcl_dev, &bcl_dev->bcl_stats[index], bcl_dev->batt_psy);
-	mod_delayed_work(system_wq, &bcl_dev->bcl_irq_work[index], msecs_to_jiffies(0));
+	if ((bcl_dev->bcl_tz[index]) && (bcl_dev->bcl_tz_cnt[index] == 0)) {
+		bcl_dev->bcl_tz_cnt[index] = 1;
+		bcl_dev->bcl_tz[index]->temperature = 0;
+		thermal_zone_device_update(bcl_dev->bcl_tz[index], THERMAL_EVENT_UNSPECIFIED);
+	}
 }
 EXPORT_SYMBOL_GPL(google_bcl_irq_changed);
 

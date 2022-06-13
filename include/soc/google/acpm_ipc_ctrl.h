@@ -17,6 +17,9 @@ struct ipc_config {
 	bool response;
 };
 
+#define IPC_AP_FVP_CAL		0
+#define IPC_AP_FVP_DVFS		1
+
 #define ACPM_IPC_PROTOCOL_OWN			(31)
 #define ACPM_IPC_PROTOCOL_RSP			(30)
 #define ACPM_IPC_PROTOCOL_INDIRECTION		(29)
@@ -68,7 +71,7 @@ void exynos_acpm_reboot(void);
 void acpm_prepare_reboot(void);
 void acpm_stop_log_and_dumpram(void);
 u64 get_frc_time(void);
-bool is_acpm_ipc_flushed(void);
+bool is_acpm_ipc_flushed(unsigned int channel_id);
 #else
 
 static inline int acpm_ipc_request_channel(struct device_node *np,
@@ -129,7 +132,7 @@ static u64 get_frc_time(void)
 	return 0;
 }
 
-static bool is_acpm_ipc_flushed(void)
+static bool is_acpm_ipc_flushed(unsigned int channel_id)
 {
 	return true;
 }

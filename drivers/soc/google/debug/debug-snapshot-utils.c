@@ -724,7 +724,7 @@ EXPORT_SYMBOL_GPL(dbg_snapshot_register_debug_ops);
 
 static void dbg_snapshot_ipi_stop(void *ignore, struct pt_regs *regs)
 {
-	if (!dss_desc.in_reboot)
+	if (!dss_desc.in_reboot || tombstone)
 		dbg_snapshot_save_context(regs, true);
 }
 

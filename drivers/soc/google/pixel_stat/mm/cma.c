@@ -296,7 +296,7 @@ static int add_cma_sysfs(struct cma *cma, void *data)
 	return 0;
 }
 
-static int remove_cma_sysfs(struct cma *cma, void *data)
+static int remove_cma_sysfs_one(struct cma *cma, void *data)
 {
 	int cma_idx = *((int *)data);
 
@@ -310,7 +310,17 @@ static int remove_cma_sysfs(struct cma *cma, void *data)
 	return 0;
 }
 
-int pixel_mm_cma_sysfs(struct kobject *mm_kobj)
+void remove_cma_sysfs(void)
+{
+	int cma_idx;
+
+	for (cma_idx = 0; cma_idx < MAX_CMA_AREAS; cma_idx++) {
+		kobject_put(&stats[cma_idx]->kobj);
+		stats[cma_idx] = NULL;
+	}
+}
+
+int create_cma_sysfs(struct kobject *mm_kobj)
 {
 	int ret;
 	int cma_idx = 0;
@@ -321,7 +331,7 @@ int pixel_mm_cma_sysfs(struct kobject *mm_kobj)
 
 	ret = cma_for_each_area(add_cma_sysfs, &cma_idx);
 	if (ret)
-		cma_for_each_area(remove_cma_sysfs, &cma_idx);
+		cma_for_each_area(remove_cma_sysfs_one, &cma_idx);
 
 	return ret;
 }

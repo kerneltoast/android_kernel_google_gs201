@@ -865,6 +865,9 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
 				if (group_overutilize || cpu_overutilized(util, capacity, i))
 					continue;
+#else
+				if (cpu_overutilized(util, capacity, i))
+					continue;
 #endif
 
 				/* find max spare capacity cpu, used as backup */
@@ -878,6 +881,9 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 			} else {/* Below path is for non-prefer idle case*/
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
 				if (group_overutilize || cpu_overutilized(util, capacity, i))
+					continue;
+#else
+				if (cpu_overutilized(util, capacity, i))
 					continue;
 #endif
 
@@ -1398,13 +1404,9 @@ void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int pr
 	sync_boost = sync && cpu >= HIGH_CAPACITY_CPU;
 
 	/* prefer prev cpu */
-#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-	if (cpu_active(prev_cpu) && cpu_is_idle(prev_cpu) && task_fits_capacity(p, prev_cpu,
-	     sync_boost) && !group_overutilized(prev_cpu, task_group(p))) {
-#else
 	if (cpu_active(prev_cpu) && cpu_is_idle(prev_cpu) && task_fits_capacity(p, prev_cpu,
 	     sync_boost)) {
-#endif
+
 		struct cpuidle_state *idle_state;
 		unsigned int exit_lat = UINT_MAX;
 

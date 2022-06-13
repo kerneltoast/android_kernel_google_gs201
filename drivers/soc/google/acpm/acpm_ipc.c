@@ -89,13 +89,11 @@ u64 get_frc_time(void)
 }
 EXPORT_SYMBOL_GPL(get_frc_time);
 
-#define IPC_AP_FVP_CAL    0
 #define IPC_BUSY_CHK_CNT  500
 
-bool is_acpm_ipc_flushed(void)
+bool is_acpm_ipc_flushed(unsigned int channel_id)
 {
 	struct acpm_ipc_ch *channel;
-	unsigned int channel_id = IPC_AP_FVP_CAL;
 	volatile unsigned int tx_front, rx_front;
 	unsigned int wait_cnt = 0;
 	bool ret = false;
