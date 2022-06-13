@@ -14,10 +14,9 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(ufs_stats,
-	TP_PROTO(struct exynos_ufs *ufs, struct pixel_io_stats *prev_rstat,
-			struct pixel_io_stats *prev_wstat, u64 *avg_time),
+	TP_PROTO(struct exynos_ufs *ufs, u64 *avg_time),
 
-	TP_ARGS(ufs, prev_rstat, prev_wstat, avg_time),
+	TP_ARGS(ufs, avg_time),
 
 	TP_STRUCT__entry(
 		__field(u64,	peak_read)
@@ -51,26 +50,26 @@ TRACE_EVENT(ufs_stats,
 		__entry->avg_write	= avg_time[REQ_TYPE_WRITE];
 		__entry->avg_flush	= avg_time[REQ_TYPE_FLUSH];
 		__entry->avg_discard	= avg_time[REQ_TYPE_DISCARD];
-		__entry->r_rc_s	= ufs->io_stats[IO_TYPE_READ].req_count_started
-				- prev_rstat->req_count_started;
-		__entry->r_tb_s	= ufs->io_stats[IO_TYPE_READ].total_bytes_started
-				- prev_rstat->total_bytes_started;
-		__entry->w_rc_s	= ufs->io_stats[IO_TYPE_WRITE].req_count_started
-				- prev_wstat->req_count_started;
-		__entry->w_tb_s	= ufs->io_stats[IO_TYPE_WRITE].total_bytes_started
-				- prev_wstat->total_bytes_started;
-		__entry->r_rc_c	= ufs->io_stats[IO_TYPE_READ].req_count_completed
-				- prev_rstat->req_count_completed;
-		__entry->r_tb_c	= ufs->io_stats[IO_TYPE_READ].total_bytes_completed
-				- prev_rstat->total_bytes_completed;
-		__entry->w_rc_c	= ufs->io_stats[IO_TYPE_WRITE].req_count_completed
-				- prev_wstat->req_count_completed;
-		__entry->w_tb_c	= ufs->io_stats[IO_TYPE_WRITE].total_bytes_completed
-				- prev_wstat->total_bytes_completed;
-		__entry->r_rem	= ufs->io_stats[IO_TYPE_READ].req_count_started
-				- ufs->io_stats[IO_TYPE_READ].req_count_completed;
-		__entry->w_rem	= ufs->io_stats[IO_TYPE_WRITE].req_count_started
-				- ufs->io_stats[IO_TYPE_WRITE].req_count_completed;
+		__entry->r_rc_s	= ufs->curr_io_stats.r_req_count_started
+				- ufs->prev_io_stats.r_req_count_started;
+		__entry->r_tb_s	= ufs->curr_io_stats.r_total_bytes_started
+				- ufs->prev_io_stats.r_total_bytes_started;
+		__entry->w_rc_s	= ufs->curr_io_stats.w_req_count_started
+				- ufs->prev_io_stats.w_req_count_started;
+		__entry->w_tb_s	= ufs->curr_io_stats.w_total_bytes_started
+				- ufs->prev_io_stats.w_total_bytes_started;
+		__entry->r_rc_c	= ufs->curr_io_stats.r_req_count_completed
+				- ufs->prev_io_stats.r_req_count_completed;
+		__entry->r_tb_c	= ufs->curr_io_stats.r_total_bytes_completed
+				- ufs->prev_io_stats.r_total_bytes_completed;
+		__entry->w_rc_c	= ufs->curr_io_stats.w_req_count_completed
+				- ufs->prev_io_stats.w_req_count_completed;
+		__entry->w_tb_c	= ufs->curr_io_stats.w_total_bytes_completed
+				- ufs->prev_io_stats.w_total_bytes_completed;
+		__entry->r_rem	= ufs->curr_io_stats.r_req_count_started
+				- ufs->curr_io_stats.r_req_count_completed;
+		__entry->w_rem	= ufs->curr_io_stats.w_req_count_started
+				- ufs->curr_io_stats.w_req_count_completed;
 	),
 
 	TP_printk(

@@ -77,30 +77,70 @@ struct pixel_req_stats {
 	u64 req_count;
 };
 
-/* defined I/O amount on statistics */
-enum io_type_stats {
-	IO_TYPE_READ = 0,
-	IO_TYPE_WRITE = 1,
-	IO_TYPE_READ_WRITE = 2,
-	IO_TYPE_MAX = 3,
+/**
+ * struct pixel_io_stats - statistics for I/O amount.
+ * @r_req_count_started:      [READ]total number of I/O requests, which were started.
+ * @r_req_count_completed:    [READ]total number of I/O request, which were completed.
+ * @r_total_bytes_started:    [READ]total I/O amount in bytes, which were started.
+ * @r_total_bytes_completed:  [READ]total I/O amount in bytes, which were completed.
+ * @r_max_diff_req_count:     [READ]MAX of 'req_count_started - req_count_completed'.
+ * @r_max_diff_total_bytes:   [READ]MAX of 'total_bytes_started - total_bytes_completed'.
+ * @w_req_count_started:      [WRITE]total number of I/O requests, which were started.
+ * @w_req_count_completed:    [WRITE]total number of I/O request, which were completed.
+ * @w_total_bytes_started:    [WRITE]total I/O amount in bytes, which were started.
+ * @w_total_bytes_completed:  [WRITE]total I/O amount in bytes, which were completed.
+ * @w_max_diff_req_count:     [WRITE]MAX of 'req_count_started - req_count_completed'.
+ * @w_max_diff_total_bytes:   [WRITE]MAX of 'total_bytes_started - total_bytes_completed'.
+ * @rw_req_count_started:     [R/W]total number of I/O requests, which were started.
+ * @rw_req_count_completed:   [R/W]total number of I/O request, which were completed.
+ * @rw_total_bytes_started:   [R/W]total I/O amount in bytes, which were started.
+ * @rw_total_bytes_completed: [R/W]total I/O amount in bytes, which were completed.
+ * @rw_max_diff_req_count:    [R/W]MAX of 'req_count_started - req_count_completed'.
+ * @rw_max_diff_total_bytes:  [R/W]MAX of 'total_bytes_started - total_bytes_completed'.
+ */
+struct pixel_io_stats {
+	u64 r_req_count_started;
+	u64 r_req_count_completed;
+	u64 r_total_bytes_started;
+	u64 r_total_bytes_completed;
+	u64 r_max_diff_req_count;
+	u64 r_max_diff_total_bytes;
+	u64 w_req_count_started;
+	u64 w_req_count_completed;
+	u64 w_total_bytes_started;
+	u64 w_total_bytes_completed;
+	u64 w_max_diff_req_count;
+	u64 w_max_diff_total_bytes;
+	u64 rw_req_count_started;
+	u64 rw_req_count_completed;
+	u64 rw_total_bytes_started;
+	u64 rw_total_bytes_completed;
+	u64 rw_max_diff_req_count;
+	u64 rw_max_diff_total_bytes;
+};
+
+extern void pixel_init_io_stats(struct ufs_hba *hba);
+
+/**
+ * struct latency_metrics - generic metrics collection
+ * @count: total count of operations
+ * @time_spent: total time in microseconds spent executing operation
+ * @max_latency: maximum duration in microseconds of a single operation
+ */
+struct latency_metrics {
+	u64 count;
+	u64 time_spent_us;
+	u64 max_latency_us;
 };
 
 /**
- * struct pixel_io_stats - statistics for I/O amount.
- * @req_count_started: total number of I/O requests, which were started.
- * @total_bytes_started: total I/O amount in bytes, which were started.
- * @req_count_completed: total number of I/O request, which were completed.
- * @total_bytes_completed: total I/O amount in bytes, which were completed.
- * @max_diff_req_count: MAX of 'req_count_started - req_count_completed'.
- * @max_diff_total_bytes: MAX of 'total_bytes_started - total_bytes_completed'.
+ * struct pixel_power_stats - power related statistics
+ * @fdevinit_set: metrics for fDeviceInit set operation
+ * @fdevinit_read: metrics for fDeviceInit read operation
  */
-struct pixel_io_stats {
-	u64 req_count_started;
-	u64 total_bytes_started;
-	u64 req_count_completed;
-	u64 total_bytes_completed;
-	u64 max_diff_req_count;
-	u64 max_diff_total_bytes;
+struct pixel_power_stats {
+	struct latency_metrics fdevinit_set;
+	struct latency_metrics fdevinit_read;
 };
 
 static inline char *parse_opcode(u8 opcode)
