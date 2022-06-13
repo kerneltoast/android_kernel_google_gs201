@@ -2354,8 +2354,10 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 #if IS_ENABLED(CONFIG_PCI_MSI)
 	if (val_irq2 & IRQ_MSI_RISING_ASSERT && exynos_pcie->use_msi) {
-		if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep)
+		if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep) {
+			dev_info(dev, "MSI: separated msi & pcieonsleep\n");
 			return IRQ_HANDLED;
+		}
 
 		dw_handle_msi_irq(pp);
 
@@ -4552,13 +4554,29 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
-	u32 val;
+	u32 val, val_irq0, val_irq1, val_irq2;
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		dev_info(dev, "PCIe PMU ISOLATION\n");
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
 	} else if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep) {
 		dev_info(dev, "PCIe on sleep... suspend\n");
+
+		/* handle IRQ0 interrupt */
+		val_irq0 = exynos_elbi_read(exynos_pcie, PCIE_IRQ0);
+		exynos_elbi_write(exynos_pcie, val_irq0, PCIE_IRQ0);
+		dev_info(dev, "IRQ0 0x%x\n", val_irq0);
+
+		/* handle IRQ1 interrupt */
+		val_irq1 = exynos_elbi_read(exynos_pcie, PCIE_IRQ1);
+		exynos_elbi_write(exynos_pcie, val_irq1, PCIE_IRQ1);
+		dev_info(dev, "IRQ1 0x%x\n", val_irq1);
+
+		/* handle IRQ2 interrupt */
+		val_irq2 = exynos_elbi_read(exynos_pcie, PCIE_IRQ2);
+		exynos_elbi_write(exynos_pcie, val_irq2, PCIE_IRQ2);
+		dev_info(dev, "IRQ2 0x%x\n", val_irq2);
+
 		val = exynos_elbi_read(exynos_pcie, PCIE_IRQ2_EN);
 		val |= IRQ_MSI_CTRL_EN_RISING_EDG;
 		exynos_elbi_write(exynos_pcie, val, PCIE_IRQ2_EN);

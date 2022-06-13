@@ -480,6 +480,7 @@ static void s51xx_pcie_resume_complete(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev_from_dev(dev);
 	u16 cmd;
 
+	mif_info("+++\n");
 	if (pcie_linkup_stat()) {
 		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 		if ((((cmd & PCI_COMMAND_MEMORY) == 0) ||
