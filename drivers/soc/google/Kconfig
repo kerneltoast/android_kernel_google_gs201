@@ -214,6 +214,8 @@ source "drivers/soc/google/s2mpu/Kconfig"
 
 source "drivers/soc/google/vh/kernel/Kconfig"
 
+source "drivers/soc/google/boot_control/Kconfig"
+
 config HARDLOCKUP_DEBUG
 	tristate "Hardlockup Debugging"
 	depends on ARM64

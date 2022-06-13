@@ -22,6 +22,7 @@ bc_max77759.ko
 bcm47765.ko
 bcm_dbg.ko
 bigocean.ko
+boot_control_sysfs.ko
 boot_device_spi.ko
 clk_exynos.ko
 cmupmucal.ko
