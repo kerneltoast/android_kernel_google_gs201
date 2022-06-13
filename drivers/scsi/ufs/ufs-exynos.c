@@ -502,6 +502,8 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 
 	pixel_init_slowio(hba);
 
+	pixel_init_io_stats(hba);
+
 	return 0;
 }
 
