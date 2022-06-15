@@ -17,6 +17,7 @@ extern int exynos_pcie_register_event(struct exynos_pcie_register_event *reg);
 extern int exynos_pcie_deregister_event(struct exynos_pcie_register_event *reg);
 
 extern void exynos_pcie_rc_register_dump(int ch_num);
+extern void exynos_pcie_rc_print_msi_register(int ch_num);
 extern int exynos_pcie_rc_set_outbound_atu(int ch_num, u32 target_addr, u32 offset, u32 size);
 
 struct s51xx_pcie {
