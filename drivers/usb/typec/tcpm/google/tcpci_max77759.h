@@ -163,6 +163,9 @@ void register_tcpc(struct max77759_usb *usb, struct max77759_plat *chip);
 #define MAXQ_DETECT_TYPE_CC_AND_SBU	0x10
 #define MAXQ_DETECT_TYPE_SBU_ONLY	0x30
 
+int maxq_query_contaminant(u8 cc1_raw, u8 cc2_raw, u8 sbu1_raw, u8 sbu2_raw,
+			   u8 cc1_rd, u8 cc2_rd, u8 type, u8 cc_adc_skipped,
+			   u8 *response, u8 length);
 int __attribute__((weak)) maxq_query_contaminant(u8 cc1_raw, u8 cc2_raw, u8 sbu1_raw, u8 sbu2_raw,
 						 u8 cc1_rd, u8 cc2_rd, u8 type, u8 cc_adc_skipped,
 						 u8 *response, u8 length)
