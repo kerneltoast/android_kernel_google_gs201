@@ -1811,6 +1811,40 @@ static void __maybe_unused exynos_pcie_notify_callback(struct pcie_port *pp, int
 	}
 }
 
+void exynos_pcie_rc_print_msi_register(int ch_num)
+{
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct dw_pcie *pci = exynos_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
+	u32 val;
+	int ctrl;
+
+	val = exynos_elbi_read(exynos_pcie, PCIE_IRQ2_EN);
+	dev_info(pci->dev, "PCIE_IRQ2_EN: 0x%x\n", val);
+
+	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_ADDR_LO, 4, &val);
+	dev_info(pci->dev, "PCIE_MSI_ADDR_LO: 0x%x\n", val);
+	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_ADDR_HI, 4, &val);
+	dev_info(pci->dev, "PCIE_MSI_ADDR_HI: 0x%x\n", val);
+
+	for (ctrl = 0; ctrl < PCIE_MAX_MSI_NUM; ctrl++) {
+		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_MASK +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), 4, &val);
+		dev_info(pci->dev, "PCIE_MSI_INTR0_MASK(0x%x):0x%x\n", PCIE_MSI_INTR0_MASK +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), val);
+
+		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), 4, &val);
+		dev_info(pci->dev, "PCIE_MSI_INTR0_ENABLE(0x%x):0x%x\n", PCIE_MSI_INTR0_ENABLE +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), val);
+
+		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_STATUS +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), 4, &val);
+		dev_info(pci->dev, "PCIE_MSI_INTR0_STATUS: 0x%x\n", val);
+	}
+}
+EXPORT_SYMBOL_GPL(exynos_pcie_rc_print_msi_register);
+
 void exynos_pcie_rc_register_dump(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
