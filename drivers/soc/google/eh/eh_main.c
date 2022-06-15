@@ -195,39 +195,33 @@ static bool sw_fifo_empty(struct eh_sw_fifo *fifo)
 /*
  * - Primitive functions for Emerald Hill HW
  */
-static inline unsigned long eh_read_register(struct eh_device *eh_dev,
-					     unsigned int offset)
-{
-	return readq(eh_dev->regs + offset);
-}
-
 static void eh_dump_regs(struct eh_device *eh_dev)
 {
 	unsigned int i, offset = 0;
 
 	pr_err("dump_regs: global\n");
 	for (offset = EH_REG_HWID; offset <= EH_REG_ERR_MSK; offset += 8)
-		pr_err("0x%03X: 0x%016lX\n", offset,
-			eh_read_register(eh_dev, offset));
+		pr_err("0x%03X: 0x%016llX\n", offset,
+			readq(eh_dev->regs + offset));
 
 	pr_err("dump_regs: compression\n");
 	for (offset = EH_REG_CDESC_LOC; offset <= EH_REG_CINTERP_CTRL;
 	     offset += 8)
-		pr_err("0x%03X: 0x%016lX\n", offset,
-			eh_read_register(eh_dev, offset));
+		pr_err("0x%03X: 0x%016llX\n", offset,
+			readq(eh_dev->regs + offset));
 
 	for (i = 0; i < eh_dev->decompr_cmd_count; i++) {
 		pr_err("dump_regs: decompression %u\n", i);
 		for (offset = EH_REG_DCMD_CSIZE(i);
 		     offset <= EH_REG_DCMD_BUF3(i); offset += 8)
-			pr_err("0x%03X: 0x%016lX\n", offset,
-				eh_read_register(eh_dev, offset));
+			pr_err("0x%03X: 0x%016llX\n", offset,
+				readq(eh_dev->regs + offset));
 	}
 
 	pr_err("dump_regs: vendor\n");
 	for (offset = EH_REG_BUSCFG; offset <= 0x118; offset += 8)
-		pr_err("0x%03X: 0x%016lX\n", offset,
-			eh_read_register(eh_dev, offset));
+		pr_err("0x%03X: 0x%016llX\n", offset,
+			readq(eh_dev->regs + offset));
 
 	pr_err("driver\n");
 	pr_err("write_index %u complete_index %u\n",
@@ -274,8 +268,8 @@ static bool fifo_full(struct eh_device *eh_dev)
 /* index of the next descriptor to be completed by hardware */
 static unsigned int fifo_next_complete_index(struct eh_device *eh_dev)
 {
-	return eh_read_register(eh_dev, EH_REG_CDESC_CTRL) &
-				EH_CDESC_CTRL_COMPLETE_IDX_MASK;
+	return readq(eh_dev->regs + EH_REG_CDESC_CTRL) &
+		     EH_CDESC_CTRL_COMPLETE_IDX_MASK;
 }
 
 static struct eh_compress_desc *eh_descriptor(struct eh_device *eh_dev,
@@ -292,7 +286,7 @@ static inline unsigned long eh_read_dcmd_status(struct eh_device *eh_dev,
 #ifdef CONFIG_GOOGLE_EH_DCMD_STATUS_IN_MEMORY
 	status = READ_ONCE(eh_dev->decompr_status[index]);
 #else
-	status = eh_read_register(eh_dev, EH_REG_DCMD_DEST(index));
+	status = readq(eh_dev->regs + EH_REG_DCMD_DEST(index));
 #endif
 	return EH_DCMD_DEST_STATUS(status);
 }
@@ -306,7 +300,7 @@ static int eh_reset(struct eh_device *eh_dev)
 
 	writeq(-1, eh_dev->regs + EH_REG_GCTRL);
 	for (trial = 0; trial < EH_RESET_MAX_TRIAL; trial++) {
-		if (!eh_read_register(eh_dev, EH_REG_GCTRL))
+		if (!readq(eh_dev->regs + EH_REG_GCTRL))
 			return 0;
 		udelay(EH_RESET_DELAY_US);
 	}
@@ -342,7 +336,7 @@ static void eh_compr_fifo_init(struct eh_device *eh_dev)
 	writeq(data, eh_dev->regs + EH_REG_CDESC_CTRL);
 	do {
 		udelay(1);
-		data = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
+		data = readq(eh_dev->regs + EH_REG_CDESC_CTRL);
 	} while (data & (1UL << EH_CDESC_CTRL_FIFO_RESET));
 
 	/* reset software copies of index registers */
@@ -512,9 +506,9 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 	struct eh_device *eh_dev = data;
 	unsigned long compr, decompr, error;
 
-	compr = eh_read_register(eh_dev, EH_REG_INTRP_STS_CMP);
-	decompr = eh_read_register(eh_dev, EH_REG_INTRP_STS_DCMP);
-	error = eh_read_register(eh_dev, EH_REG_INTRP_STS_ERROR);
+	compr = readq(eh_dev->regs + EH_REG_INTRP_STS_CMP);
+	decompr = readq(eh_dev->regs + EH_REG_INTRP_STS_DCMP);
+	error = readq(eh_dev->regs + EH_REG_INTRP_STS_ERROR);
 
 	pr_err("irq %d error 0x%lx compr 0x%lx decompr 0x%lx\n",
 	       irq, error, compr, decompr);
@@ -703,7 +697,7 @@ static int eh_comp_thread(void *data)
 		if (unlikely(ret < 0)) {
 			unsigned long error;
 
-			error = eh_read_register(eh_dev, EH_REG_ERR_COND);
+			error = readq(eh_dev->regs + EH_REG_ERR_COND);
 			if (error) {
 				pr_err("error condition interrupt non-zero 0x%lx\n",
 				       error);
@@ -931,7 +925,7 @@ static int eh_hw_init(struct eh_device *eh_dev, unsigned short fifo_size,
 	if (!eh_dev->regs)
 		return -ENOMEM;
 
-	feature = eh_read_register(eh_dev, EH_REG_HWFEATURES2);
+	feature = readq(eh_dev->regs + EH_REG_HWFEATURES2);
 	eh_dev->decompr_cmd_count = EH_FEATURES2_DECOMPR_CMDS(feature);
 
 	/*
@@ -1380,7 +1374,7 @@ static int eh_suspend(struct device *dev)
 	writeq(~0UL, eh_dev->regs + EH_REG_INTRP_MASK_DCMP);
 
 	/* disable compression FIFO */
-	data = eh_read_register(eh_dev, EH_REG_CDESC_CTRL);
+	data = readq(eh_dev->regs + EH_REG_CDESC_CTRL);
 	data &= ~(1UL << EH_CDESC_CTRL_COMPRESS_ENABLE_SHIFT);
 	writeq(data, eh_dev->regs + EH_REG_CDESC_CTRL);
 
