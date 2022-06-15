@@ -214,7 +214,6 @@ struct pktproc_queue {
 	struct net_device netdev;
 	struct napi_struct napi;
 	struct napi_struct *napi_ptr;
-	atomic_t stop_napi_poll;
 
 	/* Statistics */
 	struct pktproc_statistics stat;
@@ -347,16 +346,6 @@ static inline int pktproc_check_active(struct pktproc_adaptor *ppa, u32 q_idx)
 
 	return atomic_read(&ppa->q[q_idx]->active);
 }
-
-static inline int pktproc_stop_napi_poll(struct pktproc_adaptor *ppa, u32 q_idx)
-{
-	if (!ppa->q[q_idx])
-		return 0;
-
-	atomic_set(&ppa->q[q_idx]->stop_napi_poll, 1);
-
-	return 0;
-}
 #else
 static inline int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 				unsigned long memaddr, u32 memsize) { return 0; }
@@ -365,7 +354,6 @@ static inline int pktproc_get_usage(struct pktproc_queue *q) { return 0; }
 static inline int pktproc_get_usage_fore_rear(struct pktproc_queue *q) { return 0; }
 static inline int pktproc_check_support(struct pktproc_adaptor *ppa) { return 0; }
 static inline int pktproc_check_active(struct pktproc_adaptor *ppa, u32 q_idx) { return 0; }
-static inline int pktproc_stop_napi_poll(struct pktproc_adaptor *ppa, u32 q_idx) { return 0; }
 #endif
 
 #endif /* __LINK_RX_PKTPROC_H__ */

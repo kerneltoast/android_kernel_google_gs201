@@ -2399,11 +2399,6 @@ static int mld_rx_int_poll(struct napi_struct *napi, int budget)
 		tpmon_start();
 #endif
 
-	if (atomic_read(&mld->stop_napi_poll)) {
-		atomic_set(&mld->stop_napi_poll, 0);
-		goto dummy_poll_complete;
-	}
-
 	if (total_ps_rcvd < total_budget) {
 		napi_complete_done(napi, total_ps_rcvd);
 		ld->enable_rx_int(ld);
@@ -3990,7 +3985,6 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	init_dummy_netdev(&mld->dummy_net);
 	netif_napi_add(&mld->dummy_net, &mld->mld_napi, mld_rx_int_poll, NAPI_POLL_WEIGHT);
 	napi_enable(&mld->mld_napi);
-	atomic_set(&mld->stop_napi_poll, 0);
 
 	INIT_LIST_HEAD(&ld->list);
 

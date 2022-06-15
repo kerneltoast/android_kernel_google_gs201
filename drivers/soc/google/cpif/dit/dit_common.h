@@ -255,7 +255,6 @@ struct dit_ctrl_t {
 	bool init_reserved;
 
 	atomic_t init_running;
-	atomic_t stop_napi_poll;
 
 	bool use_page_recycling_rx;
 	u32 page_recycling_skb_padding;
@@ -334,7 +333,6 @@ int dit_enqueue_reg_value(u32 value, u32 offset);
 int dit_read_rx_dst_poll(struct napi_struct *napi, int budget);
 int dit_manage_rx_dst_data_buffers(bool fill);
 bool dit_is_busy(enum dit_direction dir);
-int dit_stop_napi_poll(void);
 
 int dit_ver_create(struct dit_ctrl_t *dc_ptr);
 
