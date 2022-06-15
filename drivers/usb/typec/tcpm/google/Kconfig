@@ -33,10 +33,3 @@ config TYPEC_MAX77759
 
 endif # TYPEC_TCPCI
 endif # TYPEC_TCPM
-
-config POGO_TRANSPORT
-	tristate "Pogo transport management driver"
-	depends on TYPEC_MAX77759
-	select GOOGLE_LOGBUFFER
-	help
-	  Pogo transport management driver
