@@ -17,6 +17,7 @@
 		idt,has_rtx = <1>;
 		idt,gpio_extben = <&gpp1 3 GPIO_ACTIVE_HIGH>;
 		/* WLCDC */
+		idt,gpio_dc_switch = <&s2mpg10_gpio 0 GPIO_ACTIVE_HIGH>;
 		idt,max_vout_mv = <19500>;
 		idt,has_wlc_dc = <1>;
 		/* Enable */
