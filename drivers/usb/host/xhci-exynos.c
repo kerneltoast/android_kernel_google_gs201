@@ -516,8 +516,15 @@ static int xhci_exynos_extcon_register(struct xhci_hcd_exynos *xhci_exynos)
 
 	xhci_exynos->edev = extcon_get_edev_by_phandle(tmpdev, 1);
 	if (IS_ERR_OR_NULL(xhci_exynos->edev)) {
-		dev_err(xhci_exynos->dev, "couldn't get extcon\n");
-		return xhci_exynos->edev ? PTR_ERR(xhci_exynos->edev) : -ENODEV;
+		dev_info(xhci_exynos->dev, "couldn't get extcon device with index 1\n");
+		xhci_exynos->edev = extcon_get_edev_by_phandle(tmpdev, 0);
+		if (IS_ERR_OR_NULL(xhci_exynos->edev))
+			return xhci_exynos->edev ? PTR_ERR(xhci_exynos->edev) : -ENODEV;
+
+		dev_info(xhci_exynos->dev, "only have one extcon device\n");
+		xhci_exynos->edev = NULL;
+		xhci_exynos->accessory_state = false;
+		return 0;
 	}
 
 	xhci_exynos->accessory_nb.notifier_call = xhci_exynos_accessory_notifier;
@@ -930,8 +937,10 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_forbid(&pdev->dev);
 
-	if (extcon_get_state(xhci_exynos->edev, EXTCON_DOCK) > 0)
-		xhci_exynos->accessory_state = true;
+	if (xhci_exynos->edev) {
+		if (extcon_get_state(xhci_exynos->edev, EXTCON_DOCK) > 0)
+			xhci_exynos->accessory_state = true;
+	}
 
 	return 0;
 
@@ -952,8 +961,10 @@ disable_reg_clk:
 	clk_disable_unprepare(xhci->reg_clk);
 
 unregister_extcon:
-	extcon_unregister_notifier(xhci_exynos->edev, EXTCON_DOCK, &xhci_exynos->accessory_nb);
-
+	if (xhci_exynos->edev) {
+		extcon_unregister_notifier(xhci_exynos->edev,
+					   EXTCON_DOCK, &xhci_exynos->accessory_nb);
+	}
 unregister_notify:
 	xhci_exynos_unregister_notify();
 
