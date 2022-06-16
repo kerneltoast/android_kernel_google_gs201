@@ -291,6 +291,22 @@ int odpm_configure_chip(struct odpm_info *info)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SOC_GS201)
+int odpm_meter_sw_reset(struct odpm_info *info) {
+	u8 mt_trim_reg = '\0';
+
+	if (info->chip.hw_id == ID_S2MPG12)
+		mt_trim_reg = S2MPG12_MT_TRIM_COMMON;
+	else if (info->chip.hw_id == ID_S2MPG13)
+		mt_trim_reg = S2MPG13_MT_TRIM_COMMON2;
+
+	return s2mpg1x_meter_sw_reset(info->chip.hw_id,
+				      info->i2c,
+				      info->mt_trim,
+				      mt_trim_reg);
+}
+#endif
+
 int odpm_configure_start_measurement(struct odpm_info *info)
 {
 	u64 timestamp_capture_ns = 0;
@@ -1145,6 +1161,12 @@ static void odpm_set_sampling_rate(struct odpm_info *info,
 					     ODPM_SAMPLING_RATE_EXTERNAL);
 	}
 
+#if IS_ENABLED(CONFIG_SOC_GS201)
+	if (odpm_meter_sw_reset(info) != 0) {
+		pr_err("odpm: meter_sw_reset failed\n");
+	}
+#endif
+
 	/* Send blank ASYNC, ignoring the latest set of data */
 	if (odpm_io_send_blank_async(info, &info->last_poll_ktime_boot_ns) < 0)
 		pr_err("odpm: Could not send blank async when applying sampling rate\n");
@@ -1357,6 +1379,11 @@ static ssize_t enabled_rails_store(struct device *dev,
 		if (!info->chip.rx_ext_config_confirmation) {
 			info->chip.rx_ext_config_confirmation = true;
 			odpm_reset_timer(info);
+#if IS_ENABLED(CONFIG_SOC_GS201)
+			if (odpm_meter_sw_reset(info) != 0) {
+				pr_err("odpm: meter_sw_reset failed\n");
+			}
+#endif
 			if (odpm_configure_start_measurement(info))
 				pr_err("odpm: Failed to start measurement\n");
 			else
@@ -1758,6 +1785,7 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
+		info->mt_trim = meter->iodev->mt_trim;
 		info->meter_lock = &meter->meter_lock;
 	} break;
 	case ID_S2MPG13: {
@@ -1769,6 +1797,7 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
+		info->mt_trim = meter->iodev->mt_trim;
 		info->meter_lock = &meter->meter_lock;
 	} break;
 #endif

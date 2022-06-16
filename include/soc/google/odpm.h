@@ -103,6 +103,7 @@ struct odpm_info {
 	struct odpm_chip chip;
 	void *meter; /* Parent meter device data */
 	struct i2c_client *i2c;
+	struct i2c_client *mt_trim;
 	struct mutex *meter_lock; /* Meter lock */
 	struct mutex lock; /* Global HW lock */
 
