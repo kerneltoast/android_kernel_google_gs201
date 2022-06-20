@@ -15,5 +15,11 @@
 		fod_hpp_hv = [FF 54 C5 00 A6 02 9C 06 95 05 91 09 20 13 01 50];
 		google,q_value = <60>;
 		idt,has_rtx = <1>;
+
+		google,alignment_scalar_low_current = <300>;
+		google,alignment_scalar_high_current = <100>;
+		google,alignment_offset_low_current = <124000>;
+		google,alignment_offset_high_current = <136000>;
+		google,alignment_current_threshold = <500>;
 	};
 };

@@ -16,5 +16,11 @@
 		google,q_value = <56>;
 		google,tx4191_q = <29>;
 		idt,has_rtx = <1>;
+
+		google,alignment_scalar_low_current = <300>;
+		google,alignment_scalar_high_current = <100>;
+		google,alignment_offset_low_current = <123000>;
+		google,alignment_offset_high_current = <139000>;
+		google,alignment_current_threshold = <500>;
 	};
 };
