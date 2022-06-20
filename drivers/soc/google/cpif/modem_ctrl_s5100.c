@@ -1212,6 +1212,7 @@ static int trigger_cp_crash_internal(struct modem_ctl *mc)
 	}
 
 	print_mc_state(mc);
+	exynos_pcie_rc_print_msi_register(mc->pcie_ch_num);
 
 	if (mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_CP_ACTIVE], true) == 1) {
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_GPIO_WA)

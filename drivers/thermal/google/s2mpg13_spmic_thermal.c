@@ -510,6 +510,22 @@ err:
 }
 
 /*
+ * Unregister thermal zones.
+ */
+static void
+s2mpg13_spmic_thermal_unregister_tzd(struct s2mpg13_spmic_thermal_chip *chip)
+{
+	int i;
+	struct device *dev = chip->dev;
+
+	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
+		dev_info(dev, "Unregistering %d sensor\n", i);
+		devm_thermal_zone_of_sensor_unregister(chip->dev,
+						       chip->sensor[i].tzd);
+	}
+}
+
+/*
  * Register thermal zones.
  */
 static int
@@ -519,7 +535,7 @@ s2mpg13_spmic_thermal_register_tzd(struct s2mpg13_spmic_thermal_chip *s2mpg13_sp
 	struct thermal_zone_device *tzd;
 	struct device *dev = s2mpg13_spmic_thermal->dev;
 	u8 mask = 0x1;
-	int temp, ret;
+	int temp, ret = 0;
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
 		dev_info(dev, "Registering %d sensor\n", i);
@@ -531,7 +547,7 @@ s2mpg13_spmic_thermal_register_tzd(struct s2mpg13_spmic_thermal_chip *s2mpg13_sp
 			dev_err(dev,
 				"Error registering thermal zone:%ld for channel:%d\n",
 				PTR_ERR(tzd), i);
-			continue;
+			return -EINVAL;
 		}
 		s2mpg13_spmic_thermal->sensor[i].tzd = tzd;
 		if (s2mpg13_spmic_thermal->adc_chan_en & mask)
@@ -540,15 +556,18 @@ s2mpg13_spmic_thermal_register_tzd(struct s2mpg13_spmic_thermal_chip *s2mpg13_sp
 			thermal_zone_device_disable(tzd);
 
 		ret = device_create_file(&tzd->device, &dev_attr_tz_temp);
-		if (ret)
+		if (ret) {
 			dev_err(dev,
 				"Error creating tz_temp node for thermal zone:%ld for channel:%d\n",
 				PTR_ERR(tzd), i);
+			return ret;
+		}
 
 		temp = s2mpg13_spmic_thermal_get_hot_temp(tzd);
 		s2mpg13_spmic_thermal_set_hot_trip(&s2mpg13_spmic_thermal->sensor[i], temp);
 	}
-	return 0;
+
+	return ret;
 }
 
 static const struct of_device_id s2mpg13_spmic_thermal_match_table[] = {
@@ -683,7 +702,7 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 	}
 
 	irq_base = pdata->irq_base;
-	if (!irq_base) {
+	if (irq_base <= 0) {
 		dev_err(dev, "Failed to get irq base %d\n", irq_base);
 		ret = -ENODEV;
 		goto fail;
@@ -764,12 +783,21 @@ fail:
 
 static int s2mpg13_spmic_thermal_remove(struct platform_device *pdev)
 {
+	int i;
 	struct s2mpg13_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
 
 	mutex_lock(&chip->adc_chan_lock);
 	s2mpg13_spmic_set_ntc_channels(chip, 0x00);
 	chip->adc_chan_en = 0x00;
 	mutex_unlock(&chip->adc_chan_lock);
+
+	kthread_cancel_delayed_work_sync(&chip->wait_sensor_work);
+	kthread_destroy_worker(chip->wq);
+	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
+		devm_free_irq(&pdev->dev, chip->sensor[i].ot_irq, chip);
+		devm_free_irq(&pdev->dev, chip->sensor[i].ut_irq, chip);
+	}
+	s2mpg13_spmic_thermal_unregister_tzd(chip);
 
 	return 0;
 }

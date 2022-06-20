@@ -15,7 +15,6 @@
 
 #include "mfc_core_hwlock.h"
 #include "mfc_core_qos.h"
-#include "mfc_core_pm.h"
 #include "mfc_core_reg_api.h"
 
 #include "mfc_buf.h"
@@ -549,6 +548,17 @@ static void __mfc_rm_guarantee_init_buf(struct mfc_ctx *ctx)
 		mfc_ctx_err("Failed to get subcore hwlock\n");
 		mfc_core_release_hwlock_dev(maincore);
 		return;
+	}
+
+	/*
+	 * If Normal <-> Secure switch,
+	 * subcore core need to cache flush without other command.
+	 */
+	if (IS_TWO_MODE1(ctx)) {
+		if (subcore->curr_core_ctx_is_drm != ctx->is_drm) {
+			mfc_debug(2, "[RM] subcore need to cache flush for op_mode 1\n");
+			subcore->core_ops->instance_cache_flush(subcore, ctx);
+		}
 	}
 
 	MFC_TRACE_RM("[c:%d] mode2 try INIT_BUFFER\n", ctx->num);

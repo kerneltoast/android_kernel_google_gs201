@@ -41,7 +41,6 @@
 		iommus = <&sysmmu_aur_idma>, <&sysmmu_aur_inst_data>;
 		samsung,iommu-group = <&iommu_group_aur>;
 		gxp-fw-region = <&gxp_fw_reserved>;
-		gxp-debug-dump-region = <&gxp_debug_dump_reserved>;
 		gxp-scratchpad-region = <&gxp_scratchpad_reserved>;
 		gxp-memory-per-core = <0 512>;
 	};

@@ -261,6 +261,8 @@
 
 				/* Thread priority */
 				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <0>;
 			};
 
 			/* FRONT CAMERA DOKKAEBI */
@@ -343,6 +345,8 @@
 
 				/* Thread priority */
 				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <1>;
 			};
 
 			/* REAR ULTRA WIDE CAMERA SANDWORM */
@@ -425,6 +429,8 @@
 
 				/* Thread priority */
 				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <2>;
 			};
 
 			/* REAR Folded Tele Camera KRAKEN */
@@ -505,6 +511,8 @@
 					 1000
 					 0
 					 0>;
+
+				i2c-lock-group-id = <3>;
 			};
 
 			/* EEPROM GARGOYLE for NAGUAL*/
@@ -547,6 +555,8 @@
 				power-down-seq-delays-us =
 					<1000
 					 1000>;
+
+				i2c-lock-group-id = <0>;
 			};
 
 			/* EEPROM SMAUG for DOKKAEBI */
@@ -582,6 +592,8 @@
 					"regulator";
 				power-down-seq-delays-us =
 					<1000>;
+
+				i2c-lock-group-id = <1>;
 			};
 
 			/* EEPROM SMAUG for SANDWORM */
@@ -617,6 +629,8 @@
 					"regulator";
 				power-down-seq-delays-us =
 					<1000>;
+
+				i2c-lock-group-id = <2>;
 			};
 
 			/* EEPROM JOTNAR for KRAKEN*/
@@ -666,6 +680,8 @@
 					<0
 					 0
 					 0>;
+
+				i2c-lock-group-id = <3>;
 			};
 
 			/* Actuator SLENDERMAN for NAGUAL*/
@@ -711,6 +727,8 @@
 
 				/* Thread priority */
 				periodic-io-thread-priority = <99>;
+
+				i2c-lock-group-id = <0>;
 			};
 
 			/* Actuator JOTNAR for KRAKEN */
@@ -763,6 +781,8 @@
 
 				/* Thread priority */
 				periodic-io-thread-priority = <99>;
+
+				i2c-lock-group-id = <3>;
 			};
 
 			/* Actuator SLENDERMAN for SANDWORM*/
@@ -808,6 +828,8 @@
 
 				/* Thread priority */
 				periodic-io-thread-priority = <99>;
+
+				i2c-lock-group-id = <2>;
 			};
 
 			/* Ois GARGOYLE for NAGUAL*/
@@ -860,6 +882,8 @@
 
 				/* Thread priority */
 				periodic-io-thread-priority = <99>;
+
+				i2c-lock-group-id = <0>;
 			};
 
 			/* Ois JOTNAR for KRAKEN */
@@ -912,6 +936,8 @@
 
 				/* Thread priority */
 				periodic-io-thread-priority = <99>;
+
+				i2c-lock-group-id = <3>;
 			};
 
 			flash0: flash@0 {

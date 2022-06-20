@@ -41,7 +41,7 @@ static char const *const core_names[NUM_CORES] = { "CORE00", "CORE01", "CORE02",
 						   "CORE20", "CORE21" };
 
 static char const *const domain_names[NUM_DOMAINS] = { "MIF", "TPU", "CL0",
-						       "CL1", "CL2" };
+						       "CL1", "CL2", "AUR" };
 
 struct pd_entry {
 	struct list_head entry;
