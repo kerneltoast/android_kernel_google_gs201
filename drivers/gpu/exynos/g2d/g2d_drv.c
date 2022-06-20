@@ -1004,7 +1004,7 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 
 	/* it is okay if fault handler is not registered since it is just for debugging */
-	ret = iommu_register_device_fault_handler(&pdev->dev, g2d_fault_handler, &pdev->dev);
+	ret = iommu_register_device_fault_handler(&pdev->dev, g2d_fault_handler, g2d_dev);
 	if (ret)
 		perrdev(g2d_dev, "Failed to register IOMMU fault handler (%d)", ret);
 

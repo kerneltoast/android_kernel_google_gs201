@@ -13,9 +13,9 @@
 #include <linux/bitops.h>
 #include <linux/of_irq.h>
 #include <linux/delay.h>
-#include <linux/cpuidle.h>
 #include <soc/google/exynos-itmon.h>
 #include <soc/google/debug-snapshot.h>
+#include <soc/google/exynos-cpupm.h>
 
 #define OFFSET_TMOUT_REG		(0x2000)
 #define OFFSET_REQ_R			(0x0)
@@ -1868,13 +1868,12 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 	struct itmon_dev *itmon = (struct itmon_dev *)data;
 	struct itmon_platdata *pdata = itmon->pdata;
 	struct itmon_nodegroup *group = NULL;
-	struct cpuidle_driver *drv;
 	bool ret;
 	int i;
 
-	drv = cpuidle_get_driver();
-	if (drv)
-		cpuidle_driver_state_disabled(drv, 1, true);
+#if IS_ENABLED(CONFIG_EXYNOS_CPUPM)
+	system_is_in_itmon = true;
+#endif
 
 	itmon_pattern_reset();
 	dbg_snapshot_itmon_irq_received();
@@ -1900,8 +1899,9 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 			itmon_do_dpm_policy(itmon);
 	}
 
-	if (drv)
-		cpuidle_driver_state_disabled(drv, 1, false);
+#if IS_ENABLED(CONFIG_EXYNOS_CPUPM)
+	system_is_in_itmon = false;
+#endif
 
 	return IRQ_HANDLED;
 }
