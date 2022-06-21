@@ -1811,6 +1811,40 @@ static void __maybe_unused exynos_pcie_notify_callback(struct pcie_port *pp, int
 	}
 }
 
+void exynos_pcie_rc_print_msi_register(int ch_num)
+{
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct dw_pcie *pci = exynos_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
+	u32 val;
+	int ctrl;
+
+	val = exynos_elbi_read(exynos_pcie, PCIE_IRQ2_EN);
+	dev_info(pci->dev, "PCIE_IRQ2_EN: 0x%x\n", val);
+
+	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_ADDR_LO, 4, &val);
+	dev_info(pci->dev, "PCIE_MSI_ADDR_LO: 0x%x\n", val);
+	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_ADDR_HI, 4, &val);
+	dev_info(pci->dev, "PCIE_MSI_ADDR_HI: 0x%x\n", val);
+
+	for (ctrl = 0; ctrl < PCIE_MAX_MSI_NUM; ctrl++) {
+		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_MASK +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), 4, &val);
+		dev_info(pci->dev, "PCIE_MSI_INTR0_MASK(0x%x):0x%x\n", PCIE_MSI_INTR0_MASK +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), val);
+
+		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_ENABLE +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), 4, &val);
+		dev_info(pci->dev, "PCIE_MSI_INTR0_ENABLE(0x%x):0x%x\n", PCIE_MSI_INTR0_ENABLE +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), val);
+
+		exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_STATUS +
+				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), 4, &val);
+		dev_info(pci->dev, "PCIE_MSI_INTR0_STATUS: 0x%x\n", val);
+	}
+}
+EXPORT_SYMBOL_GPL(exynos_pcie_rc_print_msi_register);
+
 void exynos_pcie_rc_register_dump(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -2320,6 +2354,11 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 #if IS_ENABLED(CONFIG_PCI_MSI)
 	if (val_irq2 & IRQ_MSI_RISING_ASSERT && exynos_pcie->use_msi) {
+		if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep) {
+			dev_info(dev, "MSI: separated msi & pcieonsleep\n");
+			return IRQ_HANDLED;
+		}
+
 		dw_handle_msi_irq(pp);
 
 		/* Mask & Clear MSI to pend MSI interrupt.
@@ -3722,6 +3761,8 @@ int exynos_pcie_rc_set_enable_wake(struct irq_data *data, unsigned int enable)
 	int ret = 0;
 	struct pcie_port *pp = data->parent_data->domain->host_data;
 
+	pr_info("%s: enable = %d\n", __func__, enable);
+
 	if (pp == NULL) {
 		pr_err("Warning: exynos_pcie_rc_set_enable_wake: not exist pp\n");
 		return -EINVAL;
@@ -4513,10 +4554,32 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
+	u32 val, val_irq0, val_irq1, val_irq2;
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		dev_info(dev, "PCIe PMU ISOLATION\n");
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
+	} else if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep) {
+		dev_info(dev, "PCIe on sleep... suspend\n");
+
+		/* handle IRQ0 interrupt */
+		val_irq0 = exynos_elbi_read(exynos_pcie, PCIE_IRQ0);
+		exynos_elbi_write(exynos_pcie, val_irq0, PCIE_IRQ0);
+		dev_info(dev, "IRQ0 0x%x\n", val_irq0);
+
+		/* handle IRQ1 interrupt */
+		val_irq1 = exynos_elbi_read(exynos_pcie, PCIE_IRQ1);
+		exynos_elbi_write(exynos_pcie, val_irq1, PCIE_IRQ1);
+		dev_info(dev, "IRQ1 0x%x\n", val_irq1);
+
+		/* handle IRQ2 interrupt */
+		val_irq2 = exynos_elbi_read(exynos_pcie, PCIE_IRQ2);
+		exynos_elbi_write(exynos_pcie, val_irq2, PCIE_IRQ2);
+		dev_info(dev, "IRQ2 0x%x\n", val_irq2);
+
+		val = exynos_elbi_read(exynos_pcie, PCIE_IRQ2_EN);
+		val |= IRQ_MSI_CTRL_EN_RISING_EDG;
+		exynos_elbi_write(exynos_pcie, val, PCIE_IRQ2_EN);
 	}
 
 	return 0;
@@ -4526,12 +4589,18 @@ static int exynos_pcie_rc_resume_noirq(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 	struct dw_pcie *pci = exynos_pcie->pci;
+	u32 val;
 
 	dev_dbg(dev, "## RESUME[%s] pcie_is_linkup: %d)\n", __func__, pcie_is_linkup);
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		dev_dbg(dev, "[%s] dislink state after resume -> phy pwr off\n", __func__);
 		exynos_pcie_rc_resumed_phydown(&pci->pp);
+	} else if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep) {
+		dev_info(dev, "PCIe on sleep resume...\n");
+		val = exynos_elbi_read(exynos_pcie, PCIE_IRQ2_EN);
+		val &= ~IRQ_MSI_CTRL_EN_RISING_EDG;
+		exynos_elbi_write(exynos_pcie, val, PCIE_IRQ2_EN);
 	}
 
 	return 0;

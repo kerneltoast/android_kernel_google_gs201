@@ -25,6 +25,7 @@ void mfc_core_pm_init(struct mfc_core *core)
 {
 	spin_lock_init(&core->pm.clklock);
 	atomic_set(&core->pm.pwr_ref, 0);
+	atomic_set(&core->pm.protect_ref, 0);
 	atomic_set(&core->clk_ref, 0);
 
 	core->pm.device = core->device;
@@ -46,6 +47,14 @@ void mfc_core_protection_on(struct mfc_core *core)
 
 	spin_lock_irqsave(&core->pm.clklock, flags);
 	mfc_core_debug(3, "Begin: enable protection\n");
+
+	if (atomic_read(&core->pm.protect_ref)) {
+		mfc_core_err("IP protection is already enabled\n");
+		MFC_TRACE_CORE("already protected\n");
+		spin_unlock_irqrestore(&core->pm.clklock, flags);
+		return;
+	}
+
 	ret = exynos_smc(SMC_PROTECTION_SET, 0,
 			core->id * PROT_MFC1, SMC_PROTECTION_ENABLE);
 	if (ret != DRMDRV_OK) {
@@ -56,6 +65,8 @@ void mfc_core_protection_on(struct mfc_core *core)
 		spin_unlock_irqrestore(&core->pm.clklock, flags);
 		return;
 	}
+
+	atomic_inc(&core->pm.protect_ref);
 	MFC_TRACE_CORE("protection\n");
 	mfc_core_debug(3, "End: enable protection\n");
 	spin_unlock_irqrestore(&core->pm.clklock, flags);
@@ -86,6 +97,14 @@ void mfc_core_protection_off(struct mfc_core *core)
 	 */
 	mfc_core_debug(3, "Begin: disable protection\n");
 	spin_lock_irqsave(&core->pm.clklock, flags);
+
+	if (!atomic_read(&core->pm.protect_ref)) {
+		mfc_core_err("IP protection is already disabled\n");
+		MFC_TRACE_CORE("already un-protected\n");
+		spin_unlock_irqrestore(&core->pm.clklock, flags);
+		return;
+	}
+
 	ret = exynos_smc(SMC_PROTECTION_SET, 0,
 			core->id * PROT_MFC1, SMC_PROTECTION_DISABLE);
 	if (ret != DRMDRV_OK) {
@@ -96,6 +115,8 @@ void mfc_core_protection_off(struct mfc_core *core)
 		spin_unlock_irqrestore(&core->pm.clklock, flags);
 		return;
 	}
+
+	atomic_dec(&core->pm.protect_ref);
 	mfc_core_debug(3, "End: disable protection\n");
 	MFC_TRACE_CORE("un-protection\n");
 	spin_unlock_irqrestore(&core->pm.clklock, flags);

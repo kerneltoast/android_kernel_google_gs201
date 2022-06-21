@@ -16,7 +16,7 @@
 #include <linux/regmap.h>
 
 #define SLG51002_CHIP_ID_LEN            3
-#define TIMER_EXPIRED_SEC		(1 * HZ)
+#define TIMER_EXPIRED_MSEC		100
 
 static const struct mfd_cell slg51002_devs[] = {
 	{
@@ -466,7 +466,8 @@ static int slg51002_reg_read(void *context, unsigned int reg, unsigned int *val)
 
 	slg51002_power_on(slg51002);
 	ret = regmap_read(slg51002->i2c_regmap, reg, val);
-	mod_timer(&slg51002->timer, jiffies + TIMER_EXPIRED_SEC);
+	mod_timer(&slg51002->timer,
+		jiffies + msecs_to_jiffies(TIMER_EXPIRED_MSEC));
 	return ret;
 }
 
@@ -478,7 +479,8 @@ static int slg51002_reg_write(void *context, unsigned int reg, unsigned int val)
 
 	slg51002_power_on(slg51002);
 	ret = regmap_write(slg51002->i2c_regmap, reg, val);
-	mod_timer(&slg51002->timer, jiffies + TIMER_EXPIRED_SEC);
+	mod_timer(&slg51002->timer,
+		jiffies + msecs_to_jiffies(TIMER_EXPIRED_MSEC));
 	return ret;
 }
 

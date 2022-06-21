@@ -523,6 +523,7 @@ struct mfc_core_lock {
 struct mfc_pm {
 	struct clk	*clock;
 	atomic_t	pwr_ref;
+	atomic_t	protect_ref;
 	struct device	*device;
 	spinlock_t	clklock;
 
@@ -1255,6 +1256,8 @@ struct mfc_core_ops {
 	int (*instance_deinit)(struct mfc_core *core,
 			struct mfc_ctx *ctx);
 	int (*instance_open)(struct mfc_core *core,
+			struct mfc_ctx *ctx);
+	int (*instance_cache_flush)(struct mfc_core *core,
 			struct mfc_ctx *ctx);
 	int (*instance_move_to)(struct mfc_core *core,
 			struct mfc_ctx *ctx);

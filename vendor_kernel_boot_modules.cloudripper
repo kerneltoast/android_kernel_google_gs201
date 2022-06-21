@@ -1,4 +1,4 @@
-# List of modules loaded during first stage init from vendor_boot
+# List of modules loaded during first stage init from vendor_kernel_boot
 # Sort order defined by
 # LC_ALL=C sort
 acpm_flexpmu_dbg.ko

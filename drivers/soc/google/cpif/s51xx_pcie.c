@@ -39,6 +39,8 @@
 #include "modem_ctrl.h"
 #include "s51xx_pcie.h"
 
+#define to_pci_dev_from_dev(dev) container_of((dev), struct pci_dev, dev)
+
 static int s51xx_pcie_read_procmem(struct seq_file *m, void *v)
 {
 	mif_info("Procmem READ!\n");
@@ -473,6 +475,38 @@ static void s51xx_pcie_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 }
 
+static void s51xx_pcie_resume_complete(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev_from_dev(dev);
+	u16 cmd;
+
+	mif_info("+++\n");
+	if (pcie_linkup_stat()) {
+		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+		if ((((cmd & PCI_COMMAND_MEMORY) == 0) ||
+					(cmd & PCI_COMMAND_MASTER) == 0) || (cmd == 0xffff)) {
+			mif_err_limited("Can't send Interrupt(not bme_en, 0x%04x)!\n", cmd);
+
+			/* set bme bit */
+			pci_set_master(pdev);
+
+			pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+			mif_info("cmd reg = 0x%04x\n", cmd);
+
+			/* set mse bit */
+			cmd |= PCI_COMMAND_MEMORY;
+			pci_write_config_word(pdev, PCI_COMMAND, cmd);
+
+			pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+			mif_info("cmd reg = 0x%04x\n", cmd);
+		}
+	}
+}
+
+static const struct dev_pm_ops s51xx_pcie_rc_pm_ops = {
+	.complete       = s51xx_pcie_resume_complete,
+};
+
 /* For Test */
 static struct pci_device_id s51xx_pci_id_tbl[] = {
 	{ PCI_VENDOR_ID_SAMSUNG, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, },   // SC Basic
@@ -486,6 +520,11 @@ static struct pci_driver s51xx_driver = {
 	.id_table = s51xx_pci_id_tbl,
 	.probe = s51xx_pcie_probe,
 	.remove = s51xx_pcie_remove,
+	.driver = {
+		.name           = "s51xx-pcie-rc",
+		.owner          = THIS_MODULE,
+		.pm             = &s51xx_pcie_rc_pm_ops,
+	},
 };
 
 /*

@@ -59,6 +59,15 @@ static inline void mfc_core_change_state(struct mfc_core *core, enum mfc_core_st
 	core->state = state;
 }
 
+static inline void mfc_core_change_attribute(struct mfc_core *core, int is_drm)
+{
+	MFC_TRACE_CORE("** ctx_is_drm %d -> %d\n",
+			core->curr_core_ctx_is_drm, is_drm);
+	mfc_core_debug(3, "curr_core_ctx_is_drm %d -> %d\n",
+			core->curr_core_ctx_is_drm, is_drm);
+	core->curr_core_ctx_is_drm = is_drm;
+}
+
 static inline void mfc_core_change_fw_state(struct mfc_core *core, int is_drm,
 		enum mfc_fw_status state, int set)
 {

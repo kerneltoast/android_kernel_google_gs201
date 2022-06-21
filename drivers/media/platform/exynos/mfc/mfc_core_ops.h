@@ -14,6 +14,7 @@
 int mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx);
 int mfc_core_instance_deinit(struct mfc_core *core, struct mfc_ctx *ctx);
 int mfc_core_instance_open(struct mfc_core *core, struct mfc_ctx *ctx);
+void mfc_core_instance_cache_flush(struct mfc_core *core, struct mfc_ctx *ctx);
 int mfc_core_instance_move_to(struct mfc_core *core, struct mfc_ctx *ctx);
 int mfc_core_instance_move_from(struct mfc_core *core, struct mfc_ctx *ctx);
 void mfc_core_instance_csd_parsing(struct mfc_core *core, struct mfc_ctx *ctx);

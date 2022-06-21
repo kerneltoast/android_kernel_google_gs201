@@ -28,7 +28,8 @@
 int mfc_core_run_init_hw(struct mfc_core *core, int is_drm)
 {
 	enum mfc_buf_usage_type buf_type;
-	int fw_ver;
+	enum mfc_do_cache_flush do_cache_flush;
+	int fw_ver, drm_switch;
 	int ret = 0;
 
 	if (is_drm)
@@ -47,26 +48,14 @@ int mfc_core_run_init_hw(struct mfc_core *core, int is_drm)
 
 	/* cache flush for previous FW */
 	if (core->curr_core_ctx_is_drm != is_drm) {
-		mfc_core_cache_flush(core, is_drm, MFC_CACHEFLUSH, 0);
-
-		mfc_core_reg_clear(core);
-		mfc_core_debug(2, "Done register clear\n");
-
-		if (is_drm) {
-			MFC_TRACE_CORE("Normal -> DRM\n");
-			mfc_core_debug(2, "Normal -> DRM need protection\n");
-			mfc_core_protection_on(core);
-		} else {
-			MFC_TRACE_CORE("DRM -> Normal\n");
-			mfc_core_debug(2, "DRM -> Normal need un-protection\n");
-			mfc_core_protection_off(core);
-		}
+		do_cache_flush = MFC_CACHEFLUSH;
+		drm_switch = 1;
 	} else {
-		mfc_core_reg_clear(core);
-		mfc_core_debug(2, "Done register clear\n");
+		do_cache_flush = MFC_NO_CACHEFLUSH;
+		drm_switch = 0;
 	}
 
-	core->curr_core_ctx_is_drm = is_drm;
+	mfc_core_cache_flush(core, is_drm, do_cache_flush, drm_switch, 1);
 
 	mfc_core_reset_mfc(core, buf_type);
 	mfc_core_debug(2, "Done MFC reset\n");
@@ -197,7 +186,7 @@ int mfc_core_run_sleep(struct mfc_core *core)
 	mfc_core_pm_clock_on(core);
 
 	if (drm_switch)
-		mfc_core_cache_flush(core, core_ctx->is_drm, MFC_CACHEFLUSH, drm_switch);
+		mfc_core_cache_flush(core, core_ctx->is_drm, MFC_CACHEFLUSH, drm_switch, 0);
 
 	mfc_core_cmd_sleep(core);
 

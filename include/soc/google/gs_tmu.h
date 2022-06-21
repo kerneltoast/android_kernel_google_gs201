@@ -20,6 +20,9 @@ struct gs_pi_param {
 	int trip_switch_on;
 	int trip_control_temp;
 
+	int prev_control_temp;
+	int control_temp_step;
+
 	u32 sustainable_power;
 	s32 k_po;
 	s32 k_pu;

@@ -48,17 +48,12 @@
 		};
 
 		gxp_fw_reserved: gxp_fw@98000000 {
-			reg = <0x0 0x98000000 0x04000000>;
+			reg = <0x0 0x98000000 0x0400000>;
 			no-map;
 		};
 
-		gxp_debug_dump_reserved: gxp_debug_dump@9C000000 {
-			reg = <0x0 0x9C000000 0x00400000>;
-			no-map;
-		};
-
-		gxp_scratchpad_reserved: gxp_scratchpad@9C400000 {
-			reg = <0x0 0x9C400000 0x00100000>;
+		gxp_scratchpad_reserved: gxp_scratchpad@98400000 {
+			reg = <0x0 0x98400000 0x00100000>;
 			no-map;
 		};
 

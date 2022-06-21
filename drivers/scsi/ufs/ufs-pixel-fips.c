@@ -45,8 +45,8 @@ MODULE_PARM_DESC(fips_lu, "FIPS partition LUN");
 #define PRDT_FKL_256			(1 << 26) /* File Key Length */
 #define SENSE_DATA_ALLOC_LEN		(18)
 #define UPIU_TT_COMMAND			(1)
-#define IO_COMPLETION_TIMEOUT_MS	(50)
-#define IO_RETRY_COUNT			(3)
+#define IO_COMPLETION_TIMEOUT_MS	(200)
+#define IO_RETRY_COUNT			(25)
 #define SG_ENTRY_IV_NUM_WORDS		(4)
 #define SG_ENTRY_ENCKEY_NUM_WORDS	(8)
 #define SG_ENTRY_TWKEY_NUM_WORDS	(8)
