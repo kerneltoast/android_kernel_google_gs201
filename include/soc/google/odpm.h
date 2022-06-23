@@ -112,6 +112,7 @@ struct odpm_info {
 	struct workqueue_struct *work_queue;
 	struct work_struct work_refresh;
 	struct alarm alarmtimer_refresh;
+	struct wakeup_source *ws;
 
 	u64 last_poll_ktime_boot_ns;
 	bool sleeping;
