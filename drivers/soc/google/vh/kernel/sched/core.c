@@ -8,6 +8,8 @@
 #include <linux/sched.h>
 #include <kernel/sched/sched.h>
 
+#include "../../../../../android/binder_internal.h"
+#include "sched_events.h"
 #include "sched_priv.h"
 
 struct vendor_group_list vendor_group_list[VG_MAX];
@@ -15,6 +17,7 @@ struct vendor_group_list vendor_group_list[VG_MAX];
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 extern void update_uclamp_stats(int cpu, u64 time);
 #endif
+
 
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
@@ -27,7 +30,7 @@ extern void update_uclamp_stats(int cpu, u64 time);
 #define for_each_clamp_id(clamp_id) \
 	for ((clamp_id) = 0; (clamp_id) < UCLAMP_CNT; (clamp_id)++)
 
-static inline unsigned int uclamp_none(enum uclamp_id clamp_id)
+inline unsigned int uclamp_none(enum uclamp_id clamp_id)
 {
 	if (clamp_id == UCLAMP_MIN)
 		return 0;
@@ -109,4 +112,35 @@ void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p
 		vp->queued_to_list = false;
 	}
 	raw_spin_unlock(&vp->lock);
+}
+
+void vh_binder_set_priority_pixel_mod(void *data, struct binder_transaction *t,
+	struct task_struct *p)
+{
+	struct vendor_binder_task_struct *vbinder = get_vendor_binder_task_struct(p);
+
+	if (!t->from || vbinder->active)
+		return;
+
+	vbinder->active = true;
+
+	/* inherit uclamp */
+	vbinder->uclamp[UCLAMP_MIN] = uclamp_eff_value(current, UCLAMP_MIN);
+	vbinder->uclamp[UCLAMP_MAX] = uclamp_eff_value(current, UCLAMP_MAX);
+
+	/* inherit prefer_idle */
+	vbinder->prefer_idle = get_prefer_idle(current);
+}
+
+void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t,
+	struct task_struct *p)
+{
+	struct vendor_binder_task_struct *vbinder = get_vendor_binder_task_struct(p);
+
+	if (vbinder->active) {
+		vbinder->uclamp[UCLAMP_MIN] = uclamp_none(UCLAMP_MIN);
+		vbinder->uclamp[UCLAMP_MAX] = uclamp_none(UCLAMP_MAX);
+		vbinder->prefer_idle = false;
+		vbinder->active = false;
+	}
 }

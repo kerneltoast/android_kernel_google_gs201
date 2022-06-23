@@ -22,9 +22,6 @@ EXPORT_SYMBOL_GPL(vendor_sched_pixel_em_profile);
 extern unsigned int vendor_sched_uclamp_threshold;
 extern unsigned int vendor_sched_util_post_init_scale;
 extern bool vendor_sched_npi_packing;
-extern bool vendor_sched_reduce_prefer_idle;
-
-static struct vendor_group_property vg[VG_MAX];
 
 unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD };
@@ -32,6 +29,8 @@ unsigned int sched_capacity_margin[CPU_NUM] = {
 extern struct vendor_group_list vendor_group_list[VG_MAX];
 
 extern struct vendor_group_list vendor_group_list[VG_MAX];
+
+extern inline unsigned int uclamp_none(enum uclamp_id clamp_id);
 
 unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
 				 unsigned long max, enum schedutil_type type,
@@ -92,23 +91,6 @@ static inline u64 cfs_rq_last_update_time(struct cfs_rq *cfs_rq)
 	return cfs_rq->avg.last_update_time;
 }
 #endif
-
-unsigned long task_util(struct task_struct *p)
-{
-	return READ_ONCE(p->se.avg.util_avg);
-}
-
-static inline unsigned long _task_util_est(struct task_struct *p)
-{
-	struct util_est ue = READ_ONCE(p->se.avg.util_est);
-
-	return max(ue.ewma, (ue.enqueued & ~UTIL_AVG_UNCHANGED));
-}
-
-static inline unsigned long task_util_est(struct task_struct *p)
-{
-	return max(task_util(p), _task_util_est(p));
-}
 
 #if IS_ENABLED(CONFIG_UCLAMP_TASK)
 static inline unsigned long uclamp_task_util(struct task_struct *p)
@@ -255,23 +237,6 @@ static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
-
-static inline bool get_prefer_idle(struct task_struct *p)
-{
-	// For group based prefer_idle vote, filter our smaller or low prio or
-	// have throttled uclamp.max settings
-	// Ignore all checks, if the prefer_idle is from per-task API.
-	if (vendor_sched_reduce_prefer_idle && !get_vendor_task_struct(p)->uclamp_fork_reset)
-		return (vg[get_vendor_group(p)].prefer_idle &&
-			task_util_est(p) >= vendor_sched_uclamp_threshold &&
-			p->prio <= DEFAULT_PRIO &&
-			uclamp_eff_value(p, UCLAMP_MAX) == SCHED_CAPACITY_SCALE) ||
-			get_vendor_task_struct(p)->prefer_idle;
-	else
-		return vg[get_vendor_task_struct(p)->group].prefer_idle ||
-		       get_vendor_task_struct(p)->prefer_idle;
-}
-
 bool get_prefer_high_cap(struct task_struct *p)
 {
 	return vg[get_vendor_group(p)].prefer_high_cap;
@@ -1109,7 +1074,7 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 {
 	struct uclamp_se uc_req = p->uclamp_req[clamp_id];
 	struct vendor_task_struct *vp = get_vendor_task_struct(p);
-
+	struct vendor_binder_task_struct *vbinder = get_vendor_binder_task_struct(p);
 
 #ifdef CONFIG_UCLAMP_TASK_GROUP
 	unsigned int tg_min, tg_max, vnd_min, vnd_max, value;
@@ -1123,6 +1088,10 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 
 	value = uc_req.value;
 	value = clamp(value, max(tg_min, vnd_min),  min(tg_max, vnd_max));
+
+	// Inherited uclamp restriction
+	if (vbinder->active)
+		value = clamp(value, vbinder->uclamp[UCLAMP_MIN], vbinder->uclamp[UCLAMP_MAX]);
 
 	// For uclamp min, if task has a valid per-task setting that is lower than or equal to its
 	// group value, increase the final uclamp value by 1. This would have effect only on
@@ -1379,14 +1348,21 @@ void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk,
 void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct task_struct *orig)
 {
 	struct vendor_task_struct *v_tsk, *v_orig;
+	struct vendor_binder_task_struct *vbinder;
 
 	v_tsk = get_vendor_task_struct(tsk);
 	v_orig = get_vendor_task_struct(orig);
+	vbinder = get_vendor_binder_task_struct(tsk);
 	v_tsk->group = v_orig->group;
 	v_tsk->prefer_idle = false;
 	INIT_LIST_HEAD(&v_tsk->node);
 	raw_spin_lock_init(&v_tsk->lock);
 	v_tsk->queued_to_list = false;
+
+	vbinder->uclamp[UCLAMP_MIN] = uclamp_none(UCLAMP_MIN);
+	vbinder->uclamp[UCLAMP_MAX] = uclamp_none(UCLAMP_MAX);
+	vbinder->prefer_idle = false;
+	vbinder->active = false;
 }
 
 void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
