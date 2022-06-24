@@ -113,6 +113,7 @@ struct bcl_device {
 	struct delayed_work bcl_intf_work[TRIGGERED_SOURCE_MAX];
 	unsigned int bcl_lvl[TRIGGERED_SOURCE_MAX];
 	atomic_t bcl_cnt[TRIGGERED_SOURCE_MAX];
+	int bcl_prev_lvl[TRIGGERED_SOURCE_MAX];
 
 	int trip_high_temp;
 	int trip_low_temp;
