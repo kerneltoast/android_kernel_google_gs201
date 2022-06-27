@@ -4157,7 +4157,8 @@ skip_sep_request_irq:
 		msi_domain_info = (struct msi_domain_info *)msi_domain->host_data;
 		msi_domain_info->chip->irq_set_affinity = exynos_pcie_msi_set_affinity;
 		msi_domain_info->chip->irq_set_wake = exynos_pcie_rc_set_enable_wake;
-		if (exynos_pcie->ep_device_type == EP_QC_WIFI) {
+		if (exynos_pcie->ep_device_type == EP_QC_WIFI ||
+				exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM) {
 			msi_domain_info->chip->irq_mask = pci_msi_mask_irq;
 			msi_domain_info->chip->irq_unmask = pci_msi_unmask_irq;
 		}

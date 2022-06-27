@@ -16,7 +16,7 @@
 #include <linux/regmap.h>
 
 #define SLG51002_CHIP_ID_LEN            3
-#define TIMER_EXPIRED_MSEC		100
+#define TIMER_EXPIRED_MSEC		500
 
 static const struct mfd_cell slg51002_devs[] = {
 	{

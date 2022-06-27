@@ -310,7 +310,6 @@ struct mem_link_device {
 
 	struct net_device dummy_net;
 	struct napi_struct mld_napi;
-	atomic_t stop_napi_poll;
 	unsigned int rx_int_enable;
 	unsigned int rx_int_count;
 	unsigned int rx_poll_count;

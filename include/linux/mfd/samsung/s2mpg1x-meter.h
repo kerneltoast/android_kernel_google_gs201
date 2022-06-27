@@ -382,4 +382,37 @@ static inline int s2mpg1x_meter_measure_acc(enum s2mpg1x_id id,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SOC_GS201)
+#define SW_RESET_DELAYTIME_US 2
+static inline int s2mpg1x_meter_sw_reset(enum s2mpg1x_id id,
+					  struct i2c_client *i2c,
+					  struct i2c_client *mt_trim,
+					  u8 mt_trim_reg)
+{
+	int ret;
+
+	ret = s2mpg1x_update_reg(id, mt_trim, mt_trim_reg, 0x00,
+				 /* mask= */ BIT(7));
+	if (ret != 0) {
+		pr_err("odpm: s2mpg1%d-odpm: failed to update mt_trim bit_7 to 0\n", id + 2);
+		return ret;
+	}
+	ret = s2mpg1x_update_reg(id, mt_trim, mt_trim_reg, 0x80,
+				 /* mask= */ BIT(7));
+	if (ret != 0) {
+		pr_err("odpm: s2mpg1%d-odpm: failed to update mt_trim bit_7 to 1\n", id + 2);
+		return ret;
+	}
+
+	usleep_range(SW_RESET_DELAYTIME_US, SW_RESET_DELAYTIME_US + 100);
+
+	ret = s2mpg1x_update_reg(id, i2c, ADDRESS_AT[ADDRESS_CTRL1][id], 0x01,
+				 METER_EN_MASK);
+	if (ret != 0)
+		pr_err("odpm: s2mpg1%d-odpm: failed to update meter_ctrl1 bit_0 to 1\n", id + 2);
+
+	return ret;
+}
+#endif
+
 #endif /* __LINUX_MFD_S2MPG1X_METER_H */

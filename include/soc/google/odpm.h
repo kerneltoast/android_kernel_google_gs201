@@ -103,6 +103,7 @@ struct odpm_info {
 	struct odpm_chip chip;
 	void *meter; /* Parent meter device data */
 	struct i2c_client *i2c;
+	struct i2c_client *mt_trim;
 	struct mutex *meter_lock; /* Meter lock */
 	struct mutex lock; /* Global HW lock */
 
@@ -110,7 +111,7 @@ struct odpm_info {
 
 	struct workqueue_struct *work_queue;
 	struct work_struct work_refresh;
-	struct timer_list timer_refresh;
+	struct alarm alarmtimer_refresh;
 
 	u64 last_poll_ktime_boot_ns;
 	bool sleeping;

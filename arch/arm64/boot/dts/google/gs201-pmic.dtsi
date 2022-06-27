@@ -584,16 +584,16 @@
 			sample-rate-uhz = <125000000>;
 			sample-rate-external-uhz = <31250000>;
 
-			/* 15 minutes was selected as the spec
-			 * for the maximum sample rate (1ksps)
+			/* 120 minutes was selected as the spec
+			 * for the sample rate (125sps)
 			 *
 			 * Note, this can be verified based on the
 			 * number of bits in the ACC registers.
-			 * ACC_COUNT is 21 bits. Thus,
-			 * 2^21 - 1 = 1048575 ==> 1048.575 seconds
-			 * ==> 17.47625 minutes
+			 * ACC_COUNT is 20 bits. Thus,
+			 * 2^20 - 1 = 1048575 ==> 8388.6 seconds
+			 * ==> 139.81 minutes
 			 */
-			max-refresh-time-ms = <(15 * 60 * 1000)>;
+			max-refresh-time-ms = <(120 * 60 * 1000)>;
 
 			channels {
 				ch1: channel@0 {
@@ -1247,16 +1247,16 @@
 			sample-rate-uhz = <125000000>;
 			sample-rate-external-uhz = <31250000>;
 
-			/* 15 minutes was selected as the spec
-			 * for the maximum sample rate (1ksps)
+			/* 120 minutes was selected as the spec
+			 * for the sample rate (125sps)
 			 *
 			 * Note, this can be verified based on the
 			 * number of bits in the ACC registers.
-			 * ACC_COUNT is 21 bits. Thus,
-			 * 2^21 - 1 = 1048575 ==> 1048.575 seconds
-			 * ==> 17.47625 minutes
+			 * ACC_COUNT is 20 bits. Thus,
+			 * 2^20 - 1 = 1048575 ==> 8388.6 seconds
+			 * ==> 139.81 minutes
 			 */
-			max-refresh-time-ms = <(15 * 60 * 1000)>;
+			max-refresh-time-ms = <(120 * 60 * 1000)>;
 
 			channels {
 				ch13: channel@0 {

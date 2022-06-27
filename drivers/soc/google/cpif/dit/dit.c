@@ -1130,14 +1130,6 @@ int dit_read_rx_dst_poll(struct napi_struct *napi, int budget)
 		mld->tpmon->start();
 #endif
 
-	if (atomic_read(&dc->stop_napi_poll)) {
-		atomic_set(&dc->stop_napi_poll, 0);
-		napi_complete(napi);
-		/* kick can be reserved if dst buffer was not enough */
-		dit_kick(DIT_DIR_RX, true);
-		return 0;
-	}
-
 	if (rcvd_total < budget) {
 		napi_complete_done(napi, rcvd_total);
 		/* kick can be reserved if dst buffer was not enough */
@@ -2499,17 +2491,6 @@ struct net_device *dit_get_netdev(void)
 }
 EXPORT_SYMBOL(dit_get_netdev);
 
-int dit_stop_napi_poll(void)
-{
-	if (!dc)
-		return -EPERM;
-
-	atomic_set(&dc->stop_napi_poll, 1);
-
-	return 0;
-}
-EXPORT_SYMBOL(dit_stop_napi_poll);
-
 bool dit_support_clat(void)
 {
 	if (!dc)
@@ -2644,7 +2625,6 @@ int dit_create(struct platform_device *pdev)
 	spin_lock_init(&dc->src_lock);
 	INIT_LIST_HEAD(&dc->reg_value_q);
 	atomic_set(&dc->init_running, 0);
-	atomic_set(&dc->stop_napi_poll, 0);
 
 	dit_set_irq_affinity(dc->irq_affinity);
 	dev_set_drvdata(dev, dc);

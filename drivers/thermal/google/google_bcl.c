@@ -352,13 +352,21 @@ static int triggered_read_level(void *data, int *val, int id)
 	if ((gpio_level == polarity) || (bcl_dev->bcl_tz_cnt[id] == 1)) {
 		*val = bcl_dev->bcl_lvl[id] + THERMAL_HYST_LEVEL;
 		bcl_dev->bcl_tz_cnt[id] = 0;
-		mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
-				 msecs_to_jiffies(THRESHOLD_DELAY_MS));
+		if (bcl_dev->bcl_prev_lvl[id] != *val) {
+			mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
+					 msecs_to_jiffies(THRESHOLD_DELAY_MS));
+			bcl_dev->bcl_prev_lvl[id] = *val;
+		}
 		return 0;
 	}
 	if (id >= UVLO1 && id <= BATOILO) {
 		/* Zero is applied in case bcl_lvl[id] has a different value */
 		*val = 0;
+		if (bcl_dev->bcl_prev_lvl[id] != *val) {
+			mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
+					 msecs_to_jiffies(THRESHOLD_DELAY_MS));
+			bcl_dev->bcl_prev_lvl[id] = 0;
+		}
 		return 0;
 	}
 
@@ -376,14 +384,14 @@ static int triggered_read_level(void *data, int *val, int id)
 	}
 
 	*val = 0;
-	if (odpm_current > (bcl_dev->bcl_lvl[id] / bcl_dev->odpm_ratio)) {
+	bcl_dev->bcl_tz_cnt[id] = 0;
+	if (odpm_current > (bcl_dev->bcl_lvl[id] / bcl_dev->odpm_ratio))
 		*val = bcl_dev->bcl_lvl[id] + THERMAL_HYST_LEVEL;
-		bcl_dev->bcl_tz_cnt[id] = 0;
-		/* Only queue work if threshold stays high */
+	if (bcl_dev->bcl_prev_lvl[id] != *val) {
 		mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
 				 msecs_to_jiffies(THRESHOLD_DELAY_MS));
-	} else
-		bcl_dev->bcl_tz_cnt[id] = 0;
+		bcl_dev->bcl_prev_lvl[id] = *val;
+	}
 	return 0;
 }
 
@@ -454,6 +462,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if ((bcl_dev->bcl_tz[idx]) && (bcl_dev->bcl_tz_cnt[idx] == 0)) {
 		bcl_dev->bcl_tz_cnt[idx] = 1;
 		bcl_dev->bcl_tz[idx]->temperature = 0;
+		bcl_dev->bcl_prev_lvl[idx] = 0;
 		thermal_zone_device_update(bcl_dev->bcl_tz[idx], THERMAL_EVENT_UNSPECIFIED);
 	}
 	return IRQ_HANDLED;
@@ -3348,6 +3357,7 @@ static int google_set_main_pmic(struct bcl_device *bcl_dev)
 
 	for (i = 0; i < TRIGGERED_SOURCE_MAX; i++) {
 		bcl_dev->bcl_tz_cnt[i] = 0;
+		bcl_dev->bcl_prev_lvl[i] = 0;
 		atomic_set(&bcl_dev->bcl_cnt[i], 0);
 		mutex_init(&bcl_dev->bcl_irq_lock[i]);
 	}

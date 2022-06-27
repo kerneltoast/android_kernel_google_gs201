@@ -1314,11 +1314,6 @@ static int pktproc_poll(struct napi_struct *napi, int budget)
 	if ((ret == -EBUSY) || (ret == -ENOMEM))
 		goto poll_retry;
 
-	if (atomic_read(&q->stop_napi_poll)) {
-		atomic_set(&q->stop_napi_poll, 0);
-		goto poll_exit;
-	}
-
 	if (rcvd < budget) {
 		napi_complete_done(napi, rcvd);
 		q->enable_irq(q);
@@ -1907,7 +1902,6 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 		q->ppa = ppa;
 
 		atomic_set(&q->active, 0);
-		atomic_set(&q->stop_napi_poll, 0);
 
 		/* Info region */
 		switch (ppa->version) {

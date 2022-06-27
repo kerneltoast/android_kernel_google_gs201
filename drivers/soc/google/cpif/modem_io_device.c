@@ -260,7 +260,7 @@ static int gather_multi_frame_sit(struct exynos_link_header *hdr, struct sk_buff
 #ifdef DEBUG_MODEM_IF_LINK_RX
 	/* If there has been no multiple frame with this ID, ... */
 	if (skb_queue_empty(multi_q)) {
-		mif_err("%s<-%s: start of multi-frame (pkt_index:%d fr_index:%d len:%d)\n",
+		mif_debug("%s<-%s: start of multi-frame (pkt_index:%d fr_index:%d len:%d)\n",
 			iod->name, mc->name, exynos_multi_packet_index(ctrl),
 			exynos_multi_frame_index(ctrl), hdr->len);
 	}
@@ -269,21 +269,21 @@ static int gather_multi_frame_sit(struct exynos_link_header *hdr, struct sk_buff
 
 	/* The last frame has not arrived yet. */
 	if (!exynos_multi_last(ctrl)) {
-		mif_err("%s<-%s: recv of multi-frame (CH_ID:0x%02x rcvd:%d)\n",
+		mif_debug("%s<-%s: recv of multi-frame (CH_ID:0x%02x rcvd:%d)\n",
 			iod->name, mc->name, hdr->ch_id, skb->len);
 
 		return ret;
 	}
 
 	/* It is the last frame because the "more" bit is 0. */
-	mif_info("%s<-%s: end multi-frame (CH_ID:0x%02x rcvd:%d)\n",
+	mif_debug("%s<-%s: end multi-frame (CH_ID:0x%02x rcvd:%d)\n",
 		iod->name, mc->name, hdr->ch_id, skb->len);
 
 	/* check totoal multi packet size */
 	skb_queue_walk(multi_q, skb_cur)
 		total_len += skb_cur->len;
 
-	mif_info("Total multi-frame packet size is %d\n", total_len);
+	mif_debug("Total multi-frame packet size is %d\n", total_len);
 
 	skb_new = dev_alloc_skb(total_len);
 	if (unlikely(!skb_new)) {
