@@ -30,7 +30,39 @@ enum TRIGGERED_SOURCE {
 	SOFT_OCP_WARN_TPU,
 	OCP_WARN_GPU,
 	SOFT_OCP_WARN_GPU,
+	PMIC_SOC,
+	UVLO1,
+	UVLO2,
+	BATOILO,
+	PMIC_120C,
+	PMIC_140C,
+	PMIC_OVERHEAT,
 	TRIGGERED_SOURCE_MAX,
+};
+
+enum GRAN_MAIN_THERMAL_SOURCE {
+	TS_SMPL_WARN,
+	TS_OCP_WARN_CPUCL1,
+	TS_OCP_WARN_CPUCL2,
+	TS_SOFT_OCP_WARN_CPUCL1,
+	TS_SOFT_OCP_WARN_CPUCL2,
+	TS_OCP_WARN_TPU,
+	TS_SOFT_OCP_WARN_TPU,
+};
+
+enum GRAN_SUB_THERMAL_SOURCE {
+	TS_OCP_WARN_GPU,
+	TS_SOFT_OCP_WARN_GPU,
+};
+
+enum BCL_THERMAL_SOURCE {
+	TS_PMIC_SOC,
+	TS_UVLO1,
+	TS_UVLO2,
+	TS_BATOILO,
+	TS_PMIC_120C,
+	TS_PMIC_140C,
+	TS_PMIC_OVERHEAT,
 };
 
 enum PMIC_REG { S2MPG10, S2MPG11 };
@@ -39,17 +71,6 @@ struct ocpsmpl_stats {
 	ktime_t _time;
 	int capacity;
 	int voltage;
-};
-
-enum PMIC_SENSOR {
-	PMIC_SOC,
-	UVLO1,
-	UVLO2,
-	BATOILO,
-	PMIC_120C,
-	PMIC_140C,
-	PMIC_OVERHEAT,
-	MITI_SENSOR_MAX,
 };
 
 typedef int (*pmic_set_uvlo_lvl_fn)(struct i2c_client *client, uint8_t mode, unsigned int lvl);
@@ -71,6 +92,8 @@ struct bcl_device {
 	struct device *main_dev;
 	struct device *sub_dev;
 	struct device *mitigation_dev;
+	struct odpm_info *main_odpm;
+	struct odpm_info *sub_odpm;
 	void __iomem *base_mem[5];
 	void __iomem *sysreg_cpucl0;
 	struct power_supply *batt_psy;
@@ -78,32 +101,24 @@ struct bcl_device {
 
 	struct notifier_block psy_nb;
 	struct delayed_work init_work;
-	unsigned int bcl_irq[MITI_SENSOR_MAX];
-	struct delayed_work bcl_irq_work[MITI_SENSOR_MAX];
-	struct delayed_work bcl_intf_work[MITI_SENSOR_MAX];
-	struct mutex bcl_irq_lock[MITI_SENSOR_MAX];
-	unsigned int bcl_lvl[MITI_SENSOR_MAX];
-	unsigned int bcl_read_lvl[MITI_SENSOR_MAX];
-	struct thermal_zone_device *bcl_tz[MITI_SENSOR_MAX];
-	struct thermal_zone_of_device_ops bcl_ops[MITI_SENSOR_MAX];
-	struct ocpsmpl_stats bcl_stats[MITI_SENSOR_MAX];
-	atomic_t bcl_cnt[MITI_SENSOR_MAX];
-	int bcl_tz_cnt[MITI_SENSOR_MAX];
+	struct delayed_work bcl_intf_work[TRIGGERED_SOURCE_MAX];
+	unsigned int bcl_lvl[TRIGGERED_SOURCE_MAX];
+	atomic_t bcl_cnt[TRIGGERED_SOURCE_MAX];
+	int bcl_prev_lvl[TRIGGERED_SOURCE_MAX];
 
 	int trip_high_temp;
 	int trip_low_temp;
 	int trip_val;
 	struct mutex state_trans_lock;
-	struct mutex gra_irq_lock[TRIGGERED_SOURCE_MAX];
-	struct delayed_work gra_irq_work[TRIGGERED_SOURCE_MAX];
-	struct thermal_zone_device *gra_tz[TRIGGERED_SOURCE_MAX];
+	struct thermal_zone_of_device_ops bcl_ops[TRIGGERED_SOURCE_MAX];
+	struct mutex bcl_irq_lock[TRIGGERED_SOURCE_MAX];
+	struct delayed_work bcl_irq_work[TRIGGERED_SOURCE_MAX];
+	struct thermal_zone_device *bcl_tz[TRIGGERED_SOURCE_MAX];
 
-	unsigned int gra_lvl[TRIGGERED_SOURCE_MAX];
-	unsigned int gra_irq[TRIGGERED_SOURCE_MAX];
-	int gra_tz_cnt[TRIGGERED_SOURCE_MAX];
-	int gra_pin[TRIGGERED_SOURCE_MAX];
-	atomic_t gra_cnt[TRIGGERED_SOURCE_MAX];
-	struct ocpsmpl_stats gra_stats[TRIGGERED_SOURCE_MAX];
+	unsigned int bcl_irq[TRIGGERED_SOURCE_MAX];
+	int bcl_tz_cnt[TRIGGERED_SOURCE_MAX];
+	int bcl_pin[TRIGGERED_SOURCE_MAX];
+	struct ocpsmpl_stats bcl_stats[TRIGGERED_SOURCE_MAX];
 
 	struct i2c_client *main_pmic_i2c;
 	struct i2c_client *sub_pmic_i2c;
@@ -123,12 +138,16 @@ struct bcl_device {
 	unsigned int tpu_clk_stats;
 	unsigned int tpu_vdroop_flt;
 	unsigned int gpu_vdroop_flt;
+	unsigned int odpm_ratio;
 
 	bool batt_psy_initialized;
 	bool enabled;
 
 	unsigned int offsrc;
 	unsigned int pwronsrc;
+
+	unsigned int vdroop1_pin;
+	unsigned int vdroop2_pin;
 };
 
 extern void google_bcl_irq_update_lvl(struct bcl_device *bcl_dev, int index, unsigned int lvl);
