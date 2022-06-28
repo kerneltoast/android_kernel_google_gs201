@@ -581,8 +581,6 @@ static void tpmon_set_irq_affinity_mbox(struct tpmon_data *data)
 		int irq_idx = data->extra_idx;
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC)
-		pktproc_stop_napi_poll(ppa, i);
-
 		if (ppa->use_exclusive_irq)
 			irq_idx = ppa->q[i]->irq_idx;
 #endif
@@ -628,8 +626,6 @@ static void tpmon_set_irq_affinity_pcie(struct tpmon_data *data)
 	tpmon_get_cpu_per_queue(val, q_cpu, num_queue, false);
 
 	for (i = 0; i < num_queue; i++) {
-		pktproc_stop_napi_poll(ppa, i);
-
 		if (!ppa->q[i]->irq)
 			break;
 

@@ -8,8 +8,6 @@ function exit_if_error {
   fi
 }
 
-# Default enable BUILD_STAGING_KERNEL
-BUILD_STAGING_KERNEL=${BUILD_STAGING_KERNEL:-1}
 if [ "${BUILD_AOSP_KERNEL}" = "1" ]; then
   BUILD_KERNEL=1
   EXPERIMENTAL_BUILD=0

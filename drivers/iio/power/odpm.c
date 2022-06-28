@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/timer.h>
+#include <linux/alarmtimer.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -290,6 +291,22 @@ int odpm_configure_chip(struct odpm_info *info)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SOC_GS201)
+int odpm_meter_sw_reset(struct odpm_info *info) {
+	u8 mt_trim_reg = '\0';
+
+	if (info->chip.hw_id == ID_S2MPG12)
+		mt_trim_reg = S2MPG12_MT_TRIM_COMMON;
+	else if (info->chip.hw_id == ID_S2MPG13)
+		mt_trim_reg = S2MPG13_MT_TRIM_COMMON2;
+
+	return s2mpg1x_meter_sw_reset(info->chip.hw_id,
+				      info->i2c,
+				      info->mt_trim,
+				      mt_trim_reg);
+}
+#endif
+
 int odpm_configure_start_measurement(struct odpm_info *info)
 {
 	u64 timestamp_capture_ns = 0;
@@ -323,19 +340,21 @@ int odpm_configure_start_measurement(struct odpm_info *info)
 	return ret;
 }
 
-void odpm_periodic_refresh_timeout(struct timer_list *t)
+static enum alarmtimer_restart odpm_alarm_handler(struct alarm *alarm, ktime_t time)
 {
-	int ret;
 	struct odpm_info *info =
-		container_of(t, struct odpm_info, timer_refresh);
-	ret = mod_timer(&info->timer_refresh,
-			jiffies +
-			msecs_to_jiffies(info->chip.max_refresh_time_ms));
-	if (ret < 0)
-		pr_err("odpm: Refresh timer cannot be modified!\n");
+		container_of(alarm, struct odpm_info, alarmtimer_refresh);
+
+	/* TODO(samou): b/236804569
+	 * Review wakelock necessity in odpm_alarm_handler after sepolicy is added.
+	 */
 
 	/* schedule the periodic reading from the chip */
 	queue_work(info->work_queue, &info->work_refresh);
+	alarm_start_relative(&info->alarmtimer_refresh,
+			     ms_to_ktime(info->chip.max_refresh_time_ms));
+
+	return ALARMTIMER_NORESTART;
 }
 
 static void odpm_periodic_refresh_work(struct work_struct *work)
@@ -357,10 +376,9 @@ static void odpm_periodic_refresh_setup(struct odpm_info *info)
 
 	/* setup the latest moment for reading the regs before saturation */
 	/* register the timer */
-	timer_setup(&info->timer_refresh, odpm_periodic_refresh_timeout, 0);
-	info->timer_refresh.expires =
-		jiffies + msecs_to_jiffies(info->chip.max_refresh_time_ms);
-	add_timer(&info->timer_refresh);
+	alarm_init(&info->alarmtimer_refresh, ALARM_BOOTTIME, odpm_alarm_handler);
+	alarm_start_relative(&info->alarmtimer_refresh,
+			     ms_to_ktime(info->chip.max_refresh_time_ms));
 }
 
 static bool odpm_match_int_sampling_rate(struct odpm_info *info,
@@ -906,18 +924,16 @@ exit_refresh:
 
 static int odpm_reset_timer(struct odpm_info *info)
 {
-	unsigned long future_timer = jiffies +
-		msecs_to_jiffies(info->chip.max_refresh_time_ms);
-
-	/* re-schedule the work for the read registers timeout
-	 * (to prevent chip regs saturation)
-	 */
-	int ret_timer = mod_timer(&info->timer_refresh, future_timer);
-
-	if (ret_timer < 0)
-		pr_err("odpm: read timer can't be modified!\n");
-
-	return ret_timer;
+	int ret = alarm_cancel(&info->alarmtimer_refresh);
+	if (ret < 0) {
+		pr_err("odpm: cannot reset the refresh timer\n");
+		return ret;
+	} else {
+		alarm_init(&info->alarmtimer_refresh, ALARM_BOOTTIME, odpm_alarm_handler);
+		alarm_start_relative(&info->alarmtimer_refresh,
+				     ms_to_ktime(info->chip.max_refresh_time_ms));
+	}
+	return ret;
 }
 
 static int odpm_take_snapshot(struct odpm_info *info)
@@ -1145,11 +1161,18 @@ static void odpm_set_sampling_rate(struct odpm_info *info,
 					     ODPM_SAMPLING_RATE_EXTERNAL);
 	}
 
+#if IS_ENABLED(CONFIG_SOC_GS201)
+	if (odpm_meter_sw_reset(info) != 0) {
+		pr_err("odpm: meter_sw_reset failed\n");
+	}
+#endif
+
 	/* Send blank ASYNC, ignoring the latest set of data */
 	if (odpm_io_send_blank_async(info, &info->last_poll_ktime_boot_ns) < 0)
 		pr_err("odpm: Could not send blank async when applying sampling rate\n");
 
 sampling_rate_store_exit:
+	odpm_reset_timer(info);
 	mutex_unlock(&info->lock);
 }
 
@@ -1356,6 +1379,11 @@ static ssize_t enabled_rails_store(struct device *dev,
 		if (!info->chip.rx_ext_config_confirmation) {
 			info->chip.rx_ext_config_confirmation = true;
 			odpm_reset_timer(info);
+#if IS_ENABLED(CONFIG_SOC_GS201)
+			if (odpm_meter_sw_reset(info) != 0) {
+				pr_err("odpm: meter_sw_reset failed\n");
+			}
+#endif
 			if (odpm_configure_start_measurement(info))
 				pr_err("odpm: Failed to start measurement\n");
 			else
@@ -1400,6 +1428,8 @@ static ssize_t enabled_rails_store(struct device *dev,
 		pr_err("odpm: cannot refresh values to swap rails\n");
 		goto enabled_rails_store_exit;
 	}
+
+	odpm_reset_timer(info);
 
 	/* Capture measurement time for current rail */
 	info->chip.rails[current_rail].measurement_start_ms_cached =
@@ -1689,7 +1719,7 @@ static int odpm_remove(struct platform_device *pdev)
 	struct odpm_info *info = iio_priv(indio_dev);
 	int ret;
 
-	ret = try_to_del_timer_sync(&info->timer_refresh);
+	ret = alarm_cancel(&info->alarmtimer_refresh);
 	if (ret < 0) {
 		pr_err("odpm: cannot delete the refresh timer\n");
 		return ret;
@@ -1752,6 +1782,7 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
+		info->mt_trim = meter->iodev->mt_trim;
 		info->meter_lock = &meter->meter_lock;
 	} break;
 	case ID_S2MPG13: {
@@ -1763,6 +1794,7 @@ static void odpm_probe_init_device_specific(struct odpm_info *info, int id)
 
 		info->chip.hw_rev = pmic->pmic_rev;
 		info->i2c = meter->i2c;
+		info->mt_trim = meter->iodev->mt_trim;
 		info->meter_lock = &meter->meter_lock;
 	} break;
 #endif

@@ -1355,7 +1355,7 @@ static int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 
 	if (!mc->pcie_powered_on &&
 			(s51xx_check_pcie_link_status(mc->pcie_ch_num) == 0)) {
-		mif_err("skip pci power off : already powered off\n");
+		mif_info("Skip pci power off: already powered off\n");
 		goto exit;
 	}
 
@@ -1369,7 +1369,7 @@ static int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 		msleep(30);
 		if (check_mem_link_tx_pending(mld) ||
 			mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_WAKEUP], true) == 1) {
-			mif_err("skip pci power off : condition not met\n");
+			mif_info("Skip pci power off: condition not met\n");
 			goto exit;
 		}
 	}
@@ -1377,7 +1377,7 @@ static int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 	set_pcie_msi_int(ld, false);
 
 	if (mc->device_reboot) {
-		mif_err("skip pci power off : device is rebooting..!!!\n");
+		mif_info("Skip pci power off: device is rebooting\n");
 		goto exit;
 	}
 
@@ -1441,7 +1441,7 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 	unsigned long flags;
 
 	if (mc == NULL) {
-		mif_err("Skip pci power on : mc is NULL\n");
+		mif_err("Skip pci power on: mc is NULL\n");
 		return 0;
 	}
 
@@ -1449,7 +1449,7 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 	mld = to_mem_link_device(ld);
 
 	if (mc->phone_state == STATE_OFFLINE) {
-		mif_err("Skip pci power on : phone_state is OFFLINE\n");
+		mif_info("Skip pci power on: phone_state is OFFLINE\n");
 		return 0;
 	}
 
@@ -1458,18 +1458,18 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 	mif_debug("+++\n");
 	if (mc->pcie_powered_on &&
 			(s51xx_check_pcie_link_status(mc->pcie_ch_num) != 0)) {
-		mif_err("skip pci power on : already powered on\n");
+		mif_info("Skip pci power on: already powered on\n");
 		goto exit;
 	}
 
 	if (!boot_on &&
 	    mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_WAKEUP], true) == 0) {
-		mif_err("skip pci power on : condition not met\n");
+		mif_info("Skip pci power on: condition not met\n");
 		goto exit;
 	}
 
 	if (mc->device_reboot) {
-		mif_err("skip pci power on : device is rebooting..!!!\n");
+		mif_info("Skip pci power on: device is rebooting\n");
 		goto exit;
 	}
 
