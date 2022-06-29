@@ -5,6 +5,7 @@ GKI_FRAGMENT_DEFCONFIG=${KERNEL_DIR}/arch/arm64/configs/cloudripper_gki.fragment
 
 # Set BUILD_VENDOR_KERNEL_BOOT to 1 to build vendor_kernel_boot and remove vendor_boot
 # artifacts and arguments since we don't need to update vendor_boot anymore.
+BUILD_VENDOR_BOOT_IMG=""
 BUILD_VENDOR_KERNEL_BOOT=1
 KERNEL_VENDOR_CMDLINE=""
 VENDOR_BOOTCONFIG=""
