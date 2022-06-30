@@ -163,7 +163,6 @@ struct bbd_cdev_priv {
 };
 
 struct bbd_device {
-	struct device *dev;
 	struct class *class;			/* for device_create */
 
 #ifdef DEBUG_1HZ_STAT
@@ -174,6 +173,9 @@ struct bbd_device {
 	struct bbd_cdev_priv priv[BBD_DEVICE_INDEX];/* individual structures */
 
 	bool db;				/* debug flag */
+	bool ssi_dbg;
+	bool ssi_dbg_pzc;
+	bool ssi_dbg_rng;
 #ifdef CONFIG_SENSORS_SSP
 	bool ssp_dbg;
 	bool ssp_pkt_dbg;
@@ -198,6 +200,5 @@ extern void	bbd_register(void *ext_data, struct bbd_callbacks *pcallbacks);
 extern int	bbd_mcu_reset(void);
 extern struct bbd_device *bbd_init(struct device *dev, bool legacy_patch);
 extern void bbd_exit(struct device *dev);
-extern void bcm_ssi_debug(struct device *dev, int type, bool value);
 
 #endif /* __BBD_H__ */

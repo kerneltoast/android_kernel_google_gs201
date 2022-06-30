@@ -201,10 +201,6 @@ struct bcm_spi_priv {
 	unsigned long skip_count;
 	unsigned long last_tick;
 
-	bool ssi_dbg;
-	bool ssi_dbg_pzc;
-	bool ssi_dbg_rng;
-
 	/*
 	 * Calculating TX transfer failure operation in bus driver,
 	 * reset in bcm_ssi_open()

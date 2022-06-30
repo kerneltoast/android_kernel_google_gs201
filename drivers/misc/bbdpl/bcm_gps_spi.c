@@ -575,7 +575,7 @@ static void pk_log(struct bcm_spi_priv *priv, char *dir,
 {
 	const char ic = 'D';
 
-	if (likely(!priv->ssi_dbg))
+	if (likely(!priv->bbd->ssi_dbg))
 		return;
 
 	/*
@@ -595,25 +595,6 @@ static void pk_log(struct bcm_spi_priv *priv, char *dir,
 	print_hex_dump(KERN_INFO, dir[0] == 'r' ? "r " : "w ",
 			DUMP_PREFIX_NONE, 32, 1, data, len, false);
 }
-
-void bcm_ssi_debug(struct device *dev, int type, bool value)
-{
-	struct spi_device *spi = to_spi_device(dev);
-	struct bcm_spi_priv *priv = spi_get_drvdata(spi);
-
-	switch (type) {
-	case 0:
-		priv->ssi_dbg = value;
-		break;
-	case 1:
-		priv->ssi_dbg_pzc = value;
-		break;
-	case 2:
-		priv->ssi_dbg_rng = value;
-		break;
-	}
-}
-EXPORT_SYMBOL_GPL(bcm_ssi_debug);
 
 /* SSI tx/rx functions */
 
@@ -756,7 +737,7 @@ static int bcm_ssi_tx(struct bcm_spi_priv *priv, int length)
 	bcm_ssi_calc_trans_stat(&priv->trans_stat[0], bytes_written);
 #endif
 
-	bcm_ssi_chk_pzc(priv, rx->status, priv->ssi_dbg_pzc);
+	bcm_ssi_chk_pzc(priv, rx->status, priv->bbd->ssi_dbg_pzc);
 
 	return ret;
 }
@@ -773,7 +754,7 @@ static int bcm_ssi_rx(struct bcm_spi_priv *priv, size_t *length)
 	size_t sz_to_recv = 0;
 
 #ifdef CONFIG_REG_IO
-	if (likely(priv->ssi_dbg_rng) &&
+	if (likely(priv->bbd->ssi_dbg_rng) &&
 			(priv->packet_received > CONFIG_PACKET_RECEIVED)) {
 		u32 regval32[8];
 
@@ -793,7 +774,7 @@ static int bcm_ssi_rx(struct bcm_spi_priv *priv, size_t *length)
 	if (bcm_spi_sync(priv, tx, rx, ctrl_len, 8))
 		return -1;
 
-	bcm_ssi_chk_pzc(priv, rx->status, priv->ssi_dbg_pzc);
+	bcm_ssi_chk_pzc(priv, rx->status, priv->bbd->ssi_dbg_pzc);
 
 	payload_len = bcm_ssi_get_len(strm->ctrl_byte, rx->data);
 
@@ -1415,6 +1396,20 @@ static int bcm_spi_probe(struct spi_device *spi)
 	/* Init - pinctrl */
 	error = gps_initialize_pinctrl(priv);
 
+	/* Request IRQ */
+	ret = devm_request_irq(&spi->dev, spi->irq, bcm_irq_handler,
+			IRQF_TRIGGER_HIGH, "ttyBCM", priv);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to register BCM477x SPI TTY IRQ %d.\n",
+				spi->irq);
+		goto free_wq;
+	}
+
+	disable_irq(spi->irq);
+
+	dev_info(&spi->dev, "Probe OK. ssp-host-req=%d, irq=%d, priv=0x%pK\n",
+			host_req, spi->irq, priv);
+
 	/* Register misc device */
 	priv->misc.minor = MISC_DYNAMIC_MINOR;
 	priv->misc.name = "ttyBCM";
@@ -1461,19 +1456,6 @@ static int bcm_spi_probe(struct spi_device *spi)
 
 	if (device_create_file(&priv->spi->dev, &dev_attr_sspmcureq))
 		dev_err(&spi->dev, "Unable to create sysfs 4775 sspmcureq entry");
-
-	/* Request IRQ */
-	ret = devm_request_irq(&spi->dev, spi->irq, bcm_irq_handler,
-			IRQF_TRIGGER_HIGH, "ttyBCM", priv);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to register BCM477x SPI TTY IRQ %d.\n",
-				spi->irq);
-		goto free_wq;
-	}
-	disable_irq(spi->irq);
-
-	dev_info(&spi->dev, "Probe OK. ssp-host-req=%d, irq=%d, priv=0x%pK\n",
-			host_req, spi->irq, priv);
 
 	return 0;
 

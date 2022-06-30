@@ -162,7 +162,7 @@ void bbd_enable_stat(struct bbd_device *bbd)
 {
 	struct bbd_stat *stat1hz = &bbd->stat1hz;
 	if (stat1hz->enabled) {
-		dev_dbg(bbd->dev, "1HZ stat already enable. skipping.\n");
+		pr_debug("1HZ stat already enable. skipping.\n");
 		return;
 	}
 
@@ -177,7 +177,7 @@ void bbd_disable_stat(struct bbd_device *bbd)
 {
 	struct bbd_stat *stat1hz = &bbd->stat1hz;
 	if (!stat1hz->enabled) {
-		dev_dbg(bbd->dev, "1HZ stat already disabled. skipping.\n");
+		pr_debug("1HZ stat already disabled. skipping.\n");
 		return;
 	}
 	del_timer_sync(&stat1hz->timer);
@@ -210,16 +210,16 @@ static ssize_t bbd_control(struct bbd_device *bbd, const char *buf, ssize_t len)
 	pr_info("%s\n", buf);
 #endif
 
-	if (strcmp(buf, ESW_CTRL_READY)) {
+	if (strstr(buf, ESW_CTRL_READY)) {
 		if (bbd->ssp_cb && bbd->ssp_cb->on_mcu_ready)
 			bbd->ssp_cb->on_mcu_ready(bbd->ssp_priv, true);
-	} else if (strcmp(buf, ESW_CTRL_NOTREADY)) {
+	} else if (strstr(buf, ESW_CTRL_NOTREADY)) {
 		struct circ_buf *circ = &bbd->priv[BBD_MINOR_SENSOR].read_buf;
 
 		circ->head = circ->tail = 0;
 		if (bbd->ssp_cb && bbd->ssp_cb->on_mcu_ready)
 			bbd->ssp_cb->on_mcu_ready(bbd->ssp_priv, false);
-	} else if (strcmp(buf, ESW_CTRL_CRASHED)) {
+	} else if (strstr(buf, ESW_CTRL_CRASHED)) {
 		struct circ_buf *circ = &bbd->priv[BBD_MINOR_SENSOR].read_buf;
 
 		circ->head = circ->tail = 0;
@@ -229,30 +229,32 @@ static ssize_t bbd_control(struct bbd_device *bbd, const char *buf, ssize_t len)
 
 		if (bbd->ssp_cb && bbd->ssp_cb->on_control)
 			bbd->ssp_cb->on_control(bbd->ssp_priv, buf);
-	} else if (strcmp(buf, BBD_CTRL_DEBUG_OFF)) {
+	} else if (strstr(buf, BBD_CTRL_DEBUG_ON)) {
+		bbd->db = true;
+	} else if (strstr(buf, BBD_CTRL_DEBUG_OFF)) {
 		bbd->db = false;
 #if IS_ENABLED(CONFIG_SENSORS_SSP)
-	} else if (!strcmp(buf, SSP_DEBUG_ON)) {
+	} else if (strstr(buf, SSP_DEBUG_ON)) {
 		bbd->ssp_dbg = true;
 		bbd->ssp_pkt_dbg = true;
-	} else if (!strstr(buf, SSP_DEBUG_OFF)) {
+	} else if (strstr(buf, SSP_DEBUG_OFF)) {
 		bbd->ssp_dbg = false;
 		bbd->ssp_pkt_dbg = false;
 #endif
-	} else if (strcmp(buf, SSI_DEBUG_ON)) {
-		bcm_ssi_debug(bbd->dev, 0, true);
-	} else if (strcmp(buf, SSI_DEBUG_OFF)) {
-		bcm_ssi_debug(bbd->dev, 0, false);
-	} else if (strcmp(buf, PZC_DEBUG_ON)) {
-		bcm_ssi_debug(bbd->dev, 1, true);
-	} else if (strcmp(buf, PZC_DEBUG_OFF)) {
-		bcm_ssi_debug(bbd->dev, 1, false);
-	} else if (strcmp(buf, RNG_DEBUG_ON)) {
-		bcm_ssi_debug(bbd->dev, 2, true);
-	} else if (strcmp(buf, RNG_DEBUG_OFF)) {
-		bcm_ssi_debug(bbd->dev, 2, false);
+	} else if (strstr(buf, SSI_DEBUG_ON)) {
+		bbd->ssi_dbg = true;
+	} else if (strstr(buf, SSI_DEBUG_OFF)) {
+		bbd->ssi_dbg = false;
+	} else if (strstr(buf, PZC_DEBUG_ON)) {
+		bbd->ssi_dbg_pzc = true;
+	} else if (strstr(buf, PZC_DEBUG_OFF)) {
+		bbd->ssi_dbg_pzc = false;
+	} else if (strstr(buf, RNG_DEBUG_ON)) {
+		bbd->ssi_dbg_rng = true;
+	} else if (strstr(buf, RNG_DEBUG_OFF)) {
+		bbd->ssi_dbg_rng = false;
 #ifdef BBD_PWR_STATUS
-	} else if (!strcmp(buf, GPSD_CORE_ON)) {
+	} else if (strstr(buf, GPSD_CORE_ON)) {
 		u64 now = ktime_to_us(ktime_get_boottime());
 		struct gnss_pwrstats *pwrstats =
 			&bbd->priv[BBD_MINOR_PWRSTAT].pwrstats;
@@ -267,7 +269,7 @@ static ssize_t bbd_control(struct bbd_device *bbd, const char *buf, ssize_t len)
 		pwrstats->gps_off_exit - pwrstats->gps_off_entry;
 
 		mutex_unlock(&bbd->priv[BBD_MINOR_PWRSTAT].lock);
-	} else if (!strcmp(buf, GPSD_CORE_OFF)) {
+	} else if (strstr(buf, GPSD_CORE_OFF)) {
 		u64 now = ktime_to_us(ktime_get_boottime());
 		struct gnss_pwrstats *pwrstats =
 			&bbd->priv[BBD_MINOR_PWRSTAT].pwrstats;
@@ -728,7 +730,6 @@ struct bbd_device *bbd_init(struct device *dev, bool legacy_patch)
 		goto exit;
 	}
 
-	bbd->dev = dev;
 	bbd->legacy_patch = legacy_patch;
 
 	/*
