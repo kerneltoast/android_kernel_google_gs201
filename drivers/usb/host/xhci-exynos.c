@@ -38,6 +38,9 @@
 #include <trace/hooks/usb.h>
 #include "../../soc/google/cal-if/pmucal_system.h"
 
+/* TODO: should change back to 1 after clarified accessory's issue */
+#define MAX_ERROR_COUNT 0
+
 static struct hc_driver xhci_exynos_hc_driver;
 
 static int xhci_exynos_setup(struct usb_hcd *hcd);
@@ -84,7 +87,7 @@ int xhci_exynos_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 		else
 			xhci_exynos->set_addr_error_count = 0;
 
-		if (xhci_exynos->set_addr_error_count > 1) {
+		if (xhci_exynos->set_addr_error_count > MAX_ERROR_COUNT) {
 			/* Disable USB enumeration */
 			ret = -ENOTCONN;
 			dev_err(xhci_exynos->dev,
@@ -137,7 +140,7 @@ int xhci_exynos_bus_suspend(struct usb_hcd *hcd)
 
 	mutex_lock(&xhci_exynos->count_lock);
 
-	if (xhci_exynos->set_addr_error_count > 1)
+	if (xhci_exynos->set_addr_error_count > MAX_ERROR_COUNT)
 		xhci_exynos_portsc2_power_off(xhci_exynos);
 
 	mutex_unlock(&xhci_exynos->count_lock);
