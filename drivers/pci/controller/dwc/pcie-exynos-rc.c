@@ -4560,6 +4560,8 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		dev_info(dev, "PCIe PMU ISOLATION\n");
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
+
+		return 0;
 	} else if (exynos_pcie->separated_msi && exynos_pcie->use_pcieon_sleep) {
 		dev_info(dev, "PCIe on sleep... suspend\n");
 
@@ -4581,6 +4583,14 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 		val = exynos_elbi_read(exynos_pcie, PCIE_IRQ2_EN);
 		val |= IRQ_MSI_CTRL_EN_RISING_EDG;
 		exynos_elbi_write(exynos_pcie, val, PCIE_IRQ2_EN);
+	}
+
+	if (exynos_pcie->use_pcieon_sleep) {
+		dev_info(dev, "Default must_resume value : %d\n",
+				exynos_pcie->ep_pci_dev->dev.power.must_resume);
+		exynos_pcie->pcie_must_resume = exynos_pcie->ep_pci_dev->dev.power.must_resume;
+		if (exynos_pcie->ep_pci_dev->dev.power.must_resume)
+			exynos_pcie->ep_pci_dev->dev.power.must_resume = false;
 	}
 
 	return 0;
@@ -4624,6 +4634,11 @@ static void exynos_pcie_resume_complete(struct device *dev)
 	if (exynos_pcie->use_phy_isol_con &&
 	    exynos_pcie->state == STATE_LINK_DOWN)
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
+	else if (exynos_pcie->use_pcieon_sleep) {
+		exynos_pcie->ep_pci_dev->dev.power.must_resume = exynos_pcie->pcie_must_resume;
+		dev_info(dev, "Default must_resume value : %d\n",
+				exynos_pcie->ep_pci_dev->dev.power.must_resume);
+	}
 }
 
 #endif
