@@ -29,8 +29,13 @@ struct pixel_em_profile {
   const char *name;
   int num_clusters;
   struct pixel_em_cluster *clusters;
-  int num_cpus;
   struct pixel_em_cluster **cpu_to_cluster; // Maps CPU index to a cluster pointer
+};
+
+struct pixel_idle_em {
+  int num_clusters;
+  struct pixel_em_cluster *clusters;
+  struct pixel_em_cluster **cpu_to_cluster;
 };
 
 #endif /* CONFIG_PIXEL_EM */

@@ -17,6 +17,8 @@
 #include "../../include/pixel_em.h"
 struct pixel_em_profile **vendor_sched_pixel_em_profile;
 EXPORT_SYMBOL_GPL(vendor_sched_pixel_em_profile);
+struct pixel_idle_em *vendor_sched_pixel_idle_em;
+EXPORT_SYMBOL_GPL(vendor_sched_pixel_idle_em);
 #endif
 
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
@@ -292,9 +294,8 @@ static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
 /*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
-/*
- * This part of code is new for this kernel, which are mostly helper functions.
- */
+// This part of code is new for this kernel, which are mostly helper functions.
+
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 static inline int get_vendor_util_group(struct task_struct *p)
 {
@@ -965,10 +966,18 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 #endif
 }
 
-static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
-				unsigned long max_util, unsigned long sum_util)
+static inline unsigned long get_idle_cost(int cpu, int opp_level)
 {
-	unsigned long freq, scale_cpu;
+	if (vendor_sched_pixel_idle_em)
+		return vendor_sched_pixel_idle_em->cpu_to_cluster[cpu]->opps[opp_level].cost;
+	else
+		return 0;
+}
+
+static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
+				unsigned long max_util, unsigned long sum_util, bool count_idle)
+{
+	unsigned long freq, scale_cpu, cost;
 	struct em_perf_state *ps;
 	int i, cpu;
 
@@ -1002,7 +1011,22 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 						break;
 				}
 
-				return opp->cost * sum_util / max_opp->capacity;
+				cost = opp->cost * sum_util / max_opp->capacity;
+
+				if (count_idle) {
+					unsigned long cur_freq = (arch_scale_freq_capacity(cpu) *
+						max_opp->freq) >> SCHED_CAPACITY_SHIFT;
+
+					for (i = 0; i < cluster->num_opps; i++) {
+						opp = &cluster->opps[i];
+						if (opp->freq >= cur_freq)
+							break;
+					}
+
+					cost += get_idle_cost(cpu, i);
+				}
+
+				return cost;
 			}
 		}
 	}
@@ -1023,12 +1047,13 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 }
 
 static long
-compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
+compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, unsigned long exit_lat)
 {
 	unsigned long max_util, util_cfs, cpu_util, cpu_cap;
 	unsigned long sum_util, energy = 0;
 	struct task_struct *tsk;
 	int cpu;
+	bool count_idle = false;
 
 	for (; pd; pd = pd->next) {
 		struct cpumask *pd_mask = perf_domain_span(pd);
@@ -1074,7 +1099,11 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 						      FREQUENCY_UTIL, tsk);
 			max_util = max(max_util, cpu_util);
 		}
-		energy += em_cpu_energy_pixel_mod(pd->em_pd, max_util, sum_util);
+
+		if (cpumask_test_cpu(dst_cpu, pd_mask) && exit_lat > C1_EXIT_LATENCY)
+			count_idle = true;
+
+		energy += em_cpu_energy_pixel_mod(pd->em_pd, max_util, sum_util, count_idle);
 	}
 
 	trace_sched_compute_energy(p, dst_cpu, energy);
@@ -1475,7 +1504,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 				exit_lat = idle_state->exit_latency;
 		}
 
-		cur_energy = compute_energy(p, i, pd);
+		cur_energy = compute_energy(p, i, pd, exit_lat);
 
 		if (cur_energy < best_energy) {
 			best_energy = cur_energy;
