@@ -4591,6 +4591,10 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 		exynos_pcie->pcie_must_resume = exynos_pcie->ep_pci_dev->dev.power.must_resume;
 		if (exynos_pcie->ep_pci_dev->dev.power.must_resume)
 			exynos_pcie->ep_pci_dev->dev.power.must_resume = false;
+
+		dev_info(dev, "restore enable cnt = %d\n", exynos_pcie->pcieon_sleep_enable_cnt);
+		atomic_set(&exynos_pcie->ep_pci_dev->enable_cnt,
+				exynos_pcie->pcieon_sleep_enable_cnt);
 	}
 
 	return 0;
@@ -4623,6 +4627,14 @@ static int exynos_pcie_suspend_prepare(struct device *dev)
 
 	if (exynos_pcie->use_phy_isol_con)
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
+
+	if (exynos_pcie->use_pcieon_sleep) {
+		exynos_pcie->pcieon_sleep_enable_cnt =
+			atomic_read(&exynos_pcie->ep_pci_dev->enable_cnt);
+		dev_info(dev, "remove enable cnt to fake enable = %d\n",
+				exynos_pcie->pcieon_sleep_enable_cnt);
+		atomic_set(&exynos_pcie->ep_pci_dev->enable_cnt, 0);
+	}
 
 	return 0;
 }

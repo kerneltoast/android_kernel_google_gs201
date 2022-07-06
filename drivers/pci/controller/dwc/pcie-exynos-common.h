@@ -318,6 +318,7 @@ struct exynos_pcie {
 	struct logbuffer *log;
 
 	bool pcie_must_resume;
+	int pcieon_sleep_enable_cnt;
 };
 
 #define PCIE_MAX_MSI_NUM	(8)
