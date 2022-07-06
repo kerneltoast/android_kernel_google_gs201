@@ -345,9 +345,7 @@ static enum alarmtimer_restart odpm_alarm_handler(struct alarm *alarm, ktime_t t
 	struct odpm_info *info =
 		container_of(alarm, struct odpm_info, alarmtimer_refresh);
 
-	/* TODO(samou): b/236804569
-	 * Review wakelock necessity in odpm_alarm_handler after sepolicy is added.
-	 */
+	__pm_stay_awake(info->ws);
 
 	/* schedule the periodic reading from the chip */
 	queue_work(info->work_queue, &info->work_refresh);
@@ -367,6 +365,8 @@ static void odpm_periodic_refresh_work(struct work_struct *work)
 		       info->chip.name);
 	else
 		pr_info("odpm: Refreshed %s registers!\n", info->chip.name);
+
+	__pm_relax(info->ws);
 }
 
 static void odpm_periodic_refresh_setup(struct odpm_info *info)
@@ -1735,6 +1735,9 @@ static int odpm_remove(struct platform_device *pdev)
 
 	iio_device_unregister(indio_dev);
 
+	if (info->ws)
+		wakeup_source_unregister(info->ws);
+
 	return ret;
 }
 
@@ -1895,6 +1898,11 @@ static int odpm_probe(struct platform_device *pdev)
 		return ret;
 	}
 	device_enable_async_suspend(&pdev->dev);
+
+	odpm_info->ws = wakeup_source_register(&pdev->dev, odpm_info->chip.name);
+	if (odpm_info->ws == NULL) {
+		pr_err("odpm: wakelock register fail\n");
+	}
 
 	mutex_init(&odpm_info->lock);
 

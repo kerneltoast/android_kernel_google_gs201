@@ -154,7 +154,7 @@
 
 		trips {
 			smpl:smpl_0 {
-				temperature = <1400>;
+				temperature = <1100>;
 				hysteresis = <100>;
 				type = "passive";
 			};
@@ -168,7 +168,7 @@
 
 		trips {
 			ocp_cpu1:ocp-cpu1 {
-				temperature = <7000>;
+				temperature = <8000>;
 				hysteresis = <100>;
 				type = "passive";
 			};
