@@ -240,9 +240,19 @@ EXPORT_SYMBOL_GPL(isp_cooling_get_fps);
 static int isp_apply_cooling(struct isp_cooling_device *isp_device,
 			     unsigned long cooling_state)
 {
+	unsigned int max_state;
+	int ret;
+
 	/* Check if the old cooling action is same as new cooling action */
 	if (isp_device->isp_state == cooling_state)
 		return 0;
+
+	ret = get_property(0, 0, &max_state, GET_MAXL);
+	if (ret)
+		return ret;
+
+	if (WARN_ON(cooling_state < 0 || cooling_state > max_state))
+		return -EINVAL;
 
 	isp_device->isp_state = (unsigned int)cooling_state;
 
