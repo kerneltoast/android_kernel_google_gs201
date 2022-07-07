@@ -55,4 +55,10 @@ static inline int get_vendor_group(struct task_struct *p)
 	return get_vendor_task_struct(p)->group;
 }
 
+static inline void set_vendor_group(struct task_struct *p,  enum vendor_group group)
+{
+	struct vendor_task_struct *vendor_task =
+		(struct vendor_task_struct *)p->android_vendor_data1;
+	vendor_task->group = group;
+}
 #endif
