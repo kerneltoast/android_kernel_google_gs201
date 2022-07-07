@@ -25,6 +25,7 @@ ext_modules += touch/common
 ext_modules += touch/focaltech/ft3658
 ext_modules += touch/sec
 ext_modules += touch/synaptics
+ext_modules += wlan/wlan_ptracker
 ext_modules += wlan/bcmdhd4389
 ext_modules += video/gchips
 
