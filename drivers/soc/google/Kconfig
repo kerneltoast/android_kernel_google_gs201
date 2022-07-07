@@ -266,4 +266,11 @@ config PKVM_S2MPU
 	help
 	This module is a driver for the stage-2 IOMMU controlled by hypervisor.
 
+config WLAN_TRACKER
+	bool "WiFi performance tracker driver"
+	depends on SOC_GS201
+	default n
+	help
+	Module for wlan performance tracker.
+
 endmenu
