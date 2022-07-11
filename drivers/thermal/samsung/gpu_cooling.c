@@ -587,11 +587,20 @@ static int gpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 {
 	struct gpu_tmu_notification_data nd;
 	struct gpufreq_cooling_device *gpufreq_cdev = cdev->devdata;
+	unsigned int max_state;
+	int ret;
 
 	state = max(gpufreq_cdev->sysfs_req, state);
 	/* Check if the old cooling action is same as new cooling action */
 	if (gpufreq_cdev->gpufreq_state == state)
 		return -EALREADY;
+
+	ret = get_property(gpufreq_cdev, 0, &max_state, GET_MAXL);
+	if (ret)
+		return ret;
+
+	if (WARN_ON(state < 0 || state > max_state))
+		return -EINVAL;
 
 	gpufreq_cdev->gpufreq_state = state;
 

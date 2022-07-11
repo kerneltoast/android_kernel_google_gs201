@@ -197,7 +197,6 @@ struct stmvl53l1_data {
 	/* autonomous config */
 	uint32_t auto_pollingTimeInMs;
 	struct VL53L1_DetectionConfig_t auto_config;
-
 };
 
 
