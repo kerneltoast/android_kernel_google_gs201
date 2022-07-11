@@ -344,6 +344,15 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	writel(val, phy_base_regs + 0x5D0);
 	dev_info(exynos_pcie->pci->dev, "[%s] XO clock configuration : 0x%x\n",
 			__func__, readl(phy_base_regs + 0x5D0));
+
+	/* AFC cal mode by default uses the calibrated value from a previous
+	 * run. However on some devices this causes a CDR failure because
+	 * the AFC done status is set prematurely. Setting the cal mode to
+	 * always start from an initial value (determined through simulation)
+	 * ensures that AFC has enough time to complete.
+	 */
+	dev_info(exynos_pcie->pci->dev, "AFC cal mode set to restart\n");
+	writel(0x4, phy_base_regs + 0xBF4);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_pcie_phy_config);
 
