@@ -128,7 +128,6 @@
 #define SMPL_LOWER_LIMIT (2600)
 #define SMPL_STEP (100)
 #define SMPL_NUM_LVL (32)
-#define THERMAL_IRQ_COUNTER_LIMIT (5)
 #define ACTIVE_HIGH (0x1)
 #define ACTIVE_LOW (0x0)
 #define THERMAL_DELAY_INIT_MS 1000
@@ -341,9 +340,14 @@ static int triggered_read_level(void *data, int *val, int id)
 	int gpio_level = (id >= UVLO1 && id <= BATOILO) ? gpio_get_value(gpio_pin) :
 			gpio_get_value(bcl_dev->bcl_pin[id]);
 
-	if (id >= UVLO2 && id <= BATOILO) {
+	if ((id >= UVLO2 && id <= BATOILO) && (bcl_dev->bcl_tz_cnt[id] == 0)) {
 		if (bcl_cb_vdroop_ok(bcl_dev, &state) < 0) {
 			*val = 0;
+			if (bcl_dev->bcl_prev_lvl[id] != 0) {
+				mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
+						 msecs_to_jiffies(THRESHOLD_DELAY_MS));
+				bcl_dev->bcl_prev_lvl[id] = *val;
+			}
 			return -EINVAL;
 		} else
 			gpio_level = (state) ? 0 : 1;
@@ -351,18 +355,15 @@ static int triggered_read_level(void *data, int *val, int id)
 	/* Check polarity */
 	if ((gpio_level == polarity) || (bcl_dev->bcl_tz_cnt[id] == 1)) {
 		*val = bcl_dev->bcl_lvl[id] + THERMAL_HYST_LEVEL;
-		bcl_dev->bcl_tz_cnt[id] = 0;
-		if (bcl_dev->bcl_prev_lvl[id] != *val) {
-			mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
-					 msecs_to_jiffies(THRESHOLD_DELAY_MS));
-			bcl_dev->bcl_prev_lvl[id] = *val;
-		}
+		mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
+				 msecs_to_jiffies(THRESHOLD_DELAY_MS));
+		bcl_dev->bcl_prev_lvl[id] = *val;
 		return 0;
 	}
 	if (id >= UVLO1 && id <= BATOILO) {
 		/* Zero is applied in case bcl_lvl[id] has a different value */
 		*val = 0;
-		if (bcl_dev->bcl_prev_lvl[id] != *val) {
+		if (bcl_dev->bcl_prev_lvl[id] != 0) {
 			mod_delayed_work(system_unbound_wq, &bcl_dev->bcl_irq_work[id],
 					 msecs_to_jiffies(THRESHOLD_DELAY_MS));
 			bcl_dev->bcl_prev_lvl[id] = 0;
@@ -473,6 +474,7 @@ static void google_warn_work(struct work_struct *work, int idx)
 	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
 						  bcl_irq_work[idx].work);
 
+	bcl_dev->bcl_tz_cnt[idx] = 0;
 	if (bcl_dev->bcl_tz[idx])
 		thermal_zone_device_update(bcl_dev->bcl_tz[idx], THERMAL_EVENT_UNSPECIFIED);
 }
@@ -3136,29 +3138,17 @@ static int google_set_sub_pmic(struct bcl_device *bcl_dev)
 
 static void google_bcl_uvlo1_irq_work(struct work_struct *work)
 {
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  bcl_irq_work[UVLO1].work);
-
-	if (bcl_dev->bcl_tz[UVLO1])
-		thermal_zone_device_update(bcl_dev->bcl_tz[UVLO1], THERMAL_EVENT_UNSPECIFIED);
+	google_warn_work(work, UVLO1);
 }
 
 static void google_bcl_uvlo2_irq_work(struct work_struct *work)
 {
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  bcl_irq_work[UVLO2].work);
-
-	if (bcl_dev->bcl_tz[UVLO2])
-		thermal_zone_device_update(bcl_dev->bcl_tz[UVLO2], THERMAL_EVENT_UNSPECIFIED);
+	google_warn_work(work, UVLO2);
 }
 
 static void google_bcl_batoilo_irq_work(struct work_struct *work)
 {
-	struct bcl_device *bcl_dev = container_of(work, struct bcl_device,
-						  bcl_irq_work[BATOILO].work);
-
-	if (bcl_dev->bcl_tz[BATOILO])
-		thermal_zone_device_update(bcl_dev->bcl_tz[BATOILO], THERMAL_EVENT_UNSPECIFIED);
+	google_warn_work(work, BATOILO);
 }
 
 void google_bcl_irq_changed(struct bcl_device *bcl_dev, int index)
