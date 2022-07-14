@@ -52,8 +52,8 @@
 
 #define PD_ACTIVITY_TIMEOUT_MS				10000
 #define VSAFE0V_DEBOUNCE_MS				15
-/* tCCDebounce max 200ms + tVbusON max 275ms */
-#define VBUS_RAMPUP_TIMEOUT_MS				475
+#define VBUS_RAMPUP_TIMEOUT_MS				250
+#define VBUS_RAMPUP_MAX_RETRY				8
 
 #define GBMS_MODE_VOTABLE "CHARGER_MODE"
 
@@ -988,8 +988,10 @@ static void process_power_status(struct max77759_plat *chip)
 	logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
 	tcpm_vbus_change(tcpci->port);
 
-	if (chip->quick_ramp_vbus_ovp && chip->vbus_present)
+	if (chip->quick_ramp_vbus_ovp && chip->vbus_present) {
 		kthread_cancel_delayed_work_sync(&chip->reset_ovp_work);
+		chip->reset_ovp_retry = 0;
+	}
 
 	/* TODO: remove this cc event b/211341677 */
 	if (!strncmp(boot_mode_string, "charger", strlen("charger")) && chip->vbus_present) {
@@ -1135,8 +1137,16 @@ static void reset_ovp_work(struct kthread_work *work)
 	gpio_set_value_cansleep(chip->in_switch_gpio, !chip->in_switch_gpio_active_high);
 	mdelay(10);
 	gpio_set_value_cansleep(chip->in_switch_gpio, chip->in_switch_gpio_active_high);
+	chip->reset_ovp_retry++;
 
-	logbuffer_log(chip->log, "ovp reset done");
+	logbuffer_log(chip->log, "ovp reset done [%d]", chip->reset_ovp_retry);
+
+	if (chip->reset_ovp_retry < VBUS_RAMPUP_MAX_RETRY)
+		kthread_mod_delayed_work(chip->wq, &chip->reset_ovp_work,
+					 msecs_to_jiffies(VBUS_RAMPUP_TIMEOUT_MS));
+	else
+		chip->reset_ovp_retry = 0;
+
 }
 
 static enum typec_cc_status tcpci_to_typec_cc(unsigned int cc, bool sink)
@@ -1186,11 +1196,13 @@ static void max77759_cache_cc(struct max77759_plat *chip)
 	 * is back to Open as we won't expect that Vbus is coming.
 	 */
 	if (chip->quick_ramp_vbus_ovp) {
-		if (cc_open_or_toggling(chip->cc1, chip->cc2) && port_is_sink(cc1, cc2))
+		if (cc_open_or_toggling(chip->cc1, chip->cc2) && port_is_sink(cc1, cc2)) {
 			kthread_mod_delayed_work(chip->wq, &chip->reset_ovp_work,
 						 msecs_to_jiffies(VBUS_RAMPUP_TIMEOUT_MS));
-		else if (cc_open_or_toggling(cc1, cc2))
+		} else if (cc_open_or_toggling(cc1, cc2)) {
 			kthread_cancel_delayed_work_sync(&chip->reset_ovp_work);
+			chip->reset_ovp_retry = 0;
+		}
 	}
 
 	logbuffer_log(chip->log, "cc1: %u -> %u cc2: %u -> %u", chip->cc1, cc1, chip->cc2, cc2);
