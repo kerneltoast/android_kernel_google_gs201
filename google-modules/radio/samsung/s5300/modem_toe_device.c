@@ -19,7 +19,6 @@ void toe_set_iod_clat_netdev(struct io_device *iod, void *args)
 {
 	struct clat_info *clat = (struct clat_info *) args;
 	struct net_device *ndev = NULL;
-	struct link_device *ld = get_current_link(iod);
 	unsigned long flags;
 
 	if (strncmp(iod->name, clat->ipv6_iface, IFNAMSIZ) != 0)
@@ -40,6 +39,7 @@ void toe_set_iod_clat_netdev(struct io_device *iod, void *args)
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
 		if (iod->clat_ndev) {
+			struct link_device *ld = get_current_link(iod);
 			struct mem_link_device *mld = to_mem_link_device(ld);
 
 			mif_info("set RPS again\n");
