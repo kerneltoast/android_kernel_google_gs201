@@ -506,4 +506,11 @@
 		enable-active-high;
 	};
 
+	disp_vci: disp-vci {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_vci";
+		regulator-boot-on;
+		enable-active-high;
+	};
 };
