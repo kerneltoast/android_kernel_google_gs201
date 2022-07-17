@@ -37,6 +37,8 @@ struct logbuffer {
 
 /* Driver suspended count. */
 static uint driver_suspended_count;
+/* Log index for logbuffer_logk */
+static atomic_t log_index = ATOMIC_INIT(0);
 
 static void __logbuffer_log(struct logbuffer *instance,
 			    const char *tmpbuffer, bool record_utc)
@@ -128,18 +130,18 @@ EXPORT_SYMBOL_GPL(logbuffer_log);
 void logbuffer_logk(struct logbuffer *instance, int loglevel, const char *fmt, ...)
 {
 	char log[LOG_BUFFER_ENTRY_SIZE];
-	uint16_t random_number;
+	unsigned int index;
 	va_list args;
 
 	if (!fmt || !instance)
 		return;
 
-	get_random_bytes(&random_number, sizeof(random_number));
+	index = atomic_inc_return(&log_index);
 
 	va_start(args, fmt);
-	scnprintf(log, LOG_BUFFER_ENTRY_SIZE, "[%5u] %s", random_number, fmt);
+	scnprintf(log, LOG_BUFFER_ENTRY_SIZE, "[%5u] %s", index, fmt);
 	logbuffer_vlog(instance, log, args);
-	scnprintf(log, LOG_BUFFER_ENTRY_SIZE, "[%5u] %s: %s\n", random_number, instance->name, fmt);
+	scnprintf(log, LOG_BUFFER_ENTRY_SIZE, "%s: [%5u] %s\n", instance->name, index, fmt);
 	vprintk_emit(0, loglevel, NULL, log, args);
 	va_end(args);
 }
