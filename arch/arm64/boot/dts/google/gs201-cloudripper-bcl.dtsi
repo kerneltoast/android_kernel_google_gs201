@@ -52,6 +52,20 @@
 				type = "passive";
 			};
 		};
+		cooling-maps {
+			batoilo_cpu {
+				trip = <&batoilo>;
+				cooling-device = <&cpufreq_domain2 7 7>;
+			};
+			batoilo_gpu {
+				trip = <&batoilo>;
+				cooling-device = <&mali 3 3>;
+			};
+			batoilo_tpu {
+				trip = <&batoilo>;
+				cooling-device = <&tpu_cooling 5 5>;
+			};
+		};
 	};
 
 	vdroop1 {
@@ -66,6 +80,20 @@
 				type = "passive";
 			};
 		};
+		cooling-maps {
+			vdroop1_cpu {
+				trip = <&vdroop1>;
+				cooling-device = <&cpufreq_domain2 7 7>;
+			};
+			vdroop1_gpu {
+				trip = <&vdroop1>;
+				cooling-device = <&mali 2 2>;
+			};
+			vdroop1_tpu {
+				trip = <&vdroop1>;
+				cooling-device = <&tpu_cooling 3 3>;
+			};
+		};
 	};
 
 	vdroop2 {
@@ -78,6 +106,20 @@
 				temperature = <1200>;
 				hysteresis = <100>;
 				type = "passive";
+			};
+		};
+		cooling-maps {
+			vdroop2_cpu {
+				trip = <&vdroop2>;
+				cooling-device = <&cpufreq_domain2 7 7>;
+			};
+			vdroop2_gpu {
+				trip = <&vdroop2>;
+				cooling-device = <&mali 4 4>;
+			};
+			vdroop2_tpu {
+				trip = <&vdroop2>;
+				cooling-device = <&tpu_cooling 3 3>;
 			};
 		};
 	};
@@ -157,6 +199,20 @@
 				temperature = <1100>;
 				hysteresis = <100>;
 				type = "passive";
+			};
+		};
+		cooling-maps {
+			smpl_cpu {
+				trip = <&smpl>;
+				cooling-device = <&cpufreq_domain2 7 7>;
+			};
+			smpl_gpu {
+				trip = <&smpl>;
+				cooling-device = <&mali 3 3>;
+			};
+			smpl_tpu {
+				trip = <&smpl>;
+				cooling-device = <&tpu_cooling 3 3>;
 			};
 		};
 	};

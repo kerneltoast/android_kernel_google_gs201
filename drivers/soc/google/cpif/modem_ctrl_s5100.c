@@ -288,6 +288,9 @@ static irqreturn_t cp_active_handler(int irq, void *data)
 	int cp_active;
 	enum modem_state old_state;
 	enum modem_state new_state;
+	struct legacy_link_device *bl;
+	struct legacy_ipc_device *ipc_dev;
+	int i;
 
 	if (mc == NULL) {
 		mif_err_limited("modem_ctl is NOT initialized - IGNORING interrupt\n");
@@ -338,6 +341,15 @@ static irqreturn_t cp_active_handler(int irq, void *data)
 			modem_notify_event(MODEM_EVENT_EXIT, mc);
 
 		change_modem_state(mc, new_state);
+	}
+
+	bl = &mld->legacy_link_dev;
+
+	for (i = 0; i < IPC_MAP_MAX; i++) {
+		ipc_dev = bl->dev[i];
+		mif_info("%s TX: head:%d tail:%d, RX: head: %d tail:%d\n",
+			ipc_dev->name, get_txq_head(ipc_dev), get_txq_tail(ipc_dev),
+			get_rxq_head(ipc_dev), get_rxq_tail(ipc_dev));
 	}
 
 	atomic_set(&mld->forced_cp_crash, 0);

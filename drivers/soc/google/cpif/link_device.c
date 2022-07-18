@@ -1422,7 +1422,8 @@ static int xmit_to_cp(struct mem_link_device *mld, struct io_device *iod,
 		else
 			return -ENODEV;
 	} else {
-		if (ld->is_fmt_ch(ch) || (ld->is_wfs0_ch != NULL && ld->is_wfs0_ch(ch)))
+		if (ld->is_fmt_ch(ch) || ld->is_oem_ch(ch) ||
+			(ld->is_wfs0_ch != NULL && ld->is_wfs0_ch(ch)))
 			return xmit_ipc_to_dev(mld, ch, skb, IPC_MAP_FMT);
 
 #if IS_ENABLED(CONFIG_MODEM_IF_LEGACY_QOS)
