@@ -277,6 +277,7 @@ static void __mfc_enc_check_format(struct mfc_ctx *ctx)
 	ctx->is_422 = 0;
 	ctx->is_10bit = 0;
 	ctx->is_sbwc = 0;
+	ctx->rgb_bpp = 0;
 
 	switch (ctx->src_fmt->fourcc) {
 	case V4L2_PIX_FMT_NV16M_S10B:
@@ -324,11 +325,23 @@ static void __mfc_enc_check_format(struct mfc_ctx *ctx)
 		ctx->is_10bit = 1;
 		ctx->is_sbwc_lossy = 1;
 		break;
+	case V4L2_PIX_FMT_RGB24:
+		ctx->rgb_bpp = 24;
+		break;
+	case V4L2_PIX_FMT_RGB565:
+		ctx->rgb_bpp = 16;
+		break;
+	case V4L2_PIX_FMT_RGB32X:
+	case V4L2_PIX_FMT_BGR32:
+	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_RGB32:
+		ctx->rgb_bpp = 32;
+		break;
 	default:
 		break;
 	}
-	mfc_debug(2, "[FRAME] 10bit: %d, 422: %d, sbwc: %d lossy: %d\n",
-			ctx->is_10bit, ctx->is_422, ctx->is_sbwc, ctx->is_sbwc_lossy);
+	mfc_debug(2, "[FRAME] 10bit: %d, 422: %d, rgb: %d, sbwc: %d lossy: %d\n",
+			ctx->is_10bit, ctx->is_422, ctx->rgb_bpp, ctx->is_sbwc, ctx->is_sbwc_lossy);
 }
 
 static int __mfc_enc_check_resolution(struct mfc_ctx *ctx)
