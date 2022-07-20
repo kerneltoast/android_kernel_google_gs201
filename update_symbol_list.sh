@@ -372,8 +372,8 @@ else
 
   echo "========================================================"
   echo " The symbol list has been updated locally in ${GKI_KERNEL_DIR}/ and private/gs-google."
-  echo " Compiling with BUILD_KERNEL=1 is now required until the new symbol(s)"
-  echo " are merged. Re-compile using the below command:"
+  echo " Compiling with BUILD_AOSP_KERNEL=1 or BUILD_STAGING_KERNEL=1 is now required until"
+  echo " the new symbol(s) are merged. Re-compile using the below command:"
   echo
   if [ "${BUILD_AOSP_KERNEL}" = "1" ]; then
     echo " SKIP_MRPROPER=1 BUILD_AOSP_KERNEL=1 ${BUILD_SCRIPT}"
