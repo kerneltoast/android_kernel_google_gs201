@@ -22,7 +22,7 @@
 
 #include "acpm_dvfs_gs201.h"
 
-#include "asv_gs201.h"
+#include "asv_gs201.c"
 
 #include "../ra.h"
 
@@ -64,6 +64,8 @@ void gs201_cal_data_init(void)
 		fin_hz_var = 24576000;
 
 	cmucal_dbg_mux_dbg_offset(0x4004);
+
+	asv_init();
 }
 
 void (*cal_data_init)(void) = gs201_cal_data_init;
