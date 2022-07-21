@@ -681,8 +681,6 @@ retry:
 					timeout_flag = true;
 					break;
 				} else if (retry_cnt > 0) {
-					unsigned int saved_debug_log_level =
-					    acpm_debug->debug_log_level;
 					frc = get_frc_time();
 					pr_err("acpm_ipc retry %d, now = %llu, frc = %llu, timeout = %llu",
 					       retry_cnt, now, frc, timeout);
@@ -703,13 +701,15 @@ retry:
 						__raw_readl(acpm_ipc->intr + INTMSR1));
 
 					++retry_cnt;
-					acpm_debug->debug_log_level = 2;
-					acpm_log_print();
-					acpm_debug->debug_log_level = saved_debug_log_level;
 
 					goto retry;
 				} else {
+					unsigned int saved_debug_log_level =
+					    acpm_debug->debug_log_level;
 					++retry_cnt;
+					acpm_debug->debug_log_level = 2;
+					acpm_log_print();
+					acpm_debug->debug_log_level = saved_debug_log_level;
 					continue;
 				}
 				cnt_10us = 0;
