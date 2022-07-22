@@ -1,8 +1,13 @@
 file:/OWNERS_core
 per-file build*=set noparent
 per-file build*=saravanak@google.com,elavila@google.com,willmcvicker@google.com
-per-file vendor_{boot,dlkm}*=*
-per-file Makefile.ext_modules*=*
+per-file vendor_dlkm*=*
 per-file build.config.slider*=*
 per-file repack_kernel_boot_images.sh=*
 per-file download_hlos_boot_images_and_repack_kernel_boot_images.sh=*
+
+# These changes will be reviewed by pixel kernel module approvers, see go/pixelkernel-owners-approval-of-kernel-modules for details.
+per-file vendor_{boot,kernel_boot}*=set noparent
+per-file vendor_{boot,kernel_boot}*=file:kernel/private/google-modules/misc:android-gs-pixel-mainline:OWNERS_kernel_modules
+per-file Makefile.ext_modules*=set noparent
+per-file Makefile.ext_modules*=file:kernel/private/google-modules/misc:android-gs-pixel-mainline:OWNERS_kernel_modules
