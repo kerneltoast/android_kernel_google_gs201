@@ -963,7 +963,7 @@ static void pmu_limit_work(struct kthread_work *work)
 		// such as under thermal throttling, we don't need to call freq_qos_update_request
 		// unless it's currently under throttle.
 		if (!sg_policy->tunables->pmu_limit_enable ||
-		    policy->max <= sg_policy->tunables->limit_frequency) {
+		    policy->max < sg_policy->tunables->limit_frequency) {
 			if (unlikely(sg_policy->under_pmu_throttle)) {
 				goto update_next_max_freq;
 			} else {
