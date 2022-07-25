@@ -2621,13 +2621,17 @@ static int sleep_for_data(struct stmvl53l1_data *data, pid_t pid,
 				struct list_head *head)
 {
 	int rc = 0;
+	long timeout = data->timing_budget / 1000;
 
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	mutex_unlock(&data->work_mutex);
 
 	add_wait_queue(&data->waiter_for_data, &wait);
 	while (!sleep_for_data_condition(data, pid, head)) {
-		wait_woken(&wait, TASK_KILLABLE, MAX_SCHEDULE_TIMEOUT);
+		if (wait_woken(&wait, TASK_KILLABLE, timeout) <= 0) {
+			rc = -ETIME;
+			break;
+		}
 		if (fatal_signal_pending(current)) {
 			rc = -ERESTARTSYS;
 			break;
