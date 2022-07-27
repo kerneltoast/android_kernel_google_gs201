@@ -300,12 +300,27 @@ static inline const cpumask_t *get_preferred_idle_mask(struct task_struct *p)
 void init_vendor_group_data(void)
 {
 	int i;
+	struct vendor_task_struct *v_tsk;
+	struct task_struct *p, *t;
 
 	for (i = 0; i < VG_MAX; i++) {
 		INIT_LIST_HEAD(&vendor_group_list[i].list);
 		raw_spin_lock_init(&vendor_group_list[i].lock);
 		vendor_group_list[i].cur_iterator = NULL;
 	}
+
+	rcu_read_lock();
+	for_each_process_thread(p, t) {
+		get_task_struct(t);
+		v_tsk = get_vendor_task_struct(t);
+		v_tsk->group = VG_SYSTEM;
+		v_tsk->prefer_idle = false;
+		INIT_LIST_HEAD(&v_tsk->node);
+		raw_spin_lock_init(&v_tsk->lock);
+		v_tsk->queued_to_list = false;
+		put_task_struct(t);
+	}
+	rcu_read_unlock();
 }
 
 #if defined(CONFIG_UCLAMP_TASK) && defined(CONFIG_FAIR_GROUP_SCHED)
