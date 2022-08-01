@@ -33,6 +33,20 @@
 				google,ttf-soc-table =  <49 57 74 77 87 89 91 93  96  100>;
 				google,ttf-elap-table = <39 44 57 76 75 84 96 114 150 203>;
 				google,ttf-tier-table = <0 57 77>;
+
+				google,aacr-disable;
+
+				google,batt-id-1-atl {
+					google,batt-id = <1>;
+					google,aacr-ref-cycles = <100 200 300 400 500 600 700>;
+					google,aacr-ref-fade10 = <  2  15  26  36  46  54  63>;
+				};
+
+				google,batt-id-3-lsn {
+					google,batt-id = <3>;
+					google,aacr-ref-cycles = <200 300 400 500 600 700 800>;
+					google,aacr-ref-fade10 = <  7  20  31  41  51  60  69>;
+				};
 			};
 
 			google_bms {
