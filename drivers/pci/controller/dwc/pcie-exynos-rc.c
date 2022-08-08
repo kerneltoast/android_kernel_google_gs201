@@ -4585,7 +4585,7 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 		exynos_elbi_write(exynos_pcie, val, PCIE_IRQ2_EN);
 	}
 
-	if (exynos_pcie->use_pcieon_sleep) {
+	if (exynos_pcie->use_pcieon_sleep && exynos_pcie->ep_pci_dev) {
 		dev_info(dev, "Default must_resume value : %d\n",
 				exynos_pcie->ep_pci_dev->dev.power.must_resume);
 		exynos_pcie->pcie_must_resume = exynos_pcie->ep_pci_dev->dev.power.must_resume;
@@ -4628,7 +4628,7 @@ static int exynos_pcie_suspend_prepare(struct device *dev)
 	if (exynos_pcie->use_phy_isol_con)
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
 
-	if (exynos_pcie->use_pcieon_sleep) {
+	if (exynos_pcie->use_pcieon_sleep && exynos_pcie->ep_pci_dev) {
 		exynos_pcie->pcieon_sleep_enable_cnt =
 			atomic_read(&exynos_pcie->ep_pci_dev->enable_cnt);
 		dev_info(dev, "remove enable cnt to fake enable = %d\n",
@@ -4646,7 +4646,7 @@ static void exynos_pcie_resume_complete(struct device *dev)
 	if (exynos_pcie->use_phy_isol_con &&
 	    exynos_pcie->state == STATE_LINK_DOWN)
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
-	else if (exynos_pcie->use_pcieon_sleep) {
+	else if (exynos_pcie->use_pcieon_sleep && exynos_pcie->ep_pci_dev) {
 		exynos_pcie->ep_pci_dev->dev.power.must_resume = exynos_pcie->pcie_must_resume;
 		dev_info(dev, "Default must_resume value : %d\n",
 				exynos_pcie->ep_pci_dev->dev.power.must_resume);
