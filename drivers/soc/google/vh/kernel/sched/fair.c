@@ -260,7 +260,7 @@ static inline bool get_prefer_idle(struct task_struct *p)
 	// For group based prefer_idle vote, filter our smaller or low prio or
 	// have throttled uclamp.max settings
 	// Ignore all checks, if the prefer_idle is from per-task API.
-	if (vendor_sched_reduce_prefer_idle)
+	if (vendor_sched_reduce_prefer_idle && !get_vendor_task_struct(p)->uclamp_fork_reset)
 		return (vg[get_vendor_group(p)].prefer_idle &&
 			task_util_est(p) >= vendor_sched_uclamp_threshold &&
 			p->prio <= DEFAULT_PRIO &&
@@ -1050,6 +1050,7 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 static inline bool check_uclamp_threshold(struct task_struct *p, enum uclamp_id clamp_id)
 {
 	if (clamp_id == UCLAMP_MIN && !rt_task(p) &&
+	    !get_vendor_task_struct(p)->uclamp_fork_reset &&
 	    task_util_est(p) < vendor_sched_uclamp_threshold) {
 		return true;
 	}
