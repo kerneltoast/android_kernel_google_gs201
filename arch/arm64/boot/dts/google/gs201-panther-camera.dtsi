@@ -208,6 +208,7 @@
 				/* Power supplies */
 				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
 				ldo1-supply = <&slg51002_ldo1>;
+				ldo4-supply = <&slg51002_ldo4>;
 				ldo8-supply = <&slg51002_ldo8>;
 				gpio3-supply = <&slg51002_gpio3>;
 
@@ -229,6 +230,7 @@
 				/* Power up sequence */
 				power-up-seqs =
 					"s2mpg13_ldo12",
+					"ldo4",
 					"gpio3",
 					"ldo8",
 					"ldo1",
@@ -239,10 +241,12 @@
 					"regulator",
 					"regulator",
 					"regulator",
+					"regulator",
 					"gpio",
 					"pinctrl";
 				power-up-seq-delays-us =
-					<1000
+					<0
+					 1000
 					 0
 					 0
 					 2000
@@ -256,10 +260,12 @@
 					"ldo1",
 					"ldo8",
 					"gpio3",
+					"ldo4",
 					"s2mpg13_ldo12";
 				power-down-seq-types =
 					"pinctrl",
 					"gpio",
+					"regulator",
 					"regulator",
 					"regulator",
 					"regulator",
@@ -270,6 +276,7 @@
 					 0
 					 0
 					 6000
+					 0
 					 0>;
 
 				/* Thread priority */
