@@ -55,7 +55,7 @@
 		gpu_dvfs_clockdown_hysteresis = <50>;
 
 		/* DVFS operating points */
-		gpu_dvfs_table_size_v2 = <12 10>; /*<row col>*/
+		gpu_dvfs_table_size_v2 = <11 10>; /*<row col>*/
 		gpu_dvfs_table_v2 = <
 			/*
 			 *gpu0    gpu1   down     up    hys      int      mif   little  middle   big
@@ -73,7 +73,6 @@
 			470000  302000     72     94      3        0        0        0       0     0
 			302000  251000     67     94      2        0        0        0       0     0
 			302000  202000     50     92      1        0        0        0       0     0
-			151000  151000      0     90      1        0        0        0       0     0
 		>;
 		/* DVFS step up value */
 		gpu_dvfs_step_up_val = <3>;
