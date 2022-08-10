@@ -38,7 +38,15 @@ $DEVICE_KERNEL_FILES
 "
 fi
 
-MODULES_LIST=${KERNEL_DIR}/vendor_kernel_boot_modules.cloudripper
+# Concatenate vendor_kernel_boot_modules.gs201 (platform common) and vendor_kernel_boot_modules.cloudripper (device specified) into one file
+POST_KERNEL_BUILD_CMDS="concat_vendor_boot_modules"
+function concat_vendor_boot_modules() {
+  cat ${KERNEL_DIR}/vendor_kernel_boot_modules.gs201 \
+    ${KERNEL_DIR}/vendor_kernel_boot_modules.cloudripper > \
+    ${OUT_DIR}/vendor_kernel_boot_modules.concat
+  MODULES_LIST=${OUT_DIR}/vendor_kernel_boot_modules.concat
+}
+
 VENDOR_DLKM_MODULES_BLOCKLIST=${KERNEL_DIR}/vendor_dlkm.blocklist.cloudripper
 
 EXT_MODULES_MAKEFILE=${KERNEL_DIR}/Makefile.ext_modules.cloudripper
