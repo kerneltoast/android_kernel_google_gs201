@@ -32,9 +32,8 @@
 	max77759,bst-lsw-sequence;
 
 	/* The high/low bound of vbatt for FCCM mode */
-	/* TBD: b/234713487 ignore this first.       */
-	/* max77759,otg-fccm-vbatt-upperbd = <4000>; */
-	/* max77759,otg-fccm-vbatt-lowerbd = <3900>; */
+	max77759,otg-fccm-vbatt-upperbd = <4000>;
+	max77759,otg-fccm-vbatt-lowerbd = <3900>;
 
 	max77759,gpio_dc_switch = <&p9xxx_gpio 4 GPIO_ACTIVE_HIGH>; /* WLC_RX_SW_EN */
 };
