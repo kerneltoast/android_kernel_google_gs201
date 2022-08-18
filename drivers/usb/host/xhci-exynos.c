@@ -87,6 +87,10 @@ int xhci_exynos_bus_suspend(struct usb_hcd *hcd)
 	}
 
 	ret = xhci_bus_suspend(hcd);
+	if (ret) {
+		dev_err(xhci_exynos->dev, "xhci bus suspend failed, ret = %d\n", ret);
+		return ret;
+	}
 
 	if (hcd == xhci->main_hcd &&
 	    xhci_exynos->port_state == PORT_USB2) {
