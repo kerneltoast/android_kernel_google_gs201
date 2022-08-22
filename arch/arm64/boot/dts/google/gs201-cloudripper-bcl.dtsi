@@ -42,7 +42,7 @@
 &thermal_zones {
 	batoilo {
 		zone_name  = "BATOILO";
-		polling-delay-passive = <0>;
+		polling-delay-passive = <1000>;
 		polling-delay = <0>;
 		thermal-sensors = <&google_mitigation 3>;
 		trips {
@@ -70,7 +70,7 @@
 
 	vdroop1 {
 		zone_name  = "VDROOP1";
-		polling-delay-passive = <0>;
+		polling-delay-passive = <1000>;
 		polling-delay = <0>;
 		thermal-sensors = <&google_mitigation 1>;
 		trips {
@@ -98,7 +98,7 @@
 
 	vdroop2 {
 		zone_name  = "VDROOP2";
-		polling-delay-passive = <0>;
+		polling-delay-passive = <1000>;
 		polling-delay = <0>;
 		thermal-sensors = <&google_mitigation 2>;
 		trips {
@@ -190,7 +190,7 @@
 
 	smpl_gm {
 		zone_name  = "SMPL_GM";
-		polling-delay-passive = <100>;
+		polling-delay-passive = <1000>;
 		polling-delay = <0>;
 		thermal-sensors = <&s2mpg12mfd 0>;
 
