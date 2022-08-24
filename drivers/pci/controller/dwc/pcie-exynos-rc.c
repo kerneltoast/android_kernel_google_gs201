@@ -27,6 +27,7 @@
 #include <dt-bindings/pci/pci.h>
 #include <linux/exynos-pci-noti.h>
 #include <linux/exynos-pci-ctrl.h>
+#include <linux/soc/samsung/exynos-smc.h>
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 #include <soc/google/exynos-itmon.h>
 #endif
@@ -984,7 +985,11 @@ static int exynos_pcie_rc_wr_own_conf(struct pcie_port *pp, int where, int size,
 								   exynos_pcie->ch_num);
 	}
 
-	ret = dw_pcie_write(exynos_pcie->rc_dbi_base + (where), size, val);
+	/* If secure ATU then make SMC call, since only TFA has write access */
+	if (exynos_pcie->use_secure_atu && where == SECURE_ATU_ENABLE)
+		ret = exynos_smc(SMC_SECURE_ATU_SETUP, 0, 0, 0);
+	else
+		ret = dw_pcie_write(exynos_pcie->rc_dbi_base + (where), size, val);
 
 	if (is_linked == 0) {
 		if (exynos_pcie->phy_ops.phy_check_rx_elecidle)
@@ -1005,6 +1010,18 @@ static void exynos_pcie_rc_prog_viewport_cfg0(struct pcie_port *pp, u32 busdev)
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 
+	/* ATU needs to be written just once during establish link */
+
+	if (exynos_pcie->atu_ok)
+		return;
+
+	exynos_pcie->atu_ok = 1;
+
+	if (exynos_pcie->use_secure_atu) {
+		exynos_pcie_rc_wr_own_conf(pp, SECURE_ATU_ENABLE, 0, 0);
+		return;
+	}
+
 	/* Program viewport 0 : OUTBOUND : CFG0 */
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_LOWER_BASE_OUTBOUND0, 4, pp->cfg0_base);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_BASE_OUTBOUND0, 4, (pp->cfg0_base >> 32));
@@ -1014,13 +1031,18 @@ static void exynos_pcie_rc_prog_viewport_cfg0(struct pcie_port *pp, u32 busdev)
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_UPPER_TARGET_OUTBOUND0, 4, 0);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_CR1_OUTBOUND0, 4, PCIE_ATU_TYPE_CFG0);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_CR2_OUTBOUND0, 4, EXYNOS_PCIE_ATU_ENABLE);
-	exynos_pcie->atu_ok = 1;
 }
 
 static void exynos_pcie_rc_prog_viewport_mem_outbound(struct pcie_port *pp)
 {
 	struct resource_entry *entry =
 		resource_list_first_type(&pp->bridge->windows, IORESOURCE_MEM);
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+
+	/* Secure ATU is already setup by prog_viewport_cfg0, so skip it here */
+	if (exynos_pcie->use_secure_atu)
+		return;
 
 	/* Program viewport 0 : OUTBOUND : MEM */
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_CR1_OUTBOUND1, 4, EXYNOS_PCIE_ATU_TYPE_MEM);
@@ -1343,6 +1365,7 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	const char *use_sysmmu;
 	const char *use_ia;
 	const char *use_l1ss;
+	const char *use_secure_atu;
 	const char *use_nclkoff_en;
 	const char *use_pcieon_sleep;
 	const char *use_phy_isol_con;
@@ -1503,6 +1526,17 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 		}
 	} else {
 		exynos_pcie->use_l1ss = false;
+	}
+
+	exynos_pcie->use_secure_atu = false;
+	if (!of_property_read_string(np, "use-secure-atu", &use_secure_atu)) {
+		if (!strcmp(use_secure_atu, "true")) {
+			dev_info(dev, "PCIe Secure ATU is ENABLED.\n");
+			exynos_pcie->use_secure_atu = true;
+		} else if (!strcmp(use_secure_atu, "false"))
+			dev_info(dev, "PCIe Secure ATU is DISABLED.\n");
+		else
+			dev_err(dev, "Invalid use-secure-atu value(default=false)\n");
 	}
 
 	if (!of_property_read_string(np, "use-nclkoff-en", &use_nclkoff_en)) {

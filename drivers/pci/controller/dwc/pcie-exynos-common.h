@@ -261,6 +261,7 @@ struct exynos_pcie {
 	bool			use_sysmmu;
 	bool			use_ia;
 	bool			use_l1ss;
+	bool			use_secure_atu;
 	bool			use_nclkoff_en;
 	bool                    cpl_timeout_recovery;
 	bool			sudden_linkdown;
