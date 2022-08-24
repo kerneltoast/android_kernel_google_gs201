@@ -65,6 +65,8 @@ static inline void uclamp_fork_pixel_mod(struct task_struct *p)
 	if (likely(!vp->uclamp_fork_reset))
 		return;
 
+	vp->uclamp_fork_reset = 0;
+
 	for_each_clamp_id(clamp_id) {
 		uclamp_se_set(&p->uclamp_req[clamp_id],
 			      uclamp_none(clamp_id), false);
