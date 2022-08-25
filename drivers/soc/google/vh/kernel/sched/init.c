@@ -9,6 +9,7 @@
 #include <kernel/sched/sched.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
+#include <trace/hooks/power.h>
 #include <trace/hooks/sched.h>
 #include <trace/hooks/topology.h>
 #include <trace/hooks/cpufreq.h>
@@ -63,6 +64,8 @@ extern void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy
 
 extern void vh_sched_setaffinity_mod(void *data, struct task_struct *task,
 					const struct cpumask *in_mask, int *skip);
+
+extern void vh_try_to_freeze_todo_logging_pixel_mod(void *data, bool *logging_on);
 
 extern struct cpufreq_governor sched_pixel_gov;
 
@@ -184,6 +187,11 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_vh_sched_setaffinity_early(vh_sched_setaffinity_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_try_to_freeze_todo_logging(
+		vh_try_to_freeze_todo_logging_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
