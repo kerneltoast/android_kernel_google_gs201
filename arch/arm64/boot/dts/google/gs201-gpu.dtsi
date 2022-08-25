@@ -54,9 +54,9 @@
 		gpu_dvfs_governor = "quickstep";
 		gpu_dvfs_clockdown_hysteresis = <50>;
 
-		/* DVFS operating points */
-		gpu_dvfs_table_size_v2 = <11 10>; /*<row col>*/
-		gpu_dvfs_table_v2 = <
+		/* DVFS v1 operating points */
+		gpu_dvfs_table_size_v1 = <11 10>; /*<row col>*/
+		gpu_dvfs_table_v1 = <
 			/*
 			 *gpu0    gpu1   down     up    hys      int      mif   little  middle   big
 			 * clk     clk   util   util  ticks      min      min      min     min   max
@@ -72,8 +72,32 @@
 			470000  351000     76     95      3        0        0        0       0     0
 			470000  302000     72     94      3        0        0        0       0     0
 			302000  251000     67     94      2        0        0        0       0     0
-			302000  202000     50     92      1        0        0        0       0     0
+			302000  202000      0     92      1        0        0        0       0     0
 		>;
+
+		/* DVFS v2 operating points */
+		gpu_dvfs_table_size_v2 = <13 10>; /*<row col>*/
+		gpu_dvfs_table_v2 = <
+			/*
+			 *gpu0    gpu1   down     up    hys      int      mif   little  middle   big
+			 * clk     clk   util   util  ticks      min      min      min     min   max
+			 *--------------------------------------------------------------------------
+			 */
+			996000  848000     85    100      1   533000  3172000        0       0     0
+			996000  762000     81     97      1        0   845000        0       0     0
+			885000  701000     76     94      1        0   845000        0       0     0
+			885000  633000     80     95      2        0        0        0       0     0
+			750000  572000     85     96      2        0        0        0       0     0
+			750000  510000     83     97      3        0        0        0       0     0
+			603000  471000     78     95      3        0        0        0       0     0
+			603000  434000     79     95      3        0        0        0       0     0
+			603000  400000     80     96      3        0        0        0       0     0
+			470000  351000     76     95      3        0        0        0       0     0
+			470000  302000     72     94      3        0        0        0       0     0
+			302000  251000     67     94      2        0        0        0       0     0
+			302000  202000      0     92      1        0        0        0       0     0
+		>;
+
 		/* DVFS step up value */
 		gpu_dvfs_step_up_val = <3>;
 
