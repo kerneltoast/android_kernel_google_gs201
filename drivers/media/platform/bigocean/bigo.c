@@ -34,6 +34,7 @@
 #define DEFAULT_FPS 60
 #define BIGO_SMC_ID 0xd
 #define BIGO_MAX_INST_NUM 16
+#define BIGO_IDLE_TIMEOUT_MS 1000
 
 static struct sscd_platform_data bigo_sscd_platdata;
 
@@ -85,6 +86,14 @@ static inline int on_first_instance_open(struct bigo_core *core)
 	return rc;
 }
 
+void inactivity_detected(struct timer_list *t)
+{
+	struct bigo_core *core = from_timer(core, t, idle_timer);
+
+	if (core)
+		bigo_enter_idle_state(core);
+}
+
 static inline void on_last_inst_close(struct bigo_core *core)
 {
 #if IS_ENABLED(CONFIG_PM)
@@ -131,6 +140,7 @@ static int bigo_open(struct inode *inode, struct file *file)
 	inst->width = DEFAULT_HEIGHT;
 	inst->fps = DEFAULT_FPS;
 	inst->core = core;
+	inst->idle = true;
 	mutex_lock(&core->lock);
 	if (list_empty(&core->instances)) {
 		rc = on_first_instance_open(core);
@@ -145,7 +155,7 @@ static int bigo_open(struct inode *inode, struct file *file)
 		goto err;
 	}
 	mutex_unlock(&core->lock);
-	bigo_update_qos(core);
+	bigo_mark_qos_dirty(core);
 	pr_info("opened bigocean instance\n");
 
 	return 0;
@@ -172,7 +182,17 @@ static int bigo_release(struct inode *inode, struct file *file)
 	if (list_empty(&core->instances))
 		on_last_inst_close(core);
 	mutex_unlock(&core->lock);
+	bigo_mark_qos_dirty(core);
+
+	mutex_lock(&core->lock);
 	bigo_update_qos(core);
+
+	/* Set the timer at instance close to handle other inactive
+	 * instances if there is any */
+	mod_timer(&core->idle_timer,
+			jiffies + msecs_to_jiffies(BIGO_IDLE_TIMEOUT_MS));
+	mutex_unlock(&core->lock);
+
 	pr_info("closed bigocean instance\n");
 	return 0;
 }
@@ -183,6 +203,7 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 	int rc = 0;
 	u32 status = 0;
 
+	bigo_update_qos(core);
 	bigo_bypass_ssmt_pid(core);
 	bigo_push_regs(core, job->regs);
 	bigo_core_enable(core);
@@ -210,6 +231,9 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 	*(u32 *)(job->regs + BIGO_REG_STAT) = status;
 	if (rc || ret)
 		rc = -ETIMEDOUT;
+
+	mod_timer(&core->idle_timer,
+			jiffies + msecs_to_jiffies(BIGO_IDLE_TIMEOUT_MS));
 	return rc;
 }
 
@@ -264,7 +288,7 @@ inline void bigo_config_frmrate(struct bigo_inst *inst, __u32 frmrate)
 	mutex_lock(&inst->lock);
 	inst->fps = frmrate;
 	mutex_unlock(&inst->lock);
-	bigo_update_qos(inst->core);
+	bigo_mark_qos_dirty(inst->core);
 }
 
 inline void bigo_config_frmsize(struct bigo_inst *inst,
@@ -274,7 +298,7 @@ inline void bigo_config_frmsize(struct bigo_inst *inst,
 	inst->height = frmsize->height;
 	inst->width = frmsize->width;
 	mutex_unlock(&inst->lock);
-	bigo_update_qos(inst->core);
+	bigo_mark_qos_dirty(inst->core);
 }
 
 inline void bigo_config_secure(struct bigo_inst *inst, __u32 is_secure)
@@ -324,6 +348,13 @@ static long bigo_unlocked_ioctl(struct file *file, unsigned int cmd,
 				mutex_unlock(&core->lock);
 				break;
 			}
+		}
+
+		if (is_idle(inst)) {
+			mutex_lock(&inst->lock);
+			inst->idle = false;
+			mutex_unlock(&inst->lock);
+			core->qos_dirty = true;
 		}
 
 		rc = bigo_process(core, &desc);
@@ -499,6 +530,7 @@ static int bigo_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&core->pm.bw);
 	spin_lock_init(&core->status_lock);
 	init_completion(&core->frame_done);
+	timer_setup(&core->idle_timer, inactivity_detected, 0);
 	core->dev = &pdev->dev;
 	platform_set_drvdata(pdev, core);
 
@@ -551,6 +583,7 @@ err_dt_parse:
 	deinit_chardev(core);
 err_init_chardev:
 	platform_set_drvdata(pdev, NULL);
+	del_timer(&core->idle_timer);
 err:
 	return rc;
 }
@@ -559,6 +592,7 @@ static int bigo_remove(struct platform_device *pdev)
 {
 	struct bigo_core *core = (struct bigo_core *)platform_get_drvdata(pdev);
 
+	del_timer_sync(&core->idle_timer);
 	bigo_uninit_debugfs(core);
 	platform_device_unregister(&bigo_sscd_dev);
 	bigo_pt_client_unregister(core);

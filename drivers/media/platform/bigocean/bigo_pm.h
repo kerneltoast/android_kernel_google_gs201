@@ -21,5 +21,8 @@ int bigo_runtime_suspend(struct device *dev);
 int bigo_runtime_resume(struct device *dev);
 #endif
 void bigo_update_qos(struct bigo_core *core);
+void bigo_enter_idle_state(struct bigo_core *core);
+void bigo_mark_qos_dirty(struct bigo_core *core);
+bool is_idle(struct bigo_inst *inst);
 
 #endif //_BIGO_PM_H_

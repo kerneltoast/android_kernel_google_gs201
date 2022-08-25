@@ -101,6 +101,8 @@ struct bigo_core {
 	phys_addr_t paddr;
 	struct bigo_debugfs debugfs;
 	spinlock_t status_lock;
+	struct timer_list idle_timer;
+	u32 qos_dirty;
 };
 
 struct bigo_inst {
@@ -117,6 +119,7 @@ struct bigo_inst {
 	struct bigo_bw pk_bw[AVG_CNT];
 	int job_cnt;
 	u32 hw_cycles[AVG_CNT];
+	bool idle;
 };
 
 inline void set_curr_inst(struct bigo_core *core, struct bigo_inst *inst);
