@@ -3028,8 +3028,8 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		}
 
 		spin_lock_irqsave(&exynos_pcie->conf_lock, flags);
-		exynos_pcie_rc_send_pme_turn_off(exynos_pcie);
 		exynos_pcie->state = STATE_LINK_DOWN;
+		exynos_pcie_rc_send_pme_turn_off(exynos_pcie);
 		power_stats_update_down(exynos_pcie);
 
 		/* Disable SysMMU */
