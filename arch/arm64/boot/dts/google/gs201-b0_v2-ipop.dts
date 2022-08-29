@@ -109,8 +109,8 @@
 		use-pi-thermal;
 		polling_delay_on = <50>;
 		polling_delay_off = <0>;
-		k_po = <60>;
-		k_pu = <60>;
+		k_po = <20>;
+		k_pu = <20>;
 		k_i = <20>;
 		i_max = <5>;
 		integral_cutoff = <20>;
