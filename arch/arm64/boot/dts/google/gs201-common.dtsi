@@ -351,6 +351,7 @@
 	phy-power-off = "false";
 	use-pcieon-sleep = "true";
 	use-sysmmu = "true";
+	use-secure-atu = "true";
 	ep-device-type = <EP_SAMSUNG_MODEM>;
 	vreg1-supply = <&m_ldo16_reg>;  /* PP0850_L16M_PCIE0: AVDD085_PCIE_GEN4_0 */
 	vreg2-supply = <&m_ldo18_reg>;  /* PP1800_L18M_PCIE0: AVDD18_PCIE_GEN4_0 */
