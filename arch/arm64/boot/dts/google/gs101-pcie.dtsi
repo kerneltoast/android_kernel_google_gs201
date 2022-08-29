@@ -44,6 +44,7 @@
 		use-sysmmu = "false";
 		use-ia = "false";
 		use-l1ss = "false";
+		use-secure-atu = "false";
 		pmu-offset = <0x3ec0>;
 		max-link-speed = <LINK_SPEED_GEN3>;
 		status = "disabled";
@@ -86,6 +87,7 @@
 		use-sysmmu = "false";
 		use-ia = "false";
 		use-l1ss = "false";
+		use-secure-atu = "false";
 		pmu-offset = <0x3ec4>;
 		max-link-speed = <LINK_SPEED_GEN3>;
 		s2mpu = <&s2mpu_hsi2>;
