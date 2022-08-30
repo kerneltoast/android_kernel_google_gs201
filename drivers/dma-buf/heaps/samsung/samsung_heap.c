@@ -52,7 +52,7 @@ void heap_cache_flush(struct samsung_dma_buffer *buffer)
 	 * to the protected area.
 	 */
 	dma_map_sgtable(dev, &buffer->sg_table, DMA_TO_DEVICE, 0);
-	dma_unmap_sgtable(dev, &buffer->sg_table, DMA_FROM_DEVICE, 0);
+	dma_unmap_sgtable(dev, &buffer->sg_table, DMA_TO_DEVICE, 0);
 }
 
 void heap_sgtable_pages_clean(struct sg_table *sgt)
