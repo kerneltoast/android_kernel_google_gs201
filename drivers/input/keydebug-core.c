@@ -51,9 +51,37 @@ module_param(show_dstate_enable, int, 0644);
 static int showallcpus_enable = 1;
 module_param(showallcpus_enable, int, 0644);
 
+/*
+ * On the kernel command line specify
+ * keydebug.bind_s2d=0 to avoid config S2D.
+ * By default keydebug disables S2D when receiving down event, and restores when key released.
+ */
+static int bind_s2d = 1;
+module_param(bind_s2d, int, 0644);
+
 #define DEFAULT_DBG_DELAY 3000 /* millisecond */
 static int probe_cnt;
 static struct workqueue_struct *kdbg_wq;
+
+static int s2d_get_enable_noop(void)
+{
+	return -EPERM;
+}
+
+static int s2d_set_enable_noop(int en)
+{
+	return -EPERM;
+}
+
+static int (*s2d_get_enable)(void) = s2d_get_enable_noop;
+static int (*s2d_set_enable)(int en) = s2d_set_enable_noop;
+
+void keydebug_register_s2d_ops(void *get, void *set)
+{
+	s2d_get_enable = get;
+	s2d_set_enable = set;
+}
+EXPORT_SYMBOL_GPL(keydebug_register_s2d_ops);
 
 void do_keydebug(struct work_struct *this)
 {
@@ -77,10 +105,31 @@ void do_keydebug(struct work_struct *this)
 	pdata->keydebug_requested = false;
 }
 
-static void keydebug_event(void *priv)
+static int s2d_state_xchg(int new, int *pold)
+{
+	int old;
+
+	if (new < 0)
+		return -EINVAL;
+
+	old = s2d_get_enable();
+	if (old < 0)
+		return old;
+
+	pr_info(KEYDEBUG_NAME ": turning s2d %d->%d\n", old, new);
+
+	if (pold)
+		*pold = old;
+	return s2d_set_enable(new);
+}
+
+static void keydebug_event_down(void *priv)
 {
 	struct keydebug_platform_data *pdata = priv;
 	uint32_t msecs = DEFAULT_DBG_DELAY;
+
+	if (bind_s2d)
+		s2d_state_xchg(false, &pdata->s2d_state_backup);
 
 	if (pdata->keydebug_requested) {
 		pr_info("%s: request is running\n", __func__);
@@ -97,6 +146,14 @@ static void keydebug_event(void *priv)
 
 		pdata->keydebug_requested = true;
 	}
+}
+
+static void keydebug_event_up(void *priv)
+{
+	struct keydebug_platform_data *pdata = priv;
+
+	if (bind_s2d)
+		s2d_state_xchg(pdata->s2d_state_backup, NULL);
 }
 
 static int keydebug_parse_dt(struct device *dev,
@@ -225,7 +282,8 @@ static int keydebug_probe(struct platform_device *pdev)
 	}
 
 	pdata_child->priv = pdata;
-	pdata_child->key_down_fn = keydebug_event;
+	pdata_child->key_down_fn = keydebug_event_down;
+	pdata_child->key_up_fn = keydebug_event_up;
 	pdata_child->key_down_delay = pdata->key_down_delay;
 	ret = platform_device_add_data(pdata->pdev_child, pdata_child, size);
 	if (ret)
