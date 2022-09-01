@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/keydebug.h>
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-adv-tracer.h>
 #include <soc/google/exynos-pmu-if.h>
@@ -107,7 +108,7 @@ static int adv_tracer_s2d_get_enable(void)
 	}
 	plugin_s2d.enable = cmd.buffer[1];
 
-	return 0;
+	return plugin_s2d.enable;
 }
 
 static int adv_tracer_s2d_set_enable(int en)
@@ -472,6 +473,8 @@ static int adv_tracer_s2d_probe(struct platform_device *pdev)
 	dbg_snapshot_register_debug_ops(NULL,
 			(void *)adv_tracer_s2d_arraydump,
 			(void *)adv_tracer_s2d_scandump);
+
+	keydebug_register_s2d_ops(adv_tracer_s2d_get_enable, adv_tracer_s2d_set_enable);
 
 	dev_info(&pdev->dev, "%s successful.\n", __func__);
 	return 0;
