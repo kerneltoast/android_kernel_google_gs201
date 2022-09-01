@@ -513,4 +513,12 @@
 		regulator-boot-on;
 		enable-active-high;
 	};
+
+	disp_bl_en: disp-bl_en {
+		status = "disabled";
+		compatible = "regulator-fixed";
+		regulator-name = "disp_bl_en";
+		regulator-boot-on;
+		enable-active-high;
+	};
 };
