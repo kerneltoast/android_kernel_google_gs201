@@ -369,6 +369,11 @@ static size_t __maybe_unused pcie_iommu_unmap(unsigned long iova, size_t size,
 	pr_err("PCIe SysMMU is NOT Enabled!!!\n");
 	return 0;
 }
+
+static void __maybe_unused pcie_sysmmu_set_use_iocc(int hsi_block_num)
+{
+	pr_err("PCIe SysMMU is NOT Enabled!!!\n");
+}
 #endif
 
 #if !IS_ENABLED(CONFIG_GS_S2MPU)
