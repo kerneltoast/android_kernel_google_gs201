@@ -183,6 +183,14 @@ unsigned int dbg_snapshot_get_core_ehld_stat(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_core_ehld_stat);
 
+static void dbg_snapshot_set_abl_dump_stat(unsigned int val)
+{
+	void __iomem *header = dbg_snapshot_get_header_vaddr();
+
+	if (header)
+		__raw_writel(val, header + DSS_OFFSET_ABL_DUMP_STAT);
+}
+
 static void dbg_snapshot_report_reason(unsigned int val)
 {
 	void __iomem *header = dbg_snapshot_get_header_vaddr();
@@ -763,6 +771,9 @@ void dbg_snapshot_init_utils(void)
 	}
 	/* write default reboot reason as unknown reboot */
 	dbg_snapshot_report_reason(DSS_SIGN_UNKNOWN_REBOOT);
+
+	/* write reset value to skip abl dump as debug boot */
+	dbg_snapshot_set_abl_dump_stat(DSS_SIGN_RESET);
 
 	register_die_notifier(&nb_die_block);
 	register_restart_handler(&nb_restart_block);
