@@ -17,17 +17,6 @@
 #include "bigo_pm.h"
 #include "bigo_io.h"
 
-bool is_idle(struct bigo_inst *inst)
-{
-	bool idle;
-
-	mutex_lock(&inst->lock);
-	idle = inst->idle;
-	mutex_unlock(&inst->lock);
-
-	return idle;
-}
-
 static inline u32 bigo_get_total_load(struct bigo_core *core)
 {
 	struct bigo_inst *inst;
@@ -38,7 +27,7 @@ static inline u32 bigo_get_total_load(struct bigo_core *core)
 		return 0;
 
 	list_for_each_entry(inst, &core->instances, list) {
-		if (is_idle(inst))
+		if (inst->idle)
 			continue;
 		curr_load = inst->width * inst->height * inst->fps / 1024;
 		if (curr_load < core->pm.max_load - load) {
@@ -98,11 +87,14 @@ static void bigo_scale_freq(struct bigo_core *core)
 static void bigo_get_bw(struct bigo_core *core, struct bts_bw *bw)
 {
 	u32 load = bigo_get_total_load(core);
-	struct bigo_bw *bandwidth = bigo_get_target_bw(core, load);
-
-	bw->read = bandwidth->rd_bw;
-	bw->write = bandwidth->wr_bw;
-	bw->peak = bandwidth->pk_bw;
+	if (load) {
+		struct bigo_bw *bandwidth = bigo_get_target_bw(core, load);
+		bw->read = bandwidth->rd_bw;
+		bw->write = bandwidth->wr_bw;
+		bw->peak = bandwidth->pk_bw;
+	} else {
+		memset(bw, 0, sizeof(*bw));
+	}
 	pr_debug("BW: load: %u, rd: %u, wr: %u, pk: %u", load, bw->read, bw->write, bw->peak);
 }
 
@@ -114,55 +106,38 @@ static int bigo_scale_bw(struct bigo_core *core)
 	return bts_update_bw(core->pm.bwindex, bw);
 }
 
-void bigo_update_qos(struct bigo_core *core)
-{
-	int rc;
-
-	if (core->qos_dirty) {
-		rc = bigo_scale_bw(core);
-
-		if (rc)
-			pr_warn("%s: failed to scale bandwidth: %d\n",
-					 __func__, rc);
-
-		bigo_scale_freq(core);
-
-		core->qos_dirty = false;
-	}
-}
-
-static inline void mark_instances_idle(struct bigo_core *core)
-{
-	struct bigo_inst *inst;
-	list_for_each_entry(inst, &core->instances, list) {
-		mutex_lock(&inst->lock);
-		inst->idle = true;
-		mutex_unlock(&inst->lock);
-	}
-}
-
-static void bigo_clocks_off(struct bigo_core *core)
-{
-	struct bts_bw bw;
-	memset(&bw, 0, sizeof(struct bts_bw));
-	bts_update_bw(core->pm.bwindex, bw);
-	bigo_set_freq(core, bigo_get_target_freq(core, 0));
-}
-
-void bigo_enter_idle_state(struct bigo_core *core)
-{
-	mutex_lock(&core->lock);
-	bigo_clocks_off(core);
-	core->qos_dirty = true;
-	mark_instances_idle(core);
-	pr_info("bigocean entered idle state");
-	mutex_unlock(&core->lock);
-}
-
 void bigo_mark_qos_dirty(struct bigo_core *core)
 {
 	mutex_lock(&core->lock);
 	core->qos_dirty = true;
+	mutex_unlock(&core->lock);
+}
+
+void bigo_update_qos(struct bigo_core *core)
+{
+	int rc;
+
+	mutex_lock(&core->lock);
+	if (core->qos_dirty) {
+		rc = bigo_scale_bw(core);
+		if (rc)
+			pr_warn("%s: failed to scale bandwidth: %d\n", __func__, rc);
+
+		bigo_scale_freq(core);
+		core->qos_dirty = false;
+	}
+	mutex_unlock(&core->lock);
+}
+
+void bigo_clocks_off(struct bigo_core *core)
+{
+	struct bts_bw bw;
+
+	memset(&bw, 0, sizeof(struct bts_bw));
+
+	mutex_lock(&core->lock);
+	bts_update_bw(core->pm.bwindex, bw);
+	bigo_set_freq(core, bigo_get_target_freq(core, 0));
 	mutex_unlock(&core->lock);
 }
 
