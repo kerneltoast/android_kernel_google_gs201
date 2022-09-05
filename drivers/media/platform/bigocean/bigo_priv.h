@@ -25,6 +25,7 @@
 #define AVG_CNT 30
 #define PEAK_CNT 5
 #define BUS_WIDTH 16
+#define BO_MAX_PRIO 2
 
 struct bufinfo {
 	struct list_head list;
@@ -69,14 +70,22 @@ struct slc_manager {
 };
 
 struct bigo_job {
+	struct list_head list;
 	void *regs;
 	size_t regs_size;
+	int status;
 };
 
 struct bigo_debugfs {
 	struct dentry *root;
 	u32 set_freq;
 	u32 trigger_ssr;
+};
+
+struct bigo_prio_array {
+	struct mutex lock;
+	unsigned long bitmap;
+	struct list_head queue[BO_MAX_PRIO];
 };
 
 struct bigo_core {
@@ -93,7 +102,6 @@ struct bigo_core {
 	struct list_head instances;
 	struct ion_client *mem_client;
 	u32 stat_with_irq;
-	struct bigo_job job;
 	struct power_manager pm;
 	struct slc_manager slc;
 	unsigned int regs_size;
@@ -101,7 +109,9 @@ struct bigo_core {
 	phys_addr_t paddr;
 	struct bigo_debugfs debugfs;
 	spinlock_t status_lock;
-	struct timer_list idle_timer;
+	struct task_struct *worker_thread;
+	wait_queue_head_t worker;
+	struct bigo_prio_array prioq;
 	u32 qos_dirty;
 };
 
@@ -110,15 +120,19 @@ struct bigo_inst {
 	struct list_head buffers;
 	/* mutex protecting this data structure */
 	struct mutex lock;
+	struct kref refcount;
 	struct bigo_core *core;
 	u32 height;
 	u32 width;
 	u32 fps;
 	u32 is_secure;
+	int priority;
 	struct bigo_bw avg_bw[AVG_CNT];
 	struct bigo_bw pk_bw[AVG_CNT];
 	int job_cnt;
 	u32 hw_cycles[AVG_CNT];
+	struct completion job_comp;
+	struct bigo_job job;
 	bool idle;
 };
 

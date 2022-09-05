@@ -79,13 +79,17 @@ static void bigo_pt_resize_cb(void *data, int id, size_t size_allocated)
 	core->slc.size = size_allocated;
 }
 
-void bigo_pt_client_register(struct device_node *node, struct bigo_core *core)
+int bigo_pt_client_register(struct device_node *node, struct bigo_core *core)
 {
+	int rc = 0;
 	core->slc.pt_hnd = pt_client_register(node, (void *)core, bigo_pt_resize_cb);
 	if (IS_ERR(core->slc.pt_hnd)) {
+		rc = PTR_ERR(core->slc.pt_hnd);
 		core->slc.pt_hnd = NULL;
 		pr_warn("Failed to register pt_client.\n");
+		return rc;
 	}
+	return rc;
 }
 
 void bigo_pt_client_unregister(struct bigo_core *core)
