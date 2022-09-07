@@ -103,29 +103,29 @@ static int read_adc_mv(struct max77759_contaminant *contaminant,
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL_MASK,
 				    channel << ADC_CHANNEL_OFFSET);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	/* Enable ADC */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_ADC_CTRL1, ADCEN, ADCEN);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	MAX77759_LOG_REGISTER(regmap, TCPC_VENDOR_ADC_CTRL1, log);
 
 	usleep_range(sleep_msec * 1000, (sleep_msec + 1) * 1000);
 	ret = max77759_read8(regmap, TCPC_VENDOR_FLADC_STATUS, &fladc);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	logbuffer_log(log, "Contaminant: ADC %u", fladc);
 
 	/* Disable ADC */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_ADC_CTRL1, ADCEN, 0);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_ADC_CTRL1, ADCINSEL_MASK, 0);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	if (!raw)
 		return adc_to_mv(contaminant, channel, ua_src, fladc);
@@ -149,7 +149,7 @@ static int read_resistance_kohm(struct max77759_contaminant *contaminant,
 		ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
 					    ULTRA_LOW_POWER_MODE);
 		if (ret < 0)
-			return ret;
+			return -EIO;
 		/*
 		 * CC resistive ladder is automatically disabled when
 		 * 1uA source is ON and Flash ADC channel is not CC scale1.
@@ -161,12 +161,12 @@ static int read_resistance_kohm(struct max77759_contaminant *contaminant,
 		/* Enable 1uA current source */
 		ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL_MASK, UA_1_SRC);
 		if (ret < 0)
-			return ret;
+			return -EIO;
 
 		/* OVP disable */
 		ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCOVPDIS, CCOVPDIS);
 		if (ret < 0)
-			return ret;
+			return -EIO;
 
 		MAX77759_LOG_REGISTER(regmap, TCPC_VENDOR_CC_CTRL2, log);
 
@@ -174,7 +174,7 @@ static int read_resistance_kohm(struct max77759_contaminant *contaminant,
 		/* OVP enable */
 		ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCOVPDIS, 0);
 		if (ret < 0)
-			return ret;
+			return -EIO;
 		/* returns KOhm as 1uA source is used. */
 		return mv;
 	}
@@ -187,39 +187,39 @@ static int read_resistance_kohm(struct max77759_contaminant *contaminant,
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
 				    ULTRA_LOW_POWER_MODE);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, SBUOVPDIS, SBUOVPDIS);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	/* Cache switch setting */
 	ret = max77759_read8(regmap, TCPC_VENDOR_SBUSW_CTRL, &switch_setting);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	MAX77759_LOG_REGISTER(regmap, TCPC_VENDOR_SBUSW_CTRL, log);
 
 	/* SBU switches auto configure when channel is selected. */
 	/* Enable 1ua current source */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, SBURPCTRL, SBURPCTRL);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	MAX77759_LOG_REGISTER(regmap, TCPC_VENDOR_CC_CTRL2, log);
 
 	mv = read_adc_mv(contaminant, channel, sleep_msec, raw, true);
 	/* Disable current source */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, SBURPCTRL, 0);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	/* Set switch to original setting */
 	ret = max77759_write8(regmap, TCPC_VENDOR_SBUSW_CTRL, switch_setting);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	/* OVP disable */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, SBUOVPDIS, 0);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	/*
 	 * 1ua current source on sbu;
@@ -229,9 +229,9 @@ static int read_resistance_kohm(struct max77759_contaminant *contaminant,
 	return mv;
 }
 
-static void read_comparators(struct max77759_contaminant *contaminant,
-			     u8 *vendor_cc_status2_cc1,
-			     u8 *vendor_cc_status2_cc2)
+static int read_comparators(struct max77759_contaminant *contaminant,
+			    u8 *vendor_cc_status2_cc1,
+			    u8 *vendor_cc_status2_cc2)
 {
 	struct regmap *regmap = contaminant->chip->data.regmap;
 	struct logbuffer *log = contaminant->chip->log;
@@ -242,12 +242,12 @@ static void read_comparators(struct max77759_contaminant *contaminant,
 	/* Enable 80uA source */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL_MASK, UA_80_SRC);
 	if (ret < 0)
-		return;
+		return -EIO;
 
 	/* Enable comparators */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL1, CCCOMPEN, CCCOMPEN);
 	if (ret < 0)
-		return;
+		return -EIO;
 
 	MAX77759_LOG_REGISTER(regmap, TCPC_VENDOR_CC_CTRL1, log);
 
@@ -255,7 +255,7 @@ static void read_comparators(struct max77759_contaminant *contaminant,
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
 				    LOW_POWER_MODE_DISABLE);
 	if (ret < 0)
-		return;
+		return -EIO;
 	MAX77759_LOG_REGISTER(regmap, TCPC_VENDOR_CC_CTRL2, log);
 
 	/* Sleep to allow comparators settle */
@@ -263,47 +263,55 @@ static void read_comparators(struct max77759_contaminant *contaminant,
 	ret = max77759_update_bits8(regmap, TCPC_TCPC_CTRL, TCPC_TCPC_CTRL_ORIENTATION,
 				    PLUG_ORNT_CC1);
 	if (ret < 0)
-		return;
+		return -EIO;
 	MAX77759_LOG_REGISTER(regmap, TCPC_TCPC_CTRL, log);
 
 	usleep_range(5000, 6000);
 	ret = max77759_read8(regmap, VENDOR_CC_STATUS2, vendor_cc_status2_cc1);
 	if (ret < 0)
-		return;
+		return -EIO;
 	logbuffer_log(log, "Contaminant: VENDOR_CC_STATUS2: %u", *vendor_cc_status2_cc1);
 
 	ret = max77759_update_bits8(regmap, TCPC_TCPC_CTRL, TCPC_TCPC_CTRL_ORIENTATION,
 				    PLUG_ORNT_CC2);
 	if (ret < 0)
-		return;
+		return -EIO;
 	MAX77759_LOG_REGISTER(regmap, TCPC_TCPC_CTRL, log);
 
 	usleep_range(5000, 6000);
 	ret = max77759_read8(regmap, VENDOR_CC_STATUS2, vendor_cc_status2_cc2);
 	if (ret < 0)
-		return;
+		return -EIO;
 	logbuffer_log(contaminant->chip->log, "Contaminant: VENDOR_CC_STATUS2: %u",
 		      *vendor_cc_status2_cc2);
 
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL1, CCCOMPEN, 0);
 	if (ret < 0)
-		return;
-	max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL_MASK, 0);
+		return -EIO;
+	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCRPCTRL_MASK, 0);
+	if (ret < 0)
+		return -EIO;
+
+	return 0;
 }
 
 static int detect_contaminant(struct max77759_contaminant *contaminant)
 {
-	int cc1_k, cc2_k, sbu1_k, sbu2_k;
+	int cc1_k, cc2_k, sbu1_k, sbu2_k, ret;
 	u8 vendor_cc_status2_cc1 = 0xff, vendor_cc_status2_cc2 = 0xff;
 	u8 role_ctrl = 0, role_ctrl_backup = 0;
 	struct max77759_plat *chip = contaminant->chip;
 	int inferred_state = NOT_DETECTED;
 	struct regmap *regmap = contaminant->chip->data.regmap;
 
-	max77759_read8(regmap, TCPC_ROLE_CTRL, &role_ctrl);
+	ret = max77759_read8(regmap, TCPC_ROLE_CTRL, &role_ctrl);
+	if (ret < 0)
+		return -EIO;
 	role_ctrl_backup = role_ctrl;
 	role_ctrl = 0x0F;
-	max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl);
+	ret = max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl);
+	if (ret < 0)
+		return -EIO;
 
 	/* CCLPMODESEL_AUTO_LOW_POWER in use. */
 	cc1_k = read_resistance_kohm(contaminant, CC1_SCALE2, READ1_SLEEP_MS, false);
@@ -313,7 +321,9 @@ static int detect_contaminant(struct max77759_contaminant *contaminant)
 	sbu1_k = read_resistance_kohm(contaminant, SBU1, READ1_SLEEP_MS, false);
 	sbu2_k = read_resistance_kohm(contaminant, SBU2, READ2_SLEEP_MS, false);
 	logbuffer_log(chip->log, "Contaminant: sbu1_k:%u sbu2_k:%u", sbu1_k, sbu2_k);
-	read_comparators(contaminant, &vendor_cc_status2_cc1, &vendor_cc_status2_cc2);
+	ret = read_comparators(contaminant, &vendor_cc_status2_cc1, &vendor_cc_status2_cc2);
+	if (ret == -EIO)
+		return ret;
 	logbuffer_log(chip->log, "Contaminant: vcc2_cc1:%u vcc2_cc2:%u", vendor_cc_status2_cc1,
 		      vendor_cc_status2_cc2);
 
@@ -338,9 +348,12 @@ static int detect_contaminant(struct max77759_contaminant *contaminant)
 	}
 
 	if (inferred_state == NOT_DETECTED)
-		max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl_backup);
+		ret = max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl_backup);
 	else
-		max77759_write8(regmap, TCPC_ROLE_CTRL, (TCPC_ROLE_CTRL_DRP | 0xA));
+		ret = max77759_write8(regmap, TCPC_ROLE_CTRL, (TCPC_ROLE_CTRL_DRP | 0xA));
+
+	if (ret < 0)
+		return -EIO;
 
 	return inferred_state;
 }
@@ -362,40 +375,40 @@ static int enable_dry_detection(struct max77759_contaminant *contaminant)
 				    CCWTRSEL_1V << CCWTRSEL_SHIFT | WTRCYCLE_4_8_S <<
 				    WTRCYCLE_SHIFT);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	ret = max77759_update_bits8(regmap, TCPC_ROLE_CTRL, TCPC_ROLE_CTRL_DRP,
 				    TCPC_ROLE_CTRL_DRP);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	/* tunable: 1ua / Ultra low power mode enabled. */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL1, CCCONNDRY, CCCONNDRY);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	ret = max77759_read8(regmap, TCPC_VENDOR_CC_CTRL1, &temp);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	logbuffer_log(chip->log, "Contaminant: TCPC_VENDOR_CC_CTRL1 %u", temp);
 
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
 				    ULTRA_LOW_POWER_MODE);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	ret = max77759_read8(regmap, TCPC_VENDOR_CC_CTRL2, &temp);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	logbuffer_log(chip->log, "Contaminant: TCPC_VENDOR_CC_CTRL2 %u", temp);
 
 	/* Enable Look4Connection before sending the command */
 	ret = max77759_update_bits8(regmap, TCPC_TCPC_CTRL, TCPC_TCPC_CTRL_EN_LK4CONN_ALRT,
 				    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	ret = max77759_write8(regmap, TCPC_COMMAND, TCPC_CMD_LOOK4CONNECTION);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 	logbuffer_log(chip->log, "Contaminant: Dry detecion enabled");
 	return 0;
 }
@@ -410,10 +423,14 @@ static int maxq_detect_contaminant(struct max77759_contaminant *contaminant, u8 
 	struct regmap *regmap = contaminant->chip->data.regmap;
 	u8 response[5];
 
-	max77759_read8(regmap, TCPC_ROLE_CTRL, &role_ctrl);
+	ret = max77759_read8(regmap, TCPC_ROLE_CTRL, &role_ctrl);
+	if (ret < 0)
+		return -EIO;
 	role_ctrl_backup = role_ctrl;
 	role_ctrl = 0x0F;
-	max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl);
+	ret = max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl);
+	if (ret < 0)
+		return -EIO;
 
 	logbuffer_log(chip->log, "Contaminant: Query Maxq");
 	if (contaminant->state == NOT_DETECTED) {
@@ -449,9 +466,12 @@ static int maxq_detect_contaminant(struct max77759_contaminant *contaminant, u8 
 		      response[0], response[2], response[3], response[4]);
 
 	if (ret == NOT_DETECTED)
-		max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl_backup);
+		ret = max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl_backup);
 	else
-		max77759_write8(regmap, TCPC_ROLE_CTRL, (TCPC_ROLE_CTRL_DRP | 0xA));
+		ret = max77759_write8(regmap, TCPC_ROLE_CTRL, (TCPC_ROLE_CTRL_DRP | 0xA));
+
+	if (ret < 0)
+		return -EIO;
 
 	return ret;
 }
@@ -481,23 +501,28 @@ static void update_contaminant_state(struct max77759_contaminant *contaminant,
  * Don't want to be in workqueue as this is time critical for the state machine
  * to forward progress.
  */
-bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool debounce_path,
-			       bool tcpm_toggling)
+int process_contaminant_alert(struct max77759_contaminant *contaminant, bool debounce_path,
+			      bool tcpm_toggling, bool *cc_update_handled)
 {
 	u8 cc_status, pwr_cntl;
 	struct regmap *regmap = contaminant->chip->data.regmap;
 	enum contamiant_state state;
 	struct max77759_plat *chip = contaminant->chip;
+	int ret;
 
 	/*
 	 * Contaminant alert should only be processed when ALERT.CC_STAT is set.
 	 * Caller i.e. the top level interrupt handler can check this to
 	 * prevent redundant reads.
 	 */
-	max77759_read8(regmap, TCPC_CC_STATUS, &cc_status);
+	ret = max77759_read8(regmap, TCPC_CC_STATUS, &cc_status);
+	if (ret < 0)
+		return -EIO;
 	logbuffer_log(chip->log, "Contaminant: CC_STATUS: %#x", cc_status);
 
-	max77759_read8(regmap, TCPC_POWER_CTRL, &pwr_cntl);
+	ret = max77759_read8(regmap, TCPC_POWER_CTRL, &pwr_cntl);
+	if (ret < 0)
+		return -EIO;
 	logbuffer_log(chip->log, "Contaminant: POWER_CONTROL: %#x", pwr_cntl);
 
 	/* Exit if still LookingForConnection. */
@@ -505,9 +530,13 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 		logbuffer_log(chip->log, "Contaminant: Looking for connection");
 		/* Restart toggling before returning in debounce path */
 		if (debounce_path && (contaminant->state == NOT_DETECTED ||
-				      contaminant->state == SINK))
-			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
-		return false;
+				      contaminant->state == SINK)) {
+			ret = enable_contaminant_detection(contaminant->chip,
+							   contaminant_detect_maxq);
+			if (ret == -EIO)
+				return ret;
+		}
+		*cc_update_handled = false;
 	}
 
 	if (contaminant->state == NOT_DETECTED || contaminant->state == SINK ||
@@ -520,19 +549,27 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 				  TCPC_CC_STATE_WTRSEL << TCPC_CC_STATUS_CC2_SHIFT))) &&
 		    (status_check(cc_status, TCPC_CC_STATUS_TOGGLING, 0))) {
 			logbuffer_log(chip->log, "Contaminant: Check if wet: CC 0x3");
-			state = contaminant_detect_maxq ?
+			ret = contaminant_detect_maxq ?
 				maxq_detect_contaminant(contaminant, cc_status)
 				: detect_contaminant(contaminant);
+			if (ret == -EIO)
+				return ret;
+			state = ret;
 			update_contaminant_state(contaminant, state);
 
 			if (state == DETECTED) {
-				enable_dry_detection(contaminant);
-				return true;
+				ret = enable_dry_detection(contaminant);
+				if (ret == -EIO)
+					return ret;
+				*cc_update_handled = true;
 			}
 
 			/* Sink or Not detected */
-			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
-			return true;
+			ret = enable_contaminant_detection(contaminant->chip,
+							   contaminant_detect_maxq);
+			if (ret == -EIO)
+				return ret;
+			*cc_update_handled = true;
 		} else {
 			/* Need to check again after tCCDebounce */
 			if (((cc_status & TCPC_CC_STATUS_TOGGLING) == 0)  &&
@@ -546,42 +583,62 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 					msleep(100);
 				}
 
-				max77759_read8(regmap, TCPC_CC_STATUS, &cc_status);
+				ret = max77759_read8(regmap, TCPC_CC_STATUS, &cc_status);
+				if (ret < 0)
+					return ret;
 				logbuffer_log(chip->log,
 					      "Contaminant: CC_STATUS check stage 3 sw WAR: %#x",
 					      cc_status);
 				if (is_cc_open(cc_status)) {
 					u8 role_ctrl, role_ctrl_backup;
 
-					max77759_read8(regmap, TCPC_ROLE_CTRL, &role_ctrl);
+					ret = max77759_read8(regmap, TCPC_ROLE_CTRL, &role_ctrl);
+					if (ret < 0)
+						return ret;
 					role_ctrl_backup = role_ctrl;
 					role_ctrl |= 0x0F;
 					role_ctrl &= ~(TCPC_ROLE_CTRL_DRP);
-					max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl);
+					ret = max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl);
+					if (ret < 0)
+						return ret;
 
 					logbuffer_log(chip->log,
 						      "Contaminant: Check if wet (stage 3)");
-					state = contaminant_detect_maxq ?
+					ret = contaminant_detect_maxq ?
 						maxq_detect_contaminant(contaminant, cc_status)
 						: detect_contaminant(contaminant);
+					if (ret == -EIO)
+						return ret;
+					state = ret;
 					update_contaminant_state(contaminant, state);
 
-					max77759_write8(regmap, TCPC_ROLE_CTRL, role_ctrl_backup);
+					ret = max77759_write8(regmap, TCPC_ROLE_CTRL,
+							      role_ctrl_backup);
+					if (ret < 0)
+						return ret;
 					if (state == DETECTED) {
-						enable_dry_detection(contaminant);
-						return true;
+						ret = enable_dry_detection(contaminant);
+						if (ret == -EIO)
+							return ret;
+						*cc_update_handled = true;
 					}
 					/* Sink or Not detected */
-					enable_contaminant_detection(contaminant->chip,
-								     contaminant_detect_maxq);
+					ret = enable_contaminant_detection(contaminant->chip,
+									   contaminant_detect_maxq);
+					if (ret == -EIO)
+						return ret;
 				}
 			}
 		}
 
 		/* Restart toggling before returning in debounce path */
-		if (debounce_path)
-			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
-		return false;
+		if (debounce_path) {
+			ret = enable_contaminant_detection(contaminant->chip,
+							   contaminant_detect_maxq);
+			if (ret == -EIO)
+				return ret;
+		}
+		*cc_update_handled = false;
 	} else if (contaminant->state == DETECTED) {
 		if (status_check(cc_status, TCPC_CC_STATUS_TOGGLING, 0)) {
 			logbuffer_log(chip->log, "Contaminant: Check if dry");
@@ -591,8 +648,10 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 			update_contaminant_state(contaminant, state);
 
 			if (state == DETECTED) {
-				enable_dry_detection(contaminant);
-				return true;
+				ret = enable_dry_detection(contaminant);
+				if (ret == -EIO)
+					return ret;
+				*cc_update_handled = true;
 			}
 
 			/*
@@ -600,59 +659,65 @@ bool process_contaminant_alert(struct max77759_contaminant *contaminant, bool de
 			 * auto_ultra_low_power_mode as well.
 			 */
 			disable_auto_ultra_low_power_mode(chip, false);
-			enable_contaminant_detection(contaminant->chip, contaminant_detect_maxq);
-			return true;
+			ret = enable_contaminant_detection(contaminant->chip,
+							   contaminant_detect_maxq);
+			if (ret == -EIO)
+				return ret;
+			*cc_update_handled = true;
 		}
 		/* TCPM does not manage ports in dry detection phase. */
-		return true;
+		*cc_update_handled = true;
 	}
 
-	return false;
+	*cc_update_handled = false;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(process_contaminant_alert);
 
-void disable_contaminant_detection(struct max77759_plat *chip)
+int disable_contaminant_detection(struct max77759_plat *chip)
 {
 	struct regmap *regmap = chip->data.regmap;
 	struct max77759_contaminant *contaminant = chip->contaminant;
 	int ret;
 
 	if (!contaminant)
-		return;
+		return 0;
 
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK, 0);
 	if (ret < 0)
-		return;
+		return -EIO;
 
 	ret = max77759_write8(regmap, TCPC_ROLE_CTRL, TCPC_ROLE_CTRL_DRP |
 			      (TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_CC1_SHIFT) |
 			      (TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_CC2_SHIFT));
 	if (ret < 0)
-		return;
+		return -EIO;
 
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
 				    LOW_POWER_MODE_DISABLE);
 	if (ret < 0)
-		return;
+		return -EIO;
 
 	ret = max77759_update_bits8(regmap, TCPC_TCPC_CTRL, TCPC_TCPC_CTRL_EN_LK4CONN_ALRT,
 				    TCPC_TCPC_CTRL_EN_LK4CONN_ALRT);
 	if (ret < 0)
-		return;
+		return -EIO;
 
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL1, CCCONNDRY, 0);
 	if (ret < 0)
-		return;
+		return -EIO;
 
 	ret = max77759_write8(regmap, TCPC_COMMAND, TCPC_CMD_LOOK4CONNECTION);
 	if (ret < 0)
-		return;
+		return -EIO;
 
 	/* Reset state before disabling detection */
 	if (contaminant->state != NOT_DETECTED && contaminant->state != SINK)
 		contaminant->state = NOT_DETECTED;
 
 	logbuffer_log(chip->log, "Contaminant: Contaminant detection disabled");
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(disable_contaminant_detection);
 
@@ -677,43 +742,47 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 				    CCWTRSEL_1V << CCWTRSEL_SHIFT | WTRCYCLE_4_8_S <<
 				    WTRCYCLE_SHIFT);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	/* Contaminant detection mode: contaminant detection */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL1, CCCONNDRY, 0);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	ret = max77759_read8(regmap, TCPC_VENDOR_CC_CTRL2, &vcc2);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	if (!contaminant->auto_ultra_low_power_mode_disabled) {
 		/* tunable: Periodic contaminant detection */
 		ret = max77759_update_bits8(regmap, TCPC_VENDOR_CC_CTRL2, CCLPMODESEL_MASK,
 					    AUTO_ULTRA_LOW_POWER_MODE);
 		if (ret < 0)
-			return ret;
+			return -EIO;
 	}
 
 	ret = max77759_read8(regmap, TCPC_VENDOR_CC_CTRL2, &vcc2);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	/* Mask flash adc interrupt */
 	ret = max77759_update_bits8(regmap, TCPC_VENDOR_ALERT_MASK2, MSK_FLASH_ADCINT, 0);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	/* Disable Auto disacharge before enabling toggling */
 	ret = max77759_read8(regmap, TCPC_POWER_CTRL, &pwr_ctrl);
+	if (ret < 0)
+		return -EIO;
 	logbuffer_log(chip->log, "TCPC_POWER_CTRL:0x%x ret:%d", pwr_ctrl, ret);
 	if (pwr_ctrl & TCPC_POWER_CTRL_AUTO_DISCHARGE) {
 		logbuffer_log(chip->log, "TCPC_POWER_CTRL_AUTO_DISCHARGE not cleared");
 		ret = regmap_update_bits(regmap, TCPC_POWER_CTRL, TCPC_POWER_CTRL_AUTO_DISCHARGE,
 					 0);
-		if (ret < 0)
+		if (ret < 0) {
 			logbuffer_log(chip->log, "[%s]: Disabling auto discharge failed", __func__);
+			return -EIO;
+		}
 	}
 
 	ret = max77759_write8(regmap, TCPC_ROLE_CTRL, TCPC_ROLE_CTRL_DRP |
@@ -724,7 +793,7 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 	if (ret < 0) {
 		logbuffer_log(chip->log, "[%s]: Enabling DRP failed ret:%d", __func__,
 			      ret);
-		return ret;
+		return -EIO;
 	}
 
 	/* Enable Look4Connection before sending the command */
@@ -733,12 +802,12 @@ int enable_contaminant_detection(struct max77759_plat *chip, bool maxq)
 	if (ret < 0) {
 		logbuffer_log(chip->log, "[%s]: Enabling looking for connection failed ret:%d",
 			      __func__, ret);
-		return ret;
+		return -EIO;
 	}
 
 	ret = max77759_write8(regmap, TCPC_COMMAND, TCPC_CMD_LOOK4CONNECTION);
 	if (ret < 0)
-		return ret;
+		return -EIO;
 
 	logbuffer_log(chip->log, "Contaminant: Contaminant detection enabled");
 
