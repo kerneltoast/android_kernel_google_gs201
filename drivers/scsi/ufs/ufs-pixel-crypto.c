@@ -538,7 +538,7 @@ static void pixel_ufs_crypto_fill_prdt(void *unused, struct ufs_hba *hba,
 	lrbp->crypto_key_slot = -1;
 }
 
-#if IS_ENABLED(CONFIG_SCSI_UFS_PIXEL_FIPS140)
+#if IS_ENABLED(CONFIG_SCSI_UFS_PIXEL_FIPS140) && IS_ENABLED(CONFIG_SOC_GS201)
 static void pixel_ufs_ise_self_test(void *data, struct ufs_hba *hba)
 {
 	/*
