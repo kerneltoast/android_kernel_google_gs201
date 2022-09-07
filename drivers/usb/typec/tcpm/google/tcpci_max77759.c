@@ -51,6 +51,7 @@
 #define TCPC_RECEIVE_BUFFER_LEN                         32
 
 #define PD_ACTIVITY_TIMEOUT_MS				10000
+#define IO_ERROR_RETRY_MS				3000
 #define VSAFE0V_DEBOUNCE_MS				15
 #define VBUS_RAMPUP_TIMEOUT_MS				250
 #define VBUS_RAMPUP_MAX_RETRY				8
@@ -620,7 +621,7 @@ static void max77759_init_regs(struct regmap *regmap, struct logbuffer *log)
 		logbuffer_log(log, "TCPC_VENDOR_VCON_CTRL: update vcnilim to 300mA failed");
 }
 
-static void process_rx(struct max77759_plat *chip, u16 status)
+static int process_rx(struct max77759_plat *chip, u16 status)
 {
 	struct pd_message msg;
 	u8 count, frame_type, rx_buf[TCPC_RECEIVE_BUFFER_LEN];
@@ -639,17 +640,18 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 	logbuffer_log(log, "%d", __LINE__);
 	if (ret < 0) {
 		dev_err(chip->dev, "TCPC_RX_BYTE_CNT read failed ret:%d", ret);
-		return;
+		return -EIO;
 	}
 
 	count = rx_buf[TCPC_RECEIVE_BUFFER_COUNT_OFFSET];
 	frame_type = rx_buf[TCPC_RECEIVE_BUFFER_FRAME_TYPE_OFFSET];
 
 	if (count == 0 || frame_type != TCPC_RX_BUF_FRAME_TYPE_SOP) {
-		max77759_write16(chip->data.regmap, TCPC_ALERT, TCPC_ALERT_RX_STATUS);
+		ret = max77759_write16(chip->data.regmap, TCPC_ALERT, TCPC_ALERT_RX_STATUS);
 		dev_err(chip->dev, "%s", count ==  0 ? "error: count is 0" :
 			"error frame_type is not SOP");
-		return;
+		if (ret < 0)
+			return -EIO;
 	}
 
 	/*
@@ -658,7 +660,7 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 	 */
 	if (count > sizeof(struct pd_message) + 1 || count + 1 > TCPC_RECEIVE_BUFFER_LEN) {
 		dev_err(chip->dev, "Invalid TCPC_RX_BYTE_CNT %d", count);
-		return;
+		return 0;
 	}
 
 	/*
@@ -670,7 +672,7 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 	logbuffer_log(log, "%d", __LINE__);
 	if (ret < 0) {
 		dev_err(chip->dev, "Error: TCPC_RX_BYTE_CNT read failed: %d", ret);
-		return;
+		return -EIO;
 	}
 
 	rx_buf_ptr = rx_buf + TCPC_RECEIVE_BUFFER_RX_BYTE_BUF_OFFSET;
@@ -690,7 +692,7 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 			       TCPC_ALERT_RX_STATUS | TCPC_ALERT_RX_BUF_OVF :
 			       TCPC_ALERT_RX_STATUS);
 	if (ret < 0)
-		return;
+		return -EIO;
 
 	logbuffer_log(log, "rx clear");
 	pd_type = pd_header_type_le(msg.header);
@@ -700,10 +702,11 @@ static void process_rx(struct max77759_plat *chip, u16 status)
 		ret = max77759_write16(chip->data.regmap, TCPC_VBUS_SINK_DISCONNECT_THRESH, 0);
 		/* TODO: tcpci->pr_swap = true; */
 		if (ret < 0)
-			return;
+			return -EIO;
 	}
 
 	tcpm_pd_receive(chip->port, &msg);
+	return 0;
 }
 
 static void enable_dp_pulse(struct max77759_plat *chip)
@@ -1210,8 +1213,9 @@ static void max77759_cache_cc(struct max77759_plat *chip)
 	chip->cc2 = cc2;
 }
 
-static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
-				 struct logbuffer *log)
+/* hold irq_status_lock before calling */
+static irqreturn_t _max77759_irq_locked(struct max77759_plat *chip, u16 status,
+					struct logbuffer *log)
 {
 	u16 vendor_status = 0, vendor_status2 = 0, raw;
 	struct tcpci *tcpci = chip->tcpci;
@@ -1220,6 +1224,8 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		~(TCPC_ALERT_RX_STATUS | TCPC_ALERT_RX_BUF_OVF) :
 		status & ~TCPC_ALERT_RX_STATUS;
 	u8 reg_status;
+	bool contaminant_cc_update_handled = false;
+	bool invoke_tcpm_for_cc_update = false;
 
 	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
 	logbuffer_log(log, "TCPC_ALERT status: %#x", status);
@@ -1230,7 +1236,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	if (status & ~TCPC_ALERT_RX_STATUS) {
 		ret = max77759_write16(tcpci->regmap, TCPC_ALERT, mask);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 	}
 
 	if (status & TCPC_ALERT_RX_BUF_OVF && !(status &
@@ -1240,17 +1246,17 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				       (TCPC_ALERT_RX_STATUS |
 					TCPC_ALERT_RX_BUF_OVF));
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 	}
 
 	if (status & TCPC_ALERT_EXTND) {
 		ret = max77759_read8(tcpci->regmap, TCPC_ALERT_EXTENDED, &reg_status);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 
 		ret = max77759_write8(tcpci->regmap, TCPC_ALERT_EXTENDED, reg_status);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 
 		if (reg_status & TCPC_SINK_FAST_ROLE_SWAP) {
 			logbuffer_log(log, "FRS Signal");
@@ -1261,7 +1267,9 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 
 	if (status & TCPC_ALERT_RX_STATUS) {
 		logbuffer_log(log, "Enter process rx");
-		process_rx(chip, status);
+		ret = process_rx(chip, status);
+		if (ret == -EIO)
+			goto reschedule;
 	}
 
 	if (status & TCPC_ALERT_TX_DISCARDED)
@@ -1272,18 +1280,18 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_ALERT_MASK
 				      , 0x0);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 
 		ret = max77759_write8(tcpci->regmap,
 				      TCPC_VENDOR_ALERT_MASK2, 0x0);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 
 		/* Clear VENDOR_ALERT*/
 		ret = max77759_read16(tcpci->regmap, TCPC_VENDOR_ALERT,
 				      &vendor_status);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 		logbuffer_log(log, "TCPC_VENDOR_ALERT 0x%x", vendor_status);
 
 		process_bc12_alert(chip->bc12, vendor_status);
@@ -1292,12 +1300,12 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 
 		ret = max77759_read16(tcpci->regmap, TCPC_VENDOR_ALERT2, &vendor_status2);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 		logbuffer_log(log, "TCPC_VENDOR_ALERT2 0x%x", vendor_status2);
 
 		ret = max77759_write16(tcpci->regmap, TCPC_VENDOR_ALERT2, vendor_status2);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 	}
 
 	if (status & TCPC_ALERT_VBUS_DISCNCT) {
@@ -1309,6 +1317,8 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 			ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_USBSW_CTRL, USBSW_CONNECT);
 			logbuffer_log(chip->log, "Forcing on dp switches %s", ret < 0 ? "fail" :
 				      "success");
+			if (ret < 0)
+				goto reschedule;
 		}
 	}
 
@@ -1318,8 +1328,30 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		 * contaminant detection.
 		 */
 		mutex_lock(&chip->rc_lock);
-		if (!chip->contaminant_detection || !tcpm_is_toggling(tcpci->port) ||
-		    !process_contaminant_alert(chip->contaminant, false, true)) {
+		if (chip->contaminant_detection && tcpm_is_toggling(tcpci->port)) {
+			ret = process_contaminant_alert(chip->contaminant, false, true,
+							&contaminant_cc_update_handled);
+			if (ret < 0)
+				goto reschedule;
+			/*
+			 * Invoke TCPM when CC update not related to contaminant
+			 * detection.
+			 */
+			invoke_tcpm_for_cc_update = !contaminant_cc_update_handled;
+			/*
+			 * CC status change handled by contaminant algorithm.
+			 * Handle floating cable if detected.
+			 */
+			if (contaminant_cc_update_handled) {
+				logbuffer_log(log, "CC update: Contaminant algorithm responded");
+				if (is_floating_cable_or_sink_detected(chip))
+					floating_cable_sink_detected_handler_locked(chip);
+			}
+		} else {
+			invoke_tcpm_for_cc_update = true;
+		}
+
+		if (invoke_tcpm_for_cc_update) {
 			tcpm_cc_change(tcpci->port);
 			max77759_cache_cc(chip);
 			/* TCPM has detected valid CC terminations */
@@ -1330,7 +1362,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				 * when contaminant detection is enabled.
 				 */
 				if (chip->contaminant_detection_userspace !=
-				    CONTAMINANT_DETECT_DISABLE)
+					CONTAMINANT_DETECT_DISABLE)
 					disable_auto_ultra_low_power_mode(chip, false);
 			} else {
 				/*
@@ -1347,10 +1379,6 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				 */
 				floating_cable_sink_detected_handler_locked(chip);
 			}
-		} else {
-			logbuffer_log(log, "CC update: Contaminant algorithm responded");
-			if (is_floating_cable_or_sink_detected(chip))
-				floating_cable_sink_detected_handler_locked(chip);
 		}
 		mutex_unlock(&chip->rc_lock);
 	}
@@ -1361,7 +1389,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	if (status & TCPC_ALERT_V_ALARM_LO) {
 		ret = max77759_read16(tcpci->regmap, TCPC_VBUS_VOLTAGE_ALARM_LO_CFG, &raw);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 
 		logbuffer_log(log, "VBUS LOW ALARM triggered: thresh:%umv vbus:%umv",
 			      (raw & TCPC_VBUS_VOLTAGE_MASK) * TCPC_VBUS_VOLTAGE_LSB_MV,
@@ -1376,7 +1404,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	if (status & TCPC_ALERT_V_ALARM_HI) {
 		ret = max77759_read16(tcpci->regmap, TCPC_VBUS_VOLTAGE_ALARM_HI_CFG, &raw);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 
 		logbuffer_log(log, "VBUS HIGH ALARM triggered: thresh:%umv vbus:%umv",
 			      (raw & TCPC_VBUS_VOLTAGE_MASK) * TCPC_VBUS_VOLTAGE_LSB_MV,
@@ -1395,7 +1423,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 				       TCPC_VBUS_SINK_DISCONNECT_THRESH,
 				       0);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 
 		tcpm_pd_hard_reset(tcpci->port);
 		max77759_init_regs(tcpci->regmap, log);
@@ -1410,11 +1438,11 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		ret = max77759_write8(tcpci->regmap, TCPC_VENDOR_ALERT_MASK
 				      , 0xff);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 		ret = max77759_write8(tcpci->regmap,
 				      TCPC_VENDOR_ALERT_MASK2, 0xff);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 	}
 
 	if (status & TCPC_ALERT_EXTENDED_STATUS) {
@@ -1422,7 +1450,7 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 		ret = max77759_read8(tcpci->regmap, TCPC_EXTENDED_STATUS,
 				     (u8 *)&raw);
 		if (ret < 0)
-			return ret;
+			goto reschedule;
 
 		vsafe0v = raw & TCPC_EXTENDED_STATUS_VSAFE0V;
 		logbuffer_log(log, "VSAFE0V (runtime): %c -> %c", chip->vsafe0v ? 'Y' : 'N',
@@ -1455,6 +1483,13 @@ static irqreturn_t _max77759_irq(struct max77759_plat *chip, u16 status,
 	logbuffer_log(log, "TCPC_ALERT status done: %#x", status);
 
 	return IRQ_HANDLED;
+reschedule:
+	chip->irq_status = status;
+	logbuffer_log(log, "TCPC_ALERT IO error occurred. status: %#x", status);
+	kthread_mod_delayed_work(chip->wq, &chip->max77759_io_error_work,
+				 msecs_to_jiffies(IO_ERROR_RETRY_MS));
+	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS + IO_ERROR_RETRY_MS);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t max77759_irq(int irq, void *dev_id)
@@ -1471,8 +1506,9 @@ static irqreturn_t max77759_irq(int irq, void *dev_id)
 	ret = max77759_read16(chip->tcpci->regmap, TCPC_ALERT, &status);
 	if (ret < 0)
 		return ret;
+	mutex_lock(&chip->irq_status_lock);
 	while (status) {
-		irq_return = _max77759_irq(chip, status, chip->log);
+		irq_return = _max77759_irq_locked(chip, status, chip->log);
 		/* Do not return if the ALERT is already set. */
 		logbuffer_log(chip->log, "TCPC_ALERT read alert status");
 		ret = max77759_read16(chip->tcpci->regmap, TCPC_ALERT, &status);
@@ -1481,6 +1517,7 @@ static irqreturn_t max77759_irq(int irq, void *dev_id)
 		logbuffer_log(chip->log, "TCPC_ALERT status pending: %#x",
 			      status);
 	}
+	mutex_unlock(&chip->irq_status_lock);
 
 	return irq_return;
 }
@@ -1496,6 +1533,18 @@ static irqreturn_t max77759_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	return IRQ_WAKE_THREAD;
+}
+
+static void max77759_io_error_work(struct kthread_work *work)
+{
+	struct max77759_plat *chip =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct max77759_plat, max77759_io_error_work);
+	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
+	mutex_lock(&chip->irq_status_lock);
+	logbuffer_log(chip->log, "IO error retry. status: %#x", chip->irq_status);
+	_max77759_irq_locked(chip, chip->irq_status, chip->log);
+	mutex_unlock(&chip->irq_status_lock);
 }
 
 static int max77759_init_alert(struct max77759_plat *chip,
@@ -1631,17 +1680,24 @@ unlock:
 }
 
 static void max77759_check_contaminant(void *unused, struct tcpci *tcpci, struct tcpci_data *tdata,
-				       int *ret)
+				       int *restart_toggling)
 {
 	struct max77759_plat *chip = tdata_to_max77759(tdata);
+	bool contaminant_cc_status_handled = false;
+	int ret = 0;
 
 	logbuffer_log(chip->log, "%s: debounce path", __func__);
 	mutex_lock(&chip->rc_lock);
 	if (chip->contaminant_detection) {
-		process_contaminant_alert(chip->contaminant, true, false);
-		*ret = CONTAMINANT_HANDLES_TOGGLING;
+		/*
+		 * contaminant_cc_status_handled unused as contaminant detection
+		 * is expected to restart toggling as needed unless EIO.
+		 */
+		ret = process_contaminant_alert(chip->contaminant, true, false,
+						&contaminant_cc_status_handled);
+		*restart_toggling = ret < 0 ? TCPM_RESTART_TOGGLING : CONTAMINANT_HANDLES_TOGGLING;
 	} else {
-		*ret = TCPM_RESTART_TOGGLING;
+		*restart_toggling = TCPM_RESTART_TOGGLING;
 	}
 
 	mutex_unlock(&chip->rc_lock);
@@ -2374,6 +2430,7 @@ static int max77759_probe(struct i2c_client *client,
 	mutex_init(&chip->icl_proto_el_lock);
 	mutex_init(&chip->data_path_lock);
 	mutex_init(&chip->rc_lock);
+	mutex_init(&chip->irq_status_lock);
 	spin_lock_init(&g_caps_lock);
 	chip->first_toggle = true;
 
@@ -2507,6 +2564,7 @@ static int max77759_probe(struct i2c_client *client,
 	kthread_init_delayed_work(&chip->icl_work, icl_work_item);
 	kthread_init_delayed_work(&chip->enable_vbus_work, enable_vbus_work);
 	kthread_init_delayed_work(&chip->vsafe0v_work, vsafe0v_debounce_work);
+	kthread_init_delayed_work(&chip->max77759_io_error_work, max77759_io_error_work);
 
 	/*
 	 * b/218797880 Some OVP chips are restricted to quick Vin ramp-up time which means that if
