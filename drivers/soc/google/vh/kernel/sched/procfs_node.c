@@ -1322,18 +1322,18 @@ static ssize_t sched_lib_cpu_freq_cached_store(struct file *filp,
 
 PROC_OPS_RW(sched_lib_cpu_freq_cached);
 
-extern unsigned int sched_lib_freq_val;
-static sched_lib_freq_show(struct seq_file *m, void *v)
+extern unsigned int sched_lib_freq_cpumask;
+static sched_lib_freq_cpumask_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "%d\n", sched_lib_freq_val);
+	seq_printf(m, "%d\n", sched_lib_freq_cpumask);
 	return 0;
 }
 
-static ssize_t sched_lib_freq_store(struct file *filp,
+static ssize_t sched_lib_freq_cpumask_store(struct file *filp,
 							const char __user *ubuf,
 							size_t count, loff_t *pos)
 {
-	int dup_sched_lib_freq_val = 0;
+	int dup_sched_lib_freq_cpumask = 0;
 	char buf[MAX_PROC_SIZE];
 
 	if (count >= sizeof(buf))
@@ -1344,14 +1344,14 @@ static ssize_t sched_lib_freq_store(struct file *filp,
 
 	buf[count] = '\0';
 
-	if (kstrtoint(buf, 10, &dup_sched_lib_freq_val))
+	if (kstrtoint(buf, 10, &dup_sched_lib_freq_cpumask))
 		return -EINVAL;
 
-	sched_lib_freq_val = dup_sched_lib_freq_val;
+	sched_lib_freq_cpumask = dup_sched_lib_freq_cpumask;
 	return count;
 }
 
-PROC_OPS_RW(sched_lib_freq);
+PROC_OPS_RW(sched_lib_freq_cpumask);
 
 extern unsigned int sched_lib_affinity_val;
 static sched_lib_affinity_show(struct seq_file *m, void *v)
@@ -1531,7 +1531,7 @@ static struct pentry entries[] = {
 	PROC_ENTRY(uclamp_fork_reset_clear),
 	// sched lib
 	PROC_ENTRY(sched_lib_cpu_freq_cached),
-	PROC_ENTRY(sched_lib_freq),
+	PROC_ENTRY(sched_lib_freq_cpumask),
 	PROC_ENTRY(sched_lib_affinity),
 	PROC_ENTRY(sched_lib_name),
 };
