@@ -309,7 +309,7 @@ static bool is_subsystem_on(unsigned int addr)
 
 static int bcl_odpm_map(int id)
 {
-#if IS_ENABLED(CONFIG_SOC_GS201) || IS_ENABLED(CONFIG_SOC_GS101)
+#if IS_ENABLED(CONFIG_SOC_GS201)
 	switch (id) {
 	case OCP_WARN_GPU:
 	case SOFT_OCP_WARN_GPU:
@@ -324,6 +324,20 @@ static int bcl_odpm_map(int id)
 	case SOFT_OCP_WARN_CPUCL2:
 	default:
 		return BUCK2;
+	}
+#endif
+#if IS_ENABLED(CONFIG_SOC_GS101)
+	switch (id) {
+	case OCP_WARN_GPU:
+	case SOFT_OCP_WARN_GPU:
+		return 6;
+	case OCP_WARN_CPUCL1:
+	case SOFT_OCP_WARN_CPUCL1:
+		return 4;
+	case OCP_WARN_CPUCL2:
+	case SOFT_OCP_WARN_CPUCL2:
+	default:
+		return 3;
 	}
 #endif
 	return BUCK2;
@@ -377,7 +391,7 @@ static int triggered_read_level(void *data, int *val, int id)
 		odpm_get_lpf_values(bcl_dev->sub_odpm, S2MPG1X_METER_CURRENT, micro_unit);
 		odpm_current = micro_unit[bcl_odpm_map(id)] / 1000;
 		mutex_unlock(&bcl_dev->sub_odpm->lock);
-	} else {
+	} else if ((id > SMPL_WARN) && (id < OCP_WARN_TPU)) {
 		mutex_lock(&bcl_dev->main_odpm->lock);
 		odpm_get_lpf_values(bcl_dev->main_odpm, S2MPG1X_METER_CURRENT, micro_unit);
 		odpm_current = micro_unit[bcl_odpm_map(id)] / 1000;
