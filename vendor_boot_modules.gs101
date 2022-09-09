@@ -27,6 +27,7 @@ clk_exynos.ko
 cmupmucal.ko
 cp_thermal_zone.ko
 cpif.ko
+cpif_page.ko
 dbgcore-dump.ko
 debug-reboot.ko
 debug-snapshot-debug-kinfo.ko
@@ -42,8 +43,7 @@ exynos-acme.ko
 exynos-adv-tracer-s2d.ko
 exynos-adv-tracer.ko
 exynos-bcm_dbg-dump.ko
-exynos-bts.ko
-exynos-btsopsgs101.ko
+bts.ko
 exynos-coresight-etm.ko
 exynos-coresight.ko
 exynos-cpuhp.ko
@@ -77,7 +77,7 @@ google_dual_batt_gauge.ko
 governor_memlat.ko
 gpu_cooling.ko
 gs-chipid.ko
-gs101-itmon.ko
+itmon.ko
 gs101_spmic_thermal.ko
 gs_thermal.ko
 gs_acpm.ko
