@@ -1680,7 +1680,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 			alt_data->map_row_cnt = map_cnt / NUM_COLS;
 			alt_data->mif_int_tbl =
 				devm_kcalloc(data->dev, alt_data->map_row_cnt,
-					     sizeof(u32), GFP_KERNEL);
+					     sizeof(*alt_data->mif_int_tbl), GFP_KERNEL);
 			if (!alt_data->mif_int_tbl) {
 				dev_err(data->dev,
 					"Failed to allocate memory for mif_int_tbl\n");
