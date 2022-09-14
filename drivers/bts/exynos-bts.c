@@ -1399,7 +1399,8 @@ static int bts_parse_data(struct device_node *np, struct bts_device *data)
 	}
 	data->map_row_cnt = map_cnt / NUM_COLS;
 	data->bus1_int_tbl =
-		devm_kcalloc(data->dev, data->map_row_cnt, sizeof(u32), GFP_KERNEL);
+		devm_kcalloc(data->dev, data->map_row_cnt, sizeof(*data->bus1_int_tbl),
+				GFP_KERNEL);
 	if (!data->bus1_int_tbl) {
 		dev_err(data->dev,
 			"Failed to allocate memory for bus1_int_tbl\n");
