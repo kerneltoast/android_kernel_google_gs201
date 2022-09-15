@@ -23,6 +23,7 @@
 
 #include <linux/devfreq.h>
 #include <soc/google/exynos-devfreq.h>
+#include <trace/events/power.h>
 #include <uapi/linux/sched/types.h>
 
 #include "dvfs_events.h"
@@ -213,7 +214,7 @@ static unsigned long update_load(struct devfreq_dev_status *stat,
 					     int_freq);
 	}
 	trace_dvfs_update_load(freq, alt_data, idx, int_freq);
-
+	trace_clock_set_rate("MIF_ALT", freq, raw_smp_processor_id());
 	data->governor_freq = freq;
 
 	return freq;
