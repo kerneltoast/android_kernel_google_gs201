@@ -33,7 +33,8 @@ enum pktproc_end_bit_owner {
 
 /* Padding required by CP */
 #define CP_PADDING		76
-#define HIPRIO_MAX_PACKET_SIZE	roundup_pow_of_two(128 + CP_PADDING)
+#define MAX_UL_PACKET_SIZE		512
+#define HIPRIO_MAX_PACKET_SIZE	roundup_pow_of_two(MAX_UL_PACKET_SIZE + CP_PADDING)
 
 /* Q_info */
 struct pktproc_q_info_ul {
