@@ -335,6 +335,11 @@ static int pktproc_get_info_ul(struct pktproc_adaptor_ul *ppa_ul,
 {
 	mif_dt_read_u64(np, "pktproc_cp_base", ppa_ul->cp_base);
 	mif_dt_read_u32(np, "pktproc_ul_num_queue", ppa_ul->num_queue);
+	if (ppa_ul->num_queue == 1 && !IS_ENABLED(CONFIG_CP_PKTPROC_UL_SINGLE_QUEUE)) {
+		mif_err("Need to enable UL single queue config for single UL queue\n");
+		panic("Need to enable UL single queue config for single UL queue.\n");
+		return -EINVAL;
+	}
 	mif_dt_read_u32(np, "pktproc_ul_max_packet_size", ppa_ul->default_max_packet_size);
 	mif_dt_read_u32_noerr(np, "pktproc_ul_hiprio_ack_only", ppa_ul->hiprio_ack_only);
 	mif_dt_read_u32(np, "pktproc_ul_use_hw_iocc", ppa_ul->use_hw_iocc);

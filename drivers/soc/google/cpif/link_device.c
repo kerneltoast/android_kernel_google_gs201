@@ -1231,27 +1231,42 @@ static enum hrtimer_restart pktproc_tx_timer_func(struct hrtimer *timer)
 static int xmit_ipc_to_pktproc(struct mem_link_device *mld, struct sk_buff *skb)
 {
 	struct pktproc_adaptor_ul *ppa_ul = &mld->pktproc_ul;
-	struct pktproc_queue_ul *q;
+	// Set the ul queue to high priority by default.
+	struct pktproc_queue_ul *q = ppa_ul->q[PKTPROC_UL_HIPRIO];
 	int len;
 	int ret = -EBUSY;
 	unsigned long flags;
-
-	if (ppa_ul->num_queue == 1)
-		q = ppa_ul->q[PKTPROC_UL_QUEUE_0];
-	else if (skb->queue_mapping == 1)
-		q = ppa_ul->q[PKTPROC_UL_HIPRIO];
-	else
-		q = ppa_ul->q[PKTPROC_UL_NORM];
 
 	if (ppa_ul->padding_required)
 		len = skb->len + CP_PADDING;
 	else
 		len = skb->len;
 
-	if (len > q->max_packet_size) {
-		mif_err_limited("ERR! PKTPROC UL QUEUE[%d] skb len:%d too large (max:%u)\n",
+	/* Set ul queue
+	 * 1) The queue is high priority(PKTPROC_UL_HIPRIO) by default.
+	 * 2) If there is only one UL queue, set queue to PKTPROC_UL_QUEUE_0.
+	 *    This check need to enable CONFIG_CP_PKTPROC_UL_SINGLE_QUEUE.
+	 * 3) If queue_mapping of skb is not 1(normal priority), set queue to
+	 *    PKTPROC_UL_NORM.
+	 * 4) If queue_mapping of skb is 1(high priority), and skb length larger then
+	 *    the maximum packet size of high priority queue, set queue to
+	 *    PKTPROC_UL_NORM.
+	 * 5) Check again if the skb length exceeds the maximum size of
+	 *    PKTPROC_UL_NORM queue.
+	 */
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL_SINGLE_QUEUE)
+	if (ppa_ul->num_queue == 1)
+		q = ppa_ul->q[PKTPROC_UL_QUEUE_0];
+	else
+#endif
+	if (skb->queue_mapping != 1 ||
+		(skb->queue_mapping == 1 && len > q->max_packet_size)) {
+		q = ppa_ul->q[PKTPROC_UL_NORM];
+		if (len > q->max_packet_size) {
+			mif_err_limited("ERR!PKTPROC UL QUEUE:%d skb len:%d too large (max:%u)\n",
 				q->q_idx, len, q->max_packet_size);
-		return -EINVAL;
+			return -EINVAL;
+		}
 	}
 
 	if (spin_trylock_irqsave(&q->lock, flags)) {
