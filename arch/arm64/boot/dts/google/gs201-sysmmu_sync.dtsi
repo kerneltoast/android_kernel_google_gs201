@@ -194,9 +194,4 @@
 		compatible = "google,sysmmu_sync";
 		reg = <0x0 0x1bf40000 0x10000>;
 	};
-
-	sysmmu_sync_tpu: sysmmu_sync_tpu@1cca0000 {
-		compatible = "google,sysmmu_sync";
-		reg = <0x0 0x1cca0000 0x10000>;
-	};
 };

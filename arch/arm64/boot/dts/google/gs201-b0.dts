@@ -148,9 +148,6 @@
 &s2mpu_tnr4 {
 	sysmmu_syncs = <&sysmmu_sync_tnr4>;
 };
-&s2mpu_tpu {
-	sysmmu_syncs = <&sysmmu_sync_tpu>;
-};
 
 / {
 	tmuctrl_0: BIG@100A0000 {
