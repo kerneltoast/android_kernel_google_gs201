@@ -268,8 +268,11 @@ obj-$(CONFIG_MFD_S2MPG10) 		+= s2mpg10-mfd.o
 s2mpg10-mfd-$(CONFIG_MFD_S2MPG10) 	+= s2mpg10-core.o s2mpg10-irq.o
 obj-$(CONFIG_MFD_S2MPG11) 		+= s2mpg11-mfd.o
 s2mpg11-mfd-$(CONFIG_MFD_S2MPG11) 	+= s2mpg11-core.o s2mpg11-irq.o
-obj-$(CONFIG_MFD_S2MPG1X_GPIO) 	+= s2mpg1x-gpio.o
-
+ifeq ($(CONFIG_SOC_GS101),y)
+obj-$(CONFIG_MFD_S2MPG1X_GPIO)	+= s2mpg1x-gpio-gs101.o
+else
+obj-$(CONFIG_MFD_S2MPG1X_GPIO)	+= s2mpg1x-gpio-gs201.o
+endif
 obj-$(CONFIG_MFD_S2MPG12) 		+= s2mpg12-mfd.o
 s2mpg12-mfd-$(CONFIG_MFD_S2MPG12) 	+= s2mpg12-core.o s2mpg12-irq.o
 obj-$(CONFIG_MFD_S2MPG13) 		+= s2mpg13-mfd.o
