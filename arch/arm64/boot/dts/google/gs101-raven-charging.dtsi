@@ -13,5 +13,5 @@
 
 &google_charger {
 	google,thermal-mitigation = <5000000 4000000 2500000 1000000>;
-	google,wlc-fcc-thermal-mitigation = <5000000 5000000 4000000 2500000 1000000>;
+	google,wlc-fcc-thermal-mitigation = <5000000 4000000 3000000 2500000 1000000>;
 };
