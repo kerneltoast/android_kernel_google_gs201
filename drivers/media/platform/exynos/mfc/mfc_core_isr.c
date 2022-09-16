@@ -310,7 +310,7 @@ static struct mfc_buf *__mfc_handle_frame_output_del(struct mfc_core *core,
 	unsigned int is_content_light = 0, is_display_colour = 0;
 	unsigned int is_hdr10_plus_sei = 0, is_av1_film_grain_sei = 0;
 	unsigned int is_uncomp = 0;
-	unsigned int i, index, idr_flag;
+	unsigned int i, index, idr_flag, is_last_display;
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_dec)) {
 		is_video_signal_type = mfc_core_get_video_signal_type();
@@ -343,6 +343,8 @@ static struct mfc_buf *__mfc_handle_frame_output_del(struct mfc_core *core,
 		frame_type = mfc_core_get_disp_frame_type();
 		idr_flag = mfc_core_get_disp_idr_flag();
 	}
+
+	is_last_display = mfc_core_get_last_display();
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->sbwc_uncomp) && ctx->is_sbwc)
 		is_uncomp = mfc_core_get_uncomp();
@@ -447,6 +449,11 @@ static struct mfc_buf *__mfc_handle_frame_output_del(struct mfc_core *core,
 			mfc_set_mb_flag(dst_mb, MFC_FLAG_FRAMERATE_CH);
 			ctx->update_framerate = false;
 			mfc_debug(2, "[QoS] framerate changed\n");
+		}
+
+		if (is_last_display) {
+			mfc_set_mb_flag(dst_mb, MFC_FLAG_LAST_FRAME);
+			mfc_debug(2, "[FRAME] Last display frame\n");
 		}
 
 		if ((IS_VP9_DEC(ctx) || IS_AV1_DEC(ctx)) && dec->has_multiframe) {
