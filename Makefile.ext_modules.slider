@@ -23,6 +23,7 @@ ext_modules += touch/common
 ext_modules += touch/fts/ftm5
 ext_modules += touch/sec
 ext_modules += wlan/bcmdhd4389
+ext_modules += video/gchips
 
 # Add any modules which have their own UAPI headers to this list.  This will
 # cause the build to run the module makefile with headers_install target.
