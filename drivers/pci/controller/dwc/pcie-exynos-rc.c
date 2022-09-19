@@ -350,15 +350,15 @@ void exynos_pcie_set_perst_gpio(int ch_num, bool on)
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 
 	if (exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM) {
-		pr_info("%s: force settig for abnormal state\n", __func__);
+		pr_debug("%s: force setting for abnormal state\n", __func__);
 		if (on) {
 			gpio_set_value(exynos_pcie->perst_gpio, 1);
-			pr_info("%s: Set PERST to HIGH, gpio val = %d\n",
-				__func__, gpio_get_value(exynos_pcie->perst_gpio));
+			pr_debug("%s: Set PERST to HIGH, gpio val = %d\n",
+				 __func__, gpio_get_value(exynos_pcie->perst_gpio));
 		} else {
 			gpio_set_value(exynos_pcie->perst_gpio, 0);
-			pr_info("%s: Set PERST to LOW, gpio val = %d\n",
-				__func__, gpio_get_value(exynos_pcie->perst_gpio));
+			pr_debug("%s: Set PERST to LOW, gpio val = %d\n",
+				 __func__, gpio_get_value(exynos_pcie->perst_gpio));
 		}
 	}
 }
@@ -2476,11 +2476,11 @@ program_msi_data:
 	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, &mask_val);
 
 	if (exynos_pcie->separated_msi) {
-		pr_info("Enable Separated MSI IRQs.\n");
+		pr_debug("Enable Separated MSI IRQs.\n");
 		for (i = PCIE_START_SEP_MSI_VEC; i < PCIE_MAX_SEPA_IRQ_NUM; i++) {
 			if (sep_msi_vec[exynos_pcie->ch_num][i].is_used) {
 				/* Enable MSI interrupt for separated MSI. */
-				pr_info("Separated MSI%d is Enabled.\n", i);
+				pr_debug("Separated MSI%d is Enabled.\n", i);
 				exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE +
 						(i * MSI_REG_CTRL_BLOCK_SIZE), 4, 0x1);
 				exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_MASK +
@@ -2489,7 +2489,7 @@ program_msi_data:
 		}
 	}
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
-	dev_info(dev, "MSI INIT: check MSI_INTR0_ENABLE(0x%x): 0x%x\n", PCIE_MSI_INTR0_ENABLE, val);
+	dev_dbg(dev, "MSI INIT: check MSI_INTR0_ENABLE(0x%x): 0x%x\n", PCIE_MSI_INTR0_ENABLE, val);
 	if (exynos_pcie->ep_device_type != EP_QC_WIFI) {
 		if (val != 0xf1) {
 			exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_ENABLE, 4, 0xf1);
@@ -2497,14 +2497,14 @@ program_msi_data:
 		}
 	}
 
-	dev_info(dev, "MSI INIT: check MSI_INTR0_MASK(0x%x): 0x%x\n", PCIE_MSI_INTR0_MASK, mask_val);
+	dev_dbg(dev, "MSI INIT: check MSI_INTR0_MASK(0x%x): 0x%x\n", PCIE_MSI_INTR0_MASK, mask_val);
 	mask_val &= ~(val);
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, mask_val);
 	udelay(1);
 	exynos_pcie_rc_rd_own_conf(pp, PCIE_MSI_INTR0_MASK, 4, &mask_val);
 #endif
 
-	dev_info(dev, "%s: MSI INIT END (MSI_ENABLE(0x%x)=0x%x, MSI_MASK(0x%x)=0x%x)\n",
+	dev_dbg(dev, "%s: MSI INIT END (MSI_ENABLE(0x%x)=0x%x, MSI_MASK(0x%x)=0x%x)\n",
 		__func__, PCIE_MSI_INTR0_ENABLE, val, PCIE_MSI_INTR0_MASK, mask_val);
 
 	return 0;
@@ -2652,7 +2652,7 @@ retry:
 	/* set #PERST high */
 	gpio_set_value(exynos_pcie->perst_gpio, 1);
 
-	dev_info(dev, "%s: Set PERST to HIGH, gpio val = %d\n",
+	dev_dbg(dev, "%s: Set PERST to HIGH, gpio val = %d\n",
 		__func__, gpio_get_value(exynos_pcie->perst_gpio));
 	if (exynos_pcie->ep_device_type == EP_BCM_WIFI) {
 		usleep_range(20000, 22000);
@@ -2722,7 +2722,7 @@ retry:
 
 		if (try_cnt < 10) {
 			gpio_set_value(exynos_pcie->perst_gpio, 0);
-			dev_info(dev, "%s: Set PERST to LOW, gpio val = %d\n", __func__,
+			dev_dbg(dev, "%s: Set PERST to LOW, gpio val = %d\n", __func__,
 				gpio_get_value(exynos_pcie->perst_gpio));
 			/* LTSSM disable */
 			exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE,
@@ -2759,7 +2759,7 @@ retry:
 
 		exynos_pcie_rc_rd_own_conf(pp, PCIE_LINK_CTRL_STAT, 4, &val);
 		val = (val >> 16) & 0xf;
-		dev_info(dev, "Current Link Speed is GEN%d (MAX GEN%d)\n",
+		dev_dbg(dev, "Current Link Speed is GEN%d (MAX GEN%d)\n",
 			val, exynos_pcie->max_link_speed);
 
 		/* check link training result(speed) */
@@ -2769,7 +2769,7 @@ retry:
 				__func__, try_cnt);
 			if (try_cnt < 10) {
 				gpio_set_value(exynos_pcie->perst_gpio, 0);
-				dev_info(dev, "Set PERST LOW, gpio val = %d\n",
+				dev_dbg(dev, "Set PERST LOW, gpio val = %d\n",
 					gpio_get_value(exynos_pcie->perst_gpio));
 				/* LTSSM disable */
 				exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE,
@@ -2785,7 +2785,7 @@ retry:
 
 		/* check L0 state one more time after link recovery */
 		count = 0;
-		dev_info(dev, "check L0 state after link recovery\n");
+		dev_dbg(dev, "check L0 state after link recovery\n");
 		while (count < MAX_TIMEOUT) {
 			val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
 			      & PCIE_ELBI_LTSSM_STATE_MASK;
@@ -2908,7 +2908,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 		power_stats_update_up(exynos_pcie);
 
-		dev_info(dev, "[%s] exynos_pcie->probe_ok : %d\n", __func__, exynos_pcie->probe_ok);
+		dev_dbg(dev, "[%s] exynos_pcie->probe_ok : %d\n", __func__, exynos_pcie->probe_ok);
 		if (!exynos_pcie->probe_ok) {
 			exynos_pcie_rc_rd_own_conf(pp, PCI_VENDOR_ID, 4, &val);
 			vendor_id = val & ID_MASK;
@@ -3042,7 +3042,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		exynos_elbi_write(exynos_pcie, val, PCIE_STATE_HISTORY_CHECK);
 
 		gpio_set_value(exynos_pcie->perst_gpio, 0);
-		dev_info(dev, "%s: Set PERST to LOW, gpio val = %d\n",
+		dev_dbg(dev, "%s: Set PERST to LOW, gpio val = %d\n",
 			__func__, gpio_get_value(exynos_pcie->perst_gpio));
 
 		/* LTSSM disable */
@@ -3541,7 +3541,7 @@ int exynos_pcie_poweron(int ch_num, int spd)
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 	struct dw_pcie *pci = exynos_pcie->pci;
 
-	dev_info(pci->dev, "%s requested with link speed GEN%d\n", __func__, spd);
+	dev_dbg(pci->dev, "%s requested with link speed GEN%d\n", __func__, spd);
 	exynos_pcie->max_link_speed = spd;
 
 	return exynos_pcie_rc_poweron(ch_num);
@@ -3795,7 +3795,7 @@ int exynos_pcie_rc_set_enable_wake(struct irq_data *data, unsigned int enable)
 	int ret = 0;
 	struct pcie_port *pp = data->parent_data->domain->host_data;
 
-	pr_info("%s: enable = %d\n", __func__, enable);
+	pr_debug("%s: enable = %d\n", __func__, enable);
 
 	if (pp == NULL) {
 		pr_err("Warning: exynos_pcie_rc_set_enable_wake: not exist pp\n");
