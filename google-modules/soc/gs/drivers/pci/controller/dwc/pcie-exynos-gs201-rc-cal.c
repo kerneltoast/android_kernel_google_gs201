@@ -37,7 +37,7 @@ void exynos_pcie_rc_phy_all_pwrdn(struct exynos_pcie *exynos_pcie, int ch_num)
 {
 	void __iomem *phy_base_regs = exynos_pcie->phy_base;
 
-	dev_info(exynos_pcie->pci->dev, "[CAL: %s]\n", __func__);
+	dev_dbg(exynos_pcie->pci->dev, "[CAL: %s]\n", __func__);
 	writel(0x20, phy_base_regs + 0x408);
 	writel(0x0A, phy_base_regs + 0x40C);
 
@@ -63,7 +63,7 @@ void exynos_pcie_rc_phy_all_pwrdn_clear(struct exynos_pcie *exynos_pcie, int ch_
 {
 	void __iomem *phy_base_regs = exynos_pcie->phy_base;
 
-	dev_info(exynos_pcie->pci->dev, "[CAL: %s]\n", __func__);
+	dev_dbg(exynos_pcie->pci->dev, "[CAL: %s]\n", __func__);
 	writel(0x28, phy_base_regs + 0xD8);
 	mdelay(1);
 
@@ -105,7 +105,7 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	u32 val;
 	u32 i;
 
-	dev_info(exynos_pcie->pci->dev, "[CAL: %s] CAL ver 210802\n", __func__);
+	dev_dbg(exynos_pcie->pci->dev, "[CAL: %s] CAL ver 210802\n", __func__);
 
 	/* init. input clk path */
 	writel(0x28, phy_base_regs + 0xD8);
@@ -334,8 +334,8 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	val |= (0x1 << 4);
 	val &= ~(0x1 << 3);
 	writel(val, phy_base_regs + 0x5D0);
-	dev_info(exynos_pcie->pci->dev, "[%s] XO clock configuration : 0x%x\n",
-			__func__, readl(phy_base_regs + 0x5D0));
+	dev_dbg(exynos_pcie->pci->dev, "[%s] XO clock configuration : 0x%x\n",
+		__func__, readl(phy_base_regs + 0x5D0));
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_pcie_phy_config);
 

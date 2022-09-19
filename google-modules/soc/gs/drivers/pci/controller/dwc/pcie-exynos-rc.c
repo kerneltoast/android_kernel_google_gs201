@@ -411,15 +411,15 @@ void exynos_pcie_set_perst_gpio(int ch_num, bool on)
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 
 	if (exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM) {
-		pr_info("%s: force settig for abnormal state\n", __func__);
+		pr_debug("%s: force setting for abnormal state\n", __func__);
 		if (on) {
 			gpio_set_value(exynos_pcie->perst_gpio, 1);
-			pr_info("%s: Set PERST to HIGH, gpio val = %d\n",
-				__func__, gpio_get_value(exynos_pcie->perst_gpio));
+			pr_debug("%s: Set PERST to HIGH, gpio val = %d\n",
+				 __func__, gpio_get_value(exynos_pcie->perst_gpio));
 		} else {
 			gpio_set_value(exynos_pcie->perst_gpio, 0);
-			pr_info("%s: Set PERST to LOW, gpio val = %d\n",
-				__func__, gpio_get_value(exynos_pcie->perst_gpio));
+			pr_debug("%s: Set PERST to LOW, gpio val = %d\n",
+				 __func__, gpio_get_value(exynos_pcie->perst_gpio));
 		}
 	}
 }
@@ -3759,7 +3759,7 @@ retry:
 				__func__, try_cnt);
 			if (try_cnt < 10) {
 				gpio_set_value(exynos_pcie->perst_gpio, 0);
-				dev_info(dev, "Set PERST LOW, gpio val = %d\n",
+				dev_dbg(dev, "Set PERST LOW, gpio val = %d\n",
 					gpio_get_value(exynos_pcie->perst_gpio));
 				/* LTSSM disable */
 				exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE,
