@@ -223,7 +223,7 @@ static void __sysmmu_disable_nocount(struct sysmmu_drvdata *drvdata, int pcie_vi
 void pcie_sysmmu_set_use_iocc(int hsi_block_num)
 {
 	if (g_sysmmu_drvdata[hsi_block_num]) {
-		pr_info("Set PCIe use IOCC flag.\n");
+		pr_debug("Set PCIe use IOCC flag.\n");
 		g_sysmmu_drvdata[hsi_block_num]->pcie_use_iocc = 1;
 	}
 }
