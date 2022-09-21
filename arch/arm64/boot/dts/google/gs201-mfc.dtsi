@@ -184,6 +184,9 @@
 		/* need control for mfc idle clock */
 		idle_clk_ctrl = <0>;
 
+		/* Encoder RGB CSC formula by VUI from F/W */
+		enc_rgb_csc_by_fw = <1>;
+
 		/* Sub nodes for MFC core */
 		#address-cells = <2>;
 		#size-cells = <1>;
