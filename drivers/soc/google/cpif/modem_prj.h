@@ -182,6 +182,8 @@ struct t_handover_block_info {
 
 #define IOCTL_SET_SPI_BOOT_MODE		_IO('o', 0x58)
 
+#define IOCTL_GET_OPENED_STATUS 	_IOR(IOCTL_MAGIC, 0x59, int)
+
 /*
  * Definitions for IO devices
  */

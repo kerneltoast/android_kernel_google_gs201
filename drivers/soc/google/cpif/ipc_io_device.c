@@ -131,6 +131,7 @@ static long ipc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct link_device *ld = get_current_link(iod);
 	struct modem_ctl *mc = iod->mc;
 	enum modem_state p_state;
+	int ret = 0, value;
 
 	switch (cmd) {
 	case IOCTL_GET_CP_STATUS:
@@ -195,6 +196,14 @@ static long ipc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		return mc->ops.trigger_cp_crash(mc);
 	}
+
+	case IOCTL_GET_OPENED_STATUS:
+		mif_debug("%s: IOCTL_GET_OPENED_STATUS\n", iod->name);
+		value = atomic_read(&iod->opened);
+		ret = copy_to_user((void __user *)arg, &value, sizeof(value));
+		if (ret)
+			mif_err("IOCTL_GET_OPENED_STATUS error: %d\n", ret);
+		return ret;
 
 	default:
 		 /* If you need to handle the ioctl for specific link device,

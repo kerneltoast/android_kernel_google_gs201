@@ -139,7 +139,7 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	struct modem_ctl *mc = iod->mc;
 	enum modem_state p_state;
 	struct cpif_version version;
-	int ret = 0;
+	int ret = 0, value;
 	struct mem_link_device *mld;
 
 	switch (cmd) {
@@ -403,6 +403,14 @@ static long bootdump_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 
 		mif_info("%s: IOCTL_SET_SPI_BOOT_MODE\n", iod->name);
 		return 0;
+
+	case IOCTL_GET_OPENED_STATUS:
+		mif_debug("%s: IOCTL_GET_OPENED_STATUS\n", iod->name);
+		value = atomic_read(&iod->opened);
+		ret = copy_to_user((void __user *)arg, &value, sizeof(value));
+		if (ret)
+			mif_err("IOCTL_GET_OPENED_STATUS error: %d\n", ret);
+		return ret;
 
 	default:
 		 /* If you need to handle the ioctl for specific link device,
