@@ -1496,6 +1496,7 @@ static void __mfc_core_nal_q_handle_stream(struct mfc_core *core, struct mfc_cor
 	int slice_type, consumed_only = 0;
 	unsigned int strm_size;
 	unsigned int pic_count;
+	unsigned int sbwc_err;
 
 	mfc_debug_enter();
 
@@ -1515,9 +1516,15 @@ static void __mfc_core_nal_q_handle_stream(struct mfc_core *core, struct mfc_cor
 	ctx->sequence++;
 
 	if (strm_size == 0) {
-		mfc_debug(2, "[FRAME] dst buffer is not returned\n");
+		mfc_debug(2, "[NALQ][STREAM] dst buffer is not returned\n");
 		consumed_only = 1;
 	}
+
+	sbwc_err = ((pOutStr->NalDoneInfo >> MFC_REG_E_NAL_DONE_INFO_COMP_ERR_SHIFT)
+			& MFC_REG_E_NAL_DONE_INFO_COMP_ERR_MASK);
+	if (sbwc_err)
+		mfc_ctx_err("[NALQ][SBWC] Compressor error detected (Source: %d, DPB: %d)\n",
+				(sbwc_err >> 1) & 0x1, sbwc_err & 0x1);
 
 	/* handle input buffer */
 	__mfc_core_nal_q_handle_stream_input(core_ctx, pOutStr, consumed_only);
