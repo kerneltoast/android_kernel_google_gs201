@@ -523,7 +523,6 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		if (!dwc3_otg_check_usb_suspend(exynos))
 			dev_err(dev, "too long to wait for dwc3 suspended\n");
 
-		exynos->vbus_state = true;
 		while (dwc->gadget_driver == NULL) {
 			wait_counter++;
 			usleep_range(100, 200);
@@ -554,6 +553,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		timer_setup(&exynos->usb_connect_timer, dwc3_otg_retry_configuration, 0);
 		mod_timer(&exynos->usb_connect_timer,
 				jiffies + CHG_CONNECTED_DELAY_TIME);
+		exynos->vbus_state = true;
 	} else {
 		exynos->vbus_state = false;
 		del_timer_sync(&exynos->usb_connect_timer);
@@ -884,7 +884,8 @@ static int dwc3_otg_reboot_notify(struct notifier_block *nb, unsigned long event
 	case SYS_POWER_OFF:
 		exynos->dwc->current_dr_role = DWC3_EXYNOS_IGNORE_CORE_OPS;
 		dotg->in_shutdown = true;
-		del_timer_sync(&exynos->usb_connect_timer);
+		if (exynos->vbus_state)
+			del_timer_sync(&exynos->usb_connect_timer);
 		break;
 	}
 
