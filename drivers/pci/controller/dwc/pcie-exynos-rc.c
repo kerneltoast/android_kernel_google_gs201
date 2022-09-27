@@ -89,6 +89,9 @@ static struct device fake_dma_dev;
 static void exynos_d3_sleep_hook(void *unused, struct pci_dev *dev,
 				 unsigned int *delay);
 
+#define MODEM_CH_NUM    0
+#define WIFI_CH_NUM     1
+
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 struct phys_mem {
 	struct list_head list;
@@ -97,7 +100,6 @@ struct phys_mem {
 	unsigned char *refcnt_array;
 };
 
-#define WIFI_CH_NUM     1
 #define ALIGN_SIZE	0x1000UL
 #define REF_COUNT_UNDERFLOW 255
 
@@ -222,13 +224,23 @@ void s2mpu_update_refcnt(struct device *dev,
 	spin_unlock_irqrestore(&exynos_pcie->s2mpu_refcnt_lock, flags);
 }
 #endif
+
+static int get_ch_num(struct pci_dev *epdev)
+{
+	int ch_num = WIFI_CH_NUM;
+	if (epdev->vendor == PCI_VENDOR_ID_SAMSUNG)
+		ch_num = MODEM_CH_NUM;
+
+	return ch_num;
+}
+
 static void *pcie_dma_alloc_attrs(struct device *dev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flag,
 				  unsigned long attrs)
 {
 	void *cpu_addr;
 	struct pci_dev *epdev = to_pci_dev_from_dev(dev);
-	int ch_num = pci_domain_nr(epdev->bus);
+	int ch_num = get_ch_num(epdev);
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 	int ret;
 
@@ -255,7 +267,7 @@ static void pcie_dma_free_attrs(struct device *dev, size_t size,
 				unsigned long attrs)
 {
 	struct pci_dev *epdev = to_pci_dev_from_dev(dev);
-	int ch_num = pci_domain_nr(epdev->bus);
+	int ch_num = get_ch_num(epdev);
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 
 	dma_free_attrs(&fake_dma_dev, size, cpu_addr, dma_addr, attrs);
@@ -271,7 +283,7 @@ static dma_addr_t pcie_dma_map_page(struct device *dev, struct page *page,
 				    unsigned long attrs)
 {
 	struct pci_dev *epdev = to_pci_dev_from_dev(dev);
-	int ch_num = pci_domain_nr(epdev->bus);
+	int ch_num = get_ch_num(epdev);
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 	dma_addr_t dma_addr;
 	int ret;
@@ -296,7 +308,7 @@ static void pcie_dma_unmap_page(struct device *dev, dma_addr_t dma_addr,
 				unsigned long attrs)
 {
 	struct pci_dev *epdev = to_pci_dev_from_dev(dev);
-	int ch_num = pci_domain_nr(epdev->bus);
+	int ch_num = get_ch_num(epdev);
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 
 	dma_unmap_page_attrs(&fake_dma_dev, dma_addr, size, dir, attrs);
