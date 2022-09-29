@@ -188,9 +188,15 @@ static int __mfc_get_rgb_format_ctrl(struct mfc_ctx *ctx, struct mfc_enc_params 
 	 * Return value
 	 *  0: ITU-R BT.601
 	 *  1: ITU-R BT.709
+	 * If Set to 3, use the coefficients of CSC formula determined by firmware
+	 * on COLOR_SPACE and COLOUR_PRIMARIES of E_VIDEO_SIGNAL_TYPE.
+	 *  3: Determined by firmware
 	 */
 
-	if (IS_VP9_ENC(ctx)) {
+	if (ctx->dev->pdata->enc_rgb_csc_by_fw) {
+		ret = 3;
+		mfc_debug(2, "[RGB] coefficients of CSC formula using VUI by F/W\n");
+	} else if (IS_VP9_ENC(ctx)) {
 		ret = mfc_colorspace_to_rgb_format_ctrl[p->colour_primaries][1];
 		mfc_debug(2, "[RGB] VP9 color space %d converts to RGB format ctrl %s\n",
 				p->colour_primaries, ret ? "BT.709" : "BT.601");
@@ -211,7 +217,7 @@ void __mfc_set_video_signal_type(struct mfc_core *core, struct mfc_ctx *ctx)
 	struct mfc_enc_params *p = &enc->params;
 	unsigned int reg = 0;
 
-	if (ctx->src_fmt->type & MFC_FMT_RGB) {
+	if ((ctx->src_fmt->type & MFC_FMT_RGB) && !dev->pdata->enc_rgb_csc_by_fw) {
 		/* VIDEO_SIGNAL_TYPE_FLAG */
 		mfc_set_bits(reg, 0x1, 31, 0x1);
 		/* COLOUR_DESCRIPTION_PRESENT_FLAG */
@@ -221,7 +227,8 @@ void __mfc_set_video_signal_type(struct mfc_core *core, struct mfc_ctx *ctx)
 		/* VIDEO_SIGNAL_TYPE_FLAG */
 		mfc_set_bits(reg, 0x1, 31, 0x1);
 		/* COLOR_RANGE */
-		mfc_set_bits(reg, 0x1, 25, p->color_range);
+		if (!(ctx->src_fmt->type & MFC_FMT_RGB))
+			mfc_set_bits(reg, 0x1, 25, p->color_range);
 		if (IS_VP9_ENC(ctx)) {
 			/* COLOR_SPACE: VP9 uses colour_primaries interface for color space */
 			mfc_set_bits(reg, 0x1F, 26, p->colour_primaries);
@@ -446,6 +453,9 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 	if (p->frame_skip_mode == V4L2_MPEG_MFC51_VIDEO_FRAME_SKIP_MODE_BUF_LIMIT)
 		mfc_set_bits(reg, 0xFF, 0, p->vbv_buf_size);
 	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_VBV_BUFFER_SIZE);
+
+	/* Video signal type */
+	__mfc_set_video_signal_type(core, ctx);
 
 	mfc_debug_leave();
 }
@@ -761,9 +771,6 @@ static void __mfc_set_enc_params_h264(struct mfc_core *core,
 		mfc_set_bits(reg, 0x3, 0, (p_264->sei_fp_arrangement_type - 3));
 		MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_H264_FRAME_PACKING_SEI_INFO);
 	}
-
-	/* Video signal type */
-	__mfc_set_video_signal_type(core, ctx);
 
 	__mfc_set_fmo_slice_map_h264(core, ctx, p_264);
 
@@ -1133,9 +1140,6 @@ static void __mfc_set_enc_params_vp9(struct mfc_core *core, struct mfc_ctx *ctx)
 	mfc_clear_set_bits(reg, 0xFF, 0, p_vp9->rc_min_qp_p);
 	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
 
-	/* Video signal type */
-	__mfc_set_video_signal_type(core, ctx);
-
 	mfc_debug_leave();
 }
 
@@ -1361,9 +1365,6 @@ static void __mfc_set_enc_params_hevc(struct mfc_core *core,
 	mfc_clear_set_bits(reg, 0x1, 0, p->roi_enable);
 	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_RC_ROI_CTRL);
 	mfc_debug(3, "[ROI] HEVC ROI enable\n");
-
-	/* Video signal type */
-	__mfc_set_video_signal_type(core, ctx);
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->static_info_enc) &&
 			p->static_info_enable && ctx->is_10bit) {

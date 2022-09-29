@@ -943,6 +943,9 @@ static int __mfc_parse_dt(struct device_node *np, struct mfc_dev *mfc)
 	/* MFC IOVA threshold */
 	of_property_read_u32(np, "idle_clk_ctrl", &pdata->idle_clk_ctrl);
 
+	/* Encoder RGB CSC formula by VUI from F/W */
+	of_property_read_u32(np, "enc_rgb_csc_by_fw", &pdata->enc_rgb_csc_by_fw);
+
 	return 0;
 }
 

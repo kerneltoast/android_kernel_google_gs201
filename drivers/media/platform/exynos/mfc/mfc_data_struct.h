@@ -860,6 +860,8 @@ struct mfc_platdata {
 	unsigned int core_balance;
 	unsigned int iova_threshold;
 	unsigned int idle_clk_ctrl;
+
+	unsigned int enc_rgb_csc_by_fw;
 };
 
 struct mfc_core_platdata {
