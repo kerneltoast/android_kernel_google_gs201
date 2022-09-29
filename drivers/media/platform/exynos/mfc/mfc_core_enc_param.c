@@ -204,6 +204,49 @@ static int __mfc_get_rgb_format_ctrl(struct mfc_ctx *ctx, struct mfc_enc_params 
 	return ret;
 }
 
+void __mfc_set_video_signal_type(struct mfc_core *core, struct mfc_ctx *ctx)
+{
+	struct mfc_dev *dev = ctx->dev;
+	struct mfc_enc *enc = ctx->enc_priv;
+	struct mfc_enc_params *p = &enc->params;
+	unsigned int reg = 0;
+
+	if (ctx->src_fmt->type & MFC_FMT_RGB) {
+		/* VIDEO_SIGNAL_TYPE_FLAG */
+		mfc_set_bits(reg, 0x1, 31, 0x1);
+		/* COLOUR_DESCRIPTION_PRESENT_FLAG */
+		if (!IS_VP9_ENC(ctx))
+			mfc_set_bits(reg, 0x1, 24, 0x1);
+	} else if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc) && p->check_color_range) {
+		/* VIDEO_SIGNAL_TYPE_FLAG */
+		mfc_set_bits(reg, 0x1, 31, 0x1);
+		/* COLOR_RANGE */
+		mfc_set_bits(reg, 0x1, 25, p->color_range);
+		if (IS_VP9_ENC(ctx)) {
+			/* COLOR_SPACE: VP9 uses colour_primaries interface for color space */
+			mfc_set_bits(reg, 0x1F, 26, p->colour_primaries);
+			mfc_debug(2, "[HDR] VP9 ENC Color aspect: range(%s), space(%d)\n",
+					p->color_range ? "Full" : "Limited", p->colour_primaries);
+		} else {
+			if ((p->colour_primaries != 0) && (p->transfer_characteristics != 0) &&
+					(p->matrix_coefficients != 3)) {
+				/* COLOUR_DESCRIPTION_PRESENT_FLAG */
+				mfc_set_bits(reg, 0x1, 24, 0x1);
+				/* COLOUR_PRIMARIES */
+				mfc_set_bits(reg, 0xFF, 16, p->colour_primaries);
+				/* TRANSFER_CHARACTERISTICS */
+				mfc_set_bits(reg, 0xFF, 8, p->transfer_characteristics);
+				/* MATRIX_COEFFICIENTS */
+				mfc_set_bits(reg, 0xFF, 0, p->matrix_coefficients);
+			}
+			mfc_debug(2, "[HDR] ENC VUI Color aspect: range(%s), pri(%d), trans(%d), mat(%d)\n",
+					p->color_range ? "Full" : "Limited", p->colour_primaries,
+					p->transfer_characteristics, p->matrix_coefficients);
+		}
+	}
+	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+}
+
 static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
@@ -518,7 +561,6 @@ static void __mfc_set_fmo_slice_map_h264(struct mfc_core *core,
 static void __mfc_set_enc_params_h264(struct mfc_core *core,
 				struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
 	struct mfc_h264_enc_params *p_264 = &p->codec.h264;
@@ -721,33 +763,7 @@ static void __mfc_set_enc_params_h264(struct mfc_core *core,
 	}
 
 	/* Video signal type */
-	reg = 0;
-	if (ctx->src_fmt->type & MFC_FMT_RGB) {
-		/* VIDEO_SIGNAL_TYPE_FLAG */
-		mfc_set_bits(reg, 0x1, 31, 0x1);
-		/* COLOUR_DESCRIPTION_PRESENT_FLAG */
-		mfc_set_bits(reg, 0x1, 24, 0x1);
-	} else if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc) && p->check_color_range) {
-		/* VIDEO_SIGNAL_TYPE_FLAG */
-		mfc_set_bits(reg, 0x1, 31, 0x1);
-		/* COLOR_RANGE */
-		mfc_set_bits(reg, 0x1, 25, p->color_range);
-		if ((p->colour_primaries != 0) && (p->transfer_characteristics != 0) &&
-				(p->matrix_coefficients != 3)) {
-			/* COLOUR_DESCRIPTION_PRESENT_FLAG */
-			mfc_set_bits(reg, 0x1, 24, 0x1);
-			/* COLOUR_PRIMARIES */
-			mfc_set_bits(reg, 0xFF, 16, p->colour_primaries);
-			/* TRANSFER_CHARACTERISTICS */
-			mfc_set_bits(reg, 0xFF, 8, p->transfer_characteristics);
-			/* MATRIX_COEFFICIENTS */
-			mfc_set_bits(reg, 0xFF, 0, p->matrix_coefficients);
-		}
-		mfc_debug(2, "[HDR] H264 ENC Color aspect: range(%s), pri(%d), trans(%d), mat(%d)\n",
-				p->color_range ? "Full" : "Limited", p->colour_primaries,
-				p->transfer_characteristics, p->matrix_coefficients);
-	}
-	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+	__mfc_set_video_signal_type(core, ctx);
 
 	__mfc_set_fmo_slice_map_h264(core, ctx, p_264);
 
@@ -1019,7 +1035,6 @@ static void __mfc_enc_check_vp9_profile(struct mfc_ctx *ctx)
 
 static void __mfc_set_enc_params_vp9(struct mfc_core *core, struct mfc_ctx *ctx)
 {
-	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;
 	struct mfc_enc_params *p = &enc->params;
 	struct mfc_vp9_enc_params *p_vp9 = &p->codec.vp9;
@@ -1119,21 +1134,7 @@ static void __mfc_set_enc_params_vp9(struct mfc_core *core, struct mfc_ctx *ctx)
 	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_RC_QP_BOUND_PB);
 
 	/* Video signal type */
-	reg = 0;
-	if (ctx->src_fmt->type & MFC_FMT_RGB) {
-		/* VIDEO_SIGNAL_TYPE_FLAG */
-		mfc_set_bits(reg, 0x1, 31, 0x1);
-	} else if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc) && p->check_color_range) {
-		/* VIDEO_SIGNAL_TYPE_FLAG */
-		mfc_set_bits(reg, 0x1, 31, 0x1);
-		/* COLOR_SPACE: VP9 uses colour_primaries interface for color space */
-		mfc_set_bits(reg, 0x1F, 26, p->colour_primaries);
-		/* COLOR_RANGE */
-		mfc_set_bits(reg, 0x1, 25, p->color_range);
-		mfc_debug(2, "[HDR] VP9 ENC Color aspect: range(%s), space(%d)\n",
-				p->color_range ? "Full" : "Limited", p->colour_primaries);
-	}
-	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+	__mfc_set_video_signal_type(core, ctx);
 
 	mfc_debug_leave();
 }
@@ -1362,33 +1363,7 @@ static void __mfc_set_enc_params_hevc(struct mfc_core *core,
 	mfc_debug(3, "[ROI] HEVC ROI enable\n");
 
 	/* Video signal type */
-	reg = 0;
-	if (ctx->src_fmt->type & MFC_FMT_RGB) {
-		/* VIDEO_SIGNAL_TYPE_FLAG */
-		mfc_set_bits(reg, 0x1, 31, 0x1);
-		/* COLOUR_DESCRIPTION_PRESENT_FLAG */
-		mfc_set_bits(reg, 0x1, 24, 0x1);
-	} else if (MFC_FEATURE_SUPPORT(dev, dev->pdata->color_aspect_enc) && p->check_color_range) {
-		/* VIDEO_SIGNAL_TYPE_FLAG */
-		mfc_set_bits(reg, 0x1, 31, 0x1);
-		/* COLOR_RANGE */
-		mfc_set_bits(reg, 0x1, 25, p->color_range);
-		if ((p->colour_primaries != 0) && (p->transfer_characteristics != 0) &&
-				(p->matrix_coefficients != 3)) {
-			/* COLOUR_DESCRIPTION_PRESENT_FLAG */
-			mfc_set_bits(reg, 0x1, 24, 0x1);
-			/* COLOUR_PRIMARIES */
-			mfc_set_bits(reg, 0xFF, 16, p->colour_primaries);
-			/* TRANSFER_CHARACTERISTICS */
-			mfc_set_bits(reg, 0xFF, 8, p->transfer_characteristics);
-			/* MATRIX_COEFFICIENTS */
-			mfc_set_bits(reg, 0xFF, 0, p->matrix_coefficients);
-		}
-		mfc_debug(2, "[HDR] HEVC ENC Color aspect: range(%s), pri(%d), trans(%d), mat(%d)\n",
-				p->color_range ? "Full" : "Limited", p->colour_primaries,
-				p->transfer_characteristics, p->matrix_coefficients);
-	}
-	MFC_CORE_RAW_WRITEL(reg, MFC_REG_E_VIDEO_SIGNAL_TYPE);
+	__mfc_set_video_signal_type(core, ctx);
 
 	if (MFC_FEATURE_SUPPORT(dev, dev->pdata->static_info_enc) &&
 			p->static_info_enable && ctx->is_10bit) {
