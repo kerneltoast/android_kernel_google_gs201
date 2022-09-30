@@ -954,8 +954,6 @@ static int pwm_samsung_resume(struct device *dev)
 {
 	struct samsung_pwm_chip *chip = dev_get_drvdata(dev);
 
-	pwm_pin_ctrl(dev, 1);
-
 	pwm_samsung_clk_enable(chip);
 
 	/* Restore pwm register setting */
@@ -963,6 +961,8 @@ static int pwm_samsung_resume(struct device *dev)
 
 	if (!chip->enable_cnt)
 		pwm_samsung_clk_disable(chip);
+
+	pwm_pin_ctrl(dev, 1);
 
 	return 0;
 }
