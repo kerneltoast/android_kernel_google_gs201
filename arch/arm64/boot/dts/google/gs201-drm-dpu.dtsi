@@ -336,6 +336,9 @@
 
 		hibernation;
 		rcd = <&drmdpp8>;
+
+		itmon,port = "DPU", "DISP";
+		itmon,dest = "DPU", "DISP";
 	};
 
 	drmdecon1: drmdecon@0x1C241000 {
@@ -414,6 +417,9 @@
 
 		hibernation;
 		rcd = <&drmdpp9>;
+
+		itmon,port = "DPU", "DISP";
+		itmon,dest = "DPU", "DISP";
 	};
 
 	drmdecon2: drmdecon@0x1C242000 {
@@ -464,6 +470,9 @@
 		 * DSI0(0x1), DSI1(0x2), VIDI(0x8)
 		 */
 		connector = <0x8>;
+
+		itmon,port = "DPU", "DISP";
+		itmon,dest = "DPU", "DISP";
 	};
 
 	disp_vddi: disp-vddi {
