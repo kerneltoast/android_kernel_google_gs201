@@ -33,7 +33,9 @@ enum sys_powermode {
 enum mif_users {
 	MIF_USER_AOC,
 	MIF_USER_GSA,
+#if defined(CONFIG_SOC_GS201)
 	MIF_USER_TPU,
+#endif
 	NUM_MIF_USERS, // NR_MIF_USERS in plugins/flexpmu/<arch>/sfr_map.h
 };
 
@@ -69,7 +71,9 @@ enum fvp_domains {
 	DOMAIN_CPUCL0,
 	DOMAIN_CPUCL1,
 	DOMAIN_CPUCL2,
+#if defined(CONFIG_SOC_GS201)
 	DOMAIN_AUR,
+#endif
 	NUM_DOMAINS,
 };
 

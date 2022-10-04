@@ -25,7 +25,11 @@
 
 #define GS_POWER_STATS_PREFIX "power_stats: "
 
+#if defined(CONFIG_SOC_GS101)
+static char const *const mif_user_names[NUM_MIF_USERS] = { "AOC", "GSA" };
+#elif defined(CONFIG_SOC_GS201)
 static char const *const mif_user_names[NUM_MIF_USERS] = { "AOC", "GSA", "TPU" };
+#endif
 
 static char const *const slc_user_names[NUM_SLC_USERS] = { "AOC" };
 
@@ -40,8 +44,13 @@ static char const *const core_names[NUM_CORES] = { "CORE00", "CORE01", "CORE02",
 						   "CORE03", "CORE10", "CORE11",
 						   "CORE20", "CORE21" };
 
+#if defined(CONFIG_SOC_GS101)
+static char const *const domain_names[NUM_DOMAINS] = { "MIF", "TPU", "CL0",
+						       "CL1", "CL2" };
+#elif defined(CONFIG_SOC_GS201)
 static char const *const domain_names[NUM_DOMAINS] = { "MIF", "TPU", "CL0",
 						       "CL1", "CL2", "AUR" };
+#endif
 
 struct pd_entry {
 	struct list_head entry;
