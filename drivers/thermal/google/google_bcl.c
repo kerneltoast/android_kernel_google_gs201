@@ -1325,6 +1325,8 @@ static ssize_t clk_div_show(struct bcl_device *bcl_dev, int idx, char *buf)
 	unsigned int reg;
 	void __iomem *addr;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (idx == TPU)
 		return sysfs_emit(buf, "0x%x\n", bcl_dev->tpu_clkdivstep);
 	else if (idx == GPU)
@@ -1343,6 +1345,8 @@ static ssize_t clk_stats_show(struct bcl_device *bcl_dev, int idx, char *buf)
 	unsigned int reg;
 	void __iomem *addr;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (idx == TPU)
 		return sysfs_emit(buf, "0x%x\n", bcl_dev->tpu_clk_stats);
 	else if (idx == GPU)
@@ -1360,6 +1364,8 @@ static int google_bcl_init_clk_div(struct bcl_device *bcl_dev, int idx, unsigned
 {
 	void __iomem *addr;
 
+	if (!bcl_dev)
+		return -EIO;
 	addr = get_addr_by_subsystem(bcl_dev, clk_stats_source[idx]);
 	if (addr == NULL)
 		return -EINVAL;
@@ -1382,6 +1388,8 @@ static ssize_t clk_div_store(struct bcl_device *bcl_dev, int idx,
 	if (ret != 1)
 		return -EINVAL;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (idx == TPU)
 		bcl_dev->tpu_clkdivstep = value;
 	else if (idx == GPU)
@@ -1521,6 +1529,8 @@ static ssize_t vdroop_flt_show(struct bcl_device *bcl_dev, int idx, char *buf)
 	unsigned int reg;
 	void __iomem *addr;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (idx == TPU)
 		return sysfs_emit(buf, "0x%x\n", bcl_dev->tpu_vdroop_flt);
 	else if (idx == GPU)
@@ -1543,6 +1553,8 @@ static ssize_t vdroop_flt_store(struct bcl_device *bcl_dev, int idx,
 	if (sscanf(buf, "0x%x", &value) != 1)
 		return -EINVAL;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (idx == TPU)
 		bcl_dev->tpu_vdroop_flt = value;
 	else if (idx == GPU)
@@ -1740,6 +1752,8 @@ static ssize_t clk_ratio_show(struct bcl_device *bcl_dev, int idx, char *buf)
 	unsigned int reg;
 	void __iomem *addr;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (idx == TPU_HEAVY)
 		return sysfs_emit(buf, "0x%x\n", bcl_dev->tpu_con_heavy);
 	else if (idx == TPU_LIGHT)
@@ -1768,6 +1782,8 @@ static ssize_t clk_ratio_store(struct bcl_device *bcl_dev, int idx,
 	if (ret != 1)
 		return -EINVAL;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (idx == TPU_HEAVY)
 		bcl_dev->tpu_con_heavy = value;
 	else if (idx == GPU_HEAVY)
@@ -1993,6 +2009,8 @@ static ssize_t uvlo1_lvl_show(struct device *dev, struct device_attribute *attr,
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int uvlo1_lvl;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (!bcl_dev->intf_pmic_i2c)
 		return -EBUSY;
 	if (bcl_cb_uvlo1_read(bcl_dev, &uvlo1_lvl) < 0)
@@ -2013,6 +2031,8 @@ static ssize_t uvlo1_lvl_store(struct device *dev,
 	if (ret)
 		return ret;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (value < VD_LOWER_LIMIT || value > VD_UPPER_LIMIT) {
 		dev_err(bcl_dev->device, "UVLO1 %d outside of range %d - %d mV.", value,
 			VD_LOWER_LIMIT, VD_UPPER_LIMIT);
@@ -2041,6 +2061,8 @@ static ssize_t uvlo2_lvl_show(struct device *dev, struct device_attribute *attr,
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int uvlo2_lvl;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (!bcl_dev->intf_pmic_i2c)
 		return -EBUSY;
 	if (bcl_cb_uvlo2_read(bcl_dev, &uvlo2_lvl) < 0)
@@ -2061,6 +2083,8 @@ static ssize_t uvlo2_lvl_store(struct device *dev,
 	if (ret)
 		return ret;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (value < VD_LOWER_LIMIT || value > VD_UPPER_LIMIT) {
 		dev_err(bcl_dev->device, "UVLO2 %d outside of range %d - %d mV.", value,
 			VD_LOWER_LIMIT, VD_UPPER_LIMIT);
@@ -2088,6 +2112,8 @@ static ssize_t batoilo_lvl_show(struct device *dev, struct device_attribute *att
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 	unsigned int batoilo_lvl;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (!bcl_dev->intf_pmic_i2c)
 		return -EBUSY;
 	if (bcl_cb_batoilo_read(bcl_dev, &batoilo_lvl) < 0)
@@ -2108,6 +2134,8 @@ static ssize_t batoilo_lvl_store(struct device *dev,
 	if (ret)
 		return ret;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (value < BO_LOWER_LIMIT || value > BO_UPPER_LIMIT) {
 		dev_err(bcl_dev->device, "BATOILO %d outside of range %d - %d mA.", value,
 			BO_LOWER_LIMIT, BO_UPPER_LIMIT);
@@ -2134,6 +2162,8 @@ static ssize_t smpl_lvl_show(struct device *dev, struct device_attribute *attr, 
 	int ret;
 	unsigned int smpl_warn_lvl;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (!bcl_dev->main_pmic_i2c) {
 		return -EBUSY;
 	}
@@ -2159,6 +2189,8 @@ static ssize_t smpl_lvl_store(struct device *dev,
 	if (ret)
 		return ret;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (val < SMPL_LOWER_LIMIT || val > SMPL_UPPER_LIMIT) {
 		dev_err(bcl_dev->device, "SMPL_WARN LEVEL %d outside of range %d - %d mV.", val,
 			SMPL_LOWER_LIMIT, SMPL_UPPER_LIMIT);
@@ -2202,6 +2234,8 @@ static int get_ocp_lvl(struct bcl_device *bcl_dev, u64 *val, u8 addr, u8 pmic, u
 	int ret;
 	unsigned int ocp_warn_lvl;
 
+	if (!bcl_dev)
+		return -EIO;
 	S2MPG1X_READ(pmic, bcl_dev, ret, addr, &value);
 	if (ret) {
 		dev_err(bcl_dev->device, "S2MPG1X read 0x%x failed.", addr);
@@ -2219,6 +2253,8 @@ static int set_ocp_lvl(struct bcl_device *bcl_dev, u64 val, u8 addr, u8 pmic, u8
 	u8 value;
 	int ret;
 
+	if (!bcl_dev)
+		return -EIO;
 	if (val < llimit || val > ulimit) {
 		dev_err(bcl_dev->device, "OCP_WARN LEVEL %llu outside of range %d - %d mA.", val,
 		       llimit, ulimit);
@@ -2552,6 +2588,15 @@ static ssize_t pwronsrc_show(struct device *dev, struct device_attribute *attr, 
 
 static DEVICE_ATTR_RO(pwronsrc);
 
+static ssize_t ready_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
+
+	return sysfs_emit(buf, "%d\n", bcl_dev->ready);
+}
+static DEVICE_ATTR_RO(ready);
+
 static ssize_t enable_mitigation_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
@@ -2871,6 +2916,7 @@ static struct attribute *instr_attrs[] = {
 	&dev_attr_enable_mitigation.attr,
 	&dev_attr_offsrc.attr,
 	&dev_attr_pwronsrc.attr,
+	&dev_attr_ready.attr,
 	NULL,
 };
 
@@ -3241,6 +3287,7 @@ static void google_set_intf_pmic_work(struct work_struct *work)
 		thermal_zone_device_update(bcl_dev->bcl_tz[BATOILO], THERMAL_DEVICE_UP);
 	}
 
+	bcl_dev->ready = true;
 	return;
 
 retry_init_work:
@@ -3617,6 +3664,7 @@ static int google_bcl_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&bcl_dev->init_work, google_set_intf_pmic_work);
 	platform_set_drvdata(pdev, bcl_dev);
 
+	bcl_dev->ready = false;
 	ret = google_bcl_init_instruction(bcl_dev);
 	if (ret < 0)
 		goto bcl_soc_probe_exit;

@@ -151,6 +151,7 @@ struct bcl_device {
 
 	bool batt_psy_initialized;
 	bool enabled;
+	bool ready;
 
 	unsigned int offsrc;
 	unsigned int pwronsrc;
