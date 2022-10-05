@@ -77,6 +77,8 @@ void s51xx_pcie_chk_ep_conf(struct pci_dev *pdev)
 inline int s51xx_pcie_send_doorbell_int(struct pci_dev *pdev, int int_num)
 {
 	struct s51xx_pcie *s51xx_pcie = pci_get_drvdata(pdev);
+	struct pci_driver *driver = pdev->driver;
+	struct modem_ctl *mc = container_of(driver, struct modem_ctl, pci_driver);
 	u32 reg, count = 0;
 	int cnt = 0;
 	u16 cmd;
@@ -86,9 +88,15 @@ inline int s51xx_pcie_send_doorbell_int(struct pci_dev *pdev, int int_num)
 		return -EAGAIN;
 	}
 
+	if (exynos_pcie_rc_get_cpl_timeout_state(s51xx_pcie->pcie_channel_num)) {
+		mif_err_limited("Can't send Interrupt(cto_retry_cnt: %d)!!!\n",
+				mc->pcie_cto_retry_cnt);
+		return 0;
+	}
+
 	if (s51xx_check_pcie_link_status(s51xx_pcie->pcie_channel_num) == 0) {
 		mif_err_limited("Can't send Interrupt(not linked)!!!\n");
-		return -EAGAIN;
+		goto check_cpl_timeout;
 	}
 
 	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
@@ -121,7 +129,7 @@ inline int s51xx_pcie_send_doorbell_int(struct pci_dev *pdev, int int_num)
 			mif_err_limited("BME is not set(cnt=%d)\n", cnt);
 			exynos_pcie_rc_register_dump(
 					s51xx_pcie->pcie_channel_num);
-			return -EAGAIN;
+			goto check_cpl_timeout;
 		}
 	}
 
@@ -154,10 +162,19 @@ send_doorbell_again:
 		mif_err("Check BAR0 register : %#x\n", reg);
 		exynos_pcie_rc_register_dump(s51xx_pcie->pcie_channel_num);
 
-		return -EAGAIN;
+		goto check_cpl_timeout;
 	}
 
 	return 0;
+
+check_cpl_timeout:
+	if (exynos_pcie_rc_get_cpl_timeout_state(s51xx_pcie->pcie_channel_num)) {
+		mif_err_limited("Can't send Interrupt(cto_retry_cnt: %d)!!!\n",
+				mc->pcie_cto_retry_cnt);
+		return 0;
+	}
+
+	return -EAGAIN;
 }
 
 void first_save_s51xx_status(struct pci_dev *pdev)
@@ -323,11 +340,22 @@ static void s51xx_pcie_event_cb(struct exynos_pcie_notify *noti)
 
 	mif_err("0x%X pcie event received!\n", event);
 
-	if (event & (EXYNOS_PCIE_EVENT_LINKDOWN | EXYNOS_PCIE_EVENT_CPL_TIMEOUT)) {
+	if (event & EXYNOS_PCIE_EVENT_LINKDOWN) {
 		if (mc->pcie_powered_on == false) {
 			mif_info("skip cp crash during dislink sequence\n");
 			exynos_pcie_set_perst_gpio(mc->pcie_ch_num, 0);
 		} else {
+			s5100_force_crash_exit_ext();
+		}
+	} else if (event & EXYNOS_PCIE_EVENT_CPL_TIMEOUT) {
+		mif_err("s51xx CPL_TIMEOUT notification callback function!!!\n");
+		mif_err("CPL: a=%d c=%d\n", mc->pcie_cto_retry_cnt_all++, mc->pcie_cto_retry_cnt);
+
+		if (mc->pcie_cto_retry_cnt++ < 10) {
+			mif_err("[%d] retry pcie poweron !!!\n", mc->pcie_cto_retry_cnt);
+			queue_work_on(2, mc->wakeup_wq, &mc->wakeup_work);
+		} else {
+			mif_err("[%d] force crash !!!\n", mc->pcie_cto_retry_cnt);
 			s5100_force_crash_exit_ext();
 		}
 	}

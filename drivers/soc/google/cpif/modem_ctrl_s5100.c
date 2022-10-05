@@ -1399,6 +1399,11 @@ static int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 		mc->pcie_cto_retry_cnt = 0;
 	}
 
+	if (exynos_pcie_rc_get_cpl_timeout_state(mc->pcie_ch_num)) {
+		exynos_pcie_rc_set_cpl_timeout_state(mc->pcie_ch_num, false);
+		in_pcie_recovery = true;
+	}
+
 	mc->pcie_powered_on = false;
 
 	if (mc->s51xx_pdev != NULL && (mc->phone_state == STATE_ONLINE ||
@@ -1495,6 +1500,9 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 	spin_lock_irqsave(&mc->pcie_tx_lock, flags);
 	/* wait Tx done if it is running */
 	spin_unlock_irqrestore(&mc->pcie_tx_lock, flags);
+
+	if (exynos_pcie_rc_get_cpl_timeout_state(mc->pcie_ch_num))
+		exynos_pcie_set_ready_cto_recovery(mc->pcie_ch_num);
 
 	if (exynos_pcie_poweron(mc->pcie_ch_num, (boot_on ? 1 : 3)) != 0)
 		goto exit;
