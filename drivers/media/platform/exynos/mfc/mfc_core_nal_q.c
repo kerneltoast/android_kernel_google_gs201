@@ -1522,9 +1522,15 @@ static void __mfc_core_nal_q_handle_stream(struct mfc_core *core, struct mfc_cor
 
 	sbwc_err = ((pOutStr->NalDoneInfo >> MFC_REG_E_NAL_DONE_INFO_COMP_ERR_SHIFT)
 			& MFC_REG_E_NAL_DONE_INFO_COMP_ERR_MASK);
-	if (sbwc_err)
+	if (sbwc_err) {
 		mfc_ctx_err("[NALQ][SBWC] Compressor error detected (Source: %d, DPB: %d)\n",
 				(sbwc_err >> 1) & 0x1, sbwc_err & 0x1);
+		mfc_ctx_err("[SBWC] sbwc: %d, lossy: %d(%d), option: %d, FORMAT: %#x, OPTIONS: %#x\n",
+				ctx->is_sbwc, ctx->is_sbwc_lossy,
+				ctx->sbwcl_ratio, enc->sbwc_option,
+				MFC_CORE_READL(MFC_REG_PIXEL_FORMAT),
+				MFC_CORE_READL(MFC_REG_E_ENC_OPTIONS));
+	}
 
 	/* handle input buffer */
 	__mfc_core_nal_q_handle_stream_input(core_ctx, pOutStr, consumed_only);

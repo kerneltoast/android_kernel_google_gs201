@@ -287,7 +287,10 @@ static void __mfc_set_enc_params(struct mfc_core *core, struct mfc_ctx *ctx)
 			mfc_clear_set_bits(reg, 0x3, 24, 1);
 		else if (ctx->sbwcl_ratio == 75 || ctx->sbwcl_ratio == 80)
 			mfc_clear_set_bits(reg, 0x3, 24, 2);
+	} else {
+			mfc_clear_set_bits(reg, 0x3, 24, 0);
 	}
+
 	/* GDC-MFC vOTF enable */
 	mfc_clear_bits(reg, 0x1, 26);
 	if (ctx->gdc_votf && core->has_gdc_votf && core->has_mfc_votf) {

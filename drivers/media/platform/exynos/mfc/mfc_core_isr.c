@@ -1385,9 +1385,15 @@ static int __mfc_handle_stream(struct mfc_core *core, struct mfc_ctx *ctx, unsig
 	}
 
 	sbwc_err = mfc_core_get_enc_comp_err();
-	if (sbwc_err)
+	if (sbwc_err) {
 		mfc_ctx_err("[SBWC] Compressor error detected (Source: %d, DPB: %d)\n",
 				(sbwc_err >> 1) & 0x1, sbwc_err & 0x1);
+		mfc_ctx_err("[SBWC] sbwc: %d, lossy: %d(%d), option: %d, FORMAT: %#x, OPTIONS: %#x\n",
+				ctx->is_sbwc, ctx->is_sbwc_lossy,
+				ctx->sbwcl_ratio, enc->sbwc_option,
+				MFC_CORE_READL(MFC_REG_PIXEL_FORMAT),
+				MFC_CORE_READL(MFC_REG_E_ENC_OPTIONS));
+	}
 
 	/* handle source buffer */
 	__mfc_handle_stream_input(core, ctx, consumed_only);
