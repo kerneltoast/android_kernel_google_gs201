@@ -15,6 +15,8 @@
 #define RESUME_LATENCY_BOUND_MID 500
 #define RESUME_LATENCY_BOUND_MAX 1000
 
+#define MAX_IRQ_NUM 1024
+
 #define LATENCY_CNT_SMALL (RESUME_LATENCY_BOUND_SMALL / RESUME_LATENCY_STEP_SMALL)
 #define LATENCY_CNT_MID ((RESUME_LATENCY_BOUND_MID - RESUME_LATENCY_BOUND_SMALL) / \
 	RESUME_LATENCY_STEP_MID)
@@ -29,4 +31,18 @@ struct  resume_latency {
 	s64 resume_count[RESUME_LATENCY_ARR_SIZE];
 	s64 resume_latency_max_ms;
 	u64 resume_latency_sum_ms;
+};
+
+struct long_irq {
+	ktime_t softirq_start[CONFIG_VH_SCHED_CPU_NR][NR_SOFTIRQS];
+	ktime_t softirq_end;
+	ktime_t irq_start[CONFIG_VH_SCHED_CPU_NR][MAX_IRQ_NUM];
+	ktime_t irq_end;
+	atomic64_t long_softirq_count;
+	atomic64_t long_irq_count;
+	s64 long_softirq_arr[NR_SOFTIRQS];
+	s64 long_irq_arr[MAX_IRQ_NUM];
+	s64 long_softirq_threshold;
+	s64 long_irq_threshold;
+	bool display_warning;
 };
