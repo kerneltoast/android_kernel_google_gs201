@@ -549,7 +549,9 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			mif_err("hal init failed. ret: %d\n", ret);
 			return ret;
 		}
+		mutex_lock(&dhc->ioctl_lock);
 		ret = dit_manage_rx_dst_data_buffers(true);
+		mutex_unlock(&dhc->ioctl_lock);
 		if (ret) {
 			mif_err("hal buffer fill failed. ret: %d\n", ret);
 			return ret;
@@ -573,7 +575,9 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 		/* init port table and take a delay for the prior kick */
 		dit_init(NULL, DIT_INIT_NORMAL, DIT_STORE_NONE);
 		msleep(100);
+		mutex_lock(&dhc->ioctl_lock);
 		ret = dit_manage_rx_dst_data_buffers(false);
+		mutex_unlock(&dhc->ioctl_lock);
 		if (ret)
 			mif_err("hal buffer free. ret: %d\n", ret);
 
@@ -720,6 +724,7 @@ int dit_hal_create(struct dit_ctrl_t *dc_ptr)
 	spin_lock_init(&dhc->hal_lock);
 	spin_lock_init(&dhc->event_lock);
 	spin_lock_init(&dhc->stats_lock);
+	mutex_init(&dhc->ioctl_lock);
 
 	ret = misc_register(&dit_misc);
 	if (ret) {
