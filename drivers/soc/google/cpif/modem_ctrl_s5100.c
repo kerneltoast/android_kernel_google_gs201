@@ -118,9 +118,12 @@ static void cp2ap_wakeup_work(struct work_struct *work)
 	cp2ap_wakeup_time = ktime_get_boottime();
 
 	spin_lock_irqsave(&mc->power_stats_lock, flags);
-	mc->cp_power_stats.last_exit_timestamp_usec = ktime_to_us(cp2ap_wakeup_time);
-	mc->cp_power_stats.duration_usec += (mc->cp_power_stats.last_exit_timestamp_usec -
-			mc->cp_power_stats.last_entry_timestamp_usec);
+	if (mc->cp_power_stats.suspended) {
+		mc->cp_power_stats.last_exit_timestamp_usec = ktime_to_us(cp2ap_wakeup_time);
+		mc->cp_power_stats.duration_usec += (mc->cp_power_stats.last_exit_timestamp_usec -
+				mc->cp_power_stats.last_entry_timestamp_usec);
+	}
+	mc->cp_power_stats.suspended = false;
 	spin_unlock_irqrestore(&mc->power_stats_lock, flags);
 
 	s5100_poweron_pcie(mc, false);
@@ -138,8 +141,11 @@ static void cp2ap_suspend_work(struct work_struct *work)
 	cp2ap_suspend_time = ktime_get_boottime();
 
 	spin_lock_irqsave(&mc->power_stats_lock, flags);
-	mc->cp_power_stats.last_entry_timestamp_usec = ktime_to_us(cp2ap_suspend_time);
-	mc->cp_power_stats.count++;
+	if (!mc->cp_power_stats.suspended) {
+		mc->cp_power_stats.last_entry_timestamp_usec = ktime_to_us(cp2ap_suspend_time);
+		mc->cp_power_stats.count++;
+	}
+	mc->cp_power_stats.suspended = true;
 	spin_unlock_irqrestore(&mc->power_stats_lock, flags);
 
 	s5100_poweroff_pcie(mc, false);
@@ -154,8 +160,7 @@ static ssize_t power_stats_show(struct device *dev,
 	u64 adjusted_duration_usec = mc->cp_power_stats.duration_usec;
 
 	spin_lock_irqsave(&mc->power_stats_lock, flags);
-	if (mc->cp_power_stats.last_entry_timestamp_usec >
-			mc->cp_power_stats.last_exit_timestamp_usec) {
+	if (mc->cp_power_stats.suspended) {
 		u64 now_usec = ktime_to_us(ktime_get_boottime());
 		adjusted_duration_usec += now_usec -
 			mc->cp_power_stats.last_entry_timestamp_usec;
