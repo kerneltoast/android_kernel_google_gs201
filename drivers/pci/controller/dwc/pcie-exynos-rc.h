@@ -147,6 +147,7 @@
 #define PORT_LINK_L12_LTR_THRESHOLD     (0x40a0 << 16)
 #define PCIE_LINK_L1SS_CONTROL2		0x1A0
 #define PORT_LINK_L1SS_ENABLE		(0xf << 0)
+#define PORT_LINK_TPOWERON_10US		(0x28 << 0)
 #define PORT_LINK_TPOWERON_90US		(0x49 << 0)
 #define PORT_LINK_TPOWERON_130US	(0x69 << 0)
 #define PORT_LINK_TPOWERON_180US	(0x89 << 0)
@@ -259,6 +260,7 @@
 #define WIFI_ASPM_L12_EN		(0x1 << 2)
 #define WIFI_ASPM_L11_EN		(0x1 << 3)
 #define WIFI_COMMON_RESTORE_TIME	(0xa << 8)	/* Default Value */
+#define WIFI_QC_L12_LTR_THRESHOLD	(0x4096 << 16)
 
 /* L1SS LTR Latency Register */
 #define MAX_NO_SNOOP_LAT_VALUE_3	(3 << 16)
