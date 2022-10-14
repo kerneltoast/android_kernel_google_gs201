@@ -3733,37 +3733,6 @@ static int cs40l26_bst_ipk_config(struct cs40l26_private *cs40l26)
 			BIT(CS40L26_IRQ1_BST_IPK_FLAG));
 }
 
-static int cs40l26_owt_setup(struct cs40l26_private *cs40l26)
-{
-	u32 reg, offset, base;
-	int ret;
-
-	INIT_LIST_HEAD(&cs40l26->owt_head);
-	cs40l26->num_owt_effects = 0;
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, CS40L26_WT_NAME_XM,
-		CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &base);
-	if (ret)
-		return ret;
-
-	ret = cl_dsp_get_reg(cs40l26->dsp, "OWT_NEXT_XM",
-			CL_DSP_XM_UNPACKED_TYPE, CS40L26_VIBEGEN_ALGO_ID, &reg);
-	if (ret)
-		return ret;
-
-	ret = regmap_read(cs40l26->regmap, reg, &offset);
-	if (ret) {
-		dev_err(cs40l26->dev, "Failed to get wavetable offset\n");
-		return ret;
-	}
-
-	ret = regmap_write(cs40l26->regmap, reg, 0xFFFFFF);
-	if (ret)
-		dev_err(cs40l26->dev, "Failed to write OWT terminator\n");
-
-	return ret;
-}
-
 static int cs40l26_lbst_short_test(struct cs40l26_private *cs40l26)
 {
 	struct regmap *regmap = cs40l26->regmap;
@@ -4033,9 +4002,8 @@ static int cs40l26_dsp_config(struct cs40l26_private *cs40l26)
 	dev_info(dev, "%s loaded with %u RAM waveforms\n", CS40L26_DEV_NAME,
 			nwaves);
 
-	ret = cs40l26_owt_setup(cs40l26);
-	if (ret)
-		goto pm_err;
+	INIT_LIST_HEAD(&cs40l26->owt_head);
+	cs40l26->num_owt_effects = 0;
 
 	value = (cs40l26->comp_enable_redc << CS40L26_COMP_EN_REDC_SHIFT) |
 			(cs40l26->comp_enable_f0 << CS40L26_COMP_EN_F0_SHIFT);
