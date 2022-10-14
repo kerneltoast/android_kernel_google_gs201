@@ -2353,7 +2353,7 @@ static u8 *cs40l26_ncw_amp_scaling(struct cs40l26_private *cs40l26, u8 amp,
 			nsections);
 	if (ret) {
 		dev_err(cs40l26->dev, "Failed to get section info\n");
-		return ERR_PTR(ret);
+		goto sections_free;
 	}
 
 	for (i = 0; i < nsections; i++) {
@@ -2366,14 +2366,17 @@ static u8 *cs40l26_ncw_amp_scaling(struct cs40l26_private *cs40l26, u8 amp,
 
 	out_data = kcalloc(data_bytes, sizeof(u8), GFP_KERNEL);
 	if (!out_data) {
-		kfree(sections);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto sections_free;
 	}
 
 	out_ch = cl_dsp_memchunk_create((void *) out_data, data_bytes);
 	cs40l26_owt_set_section_info(cs40l26, &out_ch, sections, nsections);
 
-	return out_data;
+sections_free:
+	kfree(sections);
+
+	return ret ? ERR_PTR(ret) : out_data;
 }
 
 static int cs40l26_owt_comp_data_size(struct cs40l26_private *cs40l26,
