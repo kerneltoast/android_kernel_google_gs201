@@ -32,7 +32,7 @@
 &pinctrl_4 {
 	dw3xxx_ap_rst: dw3xxx-ap-rst {
 		samsung,pins = "gpp11-0";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
 		samsung,pin-pud-pdn = <EXYNOS_PIN_PDN_PREV>;
@@ -54,7 +54,7 @@
 		pinctrl-0 = <&spi10_cs &dw3xxx_irq &dw3xxx_ap_rst &dw3xxx_sync>;
 		spi-max-frequency = <40000000>;
 
-		uwbhal,reset-gpio = <&aoc_gpiochip 0 GPIO_OPEN_DRAIN>;
+		uwbhal,reset-gpio = <&gpp11 0 GPIO_OPEN_DRAIN>;
 		power_reg_2p5-supply = <&s_ldo4_reg>;
 		power_reg_1p8-supply = <&s_ldo14_reg>;
 
