@@ -1399,9 +1399,19 @@ static int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 	}
 
 	/* recovery status is not valid after PCI link down requests from CP */
+	if (mc->pcie_linkdown_retry_cnt > 0) {
+		mif_info("clear linkdown_retry_cnt(%d)..!!!\n", mc->pcie_linkdown_retry_cnt);
+		mc->pcie_linkdown_retry_cnt = 0;
+	}
+
 	if (mc->pcie_cto_retry_cnt > 0) {
 		mif_info("clear cto_retry_cnt(%d)..!!!\n", mc->pcie_cto_retry_cnt);
 		mc->pcie_cto_retry_cnt = 0;
+	}
+
+	if (exynos_pcie_rc_get_sudden_linkdown_state(mc->pcie_ch_num)) {
+		exynos_pcie_rc_set_sudden_linkdown_state(mc->pcie_ch_num, false);
+		in_pcie_recovery = true;
 	}
 
 	if (exynos_pcie_rc_get_cpl_timeout_state(mc->pcie_ch_num)) {
@@ -1505,6 +1515,9 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 	spin_lock_irqsave(&mc->pcie_tx_lock, flags);
 	/* wait Tx done if it is running */
 	spin_unlock_irqrestore(&mc->pcie_tx_lock, flags);
+
+	if (exynos_pcie_rc_get_sudden_linkdown_state(mc->pcie_ch_num))
+		exynos_pcie_set_ready_cto_recovery(mc->pcie_ch_num);
 
 	if (exynos_pcie_rc_get_cpl_timeout_state(mc->pcie_ch_num))
 		exynos_pcie_set_ready_cto_recovery(mc->pcie_ch_num);
