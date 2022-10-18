@@ -9,7 +9,9 @@
 #include <linux/kobject.h>
 #include <linux/module.h>
 #include <trace/hooks/gup.h>
+#include <trace/hooks/mm.h>
 #include "../../include/gup.h"
+#include "../../include/mm.h"
 
 struct kobject *vendor_mm_kobj;
 EXPORT_SYMBOL_GPL(vendor_mm_kobj);
@@ -52,6 +54,11 @@ static int vh_mm_init(void)
 		return ret;
 	ret = register_trace_android_vh_pin_user_pages(
 				vh_pin_user_pages, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_pagevec_drain(
+				vh_pagevec_drain, NULL);
 	return ret;
 }
 module_init(vh_mm_init);
