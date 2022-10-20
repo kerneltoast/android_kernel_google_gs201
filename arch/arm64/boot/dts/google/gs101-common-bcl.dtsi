@@ -43,7 +43,7 @@
 		zone_name  = "BATT_SOC_MOD";
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
-		thermal-sensors = <&google_mitigation 0>;
+		thermal-sensors = <&google_mitigation 9>;
 
 		trips {
 			soc_trip:soc-trip {
@@ -58,7 +58,7 @@
 		zone_name  = "VDROOP1";
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
-		thermal-sensors = <&google_mitigation 1>;
+		thermal-sensors = <&google_mitigation 10>;
 		trips {
 			vdroop1: vdroop1{
 				temperature = <1000>;
@@ -72,7 +72,7 @@
 		zone_name  = "VDROOP2";
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
-		thermal-sensors = <&google_mitigation 2>;
+		thermal-sensors = <&google_mitigation 11>;
 		trips {
 			vdroop2: vdroop2{
 				temperature = <1200>;
@@ -86,7 +86,7 @@
 		zone_name  = "BATOILO";
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
-		thermal-sensors = <&google_mitigation 3>;
+		thermal-sensors = <&google_mitigation 12>;
 		trips {
 			batoilo: batoilo{
 				temperature = <5000>;
@@ -100,7 +100,7 @@
 		zone_name  = "PMIC_120C";
 		polling-delay-passive = <1000>;
 		polling-delay = <0>;
-		thermal-sensors = <&google_mitigation 4>;
+		thermal-sensors = <&google_mitigation 13>;
 		trips {
 			pmic_120c: pmic-120c {
 				temperature = <1200>;
@@ -114,7 +114,7 @@
 		zone_name  = "PMIC_140C";
 		polling-delay-passive = <1000>;
 		polling-delay = <0>;
-		thermal-sensors = <&google_mitigation 5>;
+		thermal-sensors = <&google_mitigation 14>;
 		trips {
 			pmic_140c: pmic-140c {
 				temperature = <1400>;
@@ -128,7 +128,7 @@
 		zone_name  = "PMIC_OVERHEAT";
 		polling-delay-passive = <1000>;
 		polling-delay = <0>;
-		thermal-sensors = <&google_mitigation 6>;
+		thermal-sensors = <&google_mitigation 15>;
 		trips {
 			pmic_overheat: pmic-overheat{
 				temperature = <2000>;
@@ -149,7 +149,7 @@
 		zone_name  = "SMPL_GM";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-sensors = <&s2mpg10mfd 0>;
+		thermal-sensors = <&google_mitigation 0>;
 
 		trips {
 			smpl:smpl_0 {
@@ -163,7 +163,7 @@
 		zone_name  = "OCP_CPU1";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-sensors = <&s2mpg10mfd 1>;
+		thermal-sensors = <&google_mitigation 1>;
 
 		trips {
 			ocp_cpu1:ocp-cpu1 {
@@ -177,7 +177,7 @@
 		zone_name  = "OCP_CPU2";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-sensors = <&s2mpg10mfd 2>;
+		thermal-sensors = <&google_mitigation 2>;
 
 		trips {
 			ocp_cpu2:ocp-cpu2 {
@@ -191,7 +191,7 @@
 		zone_name  = "SOFT_OCP_CPU1";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-sensors = <&s2mpg10mfd 3>;
+		thermal-sensors = <&google_mitigation 3>;
 
 		trips {
 			soft_ocp_cpu1:soft-ocp-cpu1 {
@@ -205,7 +205,7 @@
 		zone_name  = "SOFT_OCP_CPU2";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-sensors = <&s2mpg10mfd 4>;
+		thermal-sensors = <&google_mitigation 4>;
 
 		trips {
 			soft_ocp_cpu2:soft-ocp-cpu2 {
@@ -219,7 +219,7 @@
 		zone_name  = "OCP_TPU";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-sensors = <&s2mpg10mfd 5>;
+		thermal-sensors = <&google_mitigation 5>;
 
 		trips {
 			ocp_tpu:ocp-tpu{
@@ -233,7 +233,7 @@
 		zone_name  = "SOFT_OCP_TPU";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-sensors = <&s2mpg10mfd 6>;
+		thermal-sensors = <&google_mitigation 6>;
 
 		trips {
 			soft_ocp_tpu:soft-ocp-tpu {
@@ -247,7 +247,7 @@
 		zone_name  = "OCP_GPU";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-sensors = <&s2mpg11mfd 0>;
+		thermal-sensors = <&google_mitigation 7>;
 
 		trips {
 			ocp_gpu:ocp-gpu{
@@ -261,7 +261,7 @@
 		zone_name  = "SOFT_OCP_GPU";
 		polling-delay-passive = <100>;
 		polling-delay = <0>;
-		thermal-sensors = <&s2mpg11mfd 1>;
+		thermal-sensors = <&google_mitigation 8>;
 
 		trips {
 			soft_ocp_gpu:soft-ocp-gpu {
