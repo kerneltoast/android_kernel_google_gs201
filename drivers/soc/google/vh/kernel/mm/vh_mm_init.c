@@ -58,7 +58,19 @@ static int vh_mm_init(void)
 		return ret;
 
 	ret = register_trace_android_vh_pagevec_drain(
-				vh_pagevec_drain, NULL);
+			vh_pagevec_drain, NULL);
+	if (ret)
+		return ret;
+	ret = register_trace_android_vh_zap_pte_range_tlb_start(
+			vh_zap_pte_range_tlb_start, NULL);
+	if (ret)
+		return ret;
+	ret = register_trace_android_vh_zap_pte_range_tlb_force_flush(
+			vh_zap_pte_range_tlb_force_flush, NULL);
+	if (ret)
+		return ret;
+	ret = register_trace_android_vh_zap_pte_range_tlb_end(
+			vh_zap_pte_range_tlb_end, NULL);
 	return ret;
 }
 module_init(vh_mm_init);
