@@ -23,3 +23,8 @@ void vh_zap_pte_range_tlb_end(void *data, void *unused)
 {
 	preempt_enable();
 }
+
+void vh_skip_lru_disable(void *data, bool *skip)
+{
+	*skip = true;
+}

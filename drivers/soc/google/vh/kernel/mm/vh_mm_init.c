@@ -10,8 +10,10 @@
 #include <linux/module.h>
 #include <trace/hooks/gup.h>
 #include <trace/hooks/mm.h>
+#include <trace/hooks/buffer.h>
 #include "../../include/gup.h"
 #include "../../include/mm.h"
+#include "../../include/buffer.h"
 
 struct kobject *vendor_mm_kobj;
 EXPORT_SYMBOL_GPL(vendor_mm_kobj);
@@ -71,6 +73,15 @@ static int vh_mm_init(void)
 		return ret;
 	ret = register_trace_android_vh_zap_pte_range_tlb_end(
 			vh_zap_pte_range_tlb_end, NULL);
+	if (ret)
+		return ret;
+	ret = register_trace_android_vh_skip_lru_disable(
+			vh_skip_lru_disable, NULL);
+	if (ret)
+		return ret;
+	ret = register_trace_android_vh_bh_lru_install(
+			vh_bh_lru_install, NULL);
+
 	return ret;
 }
 module_init(vh_mm_init);
