@@ -509,6 +509,8 @@ static int gs_get_temp(void *p, int *temp)
 		 (!data->is_dfs_throttled && (data->temperature >= data->dfs_trig_threshold)))) {
 		data->is_dfs_throttled = !data->is_dfs_throttled;
 		thermal_dfs_throttle_cb(&data->dfs_throttled_cpus, data->is_dfs_throttled);
+		pr_info_ratelimited("%s: dfs throttling status: %d \n", data->tmu_name,
+				data->is_dfs_throttled);
 	}
 
 	if (data->hotplug_enable &&
