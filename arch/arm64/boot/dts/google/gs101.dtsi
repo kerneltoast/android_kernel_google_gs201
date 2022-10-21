@@ -443,6 +443,7 @@
 		swreset-system-offset = <0x3A00>;
 		swreset-system-trigger = <0x2>;
 		reboot-cmd-offset = <0x0810>;
+		force-warm-reboot-on-thermal-shutdown;
 	};
 
 	gpio_keys: gpio_keys {
@@ -1007,7 +1008,7 @@
 			/* Delay time */
 			use_delay_time = "false";
 
-			freq_info = <134000 134000 134000 134000 711000 711000>;
+			freq_info = <100000 100000 100000 100000 711000 711000>;
 			/* <initial_freq, default_qos, suspend_freq, min, max, reboot_freq> */
 
 			/* governor data */
@@ -1506,8 +1507,8 @@
 		use-pi-thermal;
 		polling_delay_on = <50>;
 		polling_delay_off = <0>;
-		k_po = <60>;
-		k_pu = <60>;
+		k_po = <20>;
+		k_pu = <20>;
 		k_i = <20>;
 		i_max = <5>;
 		integral_cutoff = <20>;

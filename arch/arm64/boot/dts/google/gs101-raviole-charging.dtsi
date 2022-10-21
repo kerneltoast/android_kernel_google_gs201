@@ -43,6 +43,7 @@
 
 				google,wlc-thermal-mitigation = <1100000 500000 250000 100000>;
 				google,therm-wlc-overrides-fcc;
+				google,wlc-thermal-dc-fan-alarm = <2>;
 
 				/* b/170700459 thresholds, updated in b/191070950 */
 				google,bd-resume-abs-temp = <280>;

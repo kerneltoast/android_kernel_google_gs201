@@ -312,6 +312,7 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 			static char pm_dev_namebuf[512] = {0};
 			struct pm_dev_priv *priv;
 			struct interval_tree_node *node, *next;
+			int buf_off = 0;
 
 			pr_emerg("pm_suspend_task '%s' %d hung (state=%ld)",
 					pm_suspend_task->comm, pm_suspend_task->pid,
@@ -323,10 +324,10 @@ static int hardlockup_debug_bug_handler(struct pt_regs *regs, unsigned int esr)
 
 			pr_emerg("PM suspend timeout at following devices:\n");
 			foreach_pm_dev(node, next, priv) {
-				if (pm_dev_namebuf[0])
-					strlcat(pm_dev_namebuf, ",", sizeof(pm_dev_namebuf));
-				strlcat(pm_dev_namebuf, dev_driver_string(priv->dev),
-						sizeof(pm_dev_namebuf));
+				buf_off += scnprintf(pm_dev_namebuf + buf_off,
+						sizeof(pm_dev_namebuf) - buf_off,
+						"%s%s", pm_dev_namebuf[0] ? "," : "",
+						dev_driver_string(priv->dev));
 				pr_emerg("  - %s %s, parent: %s, %s[%s]\n",
 						dev_name(priv->dev),
 						dev_driver_string(priv->dev),

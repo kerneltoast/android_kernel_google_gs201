@@ -31,6 +31,8 @@
 				cpu1_clkdivstep = <0x0>;
 				cpu0_clkdivstep = <0x1>;
 				odpm_ratio = <3>;
+				gpios = <&gpa5 5 GPIO_ACTIVE_HIGH>,		/* VDROOP1 */
+					<&gpa5 6 GPIO_ACTIVE_HIGH>;		/* VDROOP2 */
 			};
 		};
 	};
