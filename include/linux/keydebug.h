@@ -27,6 +27,7 @@ struct keydebug_platform_data {
 	struct delayed_work delayed_work;
 	bool keydebug_requested;
 	int s2d_state_backup;
+	struct kernel_top_context *ktop;
 };
 
 void keydebug_register_s2d_ops(void *get, void *set);
