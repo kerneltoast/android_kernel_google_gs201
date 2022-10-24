@@ -1,35 +1,31 @@
-/* drivers/input/keydebug-func.c
+// SPDX-License-Identifier: GPL-2.0-only
+/* drivers/soc/google/kernel-top.c
  *
  * Copyright (C) 2018 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
+#define dev_fmt(fmt)	"TOP: " fmt
+
+#include <linux/kernel_stat.h>
+#include <linux/module.h>
+#include <linux/nmi.h>
+#include <linux/platform_device.h>
+#include <linux/rtc.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/kernel_stat.h>
-#include <linux/time.h>
-#include <linux/tick.h>
-#include <linux/rtc.h>
 #include <linux/threads.h>
-#include <linux/nmi.h>
+#include <linux/tick.h>
+#include <linux/time.h>
 #include <asm/irq_regs.h>
-#include <linux/keydebug-func.h>
-#include <linux/sched/signal.h>
+#include <linux/kernel-top.h>
 #include <linux/sched/cputime.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/signal.h>
 
 #define NUM_BUSY_TASK_CHECK 5
 
 struct kernel_top_context {
+	struct device *owner;
 	u64 *prev_tasktics_array;
 	u64 *frame_tasktics_array;
 	pid_t *curr_task_pid_array;
@@ -41,12 +37,10 @@ struct kernel_top_context {
 	bool kernel_top_alloc_done;
 };
 
-static struct kernel_top_context ktop_cxt;
-static DEFINE_MUTEX(kernel_top_mutex);
-
+/* Clone from fs/proc/stat.c. */
 #ifdef arch_idle_time
 
-static u64 keydebug_get_idle_time(int cpu)
+static u64 ktop_get_idle_time(int cpu)
 {
 	u64 idle;
 
@@ -68,7 +62,7 @@ static u64 get_iowait_time(int cpu)
 
 #else
 
-static u64 keydebug_get_idle_time(int cpu)
+static u64 ktop_get_idle_time(int cpu)
 {
 	u64 idle, idle_usecs = -1ULL;
 
@@ -120,7 +114,7 @@ static void get_all_cpustat(struct kernel_cpustat *cpu_stat)
 		cpu_stat->cpustat[CPUTIME_SYSTEM] +=
 			kcpustat_cpu(cpu).cpustat[CPUTIME_SYSTEM];
 		cpu_stat->cpustat[CPUTIME_IDLE] +=
-			keydebug_get_idle_time(cpu);
+			ktop_get_idle_time(cpu);
 		cpu_stat->cpustat[CPUTIME_IOWAIT] +=
 			get_iowait_time(cpu);
 		cpu_stat->cpustat[CPUTIME_IRQ] +=
@@ -206,11 +200,10 @@ static u64 cal_frame_cpustat_total(struct kernel_cpustat curr_all_cpustat,
 	return (user_time + system_time + io_time + irq_time + idle_time);
 }
 
-static void kernel_top_cal(void)
+static void kernel_top_cal(struct kernel_top_context *cxt)
 {
 	int task_count = 0;
 	struct task_struct *tsk;
-	struct kernel_top_context *cxt = &ktop_cxt;
 
 	/* Calculate each tasks tics in this time frame*/
 	rcu_read_lock();
@@ -248,21 +241,19 @@ static void kernel_top_cal(void)
 
 }
 
-static void kernel_top_show(void)
+static void kernel_top_show(struct kernel_top_context *cxt)
 {
 	pid_t top_n_pid = 0;
 	int i;
-	struct kernel_top_context *cxt = &ktop_cxt;
 
-	pr_info("%s: CPU Usage     PID     Name\n", __func__);
+	dev_info(cxt->owner, "CPU Usage     PID     Name\n");
 	for (i = 0; i < NUM_BUSY_TASK_CHECK; i++) {
 		if (cxt->frame_cpustat_total > 0) {
 			top_n_pid = cxt->top_task_pid_array[i];
-			pr_info("%s: %8llu%%%8d     %s%10llu\n", __func__,
+			dev_info(cxt->owner, "%8llu%%%8d     %s%10llu\n",
 				cxt->frame_tasktics_array[top_n_pid] * 100 /
 					cxt->frame_cpustat_total,
-				top_n_pid,
-				cxt->task_ptr_array[top_n_pid]->comm,
+				top_n_pid, cxt->task_ptr_array[top_n_pid]->comm,
 			nsec_to_clock_t(cxt->frame_tasktics_array[top_n_pid]));
 		}
 	}
@@ -273,38 +264,32 @@ static void kernel_top_show(void)
 	memset(cxt->curr_task_pid_array, 0, sizeof(pid_t) * PID_MAX_DEFAULT);
 }
 
-void kernel_top_monitor(void)
+void kernel_top_print(struct kernel_top_context *cxt)
 {
 	struct timespec64 ts;
 	struct rtc_time tm;
-	struct kernel_top_context *cxt = &ktop_cxt;
 
-	mutex_lock(&kernel_top_mutex);
 	if (cxt->kernel_top_alloc_done == false)
-		goto done;
+		return;
 
-	kernel_top_cal();
-	kernel_top_show();
+	kernel_top_cal(cxt);
+	kernel_top_show(cxt);
 
 	ktime_get_real_ts64(&ts);
 	rtc_time64_to_tm(ts.tv_sec - (sys_tz.tz_minuteswest * 60), &tm);
-	pr_info("%s: Kernel Top Statistic done"
-			"(%02d-%02d %02d:%02d:%02d)\n", __func__,
+	dev_info(cxt->owner, "Kernel Top Statistic done (%02d-%02d %02d:%02d:%02d)\n",
 		tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-
-done:
-	mutex_unlock(&kernel_top_mutex);
 }
-EXPORT_SYMBOL_GPL(kernel_top_monitor);
+EXPORT_SYMBOL_GPL(kernel_top_print);
 
-void kernel_top_init(void)
+int kernel_top_init(struct device *dev, struct kernel_top_context **pcxt)
 {
-	struct task_struct *tsk;
-	struct timespec64 ts;
-	struct rtc_time tm;
-	struct kernel_top_context *cxt = &ktop_cxt;
+	struct kernel_top_context *cxt;
 
-	mutex_lock(&kernel_top_mutex);
+	cxt = devm_kzalloc(dev, sizeof(*cxt), GFP_KERNEL);
+	if (!cxt)
+		return -ENOMEM;
+
 	if (cxt->kernel_top_alloc_done == false) {
 
 		cxt->prev_tasktics_array =
@@ -327,6 +312,30 @@ void kernel_top_init(void)
 		cxt->kernel_top_alloc_done = true;
 	}
 
+	*pcxt = cxt;
+	cxt->owner = dev;
+	kernel_top_reset(cxt);
+	return 0;
+
+err_alloc_curr_task_pid:
+	vfree(cxt->curr_task_pid_array);
+err_alloc_task_ptr:
+	vfree(cxt->task_ptr_array);
+err_alloc_frame_tasktics:
+	vfree(cxt->frame_tasktics_array);
+err_alloc_prev_tasktics:
+	vfree(cxt->prev_tasktics_array);
+
+	return -ENOMEM;
+}
+EXPORT_SYMBOL_GPL(kernel_top_init);
+
+void kernel_top_reset(struct kernel_top_context *cxt)
+{
+	struct task_struct *tsk;
+	struct timespec64 ts;
+	struct rtc_time tm;
+
 	memset(cxt->prev_tasktics_array, 0, sizeof(u64) * PID_MAX_DEFAULT);
 	memset(cxt->frame_tasktics_array, 0, sizeof(u64) * PID_MAX_DEFAULT);
 	memset(cxt->task_ptr_array, 0,
@@ -335,8 +344,7 @@ void kernel_top_init(void)
 
 	ktime_get_real_ts64(&ts);
 	rtc_time64_to_tm(ts.tv_sec - (sys_tz.tz_minuteswest * 60), &tm);
-	pr_info("%s: Kernel Top Statistic start"
-			"(%02d-%02d %02d:%02d:%02d)\n", __func__,
+	dev_info(cxt->owner, "Kernel Top Statistic start (%02d-%02d %02d:%02d:%02d)\n",
 		tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	get_all_cpustat(&cxt->curr_all_cpustat);
@@ -354,34 +362,22 @@ void kernel_top_init(void)
 		}
 	}
 	rcu_read_unlock();
-	goto done;
-
-err_alloc_curr_task_pid:
-	vfree(cxt->curr_task_pid_array);
-err_alloc_task_ptr:
-	vfree(cxt->task_ptr_array);
-err_alloc_frame_tasktics:
-	vfree(cxt->frame_tasktics_array);
-err_alloc_prev_tasktics:
-	vfree(cxt->prev_tasktics_array);
-
-	cxt->kernel_top_alloc_done = false;
-	pr_info("%s: memory allocate failed", __func__);
-done:
-	mutex_unlock(&kernel_top_mutex);
 }
+EXPORT_SYMBOL_GPL(kernel_top_reset);
 
-void kernel_top_exit(void)
+void kernel_top_destroy(struct kernel_top_context *cxt)
 {
-	struct kernel_top_context *cxt = &ktop_cxt;
-
-	mutex_lock(&kernel_top_mutex);
 	if (cxt->kernel_top_alloc_done) {
 		vfree(cxt->curr_task_pid_array);
 		vfree(cxt->task_ptr_array);
 		vfree(cxt->frame_tasktics_array);
 		vfree(cxt->prev_tasktics_array);
-		memset(cxt, 0, sizeof(*cxt));
+
+		devm_kfree(cxt->owner, cxt);
+		cxt->kernel_top_alloc_done = false;
 	}
-	mutex_unlock(&kernel_top_mutex);
 }
+EXPORT_SYMBOL_GPL(kernel_top_destroy);
+
+MODULE_DESCRIPTION("Kernel-Top utils");
+MODULE_LICENSE("GPL v2");

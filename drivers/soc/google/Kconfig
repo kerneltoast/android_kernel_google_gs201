@@ -273,4 +273,11 @@ config WLAN_TRACKER
 	help
 	Module for wlan performance tracker.
 
+config KERNEL_TOP
+	tristate "Display processes statistic"
+	default n
+	help
+	  This module exposes kernel function for modules to debugging
+	  processes statistic.
+
 endmenu

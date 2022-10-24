@@ -30,6 +30,6 @@ obj-$(CONFIG_GOODIX_FINGERPRINT)+= fingerprint/
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o
 obj-$(CONFIG_INPUT_KEYCOMBO)	+= keycombo.o
 obj-$(CONFIG_INPUT_KEYDEBUG)    += keydebug.o
-keydebug-y := keydebug-core.o keydebug-func.o
+keydebug-y := keydebug-core.o
 
 obj-$(CONFIG_RMI4_CORE)		+= rmi4/
