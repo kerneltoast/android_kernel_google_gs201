@@ -1108,6 +1108,7 @@
 
 		mif_cpu0_mem_lat: devfreq_mif_cpu0_memlat@17000010 {
 			compatible = "memlat-devfreq";
+			cpu = <0>;
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
 			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
@@ -1124,6 +1125,7 @@
 
 		mif_cpu1_mem_lat: devfreq_mif_cpu1_memlat@17000010 {
 			compatible = "memlat-devfreq";
+			cpu = <1>;
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
 			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
@@ -1140,6 +1142,7 @@
 
 		mif_cpu2_mem_lat: devfreq_mif_cpu2_memlat@17000010 {
 			compatible = "memlat-devfreq";
+			cpu = <2>;
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
 			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
@@ -1156,6 +1159,7 @@
 
 		mif_cpu3_mem_lat: devfreq_mif_cpu3_memlat@17000010 {
 			compatible = "memlat-devfreq";
+			cpu = <3>;
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
 			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
@@ -1173,6 +1177,7 @@
 
 		mif_cpu4_mem_lat: devfreq_mif_cpu4_memlat@17000010 {
 			compatible = "memlat-devfreq";
+			cpu = <4>;
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
 			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
@@ -1189,6 +1194,7 @@
 
 		mif_cpu5_mem_lat: devfreq_mif_cpu5_memlat@17000010 {
 			compatible = "memlat-devfreq";
+			cpu = <5>;
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
 			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
@@ -1205,6 +1211,7 @@
 
 		mif_cpu6_mem_lat: devfreq_mif_cpu6_memlat@17000010 {
 			compatible = "memlat-devfreq";
+			cpu = <6>;
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
 			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
@@ -1221,6 +1228,7 @@
 
 		mif_cpu7_mem_lat: devfreq_mif_cpu7_memlat@17000010 {
 			compatible = "memlat-devfreq";
+			cpu = <7>;
 			devfreq_type = <DEVFREQ_MIF>;
 			devfreq_domain_name = "MIF";
 			pm_qos_class = <PM_QOS_BUS_THROUGHPUT>;
