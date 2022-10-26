@@ -34,3 +34,8 @@ void rvh_cgroup_force_kthread_migration_pixel_mod(void *data, struct task_struct
 #endif
 	*force_migration = true;
 }
+
+void vh_rebuild_root_domains_bypass_pixel_mod(void *data, bool tasks_frozen, bool *bypass)
+{
+	*bypass = tasks_frozen;
+}
