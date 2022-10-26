@@ -2127,6 +2127,7 @@ static struct mfc_buf *__mfc_core_nal_q_handle_frame_output(struct mfc_core *cor
 static void __mfc_core_nal_q_handle_frame_input(struct mfc_core *core, struct mfc_ctx *ctx,
 			unsigned int err, DecoderOutputStr *pOutStr)
 {
+	struct mfc_dev *dev = ctx->dev;
 	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_buf *src_mb;
 	unsigned int index;
@@ -2219,6 +2220,15 @@ static void __mfc_core_nal_q_handle_frame_input(struct mfc_core *core, struct mf
 			dec->is_multiple_show = 0;
 			mfc_ctx_info("[NALQ][STREAM] AV1 multiple show frame has no buffer to DQ\n");
 		}
+	}
+
+	/* If pic_output_flag is 0 in HEVC, it is no destination buffer */
+	if (IS_HEVC_DEC(ctx) &&
+			MFC_FEATURE_SUPPORT(dev, dev->pdata->hevc_pic_output_flag) &&
+			!((pOutStr->HevcInfo >> MFC_REG_D_HEVC_INFO_PIC_OUTPUT_FLAG_SHIFT)
+				& MFC_REG_D_HEVC_INFO_PIC_OUTPUT_FLAG_MASK)) {
+		mfc_set_mb_flag(src_mb, MFC_FLAG_CONSUMED_ONLY);
+		mfc_debug(2, "[NALQ][STREAM] HEVC pic_output_flag off has no buffer to DQ\n");
 	}
 
 	if ((dst_frame_status == MFC_REG_DEC_STATUS_DECODING_ONLY) &&

@@ -252,6 +252,9 @@
 #define mfc_core_get_av1_filmgrain_present() ((MFC_CORE_READL(MFC_REG_D_AV1_INFO)		\
 						>> MFC_REG_D_AV1_INFO_FILMGRAIN_PRESENT_SHIFT)	\
 						& MFC_REG_D_AV1_INFO_FILMGRAIN_PRESENT_MASK)
+#define mfc_core_get_hevc_pic_output_flag()	((MFC_CORE_READL(MFC_REG_D_HEVC_INFO)		\
+						>> MFC_REG_D_HEVC_INFO_PIC_OUTPUT_FLAG_SHIFT)	\
+						& MFC_REG_D_HEVC_INFO_PIC_OUTPUT_FLAG_MASK)
 
 /* nal queue information */
 #define mfc_core_get_nal_q_input_count()		MFC_CORE_READL(MFC_REG_NAL_QUEUE_INPUT_COUNT)
