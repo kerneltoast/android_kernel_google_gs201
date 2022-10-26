@@ -140,7 +140,7 @@ s2mpg10-regulator.ko
 s2mpg11-mfd.ko
 s2mpg11-powermeter.ko
 s2mpg11-regulator.ko
-s2mpg1x-gpio.ko
+s2mpg1x-gpio-gs101.ko
 s2mpu.ko
 s3c2410_wdt.ko
 samsung-dma.ko
