@@ -1348,6 +1348,7 @@ static int __mfc_handle_stream(struct mfc_core *core, struct mfc_ctx *ctx, unsig
 	int slice_type, consumed_only = 0;
 	unsigned int strm_size;
 	unsigned int pic_count;
+	unsigned int sbwc_err;
 
 	slice_type = mfc_core_get_enc_slice_type();
 	strm_size = mfc_core_get_enc_strm_size();
@@ -1381,6 +1382,17 @@ static int __mfc_handle_stream(struct mfc_core *core, struct mfc_ctx *ctx, unsig
 	if (strm_size == 0 && !(enc->empty_data && reason == MFC_REG_R2H_CMD_COMPLETE_SEQ_RET)) {
 		mfc_debug(2, "[FRAME] dst buffer is not returned\n");
 		consumed_only = 1;
+	}
+
+	sbwc_err = mfc_core_get_enc_comp_err();
+	if (sbwc_err) {
+		mfc_ctx_err("[SBWC] Compressor error detected (Source: %d, DPB: %d)\n",
+				(sbwc_err >> 1) & 0x1, sbwc_err & 0x1);
+		mfc_ctx_err("[SBWC] sbwc: %d, lossy: %d(%d), option: %d, FORMAT: %#x, OPTIONS: %#x\n",
+				ctx->is_sbwc, ctx->is_sbwc_lossy,
+				ctx->sbwcl_ratio, enc->sbwc_option,
+				MFC_CORE_READL(MFC_REG_PIXEL_FORMAT),
+				MFC_CORE_READL(MFC_REG_E_ENC_OPTIONS));
 	}
 
 	/* handle source buffer */

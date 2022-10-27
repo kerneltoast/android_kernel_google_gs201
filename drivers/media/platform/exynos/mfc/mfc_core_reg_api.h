@@ -217,6 +217,10 @@
 	((MFC_CORE_READL(MFC_REG_E_NAL_DONE_INFO)		\
 	>> MFC_REG_E_NAL_DONE_INFO_IDR_SHIFT)			\
 	& MFC_REG_E_NAL_DONE_INFO_IDR_MASK)
+#define mfc_core_get_enc_comp_err()					\
+	((MFC_CORE_READL(MFC_REG_E_NAL_DONE_INFO)		\
+	>> MFC_REG_E_NAL_DONE_INFO_COMP_ERR_SHIFT)			\
+	& MFC_REG_E_NAL_DONE_INFO_COMP_ERR_MASK)
 #define mfc_core_get_chroma_format()		(MFC_CORE_READL(MFC_REG_D_CHROMA_FORMAT)		\
 						& MFC_REG_D_CHROMA_FORMAT_MASK)
 #define mfc_core_get_color_range()		((MFC_CORE_READL(MFC_REG_D_CHROMA_FORMAT)	\
