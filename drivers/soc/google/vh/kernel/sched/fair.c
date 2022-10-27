@@ -31,6 +31,8 @@ unsigned int sched_capacity_margin[CPU_NUM] = {
 
 extern struct vendor_group_list vendor_group_list[VG_MAX];
 
+extern struct vendor_group_list vendor_group_list[VG_MAX];
+
 unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
 				 unsigned long max, enum schedutil_type type,
 				 struct task_struct *p);

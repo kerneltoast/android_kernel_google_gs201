@@ -37,7 +37,9 @@ void exynos_pcie_rc_phy_check_rx_elecidle(void *phy_pcs_base_regs, int val, int 
 void exynos_pcie_rc_phy_all_pwrdn(struct exynos_pcie *exynos_pcie, int ch_num)
 {
 	void __iomem *phy_base_regs = exynos_pcie->phy_base;
+	u32 val;
 
+	writel(0xA8, phy_base_regs + 0x404);
 	writel(0x20, phy_base_regs + 0x408);
 	writel(0x0A, phy_base_regs + 0x40C);
 
@@ -56,6 +58,11 @@ void exynos_pcie_rc_phy_all_pwrdn(struct exynos_pcie *exynos_pcie, int ch_num)
 	writel(0xAA, phy_base_regs + 0x1248);
 	writel(0xA8, phy_base_regs + 0x124C);
 	writel(0x80, phy_base_regs + 0x1250);
+
+	/* Disable PHY PMA */
+	val = readl(phy_base_regs + 0x400);
+	val &= ~(0x1 << 7);
+	writel(val, phy_base_regs + 0x400);
 }
 
 /* PHY all power down clear */
@@ -66,6 +73,7 @@ void exynos_pcie_rc_phy_all_pwrdn_clear(struct exynos_pcie *exynos_pcie, int ch_
 	writel(0x28, phy_base_regs + 0xD8);
 	mdelay(1);
 
+	writel(0x00, phy_base_regs + 0x404);
 	writel(0x00, phy_base_regs + 0x408);
 	writel(0x00, phy_base_regs + 0x40C);
 

@@ -46,8 +46,6 @@ static int chunk_heap_buffer_allocate(struct cma *cma, unsigned int need_count,
 	unsigned int nr_chunks_per_alloc = 1 << (alloc_order - chunk_order);
 	gfp_t gfp_flags = GFP_KERNEL | GFP_CHUNK_HEAP_NORETRY_NOWARN;
 
-	lru_cache_disable();
-
 	while (alloc_count < need_count) {
 		struct page *page;
 
@@ -79,8 +77,6 @@ static int chunk_heap_buffer_allocate(struct cma *cma, unsigned int need_count,
 			page += 1 << chunk_order;
 		}
 	}
-
-	lru_cache_enable();
 
 	if (alloc_count < need_count) {
 		for (i = 0; i < alloc_count; i++) {

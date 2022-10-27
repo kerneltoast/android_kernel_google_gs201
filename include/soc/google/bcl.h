@@ -40,29 +40,9 @@ enum TRIGGERED_SOURCE {
 	TRIGGERED_SOURCE_MAX,
 };
 
-enum GRAN_MAIN_THERMAL_SOURCE {
-	TS_SMPL_WARN,
-	TS_OCP_WARN_CPUCL1,
-	TS_OCP_WARN_CPUCL2,
-	TS_SOFT_OCP_WARN_CPUCL1,
-	TS_SOFT_OCP_WARN_CPUCL2,
-	TS_OCP_WARN_TPU,
-	TS_SOFT_OCP_WARN_TPU,
-};
-
-enum GRAN_SUB_THERMAL_SOURCE {
-	TS_OCP_WARN_GPU,
-	TS_SOFT_OCP_WARN_GPU,
-};
-
 enum BCL_THERMAL_SOURCE {
-	TS_PMIC_SOC,
-	TS_UVLO1,
 	TS_UVLO2,
-	TS_BATOILO,
-	TS_PMIC_120C,
-	TS_PMIC_140C,
-	TS_PMIC_OVERHEAT,
+	TS_UVLO1,
 };
 
 enum PMIC_REG {
@@ -151,6 +131,7 @@ struct bcl_device {
 
 	bool batt_psy_initialized;
 	bool enabled;
+	bool ready;
 
 	unsigned int offsrc;
 	unsigned int pwronsrc;

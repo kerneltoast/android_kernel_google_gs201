@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <soc/google/exynos-itmon.h>
 #include <soc/google/debug-snapshot.h>
+#include <soc/google/exynos-cpupm.h>
 
 #define OFFSET_TMOUT_REG		(0x2000)
 #define OFFSET_REQ_R			(0x0)
@@ -1197,8 +1198,6 @@ static void itmon_post_handler_by_client(struct itmon_dev *itmon,
 		if (trans_type == TRANS_TYPE_READ &&
 			info->errcode == ERRCODE_DECERR &&
 			info->target_addr < 0x10000 &&
-			/* addr ends with 40: 0x7240, 0x7140, 0xd540 .. */
-			(info->target_addr & 0xFF) == 0x40 &&
 			/* size (2 ^ axsize) = 4 */
 			info->axsize == 2 &&
 			/* burst (axlen + 1) = 16 */
@@ -1870,6 +1869,10 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 	bool ret;
 	int i;
 
+#if IS_ENABLED(CONFIG_EXYNOS_CPUPM)
+	system_is_in_itmon = true;
+#endif
+
 	itmon_pattern_reset();
 	dbg_snapshot_itmon_irq_received();
 
@@ -1893,6 +1896,10 @@ static irqreturn_t itmon_irq_handler(int irq, void *data)
 		if (!pdata->in_do_policy)
 			itmon_do_dpm_policy(itmon);
 	}
+
+#if IS_ENABLED(CONFIG_EXYNOS_CPUPM)
+	system_is_in_itmon = false;
+#endif
 
 	return IRQ_HANDLED;
 }

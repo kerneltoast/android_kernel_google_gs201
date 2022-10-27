@@ -57,8 +57,10 @@ enum tmu_type_t {
 	TMU_TYPE_GPU = 1,
 	TMU_TYPE_ISP = 2,
 	TMU_TYPE_TPU = 3,
-	TMU_TYPE_AUR = 4,
-	TMU_TYPE_END = 5,
+#if defined(CONFIG_SOC_GS201)
+	TMU_TYPE_AUR,
+#endif
+	TMU_TYPE_END,
 };
 
 enum tmu_grp_idx_t {
@@ -68,8 +70,10 @@ enum tmu_grp_idx_t {
 	TZ_GPU = 3,
 	TZ_ISP = 4,
 	TZ_TPU = 5,
-	TZ_AUR = 6,
-	TZ_END = 7,
+#if defined(CONFIG_SOC_GS201)
+	TZ_AUR,
+#endif
+	TZ_END,
 };
 
 #if defined(CONFIG_SOC_GS101)

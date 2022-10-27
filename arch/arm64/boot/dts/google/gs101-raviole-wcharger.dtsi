@@ -29,6 +29,10 @@
 		idt,fuel-gauge = <&max77759_fg>;
 		/* Defender */
 		google,power_mitigate_threshold = <90>;
+		google,has-sw-ramp;
+
+		/* TXID: Phone type */
+		idt,tx_id_phone_type = /bits/ 8 <2>;
 
 		p9xxx_gpio: p9xxx_gpio {
 			gpio-controller;

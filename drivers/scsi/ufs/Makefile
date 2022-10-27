@@ -34,8 +34,10 @@ ufs-exynos-core-$(CONFIG_SOC_GS201) += gs201/ufs-cal-if.o
 ufs-exynos-core-$(CONFIG_SCSI_UFS_CRYPTO) += ufs-pixel-crypto.o ufs-exynos-fmp.o
 
 obj-$(CONFIG_SCSI_UFS_PIXEL_FIPS140) += ufs-pixel-fips140.o
-ufs-pixel-fips140-y += ufs-pixel-fips.o ufs-pixel-fips_sha256.o \
-		       ufs-pixel-fips140-refs.o
+ufs-pixel-fips140-y += ufs-pixel-fips_sha256.o ufs-pixel-fips140-refs.o
+ufs-pixel-fips140-$(CONFIG_SOC_GS101) += gs101/ufs-pixel-fips.o
+ufs-pixel-fips140-$(CONFIG_SOC_GS201) += gs201/ufs-pixel-fips.o
+
 # Use -DBUILD_FIPS140_KO to disable dynamic code patching as that would
 # invalidate the hash of the module's .text section
 CFLAGS_ufs-pixel-fips140.o += -DBUILD_FIPS140_KO

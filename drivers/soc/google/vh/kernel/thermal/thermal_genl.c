@@ -12,7 +12,7 @@
 #define NUM_EVENT 2
 static const int thermal_genl_enable[NUM_EVENT] = {
 	THERMAL_GENL_EVENT_TZ_TRIP_UP,
-	THERMAL_GENL_EVENT_TZ_TRIP_DOWN
+	THERMAL_GENL_EVENT_TZ_TRIP_DOWN,
 };
 
 #define MAX_NUM_TZ 100

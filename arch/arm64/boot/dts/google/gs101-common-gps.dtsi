@@ -17,6 +17,7 @@
   status = "okay";
   pinctrl-names = "default";
   pinctrl-0 = <&spi5_bus &spi5_cs_func>;
+  swap-mode = <1>;
 
   bcm4775@0 {
     compatible = "ssp,bcm4775";

@@ -307,11 +307,8 @@ static int dit_hal_add_dst_iface(bool is_upstream,
 
 			dhc->dst_iface[i].netdev =
 				dev_get_by_name(&init_net, info->iface);
-			if (dhc->dst_iface[i].netdev) {
+			if (dhc->dst_iface[i].netdev)
 				dhc->dst_iface[i].iface_set = true;
-				/* ToDo: move to dit_hal_remove_dst_iface? */
-				dev_put(dhc->dst_iface[i].netdev);
-			}
 
 			info->dst_ring = i;
 			return i;
@@ -329,10 +326,8 @@ static int dit_hal_add_dst_iface(bool is_upstream,
 		strlcpy(dhc->dst_iface[i].iface, info->iface, IFNAMSIZ);
 		dhc->dst_iface[i].netdev =
 			dev_get_by_name(&init_net, info->iface);
-		if (dhc->dst_iface[i].netdev) {
+		if (dhc->dst_iface[i].netdev)
 			dhc->dst_iface[i].iface_set = true;
-			dev_put(dhc->dst_iface[i].netdev);
-		}
 
 		info->dst_ring = i;
 		return i;
@@ -362,6 +357,7 @@ static void dit_hal_remove_dst_iface(bool is_upstream,
 			continue;
 
 		dhc->dst_iface[i].iface_set = false;
+		dev_put(dhc->dst_iface[i].netdev);
 		break;
 	}
 }
@@ -553,7 +549,9 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 			mif_err("hal init failed. ret: %d\n", ret);
 			return ret;
 		}
+		mutex_lock(&dhc->ioctl_lock);
 		ret = dit_manage_rx_dst_data_buffers(true);
+		mutex_unlock(&dhc->ioctl_lock);
 		if (ret) {
 			mif_err("hal buffer fill failed. ret: %d\n", ret);
 			return ret;
@@ -577,7 +575,9 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 		/* init port table and take a delay for the prior kick */
 		dit_init(NULL, DIT_INIT_NORMAL, DIT_STORE_NONE);
 		msleep(100);
+		mutex_lock(&dhc->ioctl_lock);
 		ret = dit_manage_rx_dst_data_buffers(false);
+		mutex_unlock(&dhc->ioctl_lock);
 		if (ret)
 			mif_err("hal buffer free. ret: %d\n", ret);
 
@@ -646,6 +646,7 @@ static long dit_hal_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 				sizeof(struct iface_info)))
 			return -EFAULT;
 
+		msleep(100);
 		dit_hal_remove_dst_iface(false, &info);
 		if (!dit_hal_check_ready_to_start())
 			dit_hal_set_event(OFFLOAD_STOPPED_ERROR);
@@ -723,6 +724,7 @@ int dit_hal_create(struct dit_ctrl_t *dc_ptr)
 	spin_lock_init(&dhc->hal_lock);
 	spin_lock_init(&dhc->event_lock);
 	spin_lock_init(&dhc->stats_lock);
+	mutex_init(&dhc->ioctl_lock);
 
 	ret = misc_register(&dit_misc);
 	if (ret) {

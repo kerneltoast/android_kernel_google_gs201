@@ -207,6 +207,7 @@
 					 2000
 					 1000
 					 1000>;
+				transaction-thread-priority = <99>;
 			};
 
 			/* FRONT CAMERA IMX663 */
@@ -279,6 +280,7 @@
 					 1000
 					 1000
 					 1000>;
+				transaction-thread-priority = <99>;
 			};
 
 			/* REAR ULTRA WIDE CAMERA IMX386 */
@@ -351,6 +353,7 @@
 					 1000
 					 3000
 					 1000>;
+				transaction-thread-priority = <99>;
 			};
 
 			/* REAR CAMERA IMX586 */
@@ -441,6 +444,7 @@
 					 3000
 					 1000
 					 1000>;
+				transaction-thread-priority = <99>;
 			};
 
 			/* Eeprom lc898128 for gn1*/
@@ -664,6 +668,9 @@
 					<2000
 					 1000
 					 1000>;
+
+				/* Thread priority */
+				periodic-io-thread-priority = <99>;
 			};
 
 			/* Actuator sem1215sa for imx586*/
@@ -713,6 +720,9 @@
 					<1000
 					 4000
 					 1000>;
+
+				/* Thread priority */
+				periodic-io-thread-priority = <99>;
 			};
 
 			/* Ois lc898128 for gn1*/
@@ -762,6 +772,9 @@
 					<2000
 					 1000
 					 1000>;
+
+				/* Thread priority */
+				periodic-io-thread-priority = <99>;
 			};
 
 			/* Ois sem1215sa for imx586*/
@@ -811,6 +824,9 @@
 					<1000
 					 4000
 					 1000>;
+
+				/* Thread priority */
+				periodic-io-thread-priority = <99>;
 			};
 
 			flash0: flash@0 {

@@ -231,6 +231,7 @@ struct cp_power_stats {
 	u64 duration_usec;		/* total time (usecs) in state */
 	u64 last_entry_timestamp_usec;	/* timestamp(usecs since boot) of last time entered */
 	u64 last_exit_timestamp_usec;	/* timestamp(usecs since boot) of last time exited */
+	bool suspended;			/* whether the modem is currently in sleep */
 };
 
 struct sec_info {

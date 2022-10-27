@@ -352,6 +352,8 @@
 			samsung,pins = "gph2-0";
 			samsung,pin-function = <1>;
 			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
 			samsung,pin-con-pdn = <3>;
 		};
 	};

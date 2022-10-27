@@ -118,9 +118,12 @@ static void cp2ap_wakeup_work(struct work_struct *work)
 	cp2ap_wakeup_time = ktime_get_boottime();
 
 	spin_lock_irqsave(&mc->power_stats_lock, flags);
-	mc->cp_power_stats.last_exit_timestamp_usec = ktime_to_us(cp2ap_wakeup_time);
-	mc->cp_power_stats.duration_usec += (mc->cp_power_stats.last_exit_timestamp_usec -
-			mc->cp_power_stats.last_entry_timestamp_usec);
+	if (mc->cp_power_stats.suspended) {
+		mc->cp_power_stats.last_exit_timestamp_usec = ktime_to_us(cp2ap_wakeup_time);
+		mc->cp_power_stats.duration_usec += (mc->cp_power_stats.last_exit_timestamp_usec -
+				mc->cp_power_stats.last_entry_timestamp_usec);
+	}
+	mc->cp_power_stats.suspended = false;
 	spin_unlock_irqrestore(&mc->power_stats_lock, flags);
 
 	s5100_poweron_pcie(mc, false);
@@ -138,8 +141,11 @@ static void cp2ap_suspend_work(struct work_struct *work)
 	cp2ap_suspend_time = ktime_get_boottime();
 
 	spin_lock_irqsave(&mc->power_stats_lock, flags);
-	mc->cp_power_stats.last_entry_timestamp_usec = ktime_to_us(cp2ap_suspend_time);
-	mc->cp_power_stats.count++;
+	if (!mc->cp_power_stats.suspended) {
+		mc->cp_power_stats.last_entry_timestamp_usec = ktime_to_us(cp2ap_suspend_time);
+		mc->cp_power_stats.count++;
+	}
+	mc->cp_power_stats.suspended = true;
 	spin_unlock_irqrestore(&mc->power_stats_lock, flags);
 
 	s5100_poweroff_pcie(mc, false);
@@ -154,8 +160,7 @@ static ssize_t power_stats_show(struct device *dev,
 	u64 adjusted_duration_usec = mc->cp_power_stats.duration_usec;
 
 	spin_lock_irqsave(&mc->power_stats_lock, flags);
-	if (mc->cp_power_stats.last_entry_timestamp_usec >
-			mc->cp_power_stats.last_exit_timestamp_usec) {
+	if (mc->cp_power_stats.suspended) {
 		u64 now_usec = ktime_to_us(ktime_get_boottime());
 		adjusted_duration_usec += now_usec -
 			mc->cp_power_stats.last_entry_timestamp_usec;
@@ -1399,6 +1404,11 @@ static int s5100_poweroff_pcie(struct modem_ctl *mc, bool force_off)
 		mc->pcie_cto_retry_cnt = 0;
 	}
 
+	if (exynos_pcie_rc_get_cpl_timeout_state(mc->pcie_ch_num)) {
+		exynos_pcie_rc_set_cpl_timeout_state(mc->pcie_ch_num, false);
+		in_pcie_recovery = true;
+	}
+
 	mc->pcie_powered_on = false;
 
 	if (mc->s51xx_pdev != NULL && (mc->phone_state == STATE_ONLINE ||
@@ -1495,6 +1505,9 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 	spin_lock_irqsave(&mc->pcie_tx_lock, flags);
 	/* wait Tx done if it is running */
 	spin_unlock_irqrestore(&mc->pcie_tx_lock, flags);
+
+	if (exynos_pcie_rc_get_cpl_timeout_state(mc->pcie_ch_num))
+		exynos_pcie_set_ready_cto_recovery(mc->pcie_ch_num);
 
 	if (exynos_pcie_poweron(mc->pcie_ch_num, (boot_on ? 1 : 3)) != 0)
 		goto exit;

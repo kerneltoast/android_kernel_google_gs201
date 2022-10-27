@@ -64,7 +64,7 @@ bool is_shared_i2c_with_stmvl53l1(struct pinctrl *pinctrl)
 	 * device tree or stmvl53l1 probes failed. We don't need to care about
 	 * the shared i2c in these two cases.
 	 */
-	if (shared_i2c_data == NULL || shared_i2c_data->pinctrl == NULL)
+	if (shared_i2c_data == NULL || shared_i2c_data->pinctrl == NULL || pinctrl == NULL)
 		return false;
 
 	return (shared_i2c_data->pinctrl == pinctrl);

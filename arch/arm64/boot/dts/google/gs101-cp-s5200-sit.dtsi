@@ -207,14 +207,14 @@
 						boost_name = "GRO";
 						target = <TPMON_TARGET_GRO>;
 						extra_idx = <0>;
-						level = <2000000 2000000 2000000>;
+						level = <250000 2000000>;
 
 						boost0 {
 							enable = <1>;
 							measure = <TPMON_MEASURE_TP>;
 							proto = <TPMON_PROTO_ALL>;
-							boost_threshold = <100 200>;
-							unboost_threshold_mbps = <50 120>;
+							boost_threshold = <100>;
+							unboost_threshold_mbps = <50>;
 						};
 					};
 
@@ -285,7 +285,7 @@
 						level = <0x04 0x20>;
 
 						boost0 {
-							enable = <1>;
+							enable = <0>;
 							measure = <TPMON_MEASURE_TP>;
 							proto = <TPMON_PROTO_ALL>;
 							boost_threshold = <500>;

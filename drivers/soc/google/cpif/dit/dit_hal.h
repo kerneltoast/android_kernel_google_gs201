@@ -142,6 +142,7 @@ struct dit_hal_ctrl_t {
 	wait_queue_head_t wq;
 	struct list_head event_q;
 	spinlock_t event_lock;
+	struct mutex ioctl_lock;
 };
 
 int dit_hal_create(struct dit_ctrl_t *dc_ptr);

@@ -64,7 +64,6 @@
 };
 
 &udc {
-	usb3-lpm-capable;
 	adj-sof-accuracy = <1>;
 	samsung,no-extra-delay;
 	usb_host_device_timeout = <0x7ff>; /* Max value */
@@ -80,11 +79,9 @@
 	usbdrd_dwc3: dwc3 {
 		dr_mode = "peripheral";
 		maximum-speed = "super-speed-plus";
-		usb3-lpm-capable;
 		usb-psy-name = "usb";
 		snps,quirk-frame-length-adjustment = <0x20>;
 
-		snps,usb3_lpm_capable;
 		snps,has-lpm-erratum;
 		snps,lpm-nyet-threshold = <0>;
 

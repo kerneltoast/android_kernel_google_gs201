@@ -145,16 +145,13 @@ static inline bool update_pmu_throttle_on_ignored_cpus(struct sugov_policy *sg_p
 	return true;
 }
 
-static inline void trace_pmu_limit(struct sugov_policy *sg_policy)
+static inline void trace_pmu_limit(struct sugov_policy *sg_policy, unsigned int freq)
 {
 	if (trace_clock_set_rate_enabled()) {
 		char trace_name[32] = {0};
 		scnprintf(trace_name, sizeof(trace_name), "pmu_limit_cpu%d",
 			  sg_policy->policy->cpu);
-		trace_clock_set_rate(trace_name, sg_policy->under_pmu_throttle ?
-				     sg_policy->tunables->limit_frequency :
-				     sg_policy->policy->cpuinfo.max_freq,
-				     raw_smp_processor_id());
+		trace_clock_set_rate(trace_name, freq, raw_smp_processor_id());
 	}
 }
 
@@ -869,10 +866,10 @@ static void sugov_work(struct kthread_work *work)
 		freq_qos_update_request(&sg_policy->pmu_max_freq_req,
 					sg_policy->policy->cpuinfo.max_freq);
 
+		trace_pmu_limit(sg_policy, sg_policy->policy->cpuinfo.max_freq);
+
 		sg_policy->under_pmu_throttle = false;
 		sg_policy->relax_pmu_throttle = false;
-
-		trace_pmu_limit(sg_policy);
 	}
 
 	mutex_lock(&sg_policy->work_lock);
@@ -903,6 +900,7 @@ void pmu_poll_enable(void)
 
 	if (!pmu_poll_enabled) {
 		pmu_poll_enabled = true;
+		trace_clock_set_rate("PMU_POLL", 1, raw_smp_processor_id());
 		kthread_mod_delayed_work(&pmu_worker, &pmu_work, msecs_to_jiffies(0));
 	}
 
@@ -919,6 +917,7 @@ void pmu_poll_disable(void)
 
 	if (pmu_poll_enabled) {
 		pmu_poll_enabled = false;
+		trace_clock_set_rate("PMU_POLL", 0, raw_smp_processor_id());
 
 		kthread_cancel_delayed_work_sync(&pmu_work);
 
@@ -926,9 +925,11 @@ void pmu_poll_disable(void)
 			policy = cpufreq_cpu_get(cpu);
 			sg_policy = policy->governor_data;
 
-			if (sg_policy)
+			if (sg_policy) {
 				freq_qos_update_request(&sg_policy->pmu_max_freq_req,
 							policy->cpuinfo.max_freq);
+				trace_pmu_limit(sg_policy, policy->cpuinfo.max_freq);
+			}
 			else
 				pr_err("no sugov policy for cpu %d\n", cpu);
 
@@ -1025,13 +1026,13 @@ static void pmu_limit_work(struct kthread_work *work)
 update_next_max_freq:
 
 		freq_qos_update_request(&sg_policy->pmu_max_freq_req, next_max_freq);
+		trace_pmu_limit(sg_policy, next_max_freq);
 
 		raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
 		sg_policy->under_pmu_throttle = pmu_throttle;
 		cpumask_copy(&sg_policy->pmu_ignored_mask, &local_pmu_ignored_mask);
 		raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
 
-		trace_pmu_limit(sg_policy);
 		cpu = cpumask_last(policy->related_cpus) + 1;
 		cpufreq_cpu_put(policy);
 	}
