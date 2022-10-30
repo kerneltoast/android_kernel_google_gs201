@@ -63,18 +63,6 @@ static int vh_mm_init(void)
 			vh_pagevec_drain, NULL);
 	if (ret)
 		return ret;
-	ret = register_trace_android_vh_zap_pte_range_tlb_start(
-			vh_zap_pte_range_tlb_start, NULL);
-	if (ret)
-		return ret;
-	ret = register_trace_android_vh_zap_pte_range_tlb_force_flush(
-			vh_zap_pte_range_tlb_force_flush, NULL);
-	if (ret)
-		return ret;
-	ret = register_trace_android_vh_zap_pte_range_tlb_end(
-			vh_zap_pte_range_tlb_end, NULL);
-	if (ret)
-		return ret;
 	ret = register_trace_android_vh_skip_lru_disable(
 			vh_skip_lru_disable, NULL);
 	if (ret)
