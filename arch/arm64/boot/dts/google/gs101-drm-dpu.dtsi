@@ -258,6 +258,7 @@
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
 		samsung,tzmp;
+		power-domains = <&pd_dpu>;
 
 		max_win = <6>;
 
@@ -324,6 +325,7 @@
 		interrupt-names = "frame_start", "frame_done", "extra";
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
+		power-domains = <&pd_dpu>;
 
 		max_win = <6>;
 
@@ -380,6 +382,7 @@
 		iommus = <&sysmmu_dpu0>, <&sysmmu_dpu1>, <&sysmmu_dpu2>;
 		samsung,iommu-group = <&iommu_group_dpu>;
 		samsung,tzmp;
+		power-domains = <&pd_dpu>;
 
 		max_win = <6>;
 
