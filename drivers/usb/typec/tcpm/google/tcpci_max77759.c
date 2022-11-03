@@ -289,6 +289,16 @@ static ssize_t cc_toggle_enable_store(struct device *dev, struct device_attribut
 }
 static DEVICE_ATTR_RW(cc_toggle_enable);
 
+static ssize_t non_compliant_reasons_show(struct device *dev, struct device_attribute *attr,
+					  char *buf)
+{
+	struct max77759_plat *chip = i2c_get_clientdata(to_i2c_client(dev));
+
+	return compliance_warnings_to_buffer(chip->compliance_warnings, buf);
+};
+
+static DEVICE_ATTR_RO(non_compliant_reasons);
+
 static ssize_t contaminant_detection_status_show(struct device *dev, struct device_attribute *attr,
 						 char *buf)
 {
@@ -480,6 +490,7 @@ static struct device_attribute *max77759_device_attrs[] = {
 	&dev_attr_contaminant_detection,
 	&dev_attr_contaminant_detection_status,
 	&dev_attr_cc_toggle_enable,
+	&dev_attr_non_compliant_reasons,
 	&dev_attr_usb_limit_sink_enable,
 	&dev_attr_usb_limit_sink_current,
 	&dev_attr_usb_limit_source_enable,
@@ -717,6 +728,66 @@ static int process_rx(struct max77759_plat *chip, u16 status)
 
 	tcpm_pd_receive(chip->port, &msg);
 	return 0;
+}
+
+struct max77759_compliance_warnings *init_compliance_warnings(struct max77759_plat *chip)
+{
+	struct max77759_compliance_warnings *compliance_warnings;
+
+	compliance_warnings = devm_kzalloc(chip->dev, sizeof(*compliance_warnings), GFP_KERNEL);
+	if (!compliance_warnings)
+		return ERR_PTR(-ENOMEM);
+
+	compliance_warnings->chip = chip;
+
+	return compliance_warnings;
+}
+
+ssize_t compliance_warnings_to_buffer(struct max77759_compliance_warnings *compliance_warnings,
+				      char *buf)
+{
+	memset(buf, 0, PAGE_SIZE);
+	strncat(buf, "[", strlen("["));
+	if (compliance_warnings->other)
+		strncat(buf, "other, ", strlen("other, "));
+	if (compliance_warnings->debug_accessory)
+		strncat(buf, "debug-accessory, ", strlen("debug-accessory, "));
+	if (compliance_warnings->bc12)
+		strncat(buf, "bc12, ", strlen("bc12, "));
+	if (compliance_warnings->missing_rp)
+		strncat(buf, "missing_rp, ", strlen("missing_rp, "));
+	strncat(buf, "]", strlen("]"));
+	return strnlen(buf, PAGE_SIZE);
+}
+
+void update_compliance_warnings(struct max77759_plat *chip, int warning, bool value)
+{
+	bool compliance_warnings_changed = false;
+
+	switch (warning) {
+	case COMPLIANCE_WARNING_OTHER:
+		compliance_warnings_changed = (chip->compliance_warnings->other != value);
+		chip->compliance_warnings->other = value;
+		break;
+	case COMPLIANCE_WARNING_DEBUG_ACCESSORY:
+		compliance_warnings_changed = (chip->compliance_warnings->debug_accessory != value);
+		chip->compliance_warnings->debug_accessory = value;
+		break;
+	case COMPLIANCE_WARNING_BC12:
+		compliance_warnings_changed = (chip->compliance_warnings->bc12 != value);
+		chip->compliance_warnings->bc12 = value;
+		break;
+	case COMPLIANCE_WARNING_MISSING_RP:
+		compliance_warnings_changed = (chip->compliance_warnings->missing_rp != value);
+		chip->compliance_warnings->missing_rp = value;
+		break;
+	}
+
+	if (compliance_warnings_changed) {
+		kobject_uevent(&chip->dev->kobj, KOBJ_CHANGE);
+		logbuffer_log(chip->log, "compliance warning %d changed, new value: %d",
+			      warning, value);
+	}
 }
 
 static void enable_dp_pulse(struct max77759_plat *chip)
@@ -1031,6 +1102,11 @@ static void process_power_status(struct max77759_plat *chip)
 		chip->attached = chip->debug_acc_connected;
 		enable_data_path_locked(chip);
 		mutex_unlock(&chip->data_path_lock);
+
+		/* Log Debug Accessory to Device Compliance Warnings, or Remove from List. */
+		update_compliance_warnings(chip, COMPLIANCE_WARNING_DEBUG_ACCESSORY,
+					   chip->debug_acc_connected);
+
 		logbuffer_log(log, "Debug accessory %s", chip->debug_acc_connected ? "connected" :
 			      "disconnected");
 		if (!chip->debug_acc_connected && modparam_conf_sbu) {
@@ -2486,6 +2562,13 @@ static int max77759_probe(struct i2c_client *client,
 	chip->data.set_partner_usb_comm_capable = max77759_set_partner_usb_comm_capable;
 	chip->data.init = tcpci_init;
 	chip->data.frs_sourcing_vbus = max77759_frs_sourcing_vbus;
+
+	chip->compliance_warnings = init_compliance_warnings(chip);
+	if (IS_ERR_OR_NULL(chip->compliance_warnings)) {
+		ret = PTR_ERR(chip->compliance_warnings);
+		dev_err(&client->dev, "init_compliance_warnings failed, ptr: %ld", ret);
+		return ret;
+	}
 
 	chip->log = logbuffer_register("usbpd");
 	if (IS_ERR_OR_NULL(chip->log)) {
