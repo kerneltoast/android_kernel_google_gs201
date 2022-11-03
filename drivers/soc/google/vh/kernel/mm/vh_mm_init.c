@@ -98,6 +98,10 @@ static int vh_mm_init(void)
 			vh_shrink_inactive_list_blk_plug, NULL);
 	if (ret)
 		return ret;
+	ret = register_trace_android_vh_shrink_lruvec_blk_plug(
+			vh_shrink_lruvec_blk_plug, NULL);
+	if (ret)
+		return ret;
 	ret = register_trace_android_vh_reclaim_pages_plug(
 			vh_reclaim_pages_plug, NULL);
 
