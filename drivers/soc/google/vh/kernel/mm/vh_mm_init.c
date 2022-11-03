@@ -81,6 +81,18 @@ static int vh_mm_init(void)
 		return ret;
 	ret = register_trace_android_vh_bh_lru_install(
 			vh_bh_lru_install, NULL);
+	if (ret)
+		return ret;
+	ret = register_trace_android_vh_do_madvise_blk_plug(
+			vh_do_madvise_blk_plug, NULL);
+	if (ret)
+		return ret;
+	ret = register_trace_android_vh_shrink_inactive_list_blk_plug(
+			vh_shrink_inactive_list_blk_plug, NULL);
+	if (ret)
+		return ret;
+	ret = register_trace_android_vh_reclaim_pages_plug(
+			vh_reclaim_pages_plug, NULL);
 
 	return ret;
 }
