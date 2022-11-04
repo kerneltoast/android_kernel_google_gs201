@@ -214,13 +214,11 @@
 		use-pi-thermal;
 		polling_delay_on = <50>;
 		polling_delay_off = <0>;
-		k_po = <20>;
-		k_pu = <20>;
-		k_i = <20>;
-		i_max = <5>;
-		integral_cutoff = <20>;
-		sustainable_power = <200>;
-		control_temp_step = <100>;
+		k_po = <40>;
+		k_pu = <40>;
+		k_i = <0>;
+		i_max = <0>;
+		sustainable_power = <350>;
 
 		tmu_work_affinity = "0-7";
 	};
