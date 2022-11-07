@@ -39,6 +39,7 @@
 
 		/* Memory */
 		physical-memory-group-manager = <&mali_mgm>;
+		system-coherency = <0>;
 
 		/* Priority control */
 		/*priority-control-manager = <&mali_pcm>;*/
