@@ -502,6 +502,8 @@ static int gs_get_temp(void *p, int *temp)
 	}
 
 	data->temperature = *temp / 1000;
+	if (data->tr_handle >= 0)
+		temp_residency_stats_update(data->tr_handle, data->temperature);
 
 	if (data->has_dfs_support &&
 		thermal_dfs_throttle_cb &&
@@ -3359,6 +3361,9 @@ static int gs_tmu_probe(struct platform_device *pdev)
 
 	thermal_zone_device_enable(data->tzd);
 
+	data->tr_handle = register_temp_residency_stats(data->tzd->type);
+	if (data->tr_handle < 0)
+		dev_err(&pdev->dev, "failed to get a handle\n");
 	if (list_is_singular(&dtm_dev_list)) {
 		register_pm_notifier(&gs_tmu_pm_nb);
 	}
@@ -3400,6 +3405,8 @@ static int gs_tmu_remove(struct platform_device *pdev)
 		}
 	}
 	mutex_unlock(&data->lock);
+
+	unregister_temp_residency_stats(data->tr_handle);
 
 	return 0;
 }
