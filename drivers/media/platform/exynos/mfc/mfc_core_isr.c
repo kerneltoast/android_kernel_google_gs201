@@ -763,6 +763,10 @@ static void __mfc_handle_frame_error(struct mfc_core *core, struct mfc_ctx *ctx,
 	if (ctx->type == MFCINST_ENCODER) {
 		mfc_err("Encoder Interrupt Error (err: %d, warn: %d)\n",
 				mfc_get_err(err), mfc_get_warn(err));
+
+		if (mfc_get_err(err) == MFC_REG_ERR_UNDEFINED_EXCEPTION)
+			mfc_core_handle_error(core);
+
 		return;
 	}
 
