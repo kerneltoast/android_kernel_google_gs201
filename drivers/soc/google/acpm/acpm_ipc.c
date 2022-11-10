@@ -197,6 +197,16 @@ unsigned int acpm_fw_get_log_level(void)
 	return acpm_debug->debug_log_level;
 }
 
+void acpm_fw_set_retry_log_ctrl(bool enable)
+{
+	acpm_debug->retry_log = enable;
+}
+
+unsigned int acpm_fw_get_retry_log_ctrl(void)
+{
+	return acpm_debug->retry_log;
+}
+
 void acpm_ramdump(void)
 {
 	if (acpm_debug->dump_size)
@@ -731,6 +741,7 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	spin_unlock_irqrestore(&channel->tx_lock, flags);
 
 	if (channel->polling && cfg->response) {
+		unsigned int saved_debug_log_level = acpm_debug->debug_log_level;
 retry:
 		timeout = sched_clock() + IPC_TIMEOUT;
 		timeout_flag = false;
@@ -764,16 +775,18 @@ retry:
 						__raw_readl(acpm_ipc->intr + INTMSR1));
 
 					cpu_irq_info_dump(retry_cnt);
+					if (retry_cnt == 1) {
+						acpm_debug->debug_log_level =
+							acpm_debug->retry_log ?
+								2 : saved_debug_log_level;
+						acpm_log_print();
+						acpm_debug->debug_log_level = saved_debug_log_level;
+					}
 					++retry_cnt;
 
 					goto retry;
 				} else {
-					unsigned int saved_debug_log_level =
-					    acpm_debug->debug_log_level;
 					++retry_cnt;
-					acpm_debug->debug_log_level = 2;
-					acpm_log_print();
-					acpm_debug->debug_log_level = saved_debug_log_level;
 					continue;
 				}
 				cnt_10us = 0;
