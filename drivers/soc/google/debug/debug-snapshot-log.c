@@ -253,7 +253,46 @@ void dbg_snapshot_set_enable_log_item(const char *name, int en)
 	}
 }
 
-static void dbg_snapshot_suspend(const char *log, struct device *dev,
+static void dbg_snapshot_handle_suspend_diag(unsigned long last_idx, unsigned long curr_idx)
+{
+	unsigned long idx = (last_idx + 1) & (dss_get_len_suspend_log() - 1);
+	bool has_dev_pm_cb = (idx == curr_idx) ? false : true;
+	long long delta_time = 0;
+
+	if (!has_dev_pm_cb) {
+		delta_time = dss_log->suspend[curr_idx].time - dss_log->suspend[last_idx].time;
+	} else {
+		/* dev_pm_cb have been run by multi cores between last_idx and curr_idx
+		 * so we can't use dss_log->suspend[curr_idx].time - dss_log->suspend[last_idx].time
+		 * directly to determine delta time */
+		while (idx != curr_idx) {
+			delta_time += (((long long)dss_log->suspend[idx].delta_time_h << 32) |
+					(long long)dss_log->suspend[idx].delta_time_l);
+			idx = (idx + 1) & (dss_get_len_suspend_log() - 1);
+		}
+	}
+
+	if (delta_time < suspend_diag.timeout)
+		return;
+
+	if (strlen(suspend_diag.action) == 0)
+		goto crash;
+
+	if (strcmp(suspend_diag.action, dss_log->suspend[curr_idx].log))
+		return;
+
+crash:
+	suspend_diag.force_panic = 0x1;
+	panic("%s: %s%s(%ld) to %s%s(%ld) %stake %lld ns\n", __func__,
+	      dss_log->suspend[last_idx].log ? dss_log->suspend[last_idx].log : "",
+	      dss_log->suspend[last_idx].en == DSS_FLAG_IN ? " IN" : " OUT", last_idx,
+	      dss_log->suspend[curr_idx].log ? dss_log->suspend[curr_idx].log : "",
+	      dss_log->suspend[curr_idx].en == DSS_FLAG_IN ? " IN" : " OUT", curr_idx,
+	      has_dev_pm_cb ? "callbacks " : "",
+	      delta_time);
+}
+
+static unsigned long dbg_snapshot_suspend(const char *log, struct device *dev,
 				int event, int en)
 {
 	unsigned long i = atomic_fetch_inc(&dss_log_misc.suspend_log_idx) &
@@ -265,13 +304,28 @@ static void dbg_snapshot_suspend(const char *log, struct device *dev,
 	dss_log->suspend[i].dev = dev ? dev_name(dev) : "";
 	dss_log->suspend[i].core = raw_smp_processor_id();
 	dss_log->suspend[i].en = en;
+	dss_log->suspend[i].delta_time_h = 0x0;
+	dss_log->suspend[i].delta_time_l = 0x0;
+
+	return i;
 }
 
 static void dbg_snapshot_suspend_resume(void *ignore, const char *action,
 					int event, bool start)
 {
-	dbg_snapshot_suspend(action, NULL, event,
-			start ? DSS_FLAG_IN : DSS_FLAG_OUT);
+	suspend_diag.curr_index =
+		dbg_snapshot_suspend(action, NULL, event, start ? DSS_FLAG_IN : DSS_FLAG_OUT);
+
+	if (!suspend_diag.enable || !suspend_diag.timeout)
+		return;
+
+	if (start || !action)
+		goto backup;
+
+	dbg_snapshot_handle_suspend_diag(suspend_diag.last_index, suspend_diag.curr_index);
+
+backup:
+	suspend_diag.last_index = suspend_diag.curr_index;
 }
 
 void dbg_snapshot_dev_pm_cb_start(void *ignore, struct device *dev,
@@ -282,7 +336,28 @@ void dbg_snapshot_dev_pm_cb_start(void *ignore, struct device *dev,
 
 void dbg_snapshot_dev_pm_cb_end(void *ignore, struct device *dev, int error)
 {
-	dbg_snapshot_suspend(NULL, dev, error, DSS_FLAG_OUT);
+	unsigned long i;
+	unsigned long long end_time;
+	long long delta_time;
+
+	if (!suspend_diag.enable || !suspend_diag.timeout) {
+		dbg_snapshot_suspend(NULL, dev, error, DSS_FLAG_OUT);
+		return;
+	}
+
+	end_time = local_clock();
+
+	i = dss_get_last_suspend_log_idx();
+	while(i != dss_get_first_suspend_log_idx()) {
+		if (dev && end_time >= dss_log->suspend[i].time &&
+			dss_log->suspend[i].dev == dev_name(dev)) {
+			delta_time = end_time - dss_log->suspend[i].time;
+			dss_log->suspend[i].delta_time_h = (delta_time >> 32) & 0xFFFF;
+			dss_log->suspend[i].delta_time_l = delta_time & 0xFFFFFFFF;
+			break;
+		}
+		i = (i - 1) & (dss_get_len_suspend_log() - 1);
+	}
 }
 
 void dbg_snapshot_cpuidle_mod(char *modes, unsigned int state, s64 diff, int en)

@@ -61,7 +61,9 @@ struct suspend_log {
 	const char *dev;
 	int en;
 	int event;
-	int core;
+	short core;
+	short delta_time_h;
+	int delta_time_l;
 };
 
 struct irq_log {
