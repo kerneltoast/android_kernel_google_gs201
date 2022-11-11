@@ -80,6 +80,7 @@ gs-chipid.ko
 itmon.ko
 gs101_spmic_thermal.ko
 gs_thermal.ko
+pixel_metrics.ko
 gs_acpm.ko
 gsa.ko
 gsa_gsc.ko
