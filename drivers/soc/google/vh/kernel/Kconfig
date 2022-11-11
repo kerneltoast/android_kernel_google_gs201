@@ -57,6 +57,11 @@ config PERF_METRICS
         depends on VH_KERNEL
         default m
 
+config PIXEL_METRICS
+        tristate "Enable PIXEL METRICS driver"
+        depends on VH_KERNEL
+        default m
+
 config VH_THERMAL
         tristate "Vendor hooks for kernel thermal"
         depends on VH_KERNEL
