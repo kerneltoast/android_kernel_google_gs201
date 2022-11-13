@@ -537,6 +537,27 @@ static ssize_t dss_dpm_none_dump_mode_store(struct device *dev,
 
 DEVICE_ATTR_RW(dss_dpm_none_dump_mode);
 
+static ssize_t in_warm_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%sable\n", dss_desc.in_warm ? "en" : "dis");
+}
+
+static ssize_t in_warm_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &val);
+
+	if (!ret)
+		dss_desc.in_warm = !!val;
+
+	return count;
+}
+
+DEVICE_ATTR_RW(in_warm);
+
 static void dbg_snapshot_set_slcdump_status(void)
 {
 	int i;
@@ -571,6 +592,7 @@ static void dbg_snapshot_set_slcdump_status(void)
 
 static struct attribute *dss_sysfs_attrs[] = {
 	&dev_attr_dss_dpm_none_dump_mode.attr,
+	&dev_attr_in_warm.attr,
 	NULL,
 };
 
