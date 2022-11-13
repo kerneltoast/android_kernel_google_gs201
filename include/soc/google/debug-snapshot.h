@@ -71,6 +71,7 @@ extern unsigned int dbg_snapshot_get_core_ehld_stat(unsigned int cpu);
 
 /* debug-snapshot-log functions */
 extern int dbg_snapshot_get_freq_idx(const char *name);
+extern void *dbg_snapshot_get_suspend_diag(void);
 
 #define dbg_snapshot_get_timestamp()	local_clock()
 extern void dbg_snapshot_task(int cpu, void *v_task);

@@ -1,0 +1,22 @@
+What:		/sys/kernel/dbg_snapshot/suspend_diag/enable
+Date:		November, 2022
+Contact:	"Jone Chou" <jonechou@google.com>
+Description:
+		This file used to enable suspend diagnosis between suspend/resume flow.
+		0 means "disable" and others mean "enable".
+
+What:		/sys/kernel/dbg_snapshot/suspend_diag/timeout
+Date:		November, 2022
+Contact:	"Jone Chou" <jonechou@google.com>
+Description:
+		This file used to set timeout of suspend diagnosis in suspend/resume flow.
+		The number of unit is is nano seconds.
+
+What:		/sys/kernel/dbg_snapshot/suspend_diag/action
+Date:		November, 2022
+Contact:	"Jone Chou" <jonechou@google.com>
+Description:
+		This optional file used to set the diagostic stage between suspend/resume
+		flow. The naming is dependent on ftrace. ex. “dpm_prepare”,
+		“dpm_suspend”, "dpm_suspend_late”, “dpm_suspend_noirq”, “dpm_resume_noirq”,
+		“dpm_resume_early”,  “dpm_resume”, "dpm_complete", etc.
