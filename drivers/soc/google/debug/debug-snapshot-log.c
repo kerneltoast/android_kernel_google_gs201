@@ -15,6 +15,7 @@
 #include <linux/irqnr.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
+#include <linux/sysfs.h>
 
 #include <asm/stacktrace.h>
 #include <soc/google/debug-snapshot.h>
@@ -43,6 +44,8 @@ struct dbg_snapshot_log_item dss_log_items[] = {
 struct dbg_snapshot_log_misc dss_log_misc;
 static char dss_freq_name[SZ_32][SZ_8];
 static unsigned int dss_freq_size;
+
+static struct dbg_snapshot_suspend_diag suspend_diag;
 
 #define dss_get_log(item)						\
 long dss_get_len_##item##_log(void) {					\
@@ -209,6 +212,12 @@ int dbg_snapshot_get_freq_idx(const char *name)
 	return -EFAULT;
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_freq_idx);
+
+void *dbg_snapshot_get_suspend_diag(void)
+{
+	return (void *)&suspend_diag;
+}
+EXPORT_SYMBOL_GPL(dbg_snapshot_get_suspend_diag);
 
 void dbg_snapshot_log_output(void)
 {
@@ -708,6 +717,96 @@ void dbg_snapshot_init_log(void)
 	log_item_set_filed(PRINTK, print);
 }
 
+static ssize_t enable_store(struct kobject *kobj, struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &val);
+
+	if (!ret)
+		suspend_diag.enable = val;
+
+	return count;
+}
+
+static ssize_t enable_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%sable\n", !!suspend_diag.enable ? "en" : "dis");
+}
+
+static struct kobj_attribute suspend_diag_attr_enable = __ATTR_RW_MODE(enable, 0660);
+
+static ssize_t timeout_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf,
+					size_t count)
+{
+	unsigned long long val;
+	int ret;
+
+	ret = kstrtoll(buf, 10, &val);
+
+	if (!ret)
+		suspend_diag.timeout = val;
+
+	return count;
+}
+
+static ssize_t timeout_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%llu(ns)\n", suspend_diag.timeout);
+}
+
+static struct kobj_attribute suspend_diag_attr_timeout = __ATTR_RW_MODE(timeout, 0660);
+
+static ssize_t action_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf,
+					size_t count)
+{
+	char *newline = NULL;
+
+	strlcpy(suspend_diag.action, buf, sizeof(suspend_diag.action));
+	newline = strchr(suspend_diag.action, '\n');
+	if (newline)
+		*newline = '\0';
+
+	return count;
+}
+
+static ssize_t action_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%s\n", suspend_diag.action);
+}
+
+static struct kobj_attribute suspend_diag_attr_action = __ATTR_RW_MODE(action, 0660);
+
+static struct attribute *suspend_diag_attrs[] = {
+	&suspend_diag_attr_enable.attr,
+	&suspend_diag_attr_timeout.attr,
+	&suspend_diag_attr_action.attr,
+	NULL
+};
+
+static const struct attribute_group suspend_diag_attr_group = {
+	.attrs = suspend_diag_attrs,
+	.name = "suspend_diag"
+};
+
+static void dbg_snapshot_add_suspend_diag_attributes(void)
+{
+	struct kobject *dbg_snapshot_kobj;
+
+	dbg_snapshot_kobj = kobject_create_and_add("dbg_snapshot", kernel_kobj);
+	if (!dbg_snapshot_kobj) {
+		dev_emerg(dss_desc.dev, "cannot create kobj for dbg_snapshot!\n");
+		return;
+	}
+
+	if (sysfs_create_group(dbg_snapshot_kobj, &suspend_diag_attr_group)) {
+		dev_emerg(dss_desc.dev, "cannot create files in ../dbg_snapshot/suspend_diag!\n");
+		kobject_put(dbg_snapshot_kobj);
+	}
+}
+
 void dbg_snapshot_start_log(void)
 {
 	struct property *prop;
@@ -720,6 +819,7 @@ void dbg_snapshot_start_log(void)
 		register_trace_suspend_resume(dbg_snapshot_suspend_resume, NULL);
 		register_trace_device_pm_callback_start(dbg_snapshot_dev_pm_cb_start, NULL);
 		register_trace_device_pm_callback_end(dbg_snapshot_dev_pm_cb_end, NULL);
+		dbg_snapshot_add_suspend_diag_attributes();
 	}
 	dss_freq_size = of_property_count_strings(np, "freq_names");
 	of_property_for_each_string(np, "freq_names", prop, str) {
