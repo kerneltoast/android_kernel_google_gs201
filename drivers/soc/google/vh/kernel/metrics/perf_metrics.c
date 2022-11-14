@@ -22,11 +22,10 @@
 
 #include <trace/events/irq.h>
 #include <trace/hooks/suspend.h>
-#include "metrics.h"
+#include "perf_metrics.h"
 
 static struct resume_latency resume_latency_stats;
 static struct long_irq long_irq_stat;
-static struct kobject *primary_sysfs_folder;
 
 /*********************************************************************
  *                          SYSTEM TRACE
@@ -358,21 +357,20 @@ static const struct attribute_group resume_latency_attr_group = {
  *                  		INITIALIZE DRIVER                        *
  *********************************************************************/
 
-static int __init perf_metrics_init(void)
+int perf_metrics_init(struct kobject *metrics_kobj)
 {
 	int ret = 0;
-	primary_sysfs_folder = kobject_create_and_add("metrics", kernel_kobj);
-	if (!primary_sysfs_folder) {
-		pr_err("Failed to create primary sysfs folder!\n");
+	if (!metrics_kobj) {
+		pr_err("metrics_kobj is not initialized\n");
 		return -EINVAL;
 	}
-	if (sysfs_create_group(primary_sysfs_folder, &resume_latency_attr_group)) {
+	if (sysfs_create_group(metrics_kobj, &resume_latency_attr_group)) {
 		pr_err("failed to create resume_latency folder\n");
-		return ret;
+		return -ENOMEM;
 	}
-	if (sysfs_create_group(primary_sysfs_folder, &irq_attr_group)) {
+	if (sysfs_create_group(metrics_kobj, &irq_attr_group)) {
 		pr_err("failed to create irq folder\n");
-		return ret;
+		return -ENOMEM;
 	}
 	spin_lock_init(&resume_latency_stats.resume_latency_stat_lock);
 	ret = register_trace_android_vh_early_resume_begin(
@@ -413,6 +411,3 @@ static int __init perf_metrics_init(void)
 	return ret;
 }
 
-module_init(perf_metrics_init);
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Ziyi Cui <ziyic@google.com>");
