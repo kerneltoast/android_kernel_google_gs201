@@ -187,7 +187,7 @@ config INPUT_APMPOWER
 
 config INPUT_KEYDEBUG
 	tristate "Long Press Key Debugging"
-	depends on INPUT
+	depends on INPUT && KERNEL_TOP
 	select INPUT_KEYCOMBO
 	help
 	  Say Y here if you want to hook debug function to dump information

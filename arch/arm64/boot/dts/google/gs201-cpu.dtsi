@@ -367,7 +367,7 @@
 		};
 	};
 
-	pixel-em {
+	pixel_em_table: pixel-em {
 		compatible = "google,pixel-em";
 		profiles =
 			"cam1

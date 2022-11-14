@@ -691,10 +691,6 @@ void dbg_snapshot_init_log(void)
 {
 	struct dbg_snapshot_item *item = &dss_items[DSS_ITEM_KEVENTS_ID];
 	struct dbg_snapshot_log_item *log_item;
-	struct device_node *np = dss_desc.dev->of_node;
-	struct property *prop;
-	const char *str;
-	unsigned int i = 0;
 
 	log_item_set_filed(TASK, task);
 	log_item_set_filed(WORK, work);
@@ -710,6 +706,15 @@ void dbg_snapshot_init_log(void)
 	log_item_set_filed(THERMAL, thermal);
 	log_item_set_filed(ACPM, acpm);
 	log_item_set_filed(PRINTK, print);
+}
+
+void dbg_snapshot_start_log(void)
+{
+	struct property *prop;
+	const char *str;
+	unsigned int i = 0;
+
+	struct device_node *np = dss_desc.dev->of_node;
 
 	if (dbg_snapshot_is_log_item_enabled(DSS_LOG_SUSPEND_ID)) {
 		register_trace_suspend_resume(dbg_snapshot_suspend_resume, NULL);
