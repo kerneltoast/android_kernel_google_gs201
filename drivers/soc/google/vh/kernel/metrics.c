@@ -203,21 +203,27 @@ static ssize_t long_irq_metrics_show(struct kobject *kobj,
 	int index;
 	s64 latency;
 	int irq_num;
-	count += sysfs_emit_at(buf, count, "Long running SOFTIRQ count: %lld\n",
+	count += sysfs_emit_at(buf, count, "long SOFTIRQ count: %lld\n",
 				atomic64_read(&(long_irq_stat.long_softirq_count)));
+	count += sysfs_emit_at(buf, count, "long SOFTIRQ detail (num, latency):\n");
+
 	for (index = 0; index < NR_SOFTIRQS; index++) {
 		latency = long_irq_stat.long_softirq_arr[index];
 		irq_num = index;
-		count += sysfs_emit_at(buf, count,
-			"long SOFTIRQ latency: %lld, long SOFTIRQ num: %d\n", latency, irq_num);
+		if (latency > 0)
+			count += sysfs_emit_at(buf, count,
+				"%d %lld\n", irq_num, latency);
 	}
-	count += sysfs_emit_at(buf, count, "Long running IRQ count: %lld\n",
+	count += sysfs_emit_at(buf, count, "long IRQ count: %lld\n",
 				atomic64_read(&(long_irq_stat.long_irq_count)));
+	count += sysfs_emit_at(buf, count, "long IRQ detail (num, latency):\n");
+
 	for (index = 0; index < MAX_IRQ_NUM; index++) {
 		latency = long_irq_stat.long_irq_arr[index];
 		irq_num = index;
-		count += sysfs_emit_at(buf, count,
-			"long IRQ latency: %lld, long IRQ num: %d\n", latency, irq_num);
+		if (latency > 0)
+			count += sysfs_emit_at(buf, count,
+				"%d %lld\n", irq_num, latency);
 	}
 	return count;
 }
