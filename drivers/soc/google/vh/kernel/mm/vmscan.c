@@ -13,6 +13,11 @@ void vh_shrink_inactive_list_blk_plug(void *data, bool *do_plug)
 	*do_plug = true;
 }
 
+void vh_shrink_lruvec_blk_plug(void *data, bool *do_plug)
+{
+	*do_plug = false;
+}
+
 void vh_reclaim_pages_plug(void *data, bool *do_plug)
 {
 	*do_plug = true;

@@ -1332,8 +1332,10 @@ static irqreturn_t _max77759_irq_locked(struct max77759_plat *chip, u16 status,
 		if (chip->contaminant_detection && tcpm_is_toggling(tcpci->port)) {
 			ret = process_contaminant_alert(chip->contaminant, false, true,
 							&contaminant_cc_update_handled);
-			if (ret < 0)
+			if (ret < 0) {
+				mutex_unlock(&chip->rc_lock);
 				goto reschedule;
+			}
 			/*
 			 * Invoke TCPM when CC update not related to contaminant
 			 * detection.

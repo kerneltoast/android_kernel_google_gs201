@@ -61,3 +61,5 @@ obj-$(CONFIG_EXYNOS_SECURE_LOG) 	+= exynos-seclog.o
 obj-$(CONFIG_PKVM_S2MPU)		+= pkvm-s2mpu.o
 
 obj-$(CONFIG_BOOT_CONTROL)	 	+= boot_control/
+
+obj-$(CONFIG_KERNEL_TOP)		+= kernel-top.o

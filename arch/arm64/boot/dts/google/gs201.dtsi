@@ -564,7 +564,7 @@
 		dump-size = <0x43000>;		/* 268KB(= 288 - 20) */
 		acpm-ipc-channel = <12>;
 		fvmap_addr = <0x31000>;
-		panic-action = <GO_WATCHDOG_ID>;
+		panic-action = <GO_PANIC_ID>;
 	};
 
 	acpm_stats {

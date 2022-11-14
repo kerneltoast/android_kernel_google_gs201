@@ -86,6 +86,13 @@ struct acpm_debug_info {
 	spinlock_t lock; /* generic spin-lock for debug */
 };
 
+struct cpu_irq_info {
+	const char      *name;
+	int             irq_num;
+	unsigned long   hwirq_num;
+	unsigned int    irq_stat;
+};
+
 #define LOG_ID_SHIFT				(28)
 #define LOG_IS_RAW_SHIFT			(27)
 #define LOG_IS_ERR_SHIFT			(26)

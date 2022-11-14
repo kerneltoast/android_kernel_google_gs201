@@ -80,6 +80,7 @@ i2c-dev.ko
 i2c-exynos5.ko
 itmon.ko
 janeiro.ko
+kernel-top.ko
 keycombo.ko
 keydebug.ko
 logbuffer.ko

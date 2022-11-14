@@ -605,6 +605,7 @@ static int dbg_snapshot_probe(struct platform_device *pdev)
 	dbg_snapshot_set_slcdump_status();
 
 	dbg_snapshot_set_enable(true);
+	dbg_snapshot_start_log();
 
 	if (sysfs_create_groups(&pdev->dev.kobj, dss_sysfs_groups))
 		dev_err(dss_desc.dev, "fail to register debug-snapshot sysfs\n");
