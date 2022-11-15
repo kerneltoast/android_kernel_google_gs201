@@ -7,6 +7,7 @@
 #define __ACPM_IPC_H_
 
 #include <soc/google/acpm_ipc_ctrl.h>
+#include <linux/kernel-top.h>
 
 struct buff_info {
 	void __iomem *rear;
@@ -83,6 +84,7 @@ struct acpm_debug_info {
 	struct delayed_work acpm_log_work;
 	unsigned int async_id; /* ACPM IPC_AP_ERR_LOG_ASYNC channel id */
 	unsigned int async_size; /* ACPM IPC_AP_ERR_LOG_ASYNC channel queue sizes */
+	struct kernel_top_context *ktop_cxt;
 
 	spinlock_t lock; /* generic spin-lock for debug */
 };
