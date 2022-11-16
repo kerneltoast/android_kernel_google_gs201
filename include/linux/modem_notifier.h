@@ -33,12 +33,18 @@ static inline void modem_notify_event(enum modem_event evt, void *mc) {}
 
 #if IS_ENABLED(CONFIG_SUSPEND_DURING_VOICE_CALL)
 extern int register_modem_voice_call_event_notifier(struct notifier_block *nb);
+extern void unregister_modem_voice_call_event_notifier(struct notifier_block *nb);
 extern void modem_voice_call_notify_event(enum modem_voice_call_event evt, void *data);
 #else
 static inline int register_modem_voice_call_event_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
+
+static inline void unregister_modem_voice_call_event_notifier(struct notifier_block *nb)
+{
+}
+
 static inline void modem_voice_call_notify_event(enum modem_voice_call_event evt, void *data) {}
 #endif
 

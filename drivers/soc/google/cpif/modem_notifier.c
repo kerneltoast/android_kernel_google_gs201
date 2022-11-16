@@ -42,6 +42,12 @@ int register_modem_voice_call_event_notifier(struct notifier_block *nb)
 	return raw_notifier_chain_register(&modem_voice_call_event_notifier, nb);
 }
 
+void unregister_modem_voice_call_event_notifier(struct notifier_block *nb)
+{
+	if (nb)
+		raw_notifier_chain_unregister(&modem_voice_call_event_notifier, nb);
+}
+
 void modem_voice_call_notify_event(enum modem_voice_call_event evt, void *data)
 {
 	mif_info("voice call event notify (%d) ++\n", evt);
