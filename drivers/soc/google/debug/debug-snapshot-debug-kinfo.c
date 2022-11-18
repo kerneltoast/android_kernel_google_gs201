@@ -29,6 +29,8 @@ struct vendor_kernel_info {
 	__u8 uts_release[__NEW_UTS_LEN];
 	/* For checksum */
 	__u32 names_total_len;
+	/* For suspend diag */
+	__u64 suspend_diag_va;
 } __packed;
 
 struct vendor_kernel_all_info {
@@ -62,6 +64,7 @@ static void update_vendor_kernel_all_info(void)
 	strscpy(info->uts_release, UTS_RELEASE, sizeof(info->uts_release));
 
 	info->names_total_len = kallsyms_aosp_names_total_len();
+	info->suspend_diag_va = (__u64)dbg_snapshot_get_suspend_diag();
 
 	vendor_checksum_info = (u32 *)info;
 	for (index = 0; index < sizeof(*info) / sizeof(u32); index++)
