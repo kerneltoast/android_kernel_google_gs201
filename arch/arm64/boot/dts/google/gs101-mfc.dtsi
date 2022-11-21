@@ -57,6 +57,7 @@
 		mv_search_mode = <1 0x201118>;
 		enc_idr_flag = <1 0x210614>;
 		min_quality_mode = <1 0x210629>;
+		hevc_pic_output_flag = <1 0x221108>;
 
 		/* AV1 Decoder */
 		support_av1_dec = <0>;
