@@ -33,7 +33,7 @@ static struct long_irq long_irq_stat;
 
 static void vendor_hook_resume_begin(void *data, void *unused)
 {
-	resume_latency_stats.resume_start = ktime_get();
+	resume_latency_stats.resume_start = ktime_get_boottime();
 }
 
 static void vendor_hook_resume_end(void *data, void *unused)
@@ -43,7 +43,7 @@ static void vendor_hook_resume_end(void *data, void *unused)
 	/* Exit function when partial resumes */
 	if (resume_latency_stats.resume_start == resume_latency_stats.resume_end)
 		return;
-	resume_latency_stats.resume_end = ktime_get();
+	resume_latency_stats.resume_end = ktime_get_boottime();
 	resume_latency_msec = ktime_ms_delta(resume_latency_stats.resume_end,
 						resume_latency_stats.resume_start);
 	pr_info("resume latency: %lld\n", resume_latency_msec);
