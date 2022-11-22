@@ -478,10 +478,11 @@ static struct pixel_em_profile *generate_default_em_profile(const char *name)
 	if (!res->clusters)
 		goto failed_clusters_allocation;
 
-	res->cpu_to_cluster = kcalloc(pixel_em_max_cpu, sizeof(*res->cpu_to_cluster), GFP_KERNEL);
+	res->cpu_to_cluster = kcalloc(pixel_em_max_cpu + 1,
+				      sizeof(*res->cpu_to_cluster),
+				      GFP_KERNEL);
 	if (!res->cpu_to_cluster)
 		goto failed_cpu_to_cluster_allocation;
-
 
 	cpumask_copy(&unmatched_cpus, cpu_possible_mask);
 

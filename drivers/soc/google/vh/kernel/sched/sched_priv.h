@@ -92,7 +92,6 @@ struct uclamp_stats {
 	u64 effect_time_in_state_max[UCLAMP_STATS_SLOTS];
 };
 
-
 struct vendor_group_list {
 	struct list_head list;
 	raw_spinlock_t lock;
@@ -113,6 +112,44 @@ struct vendor_task_group_struct {
 
 ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[4], struct vendor_task_group_struct t);
 
+extern unsigned int vendor_sched_uclamp_threshold;
+extern bool vendor_sched_reduce_prefer_idle;
+
+static struct vendor_group_property vg[VG_MAX];
+
+/*****************************************************************************/
+/*                       Upstream Code Section                               */
+/*****************************************************************************/
+/*
+ * This part of code is copied from Android common GKI kernel and unmodified.
+ * Any change for these functions in upstream GKI would require extensive review
+ * to make proper adjustment in vendor hook.
+ */
+
+static inline unsigned long task_util(struct task_struct *p)
+{
+	return READ_ONCE(p->se.avg.util_avg);
+}
+
+static inline unsigned long _task_util_est(struct task_struct *p)
+{
+	struct util_est ue = READ_ONCE(p->se.avg.util_est);
+
+	return max(ue.ewma, (ue.enqueued & ~UTIL_AVG_UNCHANGED));
+}
+
+static inline unsigned long task_util_est(struct task_struct *p)
+{
+	return max(task_util(p), _task_util_est(p));
+}
+
+/*****************************************************************************/
+/*                       New Code Section                                    */
+/*****************************************************************************/
+/*
+ * This part of code is new for this kernel, which are mostly helper functions.
+ */
+
 static inline struct vendor_task_group_struct *get_vendor_task_group_struct(struct task_group *tg)
 {
 	return (struct vendor_task_group_struct *)tg->android_vendor_data1;
@@ -128,6 +165,25 @@ ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[96], struct vendor_rq_s
 static inline struct vendor_rq_struct *get_vendor_rq_struct(struct rq *rq)
 {
 	return (struct vendor_rq_struct *)rq->android_vendor_data1;
+}
+
+static inline bool get_prefer_idle(struct task_struct *p)
+{
+	// For group based prefer_idle vote, filter our smaller or low prio or
+	// have throttled uclamp.max settings
+	// Ignore all checks, if the prefer_idle is from per-task API.
+
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	struct vendor_binder_task_struct *vbinder = get_vendor_binder_task_struct(p);
+
+	if (vendor_sched_reduce_prefer_idle && !vp->uclamp_fork_reset)
+		return (vg[vp->group].prefer_idle &&
+			task_util_est(p) >= vendor_sched_uclamp_threshold &&
+			p->prio <= DEFAULT_PRIO &&
+			uclamp_eff_value(p, UCLAMP_MAX) == SCHED_CAPACITY_SCALE) ||
+			vp->prefer_idle || vbinder->prefer_idle;
+	else
+		return vg[vp->group].prefer_idle || vp->prefer_idle || vbinder->prefer_idle;
 }
 
 int acpu_init(void);

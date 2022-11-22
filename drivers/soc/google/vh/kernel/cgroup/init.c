@@ -8,10 +8,12 @@
 
 #include <linux/module.h>
 #include <trace/hooks/cgroup.h>
+#include <trace/hooks/sched.h>
 
 extern void rvh_cgroup_force_kthread_migration_pixel_mod(void *data, struct task_struct *tsk,
 							 struct cgroup *dst_cgrp,
 							 bool *force_migration);
+extern void vh_rebuild_root_domains_bypass_pixel_mod(void *data, bool tasks_frozen, bool *bypass);
 
 static int vh_cgroup_init(void)
 {
@@ -19,6 +21,11 @@ static int vh_cgroup_init(void)
 
 	ret = register_trace_android_rvh_cgroup_force_kthread_migration(
 		rvh_cgroup_force_kthread_migration_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_vh_rebuild_root_domains_bypass(
+		vh_rebuild_root_domains_bypass_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
