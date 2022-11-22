@@ -137,3 +137,29 @@ void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction 
 		vbinder->active = false;
 	}
 }
+
+void rvh_rtmutex_prepare_setprio_pixel_mod(void *data, struct task_struct *p,
+	struct task_struct *pi_task)
+{
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+
+	if (pi_task) {
+		unsigned long p_uclamp_min = uclamp_eff_value(p, UCLAMP_MIN);
+		unsigned long p_uclamp_max = uclamp_eff_value(p, UCLAMP_MAX);
+		unsigned long pi_uclamp_min = uclamp_eff_value(pi_task, UCLAMP_MIN);
+		unsigned long pi_uclamp_max = uclamp_eff_value(pi_task, UCLAMP_MAX);
+
+		/* Inherit unclamp_min/max if they're inverted */
+
+		if (p_uclamp_min < pi_uclamp_min)
+			vp->uclamp_pi[UCLAMP_MIN] = pi_uclamp_min;
+
+		if (p_uclamp_max < pi_uclamp_max || pi_uclamp_min > p_uclamp_max)
+			vp->uclamp_pi[UCLAMP_MAX] = pi_uclamp_max;
+
+		return;
+	}
+
+	vp->uclamp_pi[UCLAMP_MIN] = uclamp_none(UCLAMP_MIN);
+	vp->uclamp_pi[UCLAMP_MAX] = uclamp_none(UCLAMP_MAX);
+}

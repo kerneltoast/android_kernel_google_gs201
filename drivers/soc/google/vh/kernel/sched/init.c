@@ -67,6 +67,8 @@ extern void vh_binder_set_priority_pixel_mod(void *data, struct binder_transacti
 	struct task_struct *task);
 extern void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t,
 	struct task_struct *task);
+extern void rvh_rtmutex_prepare_setprio_pixel_mod(void *data, struct task_struct *p,
+	struct task_struct *pi_task);
 extern void vh_dump_throttled_rt_tasks_mod(void *data, int cpu, u64 clock, ktime_t rt_period,
 					   u64 rt_runtime, s64 rt_period_timer_expires);
 extern void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy,
@@ -165,6 +167,11 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 #endif
+
+	ret = register_trace_android_rvh_rtmutex_prepare_setprio(
+		rvh_rtmutex_prepare_setprio_pixel_mod, NULL);
+	if (ret)
+		return ret;
 
 	ret = register_trace_android_rvh_update_rt_rq_load_avg(rvh_update_rt_rq_load_avg_pixel_mod,
 							       NULL);

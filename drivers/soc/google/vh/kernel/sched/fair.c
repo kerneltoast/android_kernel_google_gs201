@@ -2269,6 +2269,9 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 	if (vbinder->active)
 		value = clamp(value, vbinder->uclamp[UCLAMP_MIN], vbinder->uclamp[UCLAMP_MAX]);
 
+	// RT_mutex inherited uclamp restriction
+	value = clamp(value, vp->uclamp_pi[UCLAMP_MIN], vp->uclamp_pi[UCLAMP_MAX]);
+
 	// For uclamp min, if task has a valid per-task setting that is lower than or equal to its
 	// group value, increase the final uclamp value by 1. This would have effect only on
 	// importance metrics which is used in task placement, and little effect on cpufreq.
@@ -2551,6 +2554,9 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 	vbinder->uclamp[UCLAMP_MAX] = uclamp_none(UCLAMP_MAX);
 	vbinder->prefer_idle = false;
 	vbinder->active = false;
+
+	v_tsk->uclamp_pi[UCLAMP_MIN] = uclamp_none(UCLAMP_MIN);
+	v_tsk->uclamp_pi[UCLAMP_MAX] = uclamp_none(UCLAMP_MAX);
 }
 
 void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
