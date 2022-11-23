@@ -18,6 +18,7 @@
 #include <linux/kthread.h>
 #include <linux/mfd/samsung/s2mpg13.h>
 #include <linux/mfd/samsung/s2mpg13-register.h>
+#include <soc/google/thermal_metrics.h>
 
 #include "../thermal_core.h"
 
@@ -25,6 +26,9 @@
 #define SENSOR_WAIT_SLEEP_MS 50
 #define NTC_UPDATE_MIN_DELAY_US 100
 #define NTC_UPDATE_MAX_DELAY_US 10000
+
+static const int stats_thresholds[MAX_SUPPORTED_THRESHOLDS] = {
+			0, 39000, 43000, 45000, 46500, 52000, 55000, 70000};
 
 struct s2mpg13_spmic_thermal_sensor {
 	struct s2mpg13_spmic_thermal_chip *chip;
@@ -34,6 +38,7 @@ struct s2mpg13_spmic_thermal_sensor {
 	int emul_temperature;
 	int ot_irq;
 	int ut_irq;
+	tr_handle tr_handle;
 };
 
 struct s2mpg13_spmic_thermal_chip {
@@ -44,6 +49,7 @@ struct s2mpg13_spmic_thermal_chip {
 	struct s2mpg13_dev *iodev;
 	struct s2mpg13_spmic_thermal_sensor sensor[GTHERM_CHAN_NUM];
 	u8 adc_chan_en;
+	u8 stats_en;
 	struct kobject *kobjs[GTHERM_CHAN_NUM];
 	struct kthread_worker *wq;
 	struct kthread_delayed_work wait_sensor_work;
@@ -254,11 +260,17 @@ static int s2mpg13_spmic_thermal_get_temp(void *data, int *temp)
 	raw = data_buf[0] + ((data_buf[1] & 0xf) << 8);
 	*temp = s2mpg13_map_volt_temp(raw);
 
+	if (s2mpg13_spmic_thermal->stats_en & (mask << s->adc_chan))
+		temp_residency_stats_update(s->tr_handle, *temp);
+
 	mutex_unlock(&s2mpg13_spmic_thermal->adc_chan_lock);
 	return ret;
 
 emul_temp_exit:
 	*temp = s->emul_temperature;
+
+	if (s2mpg13_spmic_thermal->stats_en & (mask << s->adc_chan))
+		temp_residency_stats_update(s->tr_handle, *temp);
 
 err_exit:
 	mutex_unlock(&s2mpg13_spmic_thermal->adc_chan_lock);
@@ -595,6 +607,12 @@ static int s2mpg13_spmic_thermal_get_dt_data(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
+	if (of_property_read_u8(node, "stats_en",
+				&s2mpg13_spmic_thermal->stats_en)) {
+		dev_info(dev, "Cannot read stats_en\n");
+		s2mpg13_spmic_thermal->stats_en = 0;
+	}
+
 	return 0;
 }
 
@@ -674,6 +692,7 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 	struct s2mpg13_platform_data *pdata;
 	int irq_base, i;
 	int irq_count = 0;
+	u8 mask = 0x01;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(struct s2mpg13_spmic_thermal_chip),
 			    GFP_KERNEL);
@@ -721,8 +740,13 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 		goto disable_ntc;
 	}
 
-	/* Setup IRQ */
+	/* Setup IRQ and register for residency stats */
 	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
+		int ret;
+		struct thermal_zone_device *tzd = chip->sensor[i].tzd;
+		tr_handle tr_stats_handle;
+		int num_stats_thresholds =  ARRAY_SIZE(stats_thresholds);
+
 		chip->sensor[i].ot_irq =
 			irq_base + S2MPG13_IRQ_NTC_WARN_OT_CH1_INT7 + i;
 
@@ -750,6 +774,27 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 			goto free_irq_tz;
 		}
 		irq_count++;
+
+		if (!(chip->stats_en & (mask << i)))
+			continue;
+
+		tr_stats_handle = register_temp_residency_stats(tzd->type);
+		if (tr_stats_handle < 0) {
+			dev_err(&pdev->dev,
+				"Failed to register for temperature residency stats. ret: %d\n",
+				tr_stats_handle);
+			goto free_irq_tz;
+		}
+
+		ret = temp_residency_stats_set_thresholds(tr_stats_handle,
+					stats_thresholds, num_stats_thresholds);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"Failed to set stats_thresholds. ret = %d\n", ret);
+			goto free_irq_tz;
+		}
+
+		chip->sensor[i].tr_handle = tr_stats_handle;
 	}
 
 	chip->wq = kthread_create_worker(0, "spmic-init");
@@ -784,6 +829,7 @@ fail:
 static int s2mpg13_spmic_thermal_remove(struct platform_device *pdev)
 {
 	int i;
+	u8 mask = 0x01;
 	struct s2mpg13_spmic_thermal_chip *chip = platform_get_drvdata(pdev);
 
 	mutex_lock(&chip->adc_chan_lock);
@@ -796,6 +842,9 @@ static int s2mpg13_spmic_thermal_remove(struct platform_device *pdev)
 	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
 		devm_free_irq(&pdev->dev, chip->sensor[i].ot_irq, chip);
 		devm_free_irq(&pdev->dev, chip->sensor[i].ut_irq, chip);
+
+		if (chip->stats_en & (mask << i))
+			unregister_temp_residency_stats(chip->sensor[i].tr_handle);
 	}
 	s2mpg13_spmic_thermal_unregister_tzd(chip);
 
