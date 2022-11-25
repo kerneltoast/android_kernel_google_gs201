@@ -130,7 +130,8 @@ int unregister_temp_residency_stats(tr_handle instance)
 
 EXPORT_SYMBOL_GPL(unregister_temp_residency_stats);
 
-int temp_residency_stats_set_thresholds(tr_handle instance, int *thresholds, int num_thresholds)
+int temp_residency_stats_set_thresholds(tr_handle instance,
+				const int *thresholds, int num_thresholds)
 {
 	struct temperature_residency_stats *stats;
 	int index;
