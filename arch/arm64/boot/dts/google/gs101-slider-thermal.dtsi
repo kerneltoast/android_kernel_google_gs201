@@ -17,6 +17,7 @@
 			 * solving PMIC_THERM_IRQ issue - b/175068512
 			 */
 			adc_chan_en = /bits/ 8 <0x00>;
+			stats_en = /bits/ 8 <0x00>;
 		};
 	};
 };
