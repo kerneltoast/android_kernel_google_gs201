@@ -12,4 +12,5 @@ typedef int tr_handle;
 int temp_residency_stats_update(tr_handle instance, int temp);
 tr_handle register_temp_residency_stats(const char *name);
 int unregister_temp_residency_stats(tr_handle instance);
-int temp_residency_stats_set_thresholds(tr_handle instance, int *thresholds, int num_thresholds);
+int temp_residency_stats_set_thresholds(tr_handle instance,
+                const int *thresholds, int num_thresholds);
