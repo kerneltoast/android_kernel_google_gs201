@@ -45,6 +45,30 @@ unsigned int map_scaling_freq(int cpu, unsigned int freq);
  * Any change for these functions in upstream GKI would require extensive review
  * to make proper adjustment in vendor hook.
  */
+
+static void attach_task(struct rq *rq, struct task_struct *p)
+{
+	lockdep_assert_held(&rq->lock);
+
+	BUG_ON(task_rq(p) != rq);
+	activate_task(rq, p, ENQUEUE_NOCLOCK);
+	check_preempt_curr(rq, p, 0);
+}
+
+/*
+ * attach_one_task() -- attaches the task returned from detach_one_task() to
+ * its new rq.
+ */
+static void attach_one_task(struct rq *rq, struct task_struct *p)
+{
+	struct rq_flags rf;
+
+	rq_lock(rq, &rf);
+	update_rq_clock(rq);
+	attach_task(rq, p);
+	rq_unlock(rq, &rf);
+}
+
 #if IS_ENABLED(CONFIG_FAIR_GROUP_SCHED)
 static inline struct task_struct *task_of(struct sched_entity *se)
 {
@@ -1473,3 +1497,156 @@ out:
 					prev_cpu, *target_cpu);
 }
 
+static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
+{
+	struct task_struct *p = NULL, *best_task = NULL, *backup = NULL;
+	unsigned int task_util;
+
+	lockdep_assert_held(&src_rq->lock);
+
+	rcu_read_lock();
+
+	list_for_each_entry_reverse(p, &src_rq->cfs_tasks, se.group_node) {
+		struct vendor_task_struct *vp = get_vendor_task_struct(p);
+		bool important = false;
+
+		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
+			continue;
+
+		if (task_running(src_rq, p))
+			continue;
+
+		if (!get_prefer_idle(p))
+			continue;
+
+		task_util = uclamp_task_util(p);
+
+		if (vp && vp->uclamp_fork_reset && get_prefer_idle(p))
+			important = true;
+		else if (uclamp_eff_value(p, UCLAMP_MIN) > 0)
+			important = true;
+
+		/* TODO:  pull the most important task running on the unfit CPU
+		 * if not pull the most important task running on the fit CPU
+		 * with highest load
+		 */
+		if (important && task_fits_capacity(p, dst_cpu, false)) {
+			best_task = p;
+			break;
+		} else if (important && !backup) {
+			backup = p;
+		}
+	}
+
+	p = best_task ? best_task : backup;
+
+	if (p) {
+		/* detach_task */
+		deactivate_task(src_rq, p, DEQUEUE_NOCLOCK);
+		set_task_cpu(p, dst_cpu);
+	}
+
+	rcu_read_unlock();
+	return p;
+}
+
+/*
+ * In our newidle_balance, We ignore update next_interval, which could lead to
+ * the next tick might being triggered prematurely. but that should be fine since
+ * this is should not be happening often enough.
+ */
+void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_flags *rf,
+		int *pulled_task, int *done)
+{
+	int cpu;
+	struct rq *src_rq;
+	struct task_struct *p = NULL;
+	struct rq_flags src_rf;
+	int this_cpu = this_rq->cpu;
+
+	/*
+	 * We must set idle_stamp _before_ calling idle_balance(), such that we
+	 * measure the duration of idle_balance() as idle time.
+	 */
+	this_rq->idle_stamp = rq_clock(this_rq);
+
+	/*
+	 * Do not pull tasks towards !active CPUs...
+	 */
+	if (!cpu_active(this_cpu))
+		return;
+
+	/*
+	 * This is OK, because current is on_cpu, which avoids it being picked
+	 * for load-balance and preemption/IRQs are still disabled avoiding
+	 * further scheduler activity on it and we're being very careful to
+	 * re-start the picking loop.
+	 */
+	rq_unpin_lock(this_rq, rf);
+	raw_spin_unlock(&this_rq->lock);
+
+	this_cpu = this_rq->cpu;
+	for_each_cpu(cpu, cpu_active_mask) {
+		int cpu_importnace = READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MIN].value) +
+			READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MAX].value);
+
+		if (cpu == this_cpu)
+			continue;
+
+		src_rq = cpu_rq(cpu);
+		rq_lock_irqsave(src_rq, &src_rf);
+		update_rq_clock(src_rq);
+
+		if (src_rq->active_balance) {
+			rq_unlock_irqrestore(src_rq, &src_rf);
+			continue;
+		}
+
+		if (src_rq->nr_running <= 1) {
+			rq_unlock_irqrestore(src_rq, &src_rf);
+			continue;
+		}
+
+		if (cpu_importnace <= DEFAULT_IMPRATANCE_THRESHOLD || !src_rq->cfs.nr_running) {
+			rq_unlock_irqrestore(src_rq, &src_rf);
+			continue;
+		}
+
+		p = detach_important_task(src_rq, this_cpu);
+
+		rq_unlock_irqrestore(src_rq, &src_rf);
+
+		if (p) {
+			attach_one_task(this_rq, p);
+			break;
+		}
+	}
+
+	raw_spin_lock(&this_rq->lock);
+	/*
+	 * While browsing the domains, we released the rq lock, a task could
+	 * have been enqueued in the meantime. Since we're not going idle,
+	 * pretend we pulled a task.
+	 */
+	if (this_rq->cfs.h_nr_running && !*pulled_task)
+		*pulled_task = 1;
+
+	/* Is there a task of a high priority class? */
+	if (this_rq->nr_running != this_rq->cfs.h_nr_running)
+		*pulled_task = -1;
+
+	if (*pulled_task)
+		this_rq->idle_stamp = 0;
+
+	if (*pulled_task != 0)
+		*done = 1;
+
+	rq_repin_lock(this_rq, rf);
+
+	if (*done == 1) {
+		this_rq->misfit_task_load = 0;
+		/* TODO: need implement update_blocked_averages */
+	}
+
+	return;
+}
