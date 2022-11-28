@@ -52,8 +52,8 @@ config PIXEL_EM
         help
           Support Pixel Energy Model.
 
-config PERF_METRICS
-        tristate "Enable PERF METRICS driver"
+config PIXEL_METRICS
+        tristate "Enable PIXEL METRICS driver"
         depends on VH_KERNEL
         default m
 

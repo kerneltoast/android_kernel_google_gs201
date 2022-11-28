@@ -12,7 +12,7 @@
 #include <uapi/linux/thermal.h>
 #include <soc/google/exynos_pm_qos.h>
 #include <soc/google/exynos-cpuhp.h>
-
+#include <soc/google/thermal_metrics.h>
 #define MCELSIUS        1000
 
 struct gs_pi_param {
@@ -125,6 +125,7 @@ struct gs_tmu_data {
 	void *hardlimit_stats;
 	atomic64_t trip_counter[TRIP_LEVEL_NUM];
 	bool has_dfs_support;
+	tr_handle tr_handle;
 };
 
 enum throttling_stats_type {
