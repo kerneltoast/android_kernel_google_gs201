@@ -35,3 +35,15 @@
 	regulator-enable-ramp-delay = <125>;
 };
 
+&dsim_modes {
+	dsim-modes {
+		1080x2340 {
+			mode-name = "1080x2340";
+			pmsk = <
+				0x2 0xDB 0x2 0x1355 /* p m s k */
+				>;
+			hs-clk = <1346>;
+			esc-clk = <20>;
+		};
+	};
+};

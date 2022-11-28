@@ -66,9 +66,8 @@ static int dwc3_exynos_clk_get(struct dwc3_exynos *exynos)
 		return -EINVAL;
 	}
 
-	clk_ids = devm_kmalloc(dev,
-			       (clk_count + 1) * sizeof(const char *),
-				GFP_KERNEL);
+	clk_ids = devm_kcalloc(dev, clk_count + 1, sizeof(*clk_ids),
+			       GFP_KERNEL);
 	if (!clk_ids) {
 		dev_err(dev, "failed to alloc for clock ids");
 		return -ENOMEM;
@@ -94,10 +93,9 @@ static int dwc3_exynos_clk_get(struct dwc3_exynos *exynos)
 				clk_count--;
 		}
 	}
-	clk_ids[clk_count] = NULL;
 
-	exynos->clocks = devm_kmalloc(exynos->dev,
-				      clk_count * sizeof(struct clk *), GFP_KERNEL);
+	exynos->clocks = devm_kcalloc(exynos->dev, clk_count + 1, sizeof(*exynos->clocks),
+				      GFP_KERNEL);
 	if (!exynos->clocks)
 		return -ENOMEM;
 
@@ -108,7 +106,6 @@ static int dwc3_exynos_clk_get(struct dwc3_exynos *exynos)
 
 		exynos->clocks[i] = clk;
 	}
-	exynos->clocks[i] = NULL;
 
 	return 0;
 

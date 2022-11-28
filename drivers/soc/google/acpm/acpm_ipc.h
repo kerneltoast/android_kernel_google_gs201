@@ -7,6 +7,7 @@
 #define __ACPM_IPC_H_
 
 #include <soc/google/acpm_ipc_ctrl.h>
+#include <linux/kernel-top.h>
 
 struct buff_info {
 	void __iomem *rear;
@@ -79,9 +80,11 @@ struct acpm_debug_info {
 	unsigned int dump_size;
 	void __iomem *dump_dram_base;
 	unsigned int debug_log_level;
+	unsigned int retry_log;
 	struct delayed_work acpm_log_work;
 	unsigned int async_id; /* ACPM IPC_AP_ERR_LOG_ASYNC channel id */
 	unsigned int async_size; /* ACPM IPC_AP_ERR_LOG_ASYNC channel queue sizes */
+	struct kernel_top_context *ktop_cxt;
 
 	spinlock_t lock; /* generic spin-lock for debug */
 };
@@ -142,6 +145,8 @@ extern void timestamp_write(void);
 extern void acpm_ramdump(void);
 extern void acpm_fw_set_log_level(unsigned int on);
 extern unsigned int acpm_fw_get_log_level(void);
+extern void acpm_fw_set_retry_log_ctrl(bool enable);
+extern unsigned int acpm_fw_get_retry_log_ctrl(void);
 extern void acpm_ipc_set_waiting_mode(bool mode);
 
 extern int acpm_ipc_remove(struct platform_device *pdev);

@@ -3177,6 +3177,11 @@ static int google_set_sub_pmic(struct bcl_device *bcl_dev)
 		dev_err(bcl_dev->device, "Failed to read PMIC chipid.\n");
 		return -ENODEV;
 	}
+#if IS_ENABLED(CONFIG_SOC_GS201)
+	S2MPG1X_READ(SUB, bcl_dev, ret, S2MPG13_PM_OFFSRC, &val);
+	pr_info("S2MPG13 OFFSRC: %#x\n", val);
+	S2MPG1X_WRITE(SUB, bcl_dev, ret, S2MPG13_PM_OFFSRC, 0);
+#endif
 
 	ret = google_bcl_register_irq(bcl_dev, OCP_WARN_GPU, "GPU_OCP_IRQ", IRQF_TRIGGER_RISING);
 	if (ret < 0) {
