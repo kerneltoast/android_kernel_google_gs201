@@ -4,3 +4,4 @@
 /plugin/;
 
 #include "gs101-dpm-user.dtsi"
+#include "avf-dpm-user.dtsi"
