@@ -85,6 +85,8 @@
 		snps,has-lpm-erratum;
 		snps,lpm-nyet-threshold = <0>;
 
+		snps,usb2-gadget-lpm-disable;
+
 		/*
 		 * dis-u2-freeclk-exists-quirk, dis_u2_susphy_quirk are alternative.
 		 * One of them should be selected
