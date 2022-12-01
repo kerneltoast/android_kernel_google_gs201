@@ -432,7 +432,9 @@ static bool task_fits_capacity(struct task_struct *p, int cpu,  bool sync_boost)
 	if (cpu >= MAX_CAPACITY_CPU)
 		return true;
 
-	if ((get_prefer_high_cap(p) || sync_boost) && cpu < MID_CAPACITY_CPU)
+	if ((get_prefer_high_cap(p) || sync_boost ||
+	     (get_prefer_idle(p) && get_vendor_task_struct(p)->uclamp_fork_reset)) &&
+	    cpu < MID_CAPACITY_CPU)
 		return false;
 
 	task_util = get_task_spreading(p) ? task_util_est(p) : uclamp_task_util(p);
@@ -784,9 +786,6 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 						 spare_cap, task_fits, false);
 #endif
 
-			if (prefer_fit && !task_fits)
-				continue;
-
 			if (prefer_idle) {
 				/*
 				 * For a cluster, the energy computation result will be the same for
@@ -827,14 +826,19 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 				if (importance_target_found)
 					continue;
 
-				if (prefer_high_cap && i < HIGH_CAPACITY_CPU)
+				if ((prefer_high_cap || prefer_fit) && i < HIGH_CAPACITY_CPU)
 					continue;
 
+				/*
+				 * Make srue prefer_fit task could find a candidate in high capacity
+				 * clusters.
+				 */
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-				if (group_overutilize || cpu_overutilized(util, capacity, i))
+				if (!prefer_fit &&
+				    (group_overutilize || cpu_overutilized(util, capacity, i)))
 					continue;
 #else
-				if (cpu_overutilized(util, capacity, i))
+				if (!prefer_fit && cpu_overutilized(util, capacity, i))
 					continue;
 #endif
 
@@ -844,7 +848,13 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 					cpumask_clear(&max_spare_cap);
 					cpumask_set_cpu(i, &max_spare_cap);
 				} else if (spare_cap == target_max_spare_cap) {
-					cpumask_set_cpu(i, &max_spare_cap);
+					/* If spare capacity is the same, random select a cpu */
+					if (cpumask_weight(&max_spare_cap) && this_cpu % 2) {
+						cpumask_clear(&max_spare_cap);
+						cpumask_set_cpu(i, &max_spare_cap);
+					} else {
+						cpumask_set_cpu(i, &max_spare_cap);
+					}
 				}
 			} else {/* Below path is for non-prefer idle case*/
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
@@ -944,19 +954,36 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	}
 
 	/* Assign candidates based on search order. */
-	if (!cpumask_empty(&idle_fit)) {
-		cpumask_copy(&candidates, &idle_fit);
-	} else if (!cpumask_empty(&idle_unfit)) {
-		/* Assign biggest cpu core found for unfit case. */
-		cpumask_set_cpu(cpumask_last(&idle_unfit), &candidates);
-	} else if (!cpumask_empty(&unimportant_fit)) {
-		cpumask_copy(&candidates, &unimportant_fit);
-	} else if (!cpumask_empty(&unimportant_unfit)) {
-		cpumask_set_cpu(cpumask_last(&unimportant_unfit), &candidates);
-	} else if (!cpumask_empty(&packing)) {
-		cpumask_copy(&candidates, &packing);
-	} else if (!cpumask_empty(&max_spare_cap)) {
-		cpumask_copy(&candidates, &max_spare_cap);
+	if (prefer_fit) {
+		if (!cpumask_empty(&idle_fit)) {
+			cpumask_copy(&candidates, &idle_fit);
+		} else if (!cpumask_empty(&unimportant_fit)) {
+			cpumask_copy(&candidates, &unimportant_fit);
+		} else if (!cpumask_empty(&idle_unfit)) {
+			/* Assign biggest cpu core found for unfit case. */
+			cpumask_set_cpu(cpumask_last(&idle_unfit), &candidates);
+		} else if (!cpumask_empty(&unimportant_unfit)) {
+			/* Assign biggest cpu core found for unfit case. */
+			cpumask_set_cpu(cpumask_last(&unimportant_unfit), &candidates);
+		} else if (!cpumask_empty(&max_spare_cap)) {
+			cpumask_copy(&candidates, &max_spare_cap);
+		}
+	} else {
+		if (!cpumask_empty(&idle_fit)) {
+			cpumask_copy(&candidates, &idle_fit);
+		} else if (!cpumask_empty(&idle_unfit)) {
+			/* Assign biggest cpu core found for unfit case. */
+			cpumask_set_cpu(cpumask_last(&idle_unfit), &candidates);
+		} else if (!cpumask_empty(&unimportant_fit)) {
+			cpumask_copy(&candidates, &unimportant_fit);
+		} else if (!cpumask_empty(&unimportant_unfit)) {
+			/* Assign biggest cpu core found for unfit case. */
+			cpumask_set_cpu(cpumask_last(&unimportant_unfit), &candidates);
+		} else if (!cpumask_empty(&packing)) {
+			cpumask_copy(&candidates, &packing);
+		} else if (!cpumask_empty(&max_spare_cap)) {
+			cpumask_copy(&candidates, &max_spare_cap);
+		}
 	}
 
 	weight = cpumask_weight(&candidates);
