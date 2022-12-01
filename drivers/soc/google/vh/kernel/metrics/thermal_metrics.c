@@ -17,7 +17,7 @@
 
 #define MAX_NUM_SUPPORTED_THERMAL_ZONES        36
 static const int default_thresholds[MAX_SUPPORTED_THRESHOLDS] = {
-				60, 80, 90, 100, 103, 105, 110, 115};
+			60000, 80000, 90000, 100000, 103000, 105000, 110000, 115000};
 
 struct temperature_sample {
 	int temp;
