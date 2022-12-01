@@ -503,7 +503,7 @@ static int gs_get_temp(void *p, int *temp)
 
 	data->temperature = *temp / 1000;
 	if (data->tr_handle >= 0)
-		temp_residency_stats_update(data->tr_handle, data->temperature);
+		temp_residency_stats_update(data->tr_handle, *temp);
 
 	if (data->has_dfs_support &&
 		thermal_dfs_throttle_cb &&
