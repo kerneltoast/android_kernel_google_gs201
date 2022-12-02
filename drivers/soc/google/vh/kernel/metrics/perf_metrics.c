@@ -12,18 +12,21 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
-
+#include <linux/sort.h>
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/device.h>
 
-
 #include <trace/events/irq.h>
 #include <trace/hooks/suspend.h>
 #include "perf_metrics.h"
 
+struct irq_entry {
+	int irq_num;
+	s64 latency;
+};
 static struct resume_latency resume_latency_stats;
 static struct long_irq long_irq_stat;
 
@@ -91,7 +94,8 @@ static void hook_softirq_end(void *data, unsigned int vec_nr)
 						long_irq_stat.softirq_start[cpu_num][vec_nr]));
 	if (irq_usec >= long_irq_stat.long_softirq_threshold) {
 		if (long_irq_stat.display_warning)
-			WARN("%s","Got a long running irq: softirq\n");
+			WARN(1, "Got a long running softirq: SOFTIRQ %u in cpu: %d\n",
+						vec_nr, cpu_num);
 		atomic64_inc(&(long_irq_stat.long_softirq_count));
 	}
 	do {
@@ -122,7 +126,7 @@ static void hook_irq_end(void *data, int irq, struct irqaction *action, int ret)
 				long_irq_stat.irq_start[cpu_num][irq]));
 	if (irq_usec >= long_irq_stat.long_irq_threshold) {
 		if (long_irq_stat.display_warning)
-			WARN("%s","Got a long running irq: irq_handler\n");
+			WARN(1, "Got a long running hardirq: IRQ %d in cpu: %d\n", irq, cpu_num);
 		atomic64_inc(&(long_irq_stat.long_irq_count));
 	}
 	do {
@@ -132,6 +136,16 @@ static void hook_irq_end(void *data, int irq, struct irqaction *action, int ret)
 	} while (cmpxchg64(&long_irq_stat.long_irq_arr[irq],
 						curr_max_irq, irq_usec) != curr_max_irq);
 }
+
+/*********************************************************************
+ *                          HELPER FUNCTIONS                         *
+ *********************************************************************/
+
+static int irq_entry_cmp(const void *a, const void *b)
+{
+	return ((struct irq_entry *)b)->latency - ((struct irq_entry *)a)->latency;
+}
+
 /*******************************************************************
  *                       		SYSFS			   				   *
  *******************************************************************/
@@ -202,13 +216,28 @@ static ssize_t long_irq_metrics_show(struct kobject *kobj,
 	int index;
 	s64 latency;
 	int irq_num;
+	struct irq_entry *sorted_softirq_arr;
+	struct irq_entry *sorted_irq_arr;
+	sorted_softirq_arr = kmalloc(NR_SOFTIRQS * sizeof(struct irq_entry), GFP_KERNEL);
+	if (!sorted_softirq_arr)
+		return -ENOMEM;
+	sorted_irq_arr = kmalloc(MAX_IRQ_NUM * sizeof(struct irq_entry), GFP_KERNEL);
+	if (!sorted_irq_arr) {
+		kfree(sorted_softirq_arr);
+		return -ENOMEM;
+	}
 	count += sysfs_emit_at(buf, count, "long SOFTIRQ count: %lld\n",
 				atomic64_read(&(long_irq_stat.long_softirq_count)));
 	count += sysfs_emit_at(buf, count, "long SOFTIRQ detail (num, latency):\n");
 
 	for (index = 0; index < NR_SOFTIRQS; index++) {
-		latency = long_irq_stat.long_softirq_arr[index];
-		irq_num = index;
+		sorted_softirq_arr[index].irq_num = index;
+		sorted_softirq_arr[index].latency = long_irq_stat.long_softirq_arr[index];
+	}
+	sort(sorted_softirq_arr, NR_SOFTIRQS, sizeof(struct irq_entry), irq_entry_cmp, NULL);
+	for (index = 0; index < NR_SOFTIRQS; index++) {
+		latency = sorted_softirq_arr[index].latency;
+		irq_num = sorted_softirq_arr[index].irq_num;
 		if (latency > 0)
 			count += sysfs_emit_at(buf, count,
 				"%d %lld\n", irq_num, latency);
@@ -218,12 +247,19 @@ static ssize_t long_irq_metrics_show(struct kobject *kobj,
 	count += sysfs_emit_at(buf, count, "long IRQ detail (num, latency):\n");
 
 	for (index = 0; index < MAX_IRQ_NUM; index++) {
-		latency = long_irq_stat.long_irq_arr[index];
-		irq_num = index;
-		if (latency > 0)
-			count += sysfs_emit_at(buf, count,
-				"%d %lld\n", irq_num, latency);
+		sorted_irq_arr[index].irq_num = index;
+		sorted_irq_arr[index].latency = long_irq_stat.long_irq_arr[index];
 	}
+	sort(sorted_irq_arr, MAX_IRQ_NUM, sizeof(struct irq_entry), irq_entry_cmp, NULL);
+
+	for (index = 0; index < IRQ_ARR_LIMIT; index++) {
+		latency = sorted_irq_arr[index].latency;
+		irq_num = sorted_irq_arr[index].irq_num;
+		if (latency > 0)
+			count += sysfs_emit_at(buf, count, "%d %lld\n", irq_num, latency);
+	}
+	kfree(sorted_softirq_arr);
+	kfree(sorted_irq_arr);
 	return count;
 }
 
