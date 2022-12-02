@@ -177,6 +177,32 @@ static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "cam_power", "b
 		}									      \
 		PROC_OPS_RW(__grp##_##__attr);
 
+#define VENDOR_GROUP_CPUMASK_ATTRIBUTE(__grp, __attr, __vg)				      \
+		static int __grp##_##__attr##_show(struct seq_file *m, void *v) 	\
+		{									      \
+			struct vendor_group_property *gp = get_vendor_group_property(__vg);   \
+			seq_printf(m, "0x%lx\n", *gp->__attr.bits);	      \
+			return 0;	      \
+		}									      \
+		static ssize_t __grp##_##__attr##_store(struct file *filp,			\
+			const char __user *ubuf, \
+			size_t count, loff_t *pos) \
+		{									      \
+			unsigned long val;					              \
+			struct vendor_group_property *gp = get_vendor_group_property(__vg);   \
+			char buf[MAX_PROC_SIZE];	\
+			if (count >= sizeof(buf))	\
+				return -EINVAL;	\
+			if (copy_from_user(buf, ubuf, count))	\
+				return -EFAULT;	\
+			buf[count] = '\0';	\
+			if (kstrtoul(buf, 0, &val))					      \
+				return -EINVAL;						      \
+			*gp->__attr.bits = val;						      \
+			return count;							      \
+		}									      \
+		PROC_OPS_RW(__grp##_##__attr);
+
 #define VENDOR_GROUP_UCLAMP_ATTRIBUTE(__grp, __attr, __vg, __cid)			      \
 		static int __grp##_##__attr##_show(struct seq_file *m, void *v) 	\
 		{									      \
@@ -250,6 +276,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(ta, prefer_idle, VG_TOPAPP);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ta, prefer_high_cap, VG_TOPAPP);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ta, task_spreading, VG_TOPAPP);
 VENDOR_GROUP_UINT_ATTRIBUTE(ta, group_throttle, VG_TOPAPP);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(ta, preferred_idle_mask_low, VG_TOPAPP);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(ta, preferred_idle_mask_mid, VG_TOPAPP);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(ta, preferred_idle_mask_high, VG_TOPAPP);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(ta, uclamp_min, VG_TOPAPP, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(ta, uclamp_max, VG_TOPAPP, UCLAMP_MAX);
 
@@ -257,6 +286,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(fg, prefer_idle, VG_FOREGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(fg, prefer_high_cap, VG_FOREGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(fg, task_spreading, VG_FOREGROUND);
 VENDOR_GROUP_UINT_ATTRIBUTE(fg, group_throttle, VG_FOREGROUND);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(fg, preferred_idle_mask_low, VG_FOREGROUND);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(fg, preferred_idle_mask_mid, VG_FOREGROUND);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(fg, preferred_idle_mask_high, VG_FOREGROUND);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(fg, uclamp_min, VG_FOREGROUND, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(fg, uclamp_max, VG_FOREGROUND, UCLAMP_MAX);
 
@@ -264,6 +296,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(sys, prefer_idle, VG_SYSTEM);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sys, prefer_high_cap, VG_SYSTEM);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sys, task_spreading, VG_SYSTEM);
 VENDOR_GROUP_UINT_ATTRIBUTE(sys, group_throttle, VG_SYSTEM);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(sys, preferred_idle_mask_low, VG_SYSTEM);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(sys, preferred_idle_mask_mid, VG_SYSTEM);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(sys, preferred_idle_mask_high, VG_SYSTEM);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sys, uclamp_min, VG_SYSTEM, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sys, uclamp_max, VG_SYSTEM, UCLAMP_MAX);
 
@@ -271,6 +306,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(cam, prefer_idle, VG_CAMERA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam, prefer_high_cap, VG_CAMERA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam, task_spreading, VG_CAMERA);
 VENDOR_GROUP_UINT_ATTRIBUTE(cam, group_throttle, VG_CAMERA);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam, preferred_idle_mask_low, VG_CAMERA);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam, preferred_idle_mask_mid, VG_CAMERA);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam, preferred_idle_mask_high, VG_CAMERA);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam, uclamp_min, VG_CAMERA, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam, uclamp_max, VG_CAMERA, UCLAMP_MAX);
 
@@ -278,6 +316,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(cam_power, prefer_idle, VG_CAMERA_POWER);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam_power, prefer_high_cap, VG_CAMERA_POWER);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam_power, task_spreading, VG_CAMERA_POWER);
 VENDOR_GROUP_UINT_ATTRIBUTE(cam_power, group_throttle, VG_CAMERA_POWER);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam_power, preferred_idle_mask_low, VG_CAMERA_POWER);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam_power, preferred_idle_mask_mid, VG_CAMERA_POWER);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam_power, preferred_idle_mask_high, VG_CAMERA_POWER);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam_power, uclamp_min, VG_CAMERA_POWER, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam_power, uclamp_max, VG_CAMERA_POWER, UCLAMP_MAX);
 
@@ -285,6 +326,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(bg, prefer_idle, VG_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, prefer_high_cap, VG_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, task_spreading, VG_BACKGROUND);
 VENDOR_GROUP_UINT_ATTRIBUTE(bg, group_throttle, VG_BACKGROUND);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(bg, preferred_idle_mask_low, VG_BACKGROUND);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(bg, preferred_idle_mask_mid, VG_BACKGROUND);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(bg, preferred_idle_mask_high, VG_BACKGROUND);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(bg, uclamp_min, VG_BACKGROUND, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(bg, uclamp_max, VG_BACKGROUND, UCLAMP_MAX);
 
@@ -292,6 +336,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(sysbg, prefer_idle, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sysbg, prefer_high_cap, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sysbg, task_spreading, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_UINT_ATTRIBUTE(sysbg, group_throttle, VG_SYSTEM_BACKGROUND);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(sysbg, preferred_idle_mask_low, VG_SYSTEM_BACKGROUND);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(sysbg, preferred_idle_mask_mid, VG_SYSTEM_BACKGROUND);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(sysbg, preferred_idle_mask_high, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sysbg, uclamp_min, VG_SYSTEM_BACKGROUND, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sysbg, uclamp_max, VG_SYSTEM_BACKGROUND, UCLAMP_MAX);
 
@@ -299,6 +346,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(nnapi, prefer_idle, VG_NNAPI_HAL);
 VENDOR_GROUP_BOOL_ATTRIBUTE(nnapi, prefer_high_cap, VG_NNAPI_HAL);
 VENDOR_GROUP_BOOL_ATTRIBUTE(nnapi, task_spreading, VG_NNAPI_HAL);
 VENDOR_GROUP_UINT_ATTRIBUTE(nnapi, group_throttle, VG_NNAPI_HAL);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(nnapi, preferred_idle_mask_low, VG_NNAPI_HAL);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(nnapi, preferred_idle_mask_mid, VG_NNAPI_HAL);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(nnapi, preferred_idle_mask_high, VG_NNAPI_HAL);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(nnapi, uclamp_min, VG_NNAPI_HAL, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(nnapi, uclamp_max, VG_NNAPI_HAL, UCLAMP_MAX);
 
@@ -306,6 +356,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(rt, prefer_idle, VG_RT);
 VENDOR_GROUP_BOOL_ATTRIBUTE(rt, prefer_high_cap, VG_RT);
 VENDOR_GROUP_BOOL_ATTRIBUTE(rt, task_spreading, VG_RT);
 VENDOR_GROUP_UINT_ATTRIBUTE(rt, group_throttle, VG_RT);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(rt, preferred_idle_mask_low, VG_RT);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(rt, preferred_idle_mask_mid, VG_RT);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(rt, preferred_idle_mask_high, VG_RT);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(rt, uclamp_min, VG_RT, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(rt, uclamp_max, VG_RT, UCLAMP_MAX);
 
@@ -313,6 +366,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(dex2oat, prefer_idle, VG_DEX2OAT);
 VENDOR_GROUP_BOOL_ATTRIBUTE(dex2oat, prefer_high_cap, VG_DEX2OAT);
 VENDOR_GROUP_BOOL_ATTRIBUTE(dex2oat, task_spreading, VG_DEX2OAT);
 VENDOR_GROUP_UINT_ATTRIBUTE(dex2oat, group_throttle, VG_DEX2OAT);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(dex2oat, preferred_idle_mask_low, VG_DEX2OAT);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(dex2oat, preferred_idle_mask_mid, VG_DEX2OAT);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(dex2oat, preferred_idle_mask_high, VG_DEX2OAT);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(dex2oat, uclamp_min, VG_DEX2OAT, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(dex2oat, uclamp_max, VG_DEX2OAT, UCLAMP_MAX);
 
@@ -320,6 +376,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(ota, prefer_idle, VG_OTA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ota, prefer_high_cap, VG_OTA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ota, task_spreading, VG_OTA);
 VENDOR_GROUP_UINT_ATTRIBUTE(ota, group_throttle, VG_OTA);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(ota, preferred_idle_mask_low, VG_OTA);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(ota, preferred_idle_mask_mid, VG_OTA);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(ota, preferred_idle_mask_high, VG_OTA);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(ota, uclamp_min, VG_OTA, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(ota, uclamp_max, VG_OTA, UCLAMP_MAX);
 
@@ -327,6 +386,9 @@ VENDOR_GROUP_BOOL_ATTRIBUTE(sf, prefer_idle, VG_SF);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sf, prefer_high_cap, VG_SF);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sf, task_spreading, VG_SF);
 VENDOR_GROUP_UINT_ATTRIBUTE(sf, group_throttle, VG_SF);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(sf, preferred_idle_mask_low, VG_SF);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(sf, preferred_idle_mask_mid, VG_SF);
+VENDOR_GROUP_CPUMASK_ATTRIBUTE(sf, preferred_idle_mask_high, VG_SF);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sf, uclamp_min, VG_SF, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sf, uclamp_max, VG_SF, UCLAMP_MAX);
 
@@ -1369,6 +1431,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(ta_prefer_high_cap),
 	PROC_ENTRY(ta_task_spreading),
 	PROC_ENTRY(ta_group_throttle),
+	PROC_ENTRY(ta_preferred_idle_mask_low),
+	PROC_ENTRY(ta_preferred_idle_mask_mid),
+	PROC_ENTRY(ta_preferred_idle_mask_high),
 	PROC_ENTRY(ta_uclamp_min),
 	PROC_ENTRY(ta_uclamp_max),
 	// Foreground group attributes
@@ -1376,6 +1441,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(fg_prefer_high_cap),
 	PROC_ENTRY(fg_task_spreading),
 	PROC_ENTRY(fg_group_throttle),
+	PROC_ENTRY(fg_preferred_idle_mask_low),
+	PROC_ENTRY(fg_preferred_idle_mask_mid),
+	PROC_ENTRY(fg_preferred_idle_mask_high),
 	PROC_ENTRY(fg_uclamp_min),
 	PROC_ENTRY(fg_uclamp_max),
 	// System group attributes
@@ -1383,6 +1451,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(sys_prefer_high_cap),
 	PROC_ENTRY(sys_task_spreading),
 	PROC_ENTRY(sys_group_throttle),
+	PROC_ENTRY(sys_preferred_idle_mask_low),
+	PROC_ENTRY(sys_preferred_idle_mask_mid),
+	PROC_ENTRY(sys_preferred_idle_mask_high),
 	PROC_ENTRY(sys_uclamp_min),
 	PROC_ENTRY(sys_uclamp_max),
 	// Camera group attributes
@@ -1390,6 +1461,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(cam_prefer_high_cap),
 	PROC_ENTRY(cam_task_spreading),
 	PROC_ENTRY(cam_group_throttle),
+	PROC_ENTRY(cam_preferred_idle_mask_low),
+	PROC_ENTRY(cam_preferred_idle_mask_mid),
+	PROC_ENTRY(cam_preferred_idle_mask_high),
 	PROC_ENTRY(cam_uclamp_min),
 	PROC_ENTRY(cam_uclamp_max),
 	// Camera_power group attributes
@@ -1397,6 +1471,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(cam_power_prefer_high_cap),
 	PROC_ENTRY(cam_power_task_spreading),
 	PROC_ENTRY(cam_power_group_throttle),
+	PROC_ENTRY(cam_power_preferred_idle_mask_low),
+	PROC_ENTRY(cam_power_preferred_idle_mask_mid),
+	PROC_ENTRY(cam_power_preferred_idle_mask_high),
 	PROC_ENTRY(cam_power_uclamp_min),
 	PROC_ENTRY(cam_power_uclamp_max),
 	// Background group attributes
@@ -1404,6 +1481,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(bg_prefer_high_cap),
 	PROC_ENTRY(bg_task_spreading),
 	PROC_ENTRY(bg_group_throttle),
+	PROC_ENTRY(bg_preferred_idle_mask_low),
+	PROC_ENTRY(bg_preferred_idle_mask_mid),
+	PROC_ENTRY(bg_preferred_idle_mask_high),
 	PROC_ENTRY(bg_uclamp_min),
 	PROC_ENTRY(bg_uclamp_max),
 	// System Background group attributes
@@ -1411,6 +1491,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(sysbg_prefer_high_cap),
 	PROC_ENTRY(sysbg_task_spreading),
 	PROC_ENTRY(sysbg_group_throttle),
+	PROC_ENTRY(sysbg_preferred_idle_mask_low),
+	PROC_ENTRY(sysbg_preferred_idle_mask_mid),
+	PROC_ENTRY(sysbg_preferred_idle_mask_high),
 	PROC_ENTRY(sysbg_uclamp_min),
 	PROC_ENTRY(sysbg_uclamp_max),
 	// Nnapi-HAL group attributes
@@ -1418,6 +1501,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(nnapi_prefer_high_cap),
 	PROC_ENTRY(nnapi_task_spreading),
 	PROC_ENTRY(nnapi_group_throttle),
+	PROC_ENTRY(nnapi_preferred_idle_mask_low),
+	PROC_ENTRY(nnapi_preferred_idle_mask_mid),
+	PROC_ENTRY(nnapi_preferred_idle_mask_high),
 	PROC_ENTRY(nnapi_uclamp_min),
 	PROC_ENTRY(nnapi_uclamp_max),
 	// RT group attributes
@@ -1425,6 +1511,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(rt_prefer_high_cap),
 	PROC_ENTRY(rt_task_spreading),
 	PROC_ENTRY(rt_group_throttle),
+	PROC_ENTRY(rt_preferred_idle_mask_low),
+	PROC_ENTRY(rt_preferred_idle_mask_mid),
+	PROC_ENTRY(rt_preferred_idle_mask_high),
 	PROC_ENTRY(rt_uclamp_min),
 	PROC_ENTRY(rt_uclamp_max),
 	// DEX2OAT group attributes
@@ -1432,6 +1521,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(dex2oat_prefer_high_cap),
 	PROC_ENTRY(dex2oat_task_spreading),
 	PROC_ENTRY(dex2oat_group_throttle),
+	PROC_ENTRY(dex2oat_preferred_idle_mask_low),
+	PROC_ENTRY(dex2oat_preferred_idle_mask_mid),
+	PROC_ENTRY(dex2oat_preferred_idle_mask_high),
 	PROC_ENTRY(dex2oat_uclamp_min),
 	PROC_ENTRY(dex2oat_uclamp_max),
 	// OTA group attributes
@@ -1439,6 +1531,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(ota_prefer_high_cap),
 	PROC_ENTRY(ota_task_spreading),
 	PROC_ENTRY(ota_group_throttle),
+	PROC_ENTRY(ota_preferred_idle_mask_low),
+	PROC_ENTRY(ota_preferred_idle_mask_mid),
+	PROC_ENTRY(ota_preferred_idle_mask_high),
 	PROC_ENTRY(ota_uclamp_min),
 	PROC_ENTRY(ota_uclamp_max),
 	// SF group attributes
@@ -1446,6 +1541,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(sf_prefer_high_cap),
 	PROC_ENTRY(sf_task_spreading),
 	PROC_ENTRY(sf_group_throttle),
+	PROC_ENTRY(sf_preferred_idle_mask_low),
+	PROC_ENTRY(sf_preferred_idle_mask_mid),
+	PROC_ENTRY(sf_preferred_idle_mask_high),
 	PROC_ENTRY(sf_uclamp_min),
 	PROC_ENTRY(sf_uclamp_max),
 	// Vendor group attributes

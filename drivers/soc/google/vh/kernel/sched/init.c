@@ -57,21 +57,16 @@ extern void rvh_update_rt_rq_load_avg_pixel_mod(void *data, u64 now, struct rq *
 extern void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsigned int new_cpu);
 extern void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
 extern void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
-
 extern void vh_binder_set_priority_pixel_mod(void *data, struct binder_transaction *t,
 	struct task_struct *task);
 extern void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t,
 	struct task_struct *task);
-
 extern void vh_dump_throttled_rt_tasks_mod(void *data, int cpu, u64 clock, ktime_t rt_period,
 					   u64 rt_runtime, s64 rt_period_timer_expires);
-
 extern void android_vh_show_max_freq(void *unused, struct cpufreq_policy *policy,
 						unsigned int *max_freq);
-
 extern void vh_sched_setaffinity_mod(void *data, struct task_struct *task,
 					const struct cpumask *in_mask, int *skip);
-
 extern void vh_try_to_freeze_todo_logging_pixel_mod(void *data, bool *logging_on);
 extern void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
 	const struct cpumask *cpu_valid_mask, const struct cpumask *new_mask, int *dest_cpu);

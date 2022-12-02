@@ -301,18 +301,18 @@ TRACE_EVENT(cpumask_any_and_distribute,
 
 TRACE_EVENT(sched_find_energy_efficient_cpu,
 
-	TP_PROTO(struct task_struct *tsk, unsigned long task_util, bool prefer_idle,
-		 bool prefer_high_cap, unsigned long task_importance, cpumask_t *idle_fit,
-		 cpumask_t *idle_unfit, cpumask_t *unimportant_fit, cpumask_t *unimportant_unfit,
-		 cpumask_t *packing, cpumask_t *max_spare_cap, int best_energy_cpu),
+	TP_PROTO(struct task_struct *tsk, bool prefer_idle, bool prefer_high_cap,
+		 unsigned long task_importance, cpumask_t *idle_fit, cpumask_t *idle_unfit,
+		 cpumask_t *unimportant_fit, cpumask_t *unimportant_unfit, cpumask_t *packing,
+		 cpumask_t *max_spare_cap, cpumask_t *idle_unpreferred, int best_energy_cpu),
 
-	TP_ARGS(tsk, task_util, prefer_idle, prefer_high_cap, task_importance, idle_fit, idle_unfit,
-		unimportant_fit, unimportant_unfit, packing, max_spare_cap, best_energy_cpu),
+	TP_ARGS(tsk, prefer_idle, prefer_high_cap, task_importance, idle_fit, idle_unfit,
+		unimportant_fit, unimportant_unfit, packing, max_spare_cap, idle_unpreferred,
+		best_energy_cpu),
 
 	TP_STRUCT__entry(
 		__array(char,		comm, TASK_COMM_LEN)
 		__field(pid_t,		pid)
-		__field(unsigned long,	task_util)
 		__field(bool,	        prefer_idle)
 		__field(bool,	        prefer_high_cap)
 		__field(unsigned long,	task_importance)
@@ -322,13 +322,13 @@ TRACE_EVENT(sched_find_energy_efficient_cpu,
 		__field(unsigned long,	unimportant_unfit)
 		__field(unsigned long,	packing)
 		__field(unsigned long,	max_spare_cap)
+		__field(unsigned long,	idle_unpreferred)
 		__field(int,		best_energy_cpu)
 		),
 
 	TP_fast_assign(
 		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
 		__entry->pid               = tsk->pid;
-		__entry->task_util         = task_util;
 		__entry->prefer_idle       = prefer_idle;
 		__entry->prefer_high_cap   = prefer_high_cap;
 		__entry->task_importance   = task_importance;
@@ -338,16 +338,17 @@ TRACE_EVENT(sched_find_energy_efficient_cpu,
 		__entry->unimportant_unfit = *unimportant_unfit->bits;
 		__entry->packing           = *packing->bits;
 		__entry->max_spare_cap     = *max_spare_cap->bits;
+		__entry->idle_unpreferred  = *idle_unpreferred->bits;
 		__entry->best_energy_cpu   = best_energy_cpu;
 		),
 
-	TP_printk("pid=%d comm=%s task_util=%lu prefer_idle=%d prefer_high_cap=%d " \
-		  "task_importance=%lu idle_fit=0x%lx idle_unfit=0x%lx unimportant_fit=0x%lx "\
-		  "unimportant_unfit=0x%lx packing=0x%lx max_spare_cap=0x%lx best_energy_cpu=%d",
-		  __entry->pid, __entry->comm, __entry->task_util, __entry->prefer_idle,
-		  __entry->prefer_high_cap, __entry->task_importance, __entry->idle_fit,
-		  __entry->idle_unfit, __entry->unimportant_fit, __entry->unimportant_unfit,
-		  __entry->packing, __entry->max_spare_cap, __entry->best_energy_cpu)
+	TP_printk("pid=%d comm=%s prefer_idle=%d prefer_high_cap=%d task_importance=%lu " \
+		  "idle_fit=0x%lx idle_unfit=0x%lx unimportant_fit=0x%lx unimportant_unfit=0x%lx "\
+		  "packing=0x%lx max_spare_cap=0x%lx idle_unpreferred=0x%lx best_energy_cpu=%d",
+		  __entry->pid, __entry->comm, __entry->prefer_idle, __entry->prefer_high_cap,
+		  __entry->task_importance, __entry->idle_fit, __entry->idle_unfit,
+		  __entry->unimportant_fit, __entry->unimportant_unfit, __entry->packing,
+		  __entry->max_spare_cap, __entry->idle_unpreferred, __entry->best_energy_cpu)
 );
 
 TRACE_EVENT(sched_select_task_rq_fair,

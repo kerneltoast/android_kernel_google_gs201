@@ -12,6 +12,8 @@
 #define DEF_UTIL_THRESHOLD  1280
 #define DEF_UTIL_POST_INIT_SCALE  512
 #define C1_EXIT_LATENCY     1
+#define PREFER_IDLE_PRIO_HIGH 110
+
 /*
  * For cpu running normal tasks, its uclamp.min will be 0 and uclamp.max will be 1024,
  * and the sum will be 1024. We use this as index that cpu is not running important tasks.
@@ -71,6 +73,9 @@ struct vendor_group_property {
 	bool prefer_high_cap;
 	bool task_spreading;
 	unsigned int group_throttle;
+	cpumask_t preferred_idle_mask_low;
+	cpumask_t preferred_idle_mask_mid;
+	cpumask_t preferred_idle_mask_high;
 	struct uclamp_se uc_req[UCLAMP_CNT];
 };
 

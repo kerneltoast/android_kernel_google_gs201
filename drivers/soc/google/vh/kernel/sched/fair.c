@@ -258,6 +258,45 @@ static inline unsigned int get_group_throttle(struct task_group *tg)
 }
 #endif
 
+/*
+ * If a task is in prefer_idle group, check if it could run on the cpu based on its prio and the
+ * prefer_idle cpumask defined, but bail out for bulk wake (wake_q_count > 1).
+ */
+static inline bool is_preferred_idle_cpu(struct task_struct *p, int cpu)
+{
+	int vendor_group = get_vendor_group(p);
+
+	if (!vg[vendor_group].prefer_idle)
+		return true;
+
+	if (p->wake_q_count > 1)
+		return true;
+
+	if (p->prio <= PREFER_IDLE_PRIO_HIGH) {
+		return cpumask_test_cpu(cpu, &vg[vendor_group].preferred_idle_mask_high);
+	} else if (p->prio <= DEFAULT_PRIO) {
+		return cpumask_test_cpu(cpu, &vg[vendor_group].preferred_idle_mask_mid);
+	} else {
+		return cpumask_test_cpu(cpu, &vg[vendor_group].preferred_idle_mask_low);
+	}
+}
+
+static inline const cpumask_t *get_preferred_idle_mask(struct task_struct *p)
+{
+	int vendor_group = get_vendor_group(p);
+
+	if (p->wake_q_count > 1)
+		return cpu_possible_mask;
+
+	if (p->prio <= PREFER_IDLE_PRIO_HIGH) {
+		return &vg[vendor_group].preferred_idle_mask_high;
+	} else if (p->prio <= DEFAULT_PRIO) {
+		return &vg[vendor_group].preferred_idle_mask_mid;
+	} else {
+		return &vg[vendor_group].preferred_idle_mask_low;
+	}
+}
+
 void init_vendor_group_data(void)
 {
 	int i;
@@ -700,7 +739,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	cpumask_t idle_fit = { CPU_BITS_NONE }, idle_unfit = { CPU_BITS_NONE },
 		  unimportant_fit = { CPU_BITS_NONE }, unimportant_unfit = { CPU_BITS_NONE },
 		  max_spare_cap = { CPU_BITS_NONE }, packing = { CPU_BITS_NONE },
-		  candidates = { CPU_BITS_NONE };
+		  idle_unpreferred = { CPU_BITS_NONE }, candidates = { CPU_BITS_NONE };
 	int i, weight, best_energy_cpu = -1, this_cpu = smp_processor_id();
 	long cur_energy, best_energy = LONG_MAX;
 	unsigned long spare_cap, target_max_spare_cap = 0;
@@ -722,6 +761,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 	struct cpuidle_state *idle_state;
 	unsigned long util;
 	bool prefer_fit = prefer_idle && get_vendor_task_struct(p)->uclamp_fork_reset;
+	const cpumask_t *preferred_idle_mask;
 
 	rd = cpu_rq(this_cpu)->rd;
 
@@ -782,6 +822,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 						 capacity, wake_util, capacity,	wake_util,
 						 spare_cap, task_fits, false);
 #endif
+
 
 			if (prefer_idle) {
 				/*
@@ -950,6 +991,14 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 			cpumask_set_cpu(pd_max_spare_cap_cpu, &max_spare_cap);
 	}
 
+	if (prefer_idle) {
+		preferred_idle_mask = get_preferred_idle_mask(p);
+		cpumask_or(&idle_unpreferred, &idle_fit, &idle_unfit);
+		cpumask_andnot(&idle_unpreferred, &idle_unpreferred, preferred_idle_mask);
+		cpumask_and(&idle_fit, &idle_fit, preferred_idle_mask);
+		cpumask_and(&idle_unfit, &idle_unfit, preferred_idle_mask);
+	}
+
 	/* Assign candidates based on search order. */
 	if (prefer_fit) {
 		if (!cpumask_empty(&idle_fit)) {
@@ -964,6 +1013,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 			cpumask_set_cpu(cpumask_last(&unimportant_unfit), &candidates);
 		} else if (!cpumask_empty(&max_spare_cap)) {
 			cpumask_copy(&candidates, &max_spare_cap);
+		} else if (!cpumask_empty(&idle_unpreferred)) {
+			cpumask_copy(&candidates, &idle_unpreferred);
 		}
 	} else {
 		if (!cpumask_empty(&idle_fit)) {
@@ -980,6 +1031,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 			cpumask_copy(&candidates, &packing);
 		} else if (!cpumask_empty(&max_spare_cap)) {
 			cpumask_copy(&candidates, &max_spare_cap);
+		} else if (!cpumask_empty(&idle_unpreferred)) {
+			cpumask_copy(&candidates, &idle_unpreferred);
 		}
 	}
 
@@ -1030,9 +1083,9 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 
 out:
 	rcu_read_unlock();
-	trace_sched_find_energy_efficient_cpu(p, task_util_est(p), prefer_idle, prefer_high_cap,
-				     task_importance, &idle_fit, &idle_unfit, &unimportant_fit,
-				     &unimportant_unfit, &packing, &max_spare_cap, best_energy_cpu);
+	trace_sched_find_energy_efficient_cpu(p, prefer_idle, prefer_high_cap, task_importance,
+				     &idle_fit, &idle_unfit, &unimportant_fit, &unimportant_unfit,
+				     &packing, &max_spare_cap, &idle_unpreferred, best_energy_cpu);
 	return best_energy_cpu;
 }
 
@@ -1159,6 +1212,9 @@ void initialize_vendor_group_property(void)
 		vg[i].prefer_high_cap = false;
 		vg[i].task_spreading = false;
 		vg[i].group_throttle = max_val;
+		cpumask_copy(&vg[i].preferred_idle_mask_low, cpu_possible_mask);
+		cpumask_copy(&vg[i].preferred_idle_mask_mid, cpu_possible_mask);
+		cpumask_copy(&vg[i].preferred_idle_mask_high, cpu_possible_mask);
 		vg[i].uc_req[UCLAMP_MIN].value = min_val;
 		vg[i].uc_req[UCLAMP_MIN].bucket_id = get_bucket_id(min_val);
 		vg[i].uc_req[UCLAMP_MIN].user_defined = false;
@@ -1416,8 +1472,8 @@ void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int pr
 	sync_boost = sync && cpu >= HIGH_CAPACITY_CPU;
 
 	/* prefer prev cpu */
-	if (cpu_active(prev_cpu) && cpu_is_idle(prev_cpu) && task_fits_capacity(p, prev_cpu,
-	     sync_boost)) {
+	if (cpu_active(prev_cpu) && cpu_is_idle(prev_cpu) &&
+	    task_fits_capacity(p, prev_cpu, sync_boost) && is_preferred_idle_cpu(p, prev_cpu)) {
 
 		struct cpuidle_state *idle_state;
 		unsigned int exit_lat = UINT_MAX;
@@ -1451,4 +1507,3 @@ out:
 					uclamp_eff_value(p, UCLAMP_MAX),
 					prev_cpu, *target_cpu);
 }
-
