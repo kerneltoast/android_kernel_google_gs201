@@ -1277,12 +1277,12 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 		  idle_unpreferred = { CPU_BITS_NONE }, candidates = { CPU_BITS_NONE };
 	int i, weight, best_energy_cpu = -1, this_cpu = smp_processor_id();
 	long cur_energy, best_energy = LONG_MAX;
+	unsigned long p_util_min = uclamp_is_used() ? uclamp_eff_value(p, UCLAMP_MIN) : 0;
+	unsigned long p_util_max = uclamp_is_used() ? uclamp_eff_value(p, UCLAMP_MAX) : 1024;
 	unsigned long spare_cap, target_max_spare_cap = 0;
-	unsigned long task_importance =
-			((p->prio <= DEFAULT_PRIO) ? uclamp_eff_value(p, UCLAMP_MIN) : 0) +
-			uclamp_eff_value(p, UCLAMP_MAX);
+	unsigned long task_importance = ((p->prio <= DEFAULT_PRIO) ? p_util_min : 0) + p_util_max;
 	unsigned int exit_lat, pd_best_exit_lat, best_exit_lat;
-	bool is_idle, task_fits;
+	bool is_idle, task_fits, util_fits;
 	bool idle_target_found = false, importance_target_found = false;
 	bool prefer_idle = get_prefer_idle(p), prefer_high_cap = get_prefer_high_cap(p);
 	unsigned long capacity, wake_util, cpu_importance;
@@ -1306,6 +1306,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 		goto out;
 
 	for (; pd; pd = pd->next) {
+		unsigned long util_min = p_util_min, util_max = p_util_max;
+		unsigned long rq_util_min, rq_util_max;
 		pd_max_spare_cap = 0;
 		pd_max_packing_spare_cap = 0;
 		pd_max_unimportant_spare_cap = 0;
@@ -1364,6 +1366,30 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 #endif
 
 
+			/*
+			 * Skip CPUs that cannot satisfy the capacity request.
+			 * IOW, placing the task there would make the CPU
+			 * overutilized. Take uclamp into account to see how
+			 * much capacity we can get out of the CPU; this is
+			 * aligned with sched_cpu_util().
+			 */
+			if (uclamp_is_used() && !uclamp_rq_is_idle(cpu_rq(i))) {
+				/*
+				 * Open code uclamp_rq_util_with() except for
+				 * the clamp() part. Ie: apply max aggregation
+				 * only. util_fits_cpu() logic requires to
+				 * operate on non clamped util but must use the
+				 * max-aggregated uclamp_{min, max}.
+				 */
+				rq_util_min = uclamp_rq_get(cpu_rq(i), UCLAMP_MIN);
+				rq_util_max = uclamp_rq_get(cpu_rq(i), UCLAMP_MAX);
+
+				util_min = max(rq_util_min, p_util_min);
+				util_max = max(rq_util_max, p_util_max);
+			}
+
+			util_fits = util_fits_cpu(util, util_min, util_max, i);
+
 			if (prefer_idle) {
 				/*
 				 * For a cluster, the energy computation result will be the same for
@@ -1413,10 +1439,10 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 				 */
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
 				if (!prefer_fit &&
-				    (group_overutilize || cpu_overutilized(util, capacity, i)))
+				    (group_overutilize || !util_fits))
 					continue;
 #else
-				if (!prefer_fit && cpu_overutilized(util, capacity, i))
+				if (!prefer_fit && !util_fits)
 					continue;
 #endif
 
@@ -1439,10 +1465,10 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 				}
 			} else { /* Below path is for non-prefer idle case */
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-				if (group_overutilize || cpu_overutilized(util, capacity, i))
+				if (group_overutilize || !util_fits)
 					continue;
 #else
-				if (cpu_overutilized(util, capacity, i))
+				if (!util_fits)
 					continue;
 #endif
 
