@@ -255,7 +255,9 @@ static inline bool rt_task_fits_uclamp_min(struct task_struct *p, int cpu)
 
 static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
 {
-	unsigned long util;
+	unsigned long uclamp_min = uclamp_eff_value(p, UCLAMP_MIN);
+	unsigned long uclamp_max = uclamp_eff_value(p, UCLAMP_MAX);
+	unsigned long util = task_util(p);
 
 	if (cpu >= MAX_CAPACITY_CPU)
 		return true;
@@ -263,10 +265,7 @@ static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
 	if (get_prefer_high_cap(p) && cpu < MID_CAPACITY_CPU)
 		return false;
 
-	util = clamp(task_util(p), uclamp_eff_value(p, UCLAMP_MIN),
-		     uclamp_eff_value(p, UCLAMP_MAX));
-
-	return capacity_cap(cpu) * SCHED_CAPACITY_SCALE > util * sched_capacity_margin[cpu];
+	return util_fits_cpu(util, uclamp_min, uclamp_max, cpu);
 }
 
 static int find_lowest_rq(struct task_struct *p, struct cpumask *backup_mask)
