@@ -166,11 +166,6 @@ static inline unsigned long uclamp_task_util(struct task_struct *p)
 }
 #endif
 
-static inline unsigned long capacity_of(int cpu)
-{
-	return cpu_rq(cpu)->cpu_capacity;
-}
-
 static unsigned long capacity_curr_of(int cpu)
 {
 	unsigned long max_cap = cpu_rq(cpu)->cpu_capacity_orig;

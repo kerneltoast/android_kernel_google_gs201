@@ -26,7 +26,6 @@ unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INI
 bool __read_mostly vendor_sched_npi_packing = true; //non prefer idle packing
 bool __read_mostly vendor_sched_reduce_prefer_idle = true;
 struct proc_dir_entry *vendor_sched;
-extern unsigned int sched_capacity_margin[CPU_NUM];
 extern struct vendor_group_list vendor_group_list[VG_MAX];
 
 extern void initialize_vendor_group_property(void);

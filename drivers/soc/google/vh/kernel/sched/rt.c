@@ -18,7 +18,6 @@ extern int cpu_is_idle(int cpu);
 extern int sched_cpu_idle(int cpu);
 extern bool get_prefer_high_cap(struct task_struct *p);
 
-extern unsigned int sched_capacity_margin[CPU_NUM];
 extern ___update_load_sum(u64 now, struct sched_avg *sa,
 			  unsigned long load, unsigned long runnable, int running);
 extern ___update_load_avg(struct sched_avg *sa, unsigned long load);
