@@ -1697,7 +1697,10 @@ void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iow
 
 void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 {
-	*overutilized = cpu_overutilized(cpu_util(cpu), capacity_of(cpu), cpu);
+	unsigned long rq_util_min = uclamp_rq_get(cpu_rq(cpu), UCLAMP_MIN);
+	unsigned long rq_util_max = uclamp_rq_get(cpu_rq(cpu), UCLAMP_MAX);
+
+	*overutilized = !util_fits_cpu(cpu_util(cpu), rq_util_min, rq_util_max, cpu);
 }
 
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
