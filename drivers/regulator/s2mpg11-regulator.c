@@ -689,8 +689,8 @@ static int s2mpg11_pmic_probe(struct platform_device *pdev)
 	s2mpg11->need_sync = devm_kzalloc(&pdev->dev,
 					  sizeof(atomic_t) * S2MPG11_REGULATOR_MAX,
 					  GFP_KERNEL);
-	s2mpg11->turn_off_on_sync = devm_kzalloc(&pdev->dev,
-						 sizeof(bool) * S2MPG11_REGULATOR_MAX,
+	s2mpg11->turn_off_on_sync = devm_kcalloc(&pdev->dev, S2MPG11_REGULATOR_MAX,
+						 sizeof(*s2mpg11->turn_off_on_sync),
 						 GFP_KERNEL);
 	s2mpg11->opmode =
 		devm_kzalloc(&pdev->dev,
