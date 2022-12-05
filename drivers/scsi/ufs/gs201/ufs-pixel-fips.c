@@ -5,7 +5,7 @@
  * Copyright 2021 Google LLC
  *
  * Authors: Konstantin Vyshetsky <vkon@google.com>
- * Version: 2.0.0
+ *
  */
 
 #include <linux/kernel.h>
@@ -18,6 +18,13 @@
 
 #undef pr_fmt
 #define pr_fmt(fmt) "ufs-pixel-fips140: " fmt
+
+/*
+ * FIPS140-3 requires module name and version information to be available. These
+ * values will be logged to kernel log upon loading.
+ */
+#define UFS_PIXEL_FIPS140_MODULE_NAME "UFS Pixel FIPS CMVP Module"
+#define UFS_PIXEL_FIPS140_MODULE_VERSION "1.2.0"
 
 /*
  * As the verification logic will run before GPT data is available, module
@@ -647,6 +654,10 @@ static int __init ufs_pixel_self_integrity_test(void)
 
 static int __init ufs_pixel_fips_init(void)
 {
+	pr_info ("%s version %s loading...\n",
+		 UFS_PIXEL_FIPS140_MODULE_NAME,
+		 UFS_PIXEL_FIPS140_MODULE_VERSION);
+
 	/* Verify internal HMAC functionality */
 	if (ufs_pixel_hmac_self_test()) {
 		pr_err("HMAC self test failed\n");
@@ -675,3 +686,4 @@ MODULE_DESCRIPTION(
 	"FIPS140-3 Compliant SW Driven UFS Inline Encryption Self Test Module");
 MODULE_AUTHOR("Konstantin Vyshetsky");
 MODULE_LICENSE("GPL v2");
+MODULE_VERSION(UFS_PIXEL_FIPS140_MODULE_VERSION);
