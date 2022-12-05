@@ -100,6 +100,7 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 	bool is_idle;
 	bool check_fit = false;
 	bool fit_and_non_overutilized_found = false, fit_and_overutilized_found = false;
+	unsigned long rq_util_min, rq_util_max;
 
 	if (cpumask_weight(lowest_mask) == 1)
 		return cpumask_first(lowest_mask);
@@ -122,6 +123,8 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 		capacity[cpu] = capacity_cap(cpu);
 		cpu_importance[cpu] = READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MIN].value) +
 				 READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MAX].value);
+		rq_util_min = uclamp_rq_get(cpu_rq(cpu), UCLAMP_MIN);
+		rq_util_max = uclamp_rq_get(cpu_rq(cpu), UCLAMP_MAX);
 
 		if (is_idle) {
 			idle = idle_get_state(cpu_rq(cpu));
@@ -140,8 +143,8 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 			util[cpu] += task_util(p);
 
 		task_fits[cpu] = rt_task_fits_capacity(p, cpu);
-		overutilize[cpu] = cpu_overutilized(uclamp_rq_util_with(cpu_rq(cpu), util[cpu], p),
-						    capacity[cpu], cpu);
+		overutilize[cpu] = !util_fits_cpu(util[cpu],
+						  rq_util_min, rq_util_max, cpu);
 
 		trace_sched_cpu_util_rt(cpu, capacity[cpu], util[cpu], exit_lat[cpu],
 					cpu_importance[cpu], task_fits[cpu], overutilize[cpu]);
