@@ -36,22 +36,22 @@ static struct long_irq long_irq_stat;
 
 static void vendor_hook_resume_begin(void *data, void *unused)
 {
-	resume_latency_stats.resume_start = ktime_get_boottime();
+	resume_latency_stats.resume_start = ktime_get_mono_fast_ns();
 }
 
 static void vendor_hook_resume_end(void *data, void *unused)
 {
 	int resume_latency_index;
-	s64 resume_latency_msec;
+	u64 resume_latency_msec;
 	/* Exit function when partial resumes */
 	if (resume_latency_stats.resume_start == resume_latency_stats.resume_end)
 		return;
-	resume_latency_stats.resume_end = ktime_get_boottime();
-	resume_latency_msec = ktime_ms_delta(resume_latency_stats.resume_end,
-						resume_latency_stats.resume_start);
-	pr_info("resume latency: %lld\n", resume_latency_msec);
+	resume_latency_stats.resume_end = ktime_get_mono_fast_ns();
+	resume_latency_msec = (resume_latency_stats.resume_end -
+						resume_latency_stats.resume_start) / NSEC_PER_MSEC;
+	pr_info("resume latency: %llu\n", resume_latency_msec);
 	/* Exit function when partial resumes */
-	if (resume_latency_msec <= 0)
+	if (resume_latency_stats.resume_end < resume_latency_stats.resume_start)
 		return;
 	spin_lock(&resume_latency_stats.resume_latency_stat_lock);
 	if (resume_latency_msec < RESUME_LATENCY_BOUND_SMALL) {
@@ -160,7 +160,7 @@ static ssize_t resume_latency_metrics_show(struct kobject *kobj,
 	ssize_t count = 0;
 	count += sysfs_emit_at(buf, count, "Resume Latency Bucket Count: %d\n",
 				RESUME_LATENCY_ARR_SIZE);
-	count += sysfs_emit_at(buf, count, "Max Resume Latency: %lld\n",
+	count += sysfs_emit_at(buf, count, "Max Resume Latency: %llu\n",
 				resume_latency_stats.resume_latency_max_ms);
 	count += sysfs_emit_at(buf, count, "Sum Resume Latency: %llu\n",
 				resume_latency_stats.resume_latency_sum_ms);
