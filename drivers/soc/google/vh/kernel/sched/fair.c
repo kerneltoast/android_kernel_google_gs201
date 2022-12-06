@@ -432,9 +432,7 @@ static bool task_fits_capacity(struct task_struct *p, int cpu,  bool sync_boost)
 	if (cpu >= MAX_CAPACITY_CPU)
 		return true;
 
-	if ((get_prefer_high_cap(p) || sync_boost ||
-	     (get_prefer_idle(p) && get_vendor_task_struct(p)->uclamp_fork_reset)) &&
-	    cpu < MID_CAPACITY_CPU)
+	if ((get_prefer_high_cap(p) || sync_boost) && cpu < MID_CAPACITY_CPU)
 		return false;
 
 	task_util = get_task_spreading(p) ? task_util_est(p) : uclamp_task_util(p);
