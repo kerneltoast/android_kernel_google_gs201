@@ -112,7 +112,6 @@ struct vendor_task_group_struct {
 
 ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[4], struct vendor_task_group_struct t);
 
-extern unsigned int vendor_sched_uclamp_threshold;
 extern bool vendor_sched_reduce_prefer_idle;
 
 static struct vendor_group_property vg[VG_MAX];
@@ -177,9 +176,7 @@ static inline bool get_prefer_idle(struct task_struct *p)
 	struct vendor_binder_task_struct *vbinder = get_vendor_binder_task_struct(p);
 
 	if (vendor_sched_reduce_prefer_idle && !vp->uclamp_fork_reset)
-		return (vg[vp->group].prefer_idle &&
-			task_util_est(p) >= vendor_sched_uclamp_threshold &&
-			p->prio <= DEFAULT_PRIO &&
+		return (vg[vp->group].prefer_idle && p->prio <= DEFAULT_PRIO &&
 			uclamp_eff_value(p, UCLAMP_MAX) == SCHED_CAPACITY_SCALE) ||
 			vp->prefer_idle || vbinder->prefer_idle;
 	else

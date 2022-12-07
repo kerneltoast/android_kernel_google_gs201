@@ -19,7 +19,6 @@ struct pixel_em_profile **vendor_sched_pixel_em_profile;
 EXPORT_SYMBOL_GPL(vendor_sched_pixel_em_profile);
 #endif
 
-extern unsigned int vendor_sched_uclamp_threshold;
 extern unsigned int vendor_sched_util_post_init_scale;
 extern bool vendor_sched_npi_packing;
 
@@ -1059,16 +1058,6 @@ unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 	return (freq * sched_capacity_margin[cpu] >> SCHED_CAPACITY_SHIFT) * util / cap;
 }
 
-static inline bool check_uclamp_threshold(struct task_struct *p, enum uclamp_id clamp_id)
-{
-	if (clamp_id == UCLAMP_MIN && !rt_task(p) &&
-	    !get_vendor_task_struct(p)->uclamp_fork_reset &&
-	    task_util_est(p) < vendor_sched_uclamp_threshold) {
-		return true;
-	}
-	return false;
-}
-
 static inline struct uclamp_se
 uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 {
@@ -1120,13 +1109,6 @@ void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum uclamp
 	struct uclamp_se uc_req;
 
 	*ret = 1;
-
-	/* Apply threshold first. */
-	if (check_uclamp_threshold(p, clamp_id)) {
-		uclamp_eff->value = 0;
-		uclamp_eff->bucket_id = 0;
-		return;
-	}
 
 	uc_req = uclamp_tg_restrict_pixel_mod(p, clamp_id);
 

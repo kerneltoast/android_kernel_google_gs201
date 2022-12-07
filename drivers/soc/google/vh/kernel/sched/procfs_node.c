@@ -22,7 +22,6 @@ extern void reset_uclamp_stats(void);
 DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 #endif
 
-unsigned int __read_mostly vendor_sched_uclamp_threshold;
 unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INIT_SCALE;
 bool __read_mostly vendor_sched_npi_packing = true; //non prefer idle packing
 bool __read_mostly vendor_sched_reduce_prefer_idle = true;
@@ -931,40 +930,6 @@ static int dump_task_show(struct seq_file *m, void *v)
 
 PROC_OPS_RO(dump_task);
 
-static int uclamp_threshold_show(struct seq_file *m, void *v)
-{
-	seq_printf(m, "%d\n", vendor_sched_uclamp_threshold);
-	return 0;
-}
-
-static ssize_t uclamp_threshold_store(struct file *filp,
-							const char __user *ubuf,
-							size_t count, loff_t *pos)
-{
-	unsigned int val;
-	char buf[MAX_PROC_SIZE];
-
-	if (count >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(buf, ubuf, count))
-		return -EFAULT;
-
-	buf[count] = '\0';
-
-	if (kstrtouint(buf, 0, &val))
-		return -EINVAL;
-
-	if (val > SCHED_CAPACITY_SCALE)
-		return -EINVAL;
-
-	vendor_sched_uclamp_threshold = val;
-
-	return count;
-}
-
-PROC_OPS_RW(uclamp_threshold);
-
 static int util_threshold_show(struct seq_file *m, void *v)
 {
 	int i;
@@ -1515,7 +1480,6 @@ static struct pentry entries[] = {
 	PROC_ENTRY(uclamp_util_diff_stats),
 	PROC_ENTRY(reset_uclamp_stats),
 #endif
-	PROC_ENTRY(uclamp_threshold),
 	PROC_ENTRY(util_threshold),
 	PROC_ENTRY(util_post_init_scale),
 	PROC_ENTRY(npi_packing),
