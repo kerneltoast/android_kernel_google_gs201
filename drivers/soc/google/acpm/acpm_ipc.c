@@ -645,14 +645,6 @@ static void cpu_irq_info_dump(u32 retry)
 	}
 }
 
-static void acpm_ktop_release(void)
-{
-	if (acpm_debug->ktop_cxt) {
-		kernel_top_destroy(acpm_debug->ktop_cxt);
-		acpm_debug->ktop_cxt = NULL;
-	}
-}
-
 int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w_mode)
 {
 	volatile unsigned int tx_front, tx_rear, rx_front;
@@ -784,10 +776,6 @@ retry:
 
 					cpu_irq_info_dump(retry_cnt);
 					if (retry_cnt == 1) {
-						acpm_debug->ktop_cxt = NULL;
-						kernel_top_init(acpm_ipc->dev,
-								&acpm_debug->ktop_cxt);
-
 						acpm_debug->debug_log_level =
 							acpm_debug->retry_log ?
 								2 : saved_debug_log_level;
@@ -818,13 +806,10 @@ retry:
 			pr_err("%s Timeout error! now = %llu timeout = %llu ch:%u s:%u bitmap:%lx\n",
 			       __func__, now, timeout, channel->id, seq_num,
 			       channel->bitmap_seqnum[0]);
-			if (acpm_debug->ktop_cxt)
-				kernel_top_print(acpm_debug->ktop_cxt);
 			acpm_ramdump();
 			dump_stack();
 			dbg_snapshot_do_dpm_policy(acpm_ipc->panic_action, "acpm_ipc timeout");
 		}
-		acpm_ktop_release();
 	}
 
 	return 0;
