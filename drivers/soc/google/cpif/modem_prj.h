@@ -671,6 +671,8 @@ struct modem_ctl {
 	struct pci_driver pci_driver;
 
 	int pcie_ch_num;
+	int pcie_linkdown_retry_cnt;
+	int pcie_linkdown_retry_cnt_all;
 	int pcie_cto_retry_cnt;
 	int pcie_cto_retry_cnt_all;
 

@@ -24,9 +24,11 @@
 #include <linux/phy/phy.h>
 #include <linux/acpi.h>
 #include <linux/usb/of.h>
+#include <linux/usb.h>
 #include <linux/pm.h>
 
 #include "../core/phy.h"
+#include "../core/hub.h"
 #include "xhci.h"
 #include "xhci-plat.h"
 #include "xhci-mvebu.h"
@@ -54,6 +56,30 @@ static const struct xhci_driver_overrides xhci_exynos_overrides __initconst = {
 	.bus_suspend = xhci_exynos_bus_suspend,
 	.bus_resume = xhci_exynos_bus_resume,
 };
+
+static void xhci_exynos_early_stop_set(struct xhci_hcd_exynos *xhci_exynos, struct usb_hcd *hcd)
+{
+	struct usb_device *hdev = hcd->self.root_hub;
+	struct usb_hub *hub;
+	struct usb_port *port_dev;
+
+	if (!hdev || !hdev->actconfig || !hdev->maxchild) {
+		dev_info(xhci_exynos->dev, "no hdev to set early_stop\n");
+		return;
+	}
+
+	hub = usb_get_intfdata(hdev->actconfig->interface[0]);
+
+	if (!hub) {
+		dev_info(xhci_exynos->dev, "can't get usb_hub\n");
+		return;
+	}
+
+	port_dev = hub->ports[0];
+	port_dev->early_stop = true;
+
+	return;
+}
 
 static void xhci_exynos_portsc2_power_off(struct xhci_hcd_exynos *xhci_exynos)
 {
@@ -935,6 +961,9 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto dealloc_usb2_hcd;
+
+	xhci_exynos_early_stop_set(xhci_exynos, hcd);
+	xhci_exynos_early_stop_set(xhci_exynos, xhci->shared_hcd);
 
 	device_enable_async_suspend(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);

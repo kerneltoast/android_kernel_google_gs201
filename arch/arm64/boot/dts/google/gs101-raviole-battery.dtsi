@@ -54,8 +54,8 @@
 				google,chg-rest-soc = <80>;
 				/* TRICKLE-DEFEND threshold */
 				google,bd-trickle-recharge-soc = <80>;
-				/* Enable TRICKLE-DEFEND */
-				google,bd-trickle-enable;
+				/* Disable TRICKLE-DEFEND, b/259428308 */
+				/* google,bd-trickle-enable; */
 
 				/* record over temperature time */
 				google,temp-record-thr = <300 350 400>;

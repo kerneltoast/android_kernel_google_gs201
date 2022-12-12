@@ -17,7 +17,7 @@
 
 #define MAX_NUM_SUPPORTED_THERMAL_ZONES        36
 static const int default_thresholds[MAX_SUPPORTED_THRESHOLDS] = {
-				60, 80, 90, 100, 103, 105, 110, 115};
+			60000, 80000, 90000, 100000, 103000, 105000, 110000, 115000};
 
 struct temperature_sample {
 	int temp;
@@ -130,7 +130,8 @@ int unregister_temp_residency_stats(tr_handle instance)
 
 EXPORT_SYMBOL_GPL(unregister_temp_residency_stats);
 
-int temp_residency_stats_set_thresholds(tr_handle instance, int *thresholds, int num_thresholds)
+int temp_residency_stats_set_thresholds(tr_handle instance,
+				const int *thresholds, int num_thresholds)
 {
 	struct temperature_residency_stats *stats;
 	int index;

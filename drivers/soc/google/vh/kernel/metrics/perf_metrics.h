@@ -15,7 +15,8 @@
 #define RESUME_LATENCY_BOUND_MID 500
 #define RESUME_LATENCY_BOUND_MAX 1000
 
-#define MAX_IRQ_NUM 1024
+#define MAX_IRQ_NUM 2048
+#define IRQ_ARR_LIMIT 100
 
 #define LATENCY_CNT_SMALL (RESUME_LATENCY_BOUND_SMALL / RESUME_LATENCY_STEP_SMALL)
 #define LATENCY_CNT_MID ((RESUME_LATENCY_BOUND_MID - RESUME_LATENCY_BOUND_SMALL) / \
@@ -25,11 +26,11 @@
 #define RESUME_LATENCY_ARR_SIZE (LATENCY_CNT_SMALL + LATENCY_CNT_MID + LATENCY_CNT_LARGE + 1)
 
 struct  resume_latency {
-	ktime_t resume_start;
-	ktime_t resume_end;
+	u64 resume_start;
+	u64 resume_end;
 	spinlock_t resume_latency_stat_lock;
 	s64 resume_count[RESUME_LATENCY_ARR_SIZE];
-	s64 resume_latency_max_ms;
+	u64 resume_latency_max_ms;
 	u64 resume_latency_sum_ms;
 };
 

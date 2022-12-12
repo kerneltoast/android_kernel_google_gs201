@@ -21,6 +21,8 @@ extern void exynos_pcie_rc_print_msi_register(int ch_num);
 extern int exynos_pcie_rc_set_outbound_atu(int ch_num, u32 target_addr, u32 offset, u32 size);
 extern bool exynos_pcie_rc_get_cpl_timeout_state(int ch_num);
 extern void exynos_pcie_rc_set_cpl_timeout_state(int ch_num, bool recovery);
+extern bool exynos_pcie_rc_get_sudden_linkdown_state(int ch_num);
+extern void exynos_pcie_rc_set_sudden_linkdown_state(int ch_num, bool recovery);
 
 struct s51xx_pcie {
 	unsigned int busdev_num;

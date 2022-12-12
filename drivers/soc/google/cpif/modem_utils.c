@@ -552,6 +552,13 @@ int mif_request_irq(struct modem_irq *irq, irq_handler_t isr, void *data)
 	return 0;
 }
 
+void mif_free_irq(struct modem_irq *irq, void *data)
+{
+	free_irq(irq->num, data);
+	mif_info("%s(#%d) handler unregistered (flags:0x%08lX)\n",
+		irq->name, irq->num, irq->flags);
+}
+
 void mif_enable_irq(struct modem_irq *irq)
 {
 	unsigned long flags;

@@ -3155,6 +3155,23 @@ int exynos_pcie_pm_resume(int ch_num)
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_pm_resume);
 
+bool exynos_pcie_rc_get_sudden_linkdown_state(int ch_num)
+{
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+
+	return exynos_pcie->sudden_linkdown;
+}
+EXPORT_SYMBOL(exynos_pcie_rc_get_sudden_linkdown_state);
+
+void exynos_pcie_rc_set_sudden_linkdown_state(int ch_num, bool recovery)
+{
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+
+	pr_err("[%s] set sudden_linkdown_state to recovery_on\n", __func__);
+	exynos_pcie->sudden_linkdown = recovery;
+}
+EXPORT_SYMBOL(exynos_pcie_rc_set_sudden_linkdown_state);
+
 bool exynos_pcie_rc_get_cpl_timeout_state(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
