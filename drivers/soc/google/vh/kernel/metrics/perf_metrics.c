@@ -53,6 +53,9 @@ static void vendor_hook_resume_end(void *data, void *unused)
 	/* Exit function when partial resumes */
 	if (resume_latency_stats.resume_end < resume_latency_stats.resume_start)
 		return;
+	if (resume_latency_stats.display_warning)
+		WARN(resume_latency_msec >= resume_latency_stats.resume_latency_threshold,
+				"Got a outlier resume latency: %llums\n", resume_latency_msec);
 	spin_lock(&resume_latency_stats.resume_latency_stat_lock);
 	if (resume_latency_msec < RESUME_LATENCY_BOUND_SMALL) {
 		resume_latency_index = resume_latency_msec / RESUME_LATENCY_STEP_SMALL;
@@ -208,6 +211,45 @@ static ssize_t resume_latency_metrics_store(struct kobject *kobj,
 	spin_unlock(&resume_latency_stats.resume_latency_stat_lock);
 	return count;
 }
+
+static ssize_t modify_resume_latency_threshold_show(struct kobject *kobj,
+					 struct kobj_attribute *attr,
+					 char *buf)
+{
+	return sysfs_emit(buf, "%llu\n", resume_latency_stats.resume_latency_threshold);
+}
+
+static ssize_t modify_resume_latency_threshold_store(struct kobject *kobj,
+					  struct kobj_attribute *attr,
+					  const char *buf,
+					  size_t count)
+{
+	u64 new_threshold_ms;
+	int err = kstrtou64(buf, 10, &new_threshold_ms);
+	if (err)
+		return err;
+	resume_latency_stats.resume_latency_threshold = new_threshold_ms;
+	return count;
+}
+
+static ssize_t resume_latency_display_warning_show(struct kobject *kobj,
+					 struct kobj_attribute *attr,
+					 char *buf)
+{
+	return sysfs_emit(buf, "%d\n", resume_latency_stats.display_warning);
+}
+
+static ssize_t resume_latency_display_warning_store(struct kobject *kobj,
+					  struct kobj_attribute *attr,
+					  const char *buf,
+					  size_t count)
+{
+	int err = kstrtobool(buf, &resume_latency_stats.display_warning);
+	if (err)
+		return err;
+	return count;
+}
+
 static ssize_t long_irq_metrics_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *buf)
@@ -311,7 +353,7 @@ static ssize_t modify_irq_threshold_store(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t display_warning_show(struct kobject *kobj,
+static ssize_t irq_display_warning_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *buf)
 {
@@ -326,7 +368,7 @@ static ssize_t display_warning_show(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t display_warning_store(struct kobject *kobj,
+static ssize_t irq_display_warning_store(struct kobject *kobj,
 					  struct kobj_attribute *attr,
 					  const char *buf,
 					  size_t count)
@@ -349,6 +391,14 @@ static struct kobj_attribute resume_latency_metrics_attr = __ATTR(resume_latency
 							  0664,
 							  resume_latency_metrics_show,
 							  resume_latency_metrics_store);
+static struct kobj_attribute modify_resume_latency_threshold_attr = __ATTR(modify_threshold,
+							  0664,
+							  modify_resume_latency_threshold_show,
+							  modify_resume_latency_threshold_store);
+static struct kobj_attribute resume_latency_display_warning_attr = __ATTR(display_warning,
+							  0664,
+							  resume_latency_display_warning_show,
+							  resume_latency_display_warning_store);
 static struct kobj_attribute long_irq_metrics_attr = __ATTR(long_irq_metrics,
 							  0444,
 							  long_irq_metrics_show,
@@ -361,16 +411,16 @@ static struct kobj_attribute modify_irq_threshold_attr = __ATTR(modify_irq_thres
 							  0664,
 							  modify_irq_threshold_show,
 							  modify_irq_threshold_store);
-static struct kobj_attribute display_warning_attr = __ATTR(display_warning,
+static struct kobj_attribute irq_display_warning_attr = __ATTR(display_warning,
 							  0664,
-							  display_warning_show,
-							  display_warning_store);
+							  irq_display_warning_show,
+							  irq_display_warning_store);
 
 static struct attribute *irq_attrs[] = {
 	&long_irq_metrics_attr.attr,
 	&modify_softirq_threshold_attr.attr,
 	&modify_irq_threshold_attr.attr,
-	&display_warning_attr.attr,
+	&irq_display_warning_attr.attr,
 	NULL
 };
 
@@ -381,6 +431,8 @@ static const struct attribute_group irq_attr_group = {
 
 static struct attribute *resume_latency_attrs[] = {
 	&resume_latency_metrics_attr.attr,
+	&modify_resume_latency_threshold_attr.attr,
+	&resume_latency_display_warning_attr.attr,
 	NULL
 };
 
@@ -409,6 +461,7 @@ int perf_metrics_init(struct kobject *metrics_kobj)
 		return -ENOMEM;
 	}
 	spin_lock_init(&resume_latency_stats.resume_latency_stat_lock);
+	resume_latency_stats.resume_latency_threshold = RESUME_LATENCY_DEFAULT_THRESHOLD;
 	ret = register_trace_android_vh_early_resume_begin(
 					vendor_hook_resume_begin, NULL);
 	if (ret) {
