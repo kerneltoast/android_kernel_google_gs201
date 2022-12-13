@@ -15,6 +15,8 @@
 #define RESUME_LATENCY_BOUND_MID 500
 #define RESUME_LATENCY_BOUND_MAX 1000
 
+#define RESUME_LATENCY_DEFAULT_THRESHOLD 200
+
 #define MAX_IRQ_NUM 2048
 #define IRQ_ARR_LIMIT 100
 
@@ -32,6 +34,8 @@ struct  resume_latency {
 	s64 resume_count[RESUME_LATENCY_ARR_SIZE];
 	u64 resume_latency_max_ms;
 	u64 resume_latency_sum_ms;
+	u64 resume_latency_threshold;
+	bool display_warning;
 };
 
 struct long_irq {
