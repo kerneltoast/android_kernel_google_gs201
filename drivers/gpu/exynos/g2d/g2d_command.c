@@ -333,24 +333,21 @@ const struct g2d_fmt *g2d_find_format(u32 fmtval, unsigned long devcaps)
  * YCbCr420 semi-planar 8+2 layout:
  *    Y8 -> Y2 -> C8 -> C2
  * 8 bit segments:
- *  - width stride: 16 bytes
+ *  - width stride: 64 bytes
  *  - height stride: 16 pixels
- *  - padding 256 bytes
  * 2 bit segments:
  *  - width stride: 16 bytes
  *  - height stride: 16 pixels
  *  - padding: 64 bytes
  */
-#define MFC_PAD_SIZE		     256
-#define MFC_2B_PAD_SIZE		     (MFC_PAD_SIZE / 4)
-#define MFC_ALIGN(v)		     ALIGN(v, 16)
+#ifndef __ALIGN_UP
+#define __ALIGN_UP(x, a)		(((x) + ((a) - 1)) & ~((a) - 1))
+#endif
 
-#define NV12_MFC_Y_PAYLOAD(w, h)     (MFC_ALIGN(w) * MFC_ALIGN(h))
-#define NV12_MFC_Y_PAYLOAD_PAD(w, h) (NV12_MFC_Y_PAYLOAD(w, h) + MFC_PAD_SIZE)
-#define NV12_MFC_C_PAYLOAD(w, h)     (MFC_ALIGN(w) * (h) / 2)
-#define NV12_MFC_C_PAYLOAD_ALIGNED(w, h) (NV12_MFC_Y_PAYLOAD(w, h) / 2)
-#define NV12_MFC_C_PAYLOAD_PAD(w, h) (NV12_MFC_C_PAYLOAD_ALIGNED(w, h) + MFC_PAD_SIZE)
-#define NV12_MFC_CBASE(base, w, h)   ((base) + NV12_MFC_Y_PAYLOAD_PAD(w, h))
+#define NV12_MFC_Y_PAYLOAD(w, h)	(__ALIGN_UP(w, 64) * __ALIGN_UP(h, 16))
+#define NV12_MFC_Y_PAYLOAD_PAD(w, h)	(NV12_MFC_Y_PAYLOAD(w, h))
+#define NV12_MFC_C_PAYLOAD(w, h)	(__ALIGN_UP((w), 64) * __ALIGN_UP((h), 16) / 2)
+#define NV12_MFC_CBASE(base, w, h)	((base) + NV12_MFC_Y_PAYLOAD_PAD(w, h))
 
 static size_t nv12_mfc_payload(u32 w, u32 h)
 {
