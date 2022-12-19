@@ -165,4 +165,9 @@ extern struct itmon_logs *dss_itmon;
 
 #define ARM_CPU_PART_CORTEX_A78		0xD41
 #define ARM_CPU_PART_CORTEX_X1		0xD44
+
+/* PMU register access */
+#define PMU_GSA_INFORM0_OFFS		0x0830
+#define PMU_GSA_INFORM0_APC_EARLY_WD	(1 << 5)
+
 #endif

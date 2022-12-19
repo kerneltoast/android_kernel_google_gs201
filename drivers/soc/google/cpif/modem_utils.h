@@ -527,6 +527,7 @@ void print_ipv4_packet(const u8 *ip_pkt, enum direction dir);
 void mif_init_irq(struct modem_irq *irq, unsigned int num, const char *name,
 		  unsigned long flags);
 int mif_request_irq(struct modem_irq *irq, irq_handler_t isr, void *data);
+void mif_free_irq(struct modem_irq *irq, void *data);
 void mif_enable_irq(struct modem_irq *irq);
 void mif_disable_irq(struct modem_irq *irq);
 bool mif_gpio_set_value(struct cpif_gpio *gpio, int value, unsigned int delay_ms);

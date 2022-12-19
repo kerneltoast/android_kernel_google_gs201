@@ -344,7 +344,18 @@ static void s51xx_pcie_event_cb(struct exynos_pcie_notify *noti)
 		if (mc->pcie_powered_on == false) {
 			mif_info("skip cp crash during dislink sequence\n");
 			exynos_pcie_set_perst_gpio(mc->pcie_ch_num, 0);
+			return;
+		}
+
+		mif_err("s51xx LINK_DOWN notification callback function!!!\n");
+		mif_err("LINK_DOWN: a=%d c=%d\n", mc->pcie_linkdown_retry_cnt_all++,
+				mc->pcie_linkdown_retry_cnt);
+
+		if (mc->pcie_linkdown_retry_cnt++ < 10) {
+			mif_err("[%d] retry pcie poweron !!!\n", mc->pcie_linkdown_retry_cnt);
+			queue_work_on(2, mc->wakeup_wq, &mc->wakeup_work);
 		} else {
+			mif_err("[%d] force crash !!!\n", mc->pcie_linkdown_retry_cnt);
 			s5100_force_crash_exit_ext();
 		}
 	} else if (event & EXYNOS_PCIE_EVENT_CPL_TIMEOUT) {

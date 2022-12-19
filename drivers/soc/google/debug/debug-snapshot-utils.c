@@ -755,6 +755,9 @@ void dbg_snapshot_init_utils(void)
 	/* write default reboot reason as unknown reboot */
 	dbg_snapshot_report_reason(DSS_SIGN_UNKNOWN_REBOOT);
 
+	/* Cancel the "Early Reboot" inform bit set by ABL */
+	exynos_pmu_update(PMU_GSA_INFORM0_OFFS, PMU_GSA_INFORM0_APC_EARLY_WD, 0);
+
 	/* write reset value to skip abl dump as debug boot */
 	dbg_snapshot_set_abl_dump_stat(DSS_SIGN_RESET);
 

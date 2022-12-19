@@ -34,7 +34,6 @@ struct kernel_top_context {
 	struct kernel_cpustat curr_all_cpustat;
 	struct kernel_cpustat prev_all_cpustat;
 	u64 frame_cpustat_total;
-	bool kernel_top_alloc_done;
 };
 
 /* Clone from fs/proc/stat.c. */
@@ -269,9 +268,6 @@ void kernel_top_print(struct kernel_top_context *cxt)
 	struct timespec64 ts;
 	struct rtc_time tm;
 
-	if (cxt->kernel_top_alloc_done == false)
-		return;
-
 	kernel_top_cal(cxt);
 	kernel_top_show(cxt);
 
@@ -290,41 +286,30 @@ int kernel_top_init(struct device *dev, struct kernel_top_context **pcxt)
 	if (!cxt)
 		return -ENOMEM;
 
-	if (cxt->kernel_top_alloc_done == false) {
-
-		cxt->prev_tasktics_array =
-			vmalloc(sizeof(u64) * PID_MAX_DEFAULT);
-		if (cxt->prev_tasktics_array == NULL)
-			goto err_alloc_prev_tasktics;
-		cxt->frame_tasktics_array =
-			vmalloc(sizeof(u64) * PID_MAX_DEFAULT);
-		if (cxt->frame_tasktics_array == NULL)
-			goto err_alloc_frame_tasktics;
-		cxt->task_ptr_array =
-			vmalloc(sizeof(struct task_struct *) * PID_MAX_DEFAULT);
-		if (cxt->task_ptr_array == NULL)
-			goto err_alloc_task_ptr;
-		cxt->curr_task_pid_array =
-			vmalloc(sizeof(pid_t) * PID_MAX_DEFAULT);
-		if (cxt->curr_task_pid_array == NULL)
-			goto err_alloc_curr_task_pid;
-
-		cxt->kernel_top_alloc_done = true;
-	}
+	cxt->prev_tasktics_array = vmalloc(sizeof(u64) * PID_MAX_DEFAULT);
+	if (!cxt->prev_tasktics_array)
+		goto err_alloc;
+	cxt->frame_tasktics_array = vmalloc(sizeof(u64) * PID_MAX_DEFAULT);
+	if (!cxt->frame_tasktics_array)
+		goto err_alloc;
+	cxt->task_ptr_array = vmalloc(sizeof(struct task_struct *) * PID_MAX_DEFAULT);
+	if (!cxt->task_ptr_array)
+		goto err_alloc;
+	cxt->curr_task_pid_array = vmalloc(sizeof(pid_t) * PID_MAX_DEFAULT);
+	if (!cxt->curr_task_pid_array)
+		goto err_alloc;
 
 	*pcxt = cxt;
 	cxt->owner = dev;
 	kernel_top_reset(cxt);
 	return 0;
 
-err_alloc_curr_task_pid:
-	vfree(cxt->curr_task_pid_array);
-err_alloc_task_ptr:
-	vfree(cxt->task_ptr_array);
-err_alloc_frame_tasktics:
-	vfree(cxt->frame_tasktics_array);
-err_alloc_prev_tasktics:
+err_alloc:
 	vfree(cxt->prev_tasktics_array);
+	vfree(cxt->frame_tasktics_array);
+	vfree(cxt->task_ptr_array);
+	vfree(cxt->curr_task_pid_array);
+	devm_kfree(dev, cxt);
 
 	return -ENOMEM;
 }
@@ -338,8 +323,7 @@ void kernel_top_reset(struct kernel_top_context *cxt)
 
 	memset(cxt->prev_tasktics_array, 0, sizeof(u64) * PID_MAX_DEFAULT);
 	memset(cxt->frame_tasktics_array, 0, sizeof(u64) * PID_MAX_DEFAULT);
-	memset(cxt->task_ptr_array, 0,
-		sizeof(struct task_struct *) * PID_MAX_DEFAULT);
+	memset(cxt->task_ptr_array, 0, sizeof(struct task_struct *) * PID_MAX_DEFAULT);
 	memset(cxt->curr_task_pid_array, 0, sizeof(pid_t) * PID_MAX_DEFAULT);
 
 	ktime_get_real_ts64(&ts);
@@ -367,15 +351,12 @@ EXPORT_SYMBOL_GPL(kernel_top_reset);
 
 void kernel_top_destroy(struct kernel_top_context *cxt)
 {
-	if (cxt->kernel_top_alloc_done) {
-		vfree(cxt->curr_task_pid_array);
-		vfree(cxt->task_ptr_array);
-		vfree(cxt->frame_tasktics_array);
-		vfree(cxt->prev_tasktics_array);
+	vfree(cxt->prev_tasktics_array);
+	vfree(cxt->frame_tasktics_array);
+	vfree(cxt->task_ptr_array);
+	vfree(cxt->curr_task_pid_array);
 
-		devm_kfree(cxt->owner, cxt);
-		cxt->kernel_top_alloc_done = false;
-	}
+	devm_kfree(cxt->owner, cxt);
 }
 EXPORT_SYMBOL_GPL(kernel_top_destroy);
 

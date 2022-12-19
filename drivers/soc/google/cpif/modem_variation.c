@@ -9,13 +9,16 @@
 /* add declaration of modem & link type */
 /* modem device support */
 DECLARE_MODEM_INIT_DUMMY(dummy)
+DECLARE_MODEM_UNINIT_DUMMY(dummy)
 
 #if !IS_ENABLED(CONFIG_SEC_MODEM_S5000AP)
 DECLARE_MODEM_INIT_DUMMY(s5000ap)
+DECLARE_MODEM_UNINIT_DUMMY(s5000ap)
 #endif
 
 #if !IS_ENABLED(CONFIG_SEC_MODEM_S5100)
 DECLARE_MODEM_INIT_DUMMY(s5100)
+DECLARE_MODEM_UNINIT_DUMMY(s5100)
 #endif
 
 /* link device support */
@@ -25,6 +28,12 @@ static modem_init_call modem_init_func[MAX_MODEM_TYPE] = {
 	[SEC_S5000AP] = MODEM_INIT_CALL(s5000ap),
 	[SEC_S5100] = MODEM_INIT_CALL(s5100),
 	[MODEM_TYPE_DUMMY] = MODEM_INIT_CALL(dummy),
+};
+
+static modem_uninit_call modem_uninit_func[MAX_MODEM_TYPE] = {
+	[SEC_S5000AP] = MODEM_UNINIT_CALL(s5000ap),
+	[SEC_S5100] = MODEM_UNINIT_CALL(s5100),
+	[MODEM_TYPE_DUMMY] = MODEM_UNINIT_CALL(dummy),
 };
 
 static link_init_call link_init_func[LINKDEV_MAX] = {
@@ -39,6 +48,14 @@ int call_modem_init_func(struct modem_ctl *mc, struct modem_data *pdata)
 		return modem_init_func[pdata->modem_type](mc, pdata);
 	else
 		return -ENOTSUPP;
+}
+
+void call_modem_uninit_func(struct modem_ctl *mc, struct modem_data *pdata)
+{
+	if (modem_uninit_func[pdata->modem_type])
+		return modem_uninit_func[pdata->modem_type](mc, pdata);
+	else
+		dev_WARN(mc->dev, "no uninit callback defined for modem type");
 }
 
 struct link_device *call_link_init_func(struct platform_device *pdev,
