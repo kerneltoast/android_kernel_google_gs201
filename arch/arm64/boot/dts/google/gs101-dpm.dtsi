@@ -14,8 +14,6 @@
 	#size-cells = <1>;
 	dpm: dpm  {
 	}; /* end of dpm */
-	avf: avf  {
-	}; /* end of avf */
 }; /* end of root */
 
 /* default settings built into kernel dt */
