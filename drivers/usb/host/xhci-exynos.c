@@ -57,6 +57,36 @@ static const struct xhci_driver_overrides xhci_exynos_overrides __initconst = {
 	.bus_resume = xhci_exynos_bus_resume,
 };
 
+/*
+ * list of VID:PID pair of udevs which are allowed to enter Suspend state regardless of the
+ * remote_wakeup bit in their descriptors.
+ * Both VID and PID are required in each entry.
+ */
+static const struct xhci_exynos_udev_ids autosuspend_accessories[] = {
+	{
+		.vendor = cpu_to_le16(0x18d1),
+		.product = cpu_to_le16(0x9480),
+	},
+	{
+		.vendor = cpu_to_le16(0x18d1),
+		.product = cpu_to_le16(0x4f60),
+	},
+	{ },
+};
+
+static bool xhci_exynos_match_udev(const struct xhci_exynos_udev_ids *list, const u16 vid,
+				   const u16 pid)
+{
+	if (list) {
+		while (list->vendor && list->product) {
+			if (list->vendor == cpu_to_le16(vid) && list->product == cpu_to_le16(pid))
+				return true;
+			list++;
+		}
+	}
+	return false;
+}
+
 static void xhci_exynos_early_stop_set(struct xhci_hcd_exynos *xhci_exynos, struct usb_hcd *hcd)
 {
 	struct usb_device *hdev = hcd->self.root_hub;
@@ -400,9 +430,9 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_dev
 
 				/* do_remote_wakeup may be also set in drivers/usb/core/driver.c */
 				if ((udev->do_remote_wakeup == 1 && audio_detected) ||
-				    /* TODO: maintain a list of udev to force auto suspend */
-				    (udev->descriptor.idVendor == 0x18d1 &&
-				     udev->descriptor.idProduct == 0x9480)) {
+				    xhci_exynos_match_udev(autosuspend_accessories,
+						le16_to_cpu(udev->descriptor.idVendor),
+						le16_to_cpu(udev->descriptor.idProduct))) {
 					device_init_wakeup(ddev, 1);
 					usb_enable_autosuspend(dev);
 					trace_android_vh_sound_usb_support_cpu_suspend(udev, 0,
