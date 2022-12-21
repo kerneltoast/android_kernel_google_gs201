@@ -97,6 +97,10 @@ static int vh_sched_init(void)
 
 	init_vendor_rt_rq();
 
+	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
 	ret = register_trace_android_rvh_enqueue_task(rvh_enqueue_task_pixel_mod, NULL);
 	if (ret)
 		return ret;
@@ -174,10 +178,6 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_rvh_sched_fork(rvh_sched_fork_pixel_mod, NULL);
-	if (ret)
-		return ret;
-
-	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
