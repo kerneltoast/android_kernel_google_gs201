@@ -56,7 +56,7 @@
 		/* idt,gpio_switch = <&p9xxx_gpio 3 GPIO_ACTIVE_HIGH>; */ /* EXT_BST_VTRX */
 		idt,gpio_extben = <&s2mpg12_gpio 2 GPIO_ACTIVE_HIGH>; /* AP2QI_EXTBST_EN */
 		/* CSP */
-		idt,fuel-gauge = <&max77759_fg>;
+		idt,fuel-gauge = <&google_battery>;
 
 		/* WLCDC */
 		idt,gpio_dc_switch = <&s2mpg12_gpio 0 GPIO_ACTIVE_HIGH>; /* WLC_RX_SW_EN */
