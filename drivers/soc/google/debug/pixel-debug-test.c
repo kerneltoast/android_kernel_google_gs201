@@ -93,12 +93,12 @@ EXPORT_SYMBOL_GPL(pull_down_other_cpus);
 #define BUFFER_SIZE SZ_1K
 static int recursive_loop(int remaining)
 {
-	char buf[BUFFER_SIZE];
+	volatile char buf[BUFFER_SIZE];
 
 	pr_crit("remaining = [%d]\n", remaining);
 
 	/* Make sure compiler does not optimize this away. */
-	memset(buf, (remaining & 0xff) | 0x1, BUFFER_SIZE);
+	memset_io(buf, (remaining & 0xff) | 0x1, BUFFER_SIZE);
 	if (!remaining)
 		return 0;
 	return recursive_loop(remaining - 1);
