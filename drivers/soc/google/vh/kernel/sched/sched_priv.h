@@ -118,8 +118,7 @@ struct vendor_task_group_struct {
 ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[4], struct vendor_task_group_struct t);
 
 extern bool vendor_sched_reduce_prefer_idle;
-
-static struct vendor_group_property vg[VG_MAX];
+extern struct vendor_group_property vg[VG_MAX];
 
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
