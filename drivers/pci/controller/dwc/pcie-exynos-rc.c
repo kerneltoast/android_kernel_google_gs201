@@ -819,9 +819,234 @@ static DEVICE_ATTR_RW(link_speed);
 static DEVICE_ATTR_RO(link_state);
 static DEVICE_ATTR_RO(power_stats);
 
+/* percentage (0-100) to weight new datapoints in moving average */
+#define NEW_DATA_AVERAGE_WEIGHT  10
+static void link_stats_init(struct exynos_pcie *pcie)
+{
+	pcie->link_stats.link_down_irq_count = 0;
+	pcie->link_stats.link_down_irq_count_reported = 0;
+	pcie->link_stats.cmpl_timeout_irq_count = 0;
+	pcie->link_stats.cmpl_timeout_irq_count_reported = 0;
+	pcie->link_stats.link_up_failure_count = 0;
+	pcie->link_stats.link_up_failure_count_reported = 0;
+	pcie->link_stats.link_recovery_failure_count = 0;
+	pcie->link_stats.link_recovery_failure_count_reported = 0;
+	pcie->link_stats.pll_lock_time_avg = 0;
+	pcie->link_stats.link_up_time_avg = 0;
+}
+
+static void link_stats_log_pll_lock(struct exynos_pcie *pcie, u32 pll_lock_time)
+{
+	pcie->link_stats.pll_lock_time_avg =
+	    DIV_ROUND_CLOSEST(pcie->link_stats.pll_lock_time_avg *
+			      (100 - NEW_DATA_AVERAGE_WEIGHT) +
+			      pll_lock_time * NEW_DATA_AVERAGE_WEIGHT, 100);
+}
+
+static void link_stats_log_link_up(struct exynos_pcie *pcie, u32 link_up_time)
+{
+	pcie->link_stats.link_up_time_avg =
+	    DIV_ROUND_CLOSEST(pcie->link_stats.link_up_time_avg *
+			      (100 - NEW_DATA_AVERAGE_WEIGHT) +
+			      link_up_time * NEW_DATA_AVERAGE_WEIGHT, 100);
+}
+
+static ssize_t link_down_irqs_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+	u32 value = pcie->link_stats.link_down_irq_count;
+
+	/* report delta since last write */
+	value -= pcie->link_stats.link_down_irq_count_reported;
+
+	return sysfs_emit(buf, "%d\n", value);
+}
+
+static ssize_t link_down_irqs_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int ret;
+	u32 value, delta;
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+
+	/* Writing a value marks those as reported */
+	ret = kstrtouint(buf, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	delta = pcie->link_stats.link_down_irq_count -
+		pcie->link_stats.link_down_irq_count_reported;
+
+	if (value > delta) {
+		dev_info(dev, "Value needs to be <= %d\n", delta);
+		return -EINVAL;
+	}
+
+	pcie->link_stats.link_down_irq_count_reported += value;
+
+	return count;
+}
+
+static ssize_t complete_timeout_irqs_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+	u32 value = pcie->link_stats.cmpl_timeout_irq_count;
+
+	/* report delta since last sysfs write */
+	value -= pcie->link_stats.cmpl_timeout_irq_count_reported;
+
+	return sysfs_emit(buf, "%d\n", value);
+}
+
+static ssize_t complete_timeout_irqs_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	int ret;
+	u32 value, delta;
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+
+	/* Writing a value marks those as reported */
+	ret = kstrtouint(buf, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	delta = pcie->link_stats.cmpl_timeout_irq_count -
+		pcie->link_stats.cmpl_timeout_irq_count_reported;
+
+	if (value > delta) {
+		dev_info(dev, "Value needs to be <= %d\n", delta);
+		return -EINVAL;
+	}
+
+	pcie->link_stats.cmpl_timeout_irq_count_reported += value;
+
+	return count;
+}
+
+
+static ssize_t link_up_failures_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+	u32 value = pcie->link_stats.link_up_failure_count;
+
+	/* report delta since last write */
+	value -= pcie->link_stats.link_up_failure_count_reported;
+
+	return sysfs_emit(buf, "%d\n", value);
+}
+
+static ssize_t link_up_failures_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	int ret;
+	u32 value, delta;
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+
+	/* Writing a value marks those as reported */
+	ret = kstrtouint(buf, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	delta = pcie->link_stats.link_up_failure_count -
+		pcie->link_stats.link_up_failure_count_reported;
+
+	if (value > delta) {
+		dev_info(dev, "Value needs to be <= %d\n", delta);
+		return -EINVAL;
+	}
+
+	pcie->link_stats.link_up_failure_count_reported += value;
+
+	return count;
+}
+
+static ssize_t link_recovery_failures_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+	u32 value = pcie->link_stats.link_recovery_failure_count;
+
+	/* report delta since last write */
+	value -= pcie->link_stats.link_recovery_failure_count_reported;
+
+	return sysfs_emit(buf, "%d\n", value);
+}
+
+static ssize_t link_recovery_failures_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int ret;
+	u32 value, delta;
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+
+	/* Writing a value marks those as reported */
+	ret = kstrtouint(buf, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	delta = pcie->link_stats.link_recovery_failure_count -
+		pcie->link_stats.link_recovery_failure_count_reported;
+
+	if (value > delta) {
+		dev_info(dev, "Value needs to be <= %d\n", delta);
+		return -EINVAL;
+	}
+
+	pcie->link_stats.link_recovery_failure_count_reported += value;
+
+	return count;
+}
+
+static ssize_t pll_lock_average_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", pcie->link_stats.pll_lock_time_avg);
+}
+
+static ssize_t link_up_average_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct exynos_pcie *pcie = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", pcie->link_stats.link_up_time_avg);
+}
+
+static DEVICE_ATTR_RW(link_down_irqs);
+static DEVICE_ATTR_RW(complete_timeout_irqs);
+static DEVICE_ATTR_RW(link_up_failures);
+static DEVICE_ATTR_RW(link_recovery_failures);
+static DEVICE_ATTR_RO(pll_lock_average);
+static DEVICE_ATTR_RO(link_up_average);
+
+static struct attribute *link_stats_attrs[] = {
+	&dev_attr_link_down_irqs.attr,
+	&dev_attr_complete_timeout_irqs.attr,
+	&dev_attr_link_up_failures.attr,
+	&dev_attr_link_recovery_failures.attr,
+	&dev_attr_pll_lock_average.attr,
+	&dev_attr_link_up_average.attr,
+	NULL,
+};
+
+static const struct attribute_group link_stats_group = {
+	.attrs = link_stats_attrs,
+	.name = "link_stats",
+};
+
 static inline int create_pcie_sys_file(struct device *dev)
 {
 	struct device_node *np = dev->of_node;
+	struct pci_dev *pdev = to_pci_dev_from_dev(dev);
 	int ret;
 	int num_lane;
 
@@ -874,16 +1099,25 @@ static inline int create_pcie_sys_file(struct device *dev)
 		return ret;
 	}
 
+	ret = sysfs_create_group(&pdev->dev.kobj, &link_stats_group);
+	if (ret) {
+		dev_err(dev, "couldn't create sysfs group for link_stats(%d)\n", ret);
+		return ret;
+	}
+
 	return 0;
 }
 
 static inline void remove_pcie_sys_file(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev_from_dev(dev);
+
 	device_remove_file(dev, &dev_attr_pcie_rc_test);
 	device_remove_file(dev, &dev_attr_l12_state);
 	device_remove_file(dev, &dev_attr_link_speed);
 	device_remove_file(dev, &dev_attr_link_state);
 	device_remove_file(dev, &dev_attr_power_stats);
+	sysfs_remove_group(&pdev->dev.kobj, &link_stats_group);
 }
 
 static int exynos_pcie_rc_clock_enable(struct pcie_port *pp, int enable)
@@ -2386,6 +2620,7 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 		dev_info(dev, "! PCIE LINK DOWN-irq1_state: 0x%x !\n", val_irq1);
 		dev_info(dev, "(irq0 = 0x%x, irq1 = 0x%x, irq2 = 0x%x)\n",
 			 val_irq0, val_irq1, val_irq2);
+		exynos_pcie->link_stats.link_down_irq_count++;
 
 		if (exynos_pcie->cpl_timeout_recovery) {
 			dev_err(dev, "already in cpl recovery\n");
@@ -2400,6 +2635,7 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 		dev_info(dev, "!! PCIE_CPL_TIMEOUT-irq2_state: 0x%x !!\n", val_irq2);
 		dev_info(dev, "(irq0 = 0x%x, irq1 = 0x%x, irq2 = 0x%x)\n",
 				val_irq0, val_irq1, val_irq2);
+		exynos_pcie->link_stats.cmpl_timeout_irq_count++;
 
 		val_irq2 = exynos_elbi_read(exynos_pcie, PCIE_IRQ2);
 		dev_info(dev, "check irq22 pending clear: irq2_state = 0x%x\n", val_irq2);
@@ -2629,6 +2865,8 @@ retry:
 	}
 	if ((pll_lock == 0) || (cdr_lock == 0))
 		dev_info(dev, "PLL & CDR lock check!\n");
+	else
+		link_stats_log_pll_lock(exynos_pcie, i);
 
 	/* check offset calibration */
 	for (i = 0; i < 2000; i++) {
@@ -2751,6 +2989,7 @@ retry:
 		      & PCIE_ELBI_LTSSM_STATE_MASK;
 		dev_err(dev, "Link is not up, try count: %d, linksts: %s(0x%x)\n",
 			try_cnt, LINK_STATE_DISP(val), val);
+		exynos_pcie->link_stats.link_up_failure_count++;
 
 		if (try_cnt < 10) {
 			gpio_set_value(exynos_pcie->perst_gpio, 0);
@@ -2768,6 +3007,8 @@ retry:
 			exynos_pcie_rc_dump_link_down_status(exynos_pcie->ch_num);
 			exynos_pcie_rc_register_dump(exynos_pcie->ch_num);
 
+			exynos_pcie->link_stats.link_recovery_failure_count++;
+
 			if (exynos_pcie->ip_ver >= 0x889000 &&
 			    exynos_pcie->ep_device_type == EP_BCM_WIFI) {
 				return -EPIPE;
@@ -2779,6 +3020,7 @@ retry:
 		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
 		      & PCIE_ELBI_LTSSM_STATE_MASK;
 		dev_info(dev, "%s(0x%x)\n", LINK_STATE_DISP(val), val);
+		link_stats_log_link_up(exynos_pcie, count);
 
 		dev_dbg(dev, "(phy+0xC08=0x%x)(phy+0x1408=0x%x)(phy+0xC6C=0x%x)(phy+0x146C=0x%x)\n",
 			exynos_phy_read(exynos_pcie, 0xC08),
@@ -4657,6 +4899,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
 	platform_set_drvdata(pdev, exynos_pcie);
 	power_stats_init(exynos_pcie);
+	link_stats_init(exynos_pcie);
 
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	s2mpu_dn = of_parse_phandle(np, "s2mpu", 0);

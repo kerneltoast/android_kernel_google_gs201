@@ -166,6 +166,21 @@ struct power_stats {
 	u64	last_entry_ts;
 };
 
+#define LINK_STATS_AVG_SAMPLE_SIZE 50
+
+struct link_stats {
+	u32 link_down_irq_count;
+	u32 link_down_irq_count_reported;
+	u32 cmpl_timeout_irq_count;
+	u32 cmpl_timeout_irq_count_reported;
+	u32 link_up_failure_count;
+	u32 link_up_failure_count_reported;
+	u32 link_recovery_failure_count;
+	u32 link_recovery_failure_count_reported;
+	u32 pll_lock_time_avg;
+	u32 link_up_time_avg;
+};
+
 struct exynos_pcie_clks {
 	struct clk	*pcie_clks[10];
 	struct clk	*phy_clks[3];
@@ -294,6 +309,7 @@ struct exynos_pcie {
 	int			max_link_speed;
 	struct power_stats	link_up;
 	struct power_stats	link_down;
+	struct link_stats	link_stats;
 
 	struct pinctrl		*pcie_pinctrl;
 	struct pinctrl_state	*pin_state[MAX_PCIE_PIN_STATE];
