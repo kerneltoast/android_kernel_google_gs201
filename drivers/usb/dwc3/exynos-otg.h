@@ -12,6 +12,7 @@
 #include <linux/pm_wakeup.h>
 #include <linux/usb/otg-fsm.h>
 #include <linux/pm_qos.h>
+#include <misc/gvotable.h>
 #include <soc/google/exynos_pm_qos.h>
 #include "dwc3-exynos.h"
 
@@ -68,6 +69,7 @@ struct dwc3_otg {
 	u16 combo_phy_control;
 	u16 usb2_phy_control;
 
+	struct gvotable_election *ssphy_restart_votable;
 };
 
 static inline int dwc3_ext_otg_setup(struct dwc3_otg *dotg)
