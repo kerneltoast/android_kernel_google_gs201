@@ -47,6 +47,8 @@ aoc/usb: | aoc/alsa aoc
 
 power/reset: | bms
 
+touch/fts/ftm5: | touch/common
+
 touch/sec: | touch/common
 
 include $(KERNEL_SRC)/Makefile.ext_modules.include
