@@ -211,6 +211,14 @@ static void __mfc_set_enc_stride(struct mfc_ctx *ctx, struct mfc_raw_info *raw, 
 	case V4L2_PIX_FMT_YUV420M:
 	case V4L2_PIX_FMT_YUV420N:
 	case V4L2_PIX_FMT_YVU420M:
+		/* use user stride */
+		for (i = 0; i < ctx->src_fmt->num_planes; i++) {
+			raw->stride[i] = ctx->bytesperline[i];
+			if (!raw->stride[i])
+				raw->stride[i] = (i == 0) ? ALIGN(ctx->img_width, stride_align):
+							ALIGN(ctx->img_width >> 1, stride_align);
+		}
+		break;
 	case V4L2_PIX_FMT_NV12MT_16X16:
 	case V4L2_PIX_FMT_NV12MT:
 	case V4L2_PIX_FMT_NV12M:
