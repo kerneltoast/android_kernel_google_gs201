@@ -219,6 +219,7 @@
 		k_i = <0>;
 		i_max = <0>;
 		sustainable_power = <350>;
+		control_temp_step = <100>;
 
 		tmu_work_affinity = "0-7";
 	};
