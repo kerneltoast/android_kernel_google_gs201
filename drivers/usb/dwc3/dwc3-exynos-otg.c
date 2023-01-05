@@ -1013,6 +1013,24 @@ static int dwc3_otg_pm_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
+{
+	struct dwc3_otg *dotg = container_of(nb, struct dwc3_otg, psy_notifier);
+	struct power_supply *psy = ptr;
+
+	if (!strstr(psy->desc->name, "usb") || evt != PSY_EVENT_PROP_CHANGED)
+		return NOTIFY_OK;
+
+	if (dotg->dwc->gadget->state == USB_STATE_CONFIGURED && !dotg->usb_charged) {
+		dotg->usb_charged = true;
+		del_timer_sync(&dotg->exynos->usb_connect_timer);
+	} else if (dotg->dwc->gadget->state != USB_STATE_CONFIGURED && dotg->usb_charged) {
+		dotg->usb_charged = false;
+	}
+
+	return NOTIFY_OK;
+}
+
 int dwc3_exynos_otg_init(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 {
 	struct dwc3_otg *dotg = exynos->dotg;
@@ -1084,6 +1102,11 @@ int dwc3_exynos_otg_init(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 	ret = register_reboot_notifier(&dwc3_otg_reboot_notifier);
 	if (ret)
 		dev_err(dwc->dev, "failed register reboot notifier\n");
+
+	dotg->psy_notifier.notifier_call = psy_changed;
+	ret = power_supply_reg_notifier(&dotg->psy_notifier);
+	if (ret)
+		dev_err(dwc->dev, "failed register power supply notifier\n");
 
 	dev_dbg(dwc->dev, "otg_init done\n");
 
