@@ -183,6 +183,7 @@ struct exynos_uart_port {
 	unsigned int			uart_logging;
 	struct uart_local_buf		uart_local_buf;
 	struct logbuffer *log;
+	bool show_uart_logging_packets;
 };
 
 /* conversion functions */
@@ -1211,9 +1212,18 @@ static void exynos_serial_rx_drain_fifo(struct exynos_uart_port *ourport)
 
 	if (ourport->uart_logging && trace_cnt) {
 		if (!IS_ERR_OR_NULL(ourport->log)) {
-			hex_dump_to_buffer(trace_buf, trace_cnt, DATA_BYTES_PER_LINE,
-				1, buf, sizeof(buf), false);
-			logbuffer_log(ourport->log, "RX: len: %d, buf: %s", trace_cnt, buf);
+			if (ourport->show_uart_logging_packets) {
+				// skip saving the BQR controller debug dump packets to logbuffer
+				if (trace_buf[0]==0x04 && trace_buf[1]==0xff
+					&& trace_buf[3]==0x58 && trace_buf[4]==0x13) {
+					ourport->show_uart_logging_packets = false;
+				} else {
+					hex_dump_to_buffer(trace_buf, trace_cnt,
+						DATA_BYTES_PER_LINE, 1, buf, sizeof(buf), false);
+					logbuffer_log(ourport->log,
+						"RX: len: %d, buf: %s", trace_cnt, buf);
+				}
+			}
 		}
 		uart_copy_to_local_buf(1, &ourport->uart_local_buf, trace_buf, trace_cnt);
 	}
@@ -1332,9 +1342,16 @@ out:
 
 	if (ourport->uart_logging && trace_cnt) {
 		if (!IS_ERR_OR_NULL(ourport->log)) {
-			hex_dump_to_buffer(trace_buf, trace_cnt, DATA_BYTES_PER_LINE,
-				1, buf, sizeof(buf), false);
-			logbuffer_log(ourport->log, "TX: len: %d, buf: %s", trace_cnt, buf);
+			// reset the show_uart_logging_packets flag after HCI_RESET TX packet
+			if (trace_buf[0]==0x01 && trace_buf[1]==0x03
+				&& trace_buf[2]==0x0c && trace_buf[3]==0x00) {
+				ourport->show_uart_logging_packets = true;
+			}
+			if (ourport->show_uart_logging_packets) {
+				hex_dump_to_buffer(trace_buf, trace_cnt,
+					DATA_BYTES_PER_LINE, 1, buf, sizeof(buf), false);
+				logbuffer_log(ourport->log, "TX: len: %d, buf: %s", trace_cnt, buf);
+			}
 		}
 		uart_copy_to_local_buf(0, &ourport->uart_local_buf, trace_buf, trace_cnt);
 	}
