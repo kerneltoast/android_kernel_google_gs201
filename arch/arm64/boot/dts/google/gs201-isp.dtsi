@@ -513,6 +513,9 @@
 
 		iommus = <&sysmmu_ipp>;
 		samsung,iommu-group = <&iommu_group_isp>;
+
+		/* Adjust Thread priority */
+		transaction-thread-priority = <99>;
 	};
 
 	lwis_gtnr_align: lwis_gtnr_align@1AC80000 {
@@ -657,6 +660,9 @@
 
 		iommus = <&sysmmu_g3aa>;
 		samsung,iommu-group = <&iommu_group_isp>;
+
+		/* Adjust Thread priority */
+		transaction-thread-priority = <99>;
 	};
 
 	lwis_itp: lwis_itp@1B450000 {
