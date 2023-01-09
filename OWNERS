@@ -1,9 +1,10 @@
 file:/OWNERS_core
-per-file build*=set noparent
-per-file build*=saravanak@google.com,elavila@google.com,willmcvicker@google.com
+per-file build.config.slider*=*
+per-file build.config.gs*=*
 per-file vendor_{boot,kernel,dlkm}*=*
 per-file Makefile.ext_modules*=*
 per-file build.config.slider*=*
 per-file BUILD.bazel=*
+per-file build_*=*
 per-file repack_kernel_boot_images.sh=*
 per-file download_hlos_boot_images_and_repack_kernel_boot_images.sh=*
