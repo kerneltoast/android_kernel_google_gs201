@@ -18,6 +18,9 @@
 #include "ufs-pixel-fips.h"
 #include "ufs-pixel-fips_sha256.h"
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/ufshcd.h>
+
 #undef pr_fmt
 #define pr_fmt(fmt) "ufs-pixel-fips140: " fmt
 
@@ -44,6 +47,7 @@ MODULE_PARM_DESC(fips_lu, "FIPS partition LUN");
 
 #define UFS_PIXEL_UCD_SIZE		(4096)
 #define UFS_PIXEL_BUFFER_SIZE		(4096)
+#define UFS_PIXEL_CRYPTO_DATA_UNIT_SIZE (4096)
 #define UFS_PIXEL_MASTER_KEY_INDEX	(15)
 #define UTRD_CMD_TYPE_UFS_STORAGE	(1 << 28)
 #define UTRD_DD_SYSTEM_TO_DEVICE	(1 << 25) /* Write */
@@ -56,7 +60,6 @@ MODULE_PARM_DESC(fips_lu, "FIPS partition LUN");
 #define UPIU_TT_COMMAND			(1)
 #define IO_COMPLETION_TIMEOUT_MS	(200)
 #define IO_RETRY_COUNT			(25)
-#define SG_ENTRY_IV_NUM_WORDS		(4)
 #define SG_ENTRY_ENCKEY_NUM_WORDS	(8)
 #define SG_ENTRY_TWKEY_NUM_WORDS	(8)
 #define ISE_VERSION_REG_OFFSET		(0x1C)
@@ -85,7 +88,7 @@ struct pixel_ufs_prdt_entry {
 	__le32 des3;
 
 	/* The IV with all bytes reversed */
-	__be32 file_iv[SG_ENTRY_IV_NUM_WORDS];
+	__be64 iv[2];
 
 	/* Unused (when KE=0) */
 	__le32 nonce[4];
@@ -134,6 +137,66 @@ struct upiu {
 	__be16 sense_data_length;
 	struct sense_data sense_data;
 } __packed;
+
+static int ise_available;
+
+/* Configure inline encryption (or decryption) on requests that require it. */
+static void ufs_pixel_fips_crypto_fill_prdt(void *unused, struct ufs_hba *hba,
+					     struct ufshcd_lrb *lrbp,
+					     unsigned int segments, int *err)
+{
+	struct pixel_ufs_prdt_entry *prdt =
+		(struct pixel_ufs_prdt_entry *)lrbp->ucd_prdt_ptr;
+	unsigned int i;
+
+	/*
+	 * There's nothing to do for unencrypted requests, since the "crypto
+	 * enable" bit is already 0 by default, as it's in the same word as
+	 * ufshcd_sg_entry::size which was already initialized.
+	 */
+	if (lrbp->crypto_key_slot < 0)
+		return;
+
+	/*
+	 * FIPS140-3 prohibits access to encryption services if they did not
+	 * pass the algorithm self test. Trigger a panic in such an event.
+	 */
+	if (!ise_available)
+		panic("ISE encryption services are disabled\n");
+
+	/* Configure encryption on each segment of the request. */
+	for (i = 0; i < segments; i++) {
+		struct pixel_ufs_prdt_entry *ent = &prdt[i];
+		struct ufshcd_sg_entry *prd = (struct ufshcd_sg_entry *)ent;
+
+		/* Each segment must be exactly one data unit. */
+		if (le32_to_cpu(prd->size) + 1 != UFS_PIXEL_CRYPTO_DATA_UNIT_SIZE) {
+			pr_err("scatterlist segment is misaligned for crypto\n");
+			*err = -EIO;
+			return;
+		}
+
+		/* Enable crypto and set the keyslot. */
+		ent->des3 |= cpu_to_le32(CRYPTO_ENABLE |
+					 CRYPTO_KEYSLOT(lrbp->crypto_key_slot));
+
+		/*
+		 * Set the IV.  The DUN is *supposed* to be formatted as a
+		 * little endian integer to produce the 16-byte AES-XTS IV, like
+		 * it is in the UFS standard.  But this hardware interprets the
+		 * IV bytes backwards.  Therefore, we actually need to format
+		 * the DUN as big endian to get the right ciphertext at the end.
+		 */
+		ent->iv[0] = 0;
+		ent->iv[1] = cpu_to_be64(lrbp->data_unit_num + i);
+	}
+
+	/*
+	 * Unset the keyslot in the ufshcd_lrb so that the keyslot and DUN don't
+	 * get filled into the UTRD according to the UFSHCI standard.
+	 */
+	lrbp->crypto_key_slot = -1;
+}
 
 static void ufs_pixel_fips_build_utrd(struct ufs_hba *hba,
 				      struct utp_transfer_req_desc *utrd,
@@ -186,16 +249,15 @@ static void ufs_pixel_fips_build_prdt(struct ufs_hba *hba,
 	if (!iv) {
 		sg_entry->des3 = cpu_to_le32(buffer_len - 1);
 	} else {
-		u32 i;
-
 		sg_entry->des3 = cpu_to_le32(CRYPTO_ENABLE |
 					     CRYPTO_KEYSLOT(mki) |
 					     (buffer_len - 1));
-
-		for (i = 0; i < SG_ENTRY_IV_NUM_WORDS; i++) {
-			sg_entry->file_iv[SG_ENTRY_IV_NUM_WORDS - 1 - i] =
-				get_unaligned_be32(&iv[i * 4]);
-		}
+		/*
+		 * The hardware interprets the IV in backwards order. Hence we
+		 * reverse each byte of the 16 byte IV.
+		 */
+		sg_entry->iv[0] = get_unaligned_be64(iv + 8);
+		sg_entry->iv[1] = get_unaligned_be64(iv);
 	}
 }
 
@@ -428,6 +490,8 @@ int ufs_pixel_fips_verify(struct ufs_hba *hba)
 			ISE_VERSION_REVISION(ise_version));
 	}
 
+	ise_available = 0;
+
 	if (!fips_first_lba || !fips_last_lba ||
 	    fips_last_lba < fips_first_lba) {
 		pr_err("Invalid module params: first_lba=%u last_lba=%u\n",
@@ -522,6 +586,8 @@ out:
 			  bi.ucd_dma_addr);
 	dma_free_coherent(hba->dev, UFS_PIXEL_BUFFER_SIZE, bi.io_buffer,
 			  bi.io_buffer_dma_addr);
+
+	ise_available = !ret;
 
 	return ret;
 }
@@ -681,6 +747,8 @@ static int __init ufs_pixel_self_integrity_test(void)
 
 static int __init ufs_pixel_fips_init(void)
 {
+	int ret;
+
 	pr_info ("%s version %s loading...\n",
 		 UFS_PIXEL_FIPS140_MODULE_NAME,
 		 UFS_PIXEL_FIPS140_MODULE_VERSION);
@@ -699,7 +767,12 @@ static int __init ufs_pixel_fips_init(void)
 	}
 	pr_info("Verify self HMAC passed\n");
 
-	return 0;
+	ret = register_trace_android_vh_ufs_fill_prdt(
+				ufs_pixel_fips_crypto_fill_prdt, NULL);
+	if (ret)
+		pr_err("Failed to register ufs_pixel_fips_crypto_fill_prdt\n");
+
+	return ret;
 }
 
 static void ufs_pixel_fips_exit(void)
