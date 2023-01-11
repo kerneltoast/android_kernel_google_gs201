@@ -144,10 +144,27 @@ void rvh_rtmutex_prepare_setprio_pixel_mod(void *data, struct task_struct *p,
 	struct vendor_task_struct *vp = get_vendor_task_struct(p);
 
 	if (pi_task) {
+		unsigned long p_util = task_util(p);
 		unsigned long p_uclamp_min = uclamp_eff_value(p, UCLAMP_MIN);
 		unsigned long p_uclamp_max = uclamp_eff_value(p, UCLAMP_MAX);
+		unsigned long pi_util = task_util(pi_task);
 		unsigned long pi_uclamp_min = uclamp_eff_value(pi_task, UCLAMP_MIN);
 		unsigned long pi_uclamp_max = uclamp_eff_value(pi_task, UCLAMP_MAX);
+
+		/*
+		 * Take task's util into consideration first to do full
+		 * performance inheritance.
+		 *
+		 * If pi_uclamp_min = 612 but pi_util is 812, then setting
+		 * p_uclamp_min to 612 is not enough as the task will still run
+		 * slower.
+		 *
+		 * Or if pi_uclamp_min is 0 but pi_util is 800 while p_util is
+		 * 100, then pi_task could wait for longer to acquire the lock
+		 * because the performance of p is too low.
+		 */
+		p_uclamp_min = clamp(p_util, p_uclamp_min, p_uclamp_max);
+		pi_uclamp_min = clamp(pi_util, pi_uclamp_min, pi_uclamp_max);
 
 		/* Inherit unclamp_min/max if they're inverted */
 
