@@ -98,6 +98,7 @@ struct dwc3_exynos {
 
 	bool			usb_data_enabled;
 	bool			extra_delay;
+	bool			gadget_state;
 
 	int			idle_ip_index;
 	unsigned long		bus_clock_rate;

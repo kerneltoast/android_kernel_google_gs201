@@ -13,6 +13,7 @@
 #include <linux/usb/otg-fsm.h>
 #include <linux/pm_qos.h>
 #include <soc/google/exynos_pm_qos.h>
+#include <linux/power_supply.h>
 #include "dwc3-exynos.h"
 
 
@@ -59,10 +60,12 @@ struct dwc3_otg {
 	struct work_struct	recov_work;
 
 	struct notifier_block	pm_nb;
+	struct notifier_block	psy_notifier;
 	struct completion	resume_cmpl;
 	int			dwc3_suspended;
 	int			fsm_reset;
 	int			in_shutdown;
+	bool			usb_charged;
 
 	struct mutex lock;
 	u16 combo_phy_control;
