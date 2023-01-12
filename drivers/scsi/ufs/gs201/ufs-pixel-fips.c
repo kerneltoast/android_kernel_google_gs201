@@ -516,6 +516,8 @@ int ufs_pixel_fips_verify(struct ufs_hba *hba)
 out:
 	ufshcd_writel(hba, interrupts, REG_INTERRUPT_ENABLE);
 	ufshcd_release(hba);
+	memzero_explicit(bi.ucd_addr, UFS_PIXEL_UCD_SIZE);
+	memzero_explicit(bi.io_buffer, UFS_PIXEL_BUFFER_SIZE);
 	dma_free_coherent(hba->dev, UFS_PIXEL_UCD_SIZE, bi.ucd_addr,
 			  bi.ucd_dma_addr);
 	dma_free_coherent(hba->dev, UFS_PIXEL_BUFFER_SIZE, bi.io_buffer,
@@ -620,6 +622,7 @@ const u8 *__ufs_pixel_rodata_start = &__fips140_rodata_start;
 static int __init ufs_pixel_hmac_self_test(void)
 {
 	u8 hmac_digest[UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE];
+	int ret;
 
 	ufs_pixel_fips_hmac_sha256(ufs_pixel_fips_hmac_message,
 				   sizeof(ufs_pixel_fips_hmac_message),
@@ -627,8 +630,11 @@ static int __init ufs_pixel_hmac_self_test(void)
 				   sizeof(ufs_pixel_fips_hmac_key),
 				   hmac_digest);
 
-	return memcmp(hmac_digest, ufs_pixel_fips_hmac_expected,
+	ret = memcmp(hmac_digest, ufs_pixel_fips_hmac_expected,
 		      UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE);
+	memzero_explicit(hmac_digest, sizeof(hmac_digest));
+
+	return ret;
 }
 extern struct {
 	u32	offset;
@@ -656,7 +662,7 @@ static int __init ufs_pixel_self_integrity_test(void)
 				       offset_to_ptr(&fips140_rela_text.offset),
 				       fips140_rela_text.count);
 	if (ret) {
-		kfree(hmac_buffer);
+		kfree_sensitive(hmac_buffer);
 		return ret;
 	}
 
@@ -664,10 +670,13 @@ static int __init ufs_pixel_self_integrity_test(void)
 				   fips140_integ_hmac_key,
 				   strlen(fips140_integ_hmac_key), hmac_digest);
 
-	kfree(hmac_buffer);
+	kfree_sensitive(hmac_buffer);
 
-	return memcmp(hmac_digest, fips140_integ_hmac_digest,
+	ret = memcmp(hmac_digest, fips140_integ_hmac_digest,
 		      UFS_PIXEL_FIPS_SHA256_DIGEST_SIZE);
+	memzero_explicit(hmac_digest, sizeof(hmac_digest));
+
+	return ret;
 }
 
 static int __init ufs_pixel_fips_init(void)
