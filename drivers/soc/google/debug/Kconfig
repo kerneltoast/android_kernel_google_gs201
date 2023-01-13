@@ -167,3 +167,10 @@ config GS_SJTAG
 	help
 	  This driver implements the driver to the AP & GSA SJTAG HW blocks
 	  in the GS SoC.
+
+config ETM2DRAM
+	tristate "ETM to DRAM driver"
+	default n
+	help
+	  This driver exposes interfaces to access debugcore for controlling
+	  ETM2DRAM functions.
