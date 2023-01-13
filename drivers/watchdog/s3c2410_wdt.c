@@ -43,6 +43,7 @@
 #include <linux/rcupdate.h>
 #include <linux/pid.h>
 #include <linux/sched/task.h>
+#include <soc/google/etm2dram.h>
 
 #define S3C2410_WTCON		0x00
 #define S3C2410_WTDAT		0x04
@@ -1164,6 +1165,8 @@ static void s3c2410wdt_multistage_wdt_keepalive(void)
 	dev_info(s3c_wdt[index]->dev,
 		 "Watchdog cluster %u keepalive!, old_wtcnt = %lx, wtcnt = %lx\n",
 		 s3c_wdt[index]->cluster, old_wtcnt, wtcnt);
+
+	etm2dram_delayed_start(s3c_wdt[index]->wdt_device.timeout / 4 * 3);
 }
 
 static int s3c2410wdt_multistage_wdt_stop(void)
@@ -1183,6 +1186,7 @@ static int s3c2410wdt_multistage_wdt_stop(void)
 	dev_info(s3c_wdt[index]->dev, "%s: cluster %u stop done, WTCON %08lx\n",
 		 __func__, s3c_wdt[index]->cluster, wtcon);
 
+	etm2dram_cancel_delayed_start();
 	return 0;
 }
 
