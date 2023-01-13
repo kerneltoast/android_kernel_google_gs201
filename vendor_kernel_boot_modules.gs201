@@ -33,6 +33,7 @@ dwc3-exynos-usb.ko
 ect_parser.ko
 eh.ko
 ehld.ko
+etm2dram.ko
 exynos-acme.ko
 exynos-adv-tracer-s2d.ko
 exynos-adv-tracer.ko
