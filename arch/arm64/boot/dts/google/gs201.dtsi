@@ -1485,6 +1485,13 @@
 		use_multistage_wdt; /* Use FIQ debug watchdog */
 	};
 
+	etm2dram {
+		compatible = "google,etm2dram";
+		plugin-len = <4>;
+		plugin-name = "E2D";
+		status = "disable"; /* Enabled by bootloader on demand. */
+	};
+
 	acpm_tmu {
 		acpm-ipc-channel = <9>;
 	};
