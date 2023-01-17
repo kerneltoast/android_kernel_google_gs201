@@ -49,4 +49,6 @@ power/reset: | bms
 
 touch/sec: | touch/common
 
+touch/fts/ftm5: | touch/common
+
 include $(KERNEL_SRC)/Makefile.ext_modules.include
