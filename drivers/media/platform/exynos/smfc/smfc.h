@@ -195,6 +195,7 @@ struct smfc_ctx {
 	const struct smfc_image_format *img_fmt;
 	__u32 width;
 	__u32 height;
+	__u8 padding[SMFC_MAX_PLANES / 2];
 
 	/* cropping size settings */
 	struct smfc_crop crop;
@@ -212,6 +213,7 @@ struct smfc_ctx {
 	 */
 	__u32 thumb_width;
 	__u32 thumb_height;
+	__u8 thumb_padding[SMFC_MAX_PLANES / 2];
 	unsigned char thumb_quality_factor;
 	unsigned char enable_hwfc;
 

@@ -309,8 +309,22 @@ static void smfc_hwconfigure_image_base(struct smfc_ctx *ctx,
 		addr = sg_dma_address(sgt->sgl);
 
 		for (i = 0; i < ctx->img_fmt->num_planes; i++) {
+			u8 padding = thumbnail ? ctx->thumb_padding[i] : ctx->padding[i];
+
 			__raw_writel((u32)addr, ctx->smfc->reg + REG_IMAGE_BASE(off, i));
 			addr += (width * height * ctx->img_fmt->bpp_pix[i]) / 8;
+
+			if (i == 0) {
+				/* first plane */
+				addr += padding * height;
+			} else {
+				/* second plane
+				 * Note that this is actually only correct for 3-planar formats, but
+				 * it doesn't matter because below calculation only occurs for
+				 * 3-planar formats
+				 */
+				addr += padding * (height / ctx->img_fmt->chroma_vfactor);
+			}
 		}
 	}
 }
@@ -358,12 +372,17 @@ void smfc_hwconfigure_2nd_image(struct smfc_ctx *ctx, bool hwfc_enabled)
 {
 	struct vb2_v4l2_buffer *vb2buf_img, *vb2buf_jpg;
 	u32 format;
+	unsigned int i;
 
 	if (!(ctx->flags & SMFC_CTX_COMPRESS))
 		return;
 
 	__raw_writel(ctx->thumb_width | (ctx->thumb_height << 16),
 		     ctx->smfc->reg + REG_SEC_IMAGE_SIZE);
+
+	for (i = 0; i < ctx->img_fmt->num_planes; i++) {
+		__raw_writel(ctx->thumb_padding[i], ctx->smfc->reg + REG_SEC_IMAGE_SO_PLANE(i));
+	}
 
 	vb2buf_img = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	vb2buf_jpg = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -412,8 +431,16 @@ void smfc_hwconfigure_image(struct smfc_ctx *ctx,
 			     ctx->smfc->reg + REG_MAIN_IMAGE_SIZE);
 
 		for (i = 0; i < num_plane; i++) {
-			__raw_writel(ctx->crop.po[i], ctx->smfc->reg + REG_MAIN_IMAGE_PO_PLANE(i));
-			__raw_writel(ctx->crop.so[i], ctx->smfc->reg + REG_MAIN_IMAGE_SO_PLANE(i));
+			/* set crop if requested, else set padding */
+			if (ctx->width != ctx->crop.width || ctx->height != ctx->crop.height) {
+				__raw_writel(ctx->crop.po[i],
+					     ctx->smfc->reg + REG_MAIN_IMAGE_PO_PLANE(i));
+				__raw_writel(ctx->crop.so[i],
+					     ctx->smfc->reg + REG_MAIN_IMAGE_SO_PLANE(i));
+			} else {
+				__raw_writel(ctx->padding[i],
+					     ctx->smfc->reg + REG_MAIN_IMAGE_SO_PLANE(i));
+			}
 		}
 
 		vb2buf_img = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);

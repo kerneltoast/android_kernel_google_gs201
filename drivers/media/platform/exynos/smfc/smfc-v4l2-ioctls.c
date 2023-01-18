@@ -14,9 +14,14 @@
 #define V4L2_CID_JPEG_SEC_COMP_QUALITY	(V4L2_CID_JPEG_CLASS_BASE + 20)
 #define V4L2_CID_JPEG_QTABLES2		(V4L2_CID_JPEG_CLASS_BASE + 22)
 #define V4L2_CID_JPEG_HWFC_ENABLE	(V4L2_CID_JPEG_CLASS_BASE + 25)
+#define V4L2_CID_JPEG_PADDING		(V4L2_CID_JPEG_CLASS_BASE + 26)
+#define V4L2_CID_JPEG_SEC_PADDING	(V4L2_CID_JPEG_CLASS_BASE + 27)
 
 #define SMFC_FMT_MAIN_SIZE(val) ((val) & 0xFFFF)
 #define SMFC_FMT_SEC_SIZE(val) (((val) >> 16) & 0xFFFF)
+
+#define SMFC_PADDING_MASK 0xFF
+#define SMFC_PADDING_WIDTH 8
 
 const struct smfc_image_format smfc_image_formats[] = {
 	{
@@ -258,6 +263,8 @@ static const char *buf_type_name(__u32 type)
 static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct smfc_ctx *ctx = container_of(ctrl->handler, struct smfc_ctx, v4l2_ctrlhdlr);
+	unsigned int i;
+	__u32 padding;
 
 	switch (ctrl->id) {
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
@@ -312,6 +319,34 @@ static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
 		 * is configured.
 		 */
 		ctx->quality_factor = 0;
+		break;
+	case V4L2_CID_JPEG_PADDING:
+		/*
+		 * Padding format should be the following:
+		 * - Bits[0:7] is padding for first plane
+		 * - Bits[8:15] is padding for second plane, or zero if there is no second plane
+		 * - Bits[16:23] is padding for third plane, or zero if there is no third plane
+		 * - Bits [24:31] should be zero
+		 */
+		padding = (unsigned int)ctrl->val;
+		for (i = 0; i < SMFC_MAX_PLANES / 2; i++) {
+			ctx->padding[i] = padding & SMFC_PADDING_MASK;
+			padding >>= SMFC_PADDING_WIDTH;
+		}
+		break;
+	case V4L2_CID_JPEG_SEC_PADDING:
+		/*
+		 * Padding format should be the following:
+		 * - Bits[0:7] is padding for first plane
+		 * - Bits[8:15] is padding for second plane, or zero if there is no second plane
+		 * - Bits[16:23] is padding for third plane, or zero if there is no third plane
+		 * - Bits [24:31] should be zero
+		 */
+		padding = (unsigned int)ctrl->val;
+		for (i = 0; i < SMFC_MAX_PLANES / 2; i++) {
+			ctx->thumb_padding[i] = padding & SMFC_PADDING_MASK;
+			padding >>= SMFC_PADDING_WIDTH;
+		}
 		break;
 	default:
 		dev_err(ctx->smfc->dev, "Unsupported CID %#x\n", ctrl->id);
@@ -394,6 +429,34 @@ int smfc_init_controls(struct smfc_dev *smfc, struct v4l2_ctrl_handler *hdlr)
 	ctx->ctrl_qtbl2 = v4l2_ctrl_new_custom(hdlr, &ctrlcfg, NULL);
 	if (!ctx->ctrl_qtbl2) {
 		msg = "Q-Table";
+		goto err;
+	}
+
+	memset(&ctrlcfg, 0, sizeof(ctrlcfg));
+	ctrlcfg.ops = &smfc_ctrl_ops;
+	ctrlcfg.id = V4L2_CID_JPEG_PADDING;
+	ctrlcfg.name = "Main image per-plane padding";
+	ctrlcfg.type = V4L2_CTRL_TYPE_INTEGER;
+	ctrlcfg.min = 0;
+	ctrlcfg.max = 0xFFFFFF;
+	ctrlcfg.step = 1;
+	ctrlcfg.def = 0;
+	if (!v4l2_ctrl_new_custom(hdlr, &ctrlcfg, NULL)) {
+		msg = "Main image padding";
+		goto err;
+	}
+
+	memset(&ctrlcfg, 0, sizeof(ctrlcfg));
+	ctrlcfg.ops = &smfc_ctrl_ops;
+	ctrlcfg.id = V4L2_CID_JPEG_SEC_PADDING;
+	ctrlcfg.name = "Secondary image per-plane padding";
+	ctrlcfg.type = V4L2_CTRL_TYPE_INTEGER;
+	ctrlcfg.min = 0;
+	ctrlcfg.max = 0xFFFFFF;
+	ctrlcfg.step = 1;
+	ctrlcfg.def = 0;
+	if (!v4l2_ctrl_new_custom(hdlr, &ctrlcfg, NULL)) {
+		msg = "Secondary image padding";
 		goto err;
 	}
 
