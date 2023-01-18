@@ -774,6 +774,7 @@ static int dwc3_exynos_vbus_notifier(struct notifier_block *nb,
 				     unsigned long action, void *dev)
 {
 	struct dwc3_exynos *exynos = container_of(nb, struct dwc3_exynos, vbus_nb);
+	struct dwc3_otg *dotg = exynos->dotg;
 
 	dev_info(exynos->dev, "turn %s USB gadget\n", action ? "on" : "off");
 
@@ -782,6 +783,7 @@ static int dwc3_exynos_vbus_notifier(struct notifier_block *nb,
 		return NOTIFY_OK;
 	}
 
+	dotg->skip_retry = false;
 	dwc3_exynos_vbus_event(exynos->dev, action);
 
 	return NOTIFY_OK;

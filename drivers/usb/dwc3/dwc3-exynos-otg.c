@@ -471,6 +471,7 @@ err1:
 static void dwc3_otg_retry_configuration(struct timer_list *t)
 {
 	struct dwc3_exynos *exynos = from_timer(exynos, t, usb_connect_timer);
+	struct dwc3_otg *dotg = exynos->dotg;
 	struct usb_gadget *gadget = exynos->dwc->gadget;
 	struct usb_composite_dev *cdev = get_gadget_data(gadget);
 
@@ -480,6 +481,9 @@ static void dwc3_otg_retry_configuration(struct timer_list *t)
 		dev_dbg(exynos->dev, "Stop retry configuration(cdev is NULL) or Removed\n");
 		return;
 	}
+
+	if (dotg->skip_retry)
+		return;
 
 	if (!cdev->config) {
 		if (exynos->retry_cnt >= MAX_RETRY_CNT) {
@@ -937,6 +941,9 @@ static void dwc3_otg_recovery_reconnection(struct work_struct *w)
 	if (dotg->in_shutdown)
 		return;
 
+	if (dotg->skip_retry)
+		return;
+
 	__pm_stay_awake(dotg->reconn_wakelock);
 	/* Lock to avoid real cable insert/remove operation. */
 	mutex_lock(&fsm->lock);
@@ -987,6 +994,9 @@ int dwc3_otg_usb_recovery_reconn(struct dwc3_exynos *exynos)
 	if (dotg->in_shutdown)
 		return -ESHUTDOWN;
 
+	if (dotg->skip_retry)
+		return -EPERM;
+
 	schedule_work(&dotg->recov_work);
 
 	return 0;
@@ -1021,11 +1031,9 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 	if (!strstr(psy->desc->name, "usb") || evt != PSY_EVENT_PROP_CHANGED)
 		return NOTIFY_OK;
 
-	if (dotg->dwc->gadget->state == USB_STATE_CONFIGURED && !dotg->usb_charged) {
-		dotg->usb_charged = true;
+	if (dotg->dwc->gadget->state == USB_STATE_CONFIGURED && !dotg->skip_retry) {
+		dotg->skip_retry = true;
 		del_timer_sync(&dotg->exynos->usb_connect_timer);
-	} else if (dotg->dwc->gadget->state != USB_STATE_CONFIGURED && dotg->usb_charged) {
-		dotg->usb_charged = false;
 	}
 
 	return NOTIFY_OK;
