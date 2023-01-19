@@ -891,18 +891,17 @@ static int s2mpg10_pmic_probe(struct platform_device *pdev)
 
 		s2mpg10->rdev[i] = devm_regulator_register(&pdev->dev,
 							   &regulators[id], &config);
-		if (s2m_is_enabled(s2mpg10->rdev[i]))
-			atomic_set(&s2mpg10->need_sync[id], 1);
-		else
-			atomic_set(&s2mpg10->need_sync[id], 0);
-
-
 		if (IS_ERR(s2mpg10->rdev[i])) {
 			ret = PTR_ERR(s2mpg10->rdev[i]);
 			dev_err(&pdev->dev, "regulator init failed for %d\n",
 				i);
 			return ret;
 		}
+
+		if (s2m_is_enabled(s2mpg10->rdev[i]))
+			atomic_set(&s2mpg10->need_sync[id], 1);
+		else
+			atomic_set(&s2mpg10->need_sync[id], 0);
 	}
 
 	s2mpg10->num_regulators = pdata->num_regulators;
