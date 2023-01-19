@@ -889,7 +889,8 @@ static int s2mpg10_pmic_probe(struct platform_device *pdev)
 		config.of_node = pdata->regulators[i].reg_node;
 		s2mpg10->opmode[id] = regulators[id].enable_mask;
 
-		s2mpg10->rdev[i] = regulator_register(&regulators[id], &config);
+		s2mpg10->rdev[i] = devm_regulator_register(&pdev->dev,
+							   &regulators[id], &config);
 		if (s2m_is_enabled(s2mpg10->rdev[i]))
 			atomic_set(&s2mpg10->need_sync[id], 1);
 		else
@@ -900,8 +901,7 @@ static int s2mpg10_pmic_probe(struct platform_device *pdev)
 			ret = PTR_ERR(s2mpg10->rdev[i]);
 			dev_err(&pdev->dev, "regulator init failed for %d\n",
 				i);
-			s2mpg10->rdev[i] = NULL;
-			goto err;
+			return ret;
 		}
 	}
 
@@ -940,22 +940,13 @@ static int s2mpg10_pmic_probe(struct platform_device *pdev)
 			   DCTRLSEL_AP_ACTIVE_N << 4, GENMASK(7, 4));
 
 	return 0;
-err:
-	for (i = 0; i < S2MPG10_REGULATOR_MAX; i++)
-		regulator_unregister(s2mpg10->rdev[i]);
-
-	return ret;
 }
 
 static int s2mpg10_pmic_remove(struct platform_device *pdev)
 {
-	struct s2mpg10_pmic *s2mpg10 = platform_get_drvdata(pdev);
-	int i;
-
-	for (i = 0; i < S2MPG10_REGULATOR_MAX; i++)
-		regulator_unregister(s2mpg10->rdev[i]);
-
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
+	struct s2mpg10_pmic *s2mpg10 = platform_get_drvdata(pdev);
+
 	pmic_device_destroy(s2mpg10->dev->devt);
 #endif
 	return 0;
