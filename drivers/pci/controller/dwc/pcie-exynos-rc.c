@@ -851,6 +851,35 @@ static void link_stats_log_link_up(struct exynos_pcie *pcie, u32 link_up_time)
 			      link_up_time * NEW_DATA_AVERAGE_WEIGHT, 100);
 }
 
+static int check_exynos_pcie_reg_status(struct exynos_pcie *exynos_pcie,
+					void __iomem *base, int offset, int bit,
+					int *cnt)
+{
+	int i;
+	u32 status;
+	ktime_t timestamp = ktime_get();
+
+	for (i = 0; i < 1000; i++) {
+		udelay(10);
+		status = readl(base + offset) & BIT(bit);
+		if (status != 0)
+			break;
+	}
+	*cnt = i;
+
+	timestamp = ktime_sub(ktime_get(), timestamp);
+	dev_dbg(exynos_pcie->pci->dev, "elapsed time: %lld uS\n", ktime_to_us(timestamp));
+
+	if (status == 0)
+		dev_err(exynos_pcie->pci->dev, "status 0x%x failed\n",
+			offset);
+	else
+		dev_dbg(exynos_pcie->pci->dev, "status 0x%x passed cnt=%d\n",
+			offset, i);
+
+	return status;
+}
+
 static ssize_t link_down_irqs_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct exynos_pcie *pcie = dev_get_drvdata(dev);
@@ -2843,46 +2872,34 @@ static int exynos_pcie_rc_establish_link(struct pcie_port *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	void __iomem *phy_base_regs = exynos_pcie->phy_base;
 	struct device *dev = pci->dev;
 	u32 val, busdev;
 	int count = 0, try_cnt = 0;
 	unsigned int save_before_state = 0xff;
-	u32 i;
-	u32 pll_lock = 0, cdr_lock = 0, oc_done = 0;
+	u32 pll_lock, cdr_lock, oc_done;
+	int lock_cnt;
 retry:
 
 	/* to call eyxnos_pcie_rc_pcie_phy_config() in cal.c file */
 	exynos_pcie_rc_assert_phy_reset(pp);
 
-	/* check pll & cdr lock */
-	for (i = 0; i < 1000; i++) {
-		udelay(1);
-		pll_lock = exynos_phy_read(exynos_pcie, 0x03F0) & (1 << 3);
-		cdr_lock = exynos_phy_read(exynos_pcie, 0x0FC0) & (1 << 4);
+	/* check pll lock */
+	pll_lock = check_exynos_pcie_reg_status(exynos_pcie, phy_base_regs,
+						0x03F0, 3, &lock_cnt);
 
-		if (pll_lock != 0 && cdr_lock != 0)
-			break;
-	}
-	if ((pll_lock == 0) || (cdr_lock == 0))
-		dev_info(dev, "PLL & CDR lock check!\n");
-	else
-		link_stats_log_pll_lock(exynos_pcie, i);
+	/* check cdr lock */
+	cdr_lock = check_exynos_pcie_reg_status(exynos_pcie, phy_base_regs,
+						0x0FC0, 4, &lock_cnt);
+	if (cdr_lock)
+		link_stats_log_pll_lock(exynos_pcie, lock_cnt);
 
 	/* check offset calibration */
-	for (i = 0; i < 2000; i++) {
-		usleep_range(10, 12);
-		oc_done = exynos_phy_read(exynos_pcie, 0x0E18) & (1 << 7);
-
-		if (oc_done != 0)
-			break;
-	}
-	if (oc_done == 0) {
-		pll_lock = exynos_phy_read(exynos_pcie, 0x03F0) & (1 << 3);
-		cdr_lock = exynos_phy_read(exynos_pcie, 0x0FC0) & (1 << 4);
-		oc_done = exynos_phy_read(exynos_pcie, 0x0E18) & (1 << 7);
+	oc_done = check_exynos_pcie_reg_status(exynos_pcie, phy_base_regs,
+					       0x0E18, 7, &lock_cnt);
+	if (!oc_done)
 		dev_err(dev, "OC Fail : PLL_LOCK : 0x%x, CDR_LOCK : 0x%x, OC : 0x%x\n",
 			pll_lock, cdr_lock, oc_done);
-	}
 
 	/* Soft Power RST */
 	val = exynos_elbi_read(exynos_pcie, PCIE_SOFT_RESET);
