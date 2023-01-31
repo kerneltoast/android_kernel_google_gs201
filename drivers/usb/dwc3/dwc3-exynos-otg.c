@@ -71,7 +71,9 @@ static int dwc3_otg_statemachine(struct otg_fsm *fsm)
 		if (!fsm->id) {
 			otg->state = OTG_STATE_A_IDLE;
 		} else if (fsm->b_sess_vld) {
-			exynos->retry_cnt = 0;
+			/* TODO: change back to 0 if the issue is fixed*/
+			exynos->retry_cnt = REMOVED_RETRY_CNT;
+			dev_info(dev, "retry mechanism is bypass by overriding retry_cnt to REMOVED_RETRY_CNT\n");
 			ret = otg_start_gadget(fsm, 1);
 			if (!ret)
 				otg->state = OTG_STATE_B_PERIPHERAL;
