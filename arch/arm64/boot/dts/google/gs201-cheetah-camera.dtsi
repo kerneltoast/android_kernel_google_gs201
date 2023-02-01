@@ -99,6 +99,15 @@
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
 	};
+
+	/* GPP8[2] Flashlight Enable */
+	flash_en: flash-en {
+		samsung,pins = "gpp8-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
 };
 
 &hsi2c_1 {
@@ -165,7 +174,7 @@
 	clock-frequency = <400000>;
 
 	pinctrl-names = "default","on_i2c","off_i2c";
-	pinctrl-0 = <&hsi2c15_bus>;
+	pinctrl-0 = <&hsi2c15_bus &flash_en>;
 	pinctrl-1 = <&hsi2c15_bus>;
 	pinctrl-2 = <&hsi2c15_bus>;
 };
