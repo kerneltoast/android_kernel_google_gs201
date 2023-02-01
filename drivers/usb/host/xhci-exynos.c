@@ -189,7 +189,7 @@ int xhci_exynos_bus_suspend(struct usb_hcd *hcd)
 	}
 
 	if (hcd == xhci->main_hcd &&
-	    xhci_exynos->port_state == PORT_USB2) {
+	    ((xhci_exynos->port_state == PORT_USB2) || (xhci_exynos->port_state == PORT_HUB))) {
 		ret_phy = exynos_usbdrd_phy_vendor_set(xhci_exynos->phy_usb2, 1, 0);
 		if (ret_phy)
 			dev_info(xhci_exynos->dev, "phy vendor set fail\n");
@@ -233,7 +233,7 @@ int xhci_exynos_bus_resume(struct usb_hcd *hcd)
 	}
 
 	if (hcd == xhci->main_hcd &&
-	    xhci_exynos->port_state == PORT_USB2) {
+	    ((xhci_exynos->port_state == PORT_USB2) || (xhci_exynos->port_state == PORT_HUB))) {
 		ret = exynos_usbdrd_phy_vendor_set(xhci_exynos->phy_usb2, 1, 1);
 		if (ret)
 			dev_info(xhci_exynos->dev, "phy vendor set fail\n");
@@ -367,111 +367,223 @@ int xhci_exynos_port_power_set(struct xhci_hcd_exynos *exynos, u32 on, u32 prt)
 }
 EXPORT_SYMBOL_GPL(xhci_exynos_port_power_set);
 
-static int xhci_exynos_check_port(struct xhci_hcd_exynos *exynos, struct usb_device *dev, bool on)
+/*
+ * Query the suspend capability from the USB descriptors
+ * @udev: the USB device to be checked
+ */
+static bool xhci_exynos_allow_suspend_by_descriptor(struct usb_device *udev)
 {
-	struct usb_device *hdev;
-	struct usb_device *udev = dev;
-	struct usb_host_config *config;
 	struct usb_interface_descriptor *desc;
-	struct device *ddev = &udev->dev;
-	struct xhci_hcd_exynos	*xhci_exynos = exynos;
-	enum usb_port_state pre_state;
-	int usb3_hub_detect = 0;
-	int usb2_detect = 0;
-	int port, i;
-	int bInterfaceClass = 0;
-	bool ap_suspend_enabled = false;
-	bool audio_detected;
+	bool allow_suspend = false;
+	int i;
 
-	if (udev->bus->root_hub == udev) {
-		dev_dbg(ddev, "this dev is a root hub\n");
+	/* Allow suspend if it is a specific accessory */
+	if (xhci_exynos_match_udev(autosuspend_accessories, le16_to_cpu(udev->descriptor.idVendor),
+				   le16_to_cpu(udev->descriptor.idProduct)))
+		return true;
+
+	/* If @udev is a hub, directly check bmAttributes in the descriptor. */
+	if (udev->descriptor.bDeviceClass == USB_CLASS_HUB)
+		return (udev->config->desc.bmAttributes & USB_CONFIG_ATT_WAKEUP) ? true : false;
+
+	/* Query if there is audio interface and check if it supports remote_wakeup */
+	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {
+		desc = &udev->config->intf_cache[i]->altsetting->desc;
+		if (desc->bInterfaceClass == USB_CLASS_AUDIO) {
+			udev->do_remote_wakeup = (udev->config->desc.bmAttributes &
+						  USB_CONFIG_ATT_WAKEUP) ? true : false;
+			dev_dbg(&udev->dev, "%s: remote_wakeup = %d\n", __func__,
+				udev->do_remote_wakeup);
+			if (udev->do_remote_wakeup)
+				allow_suspend = true;
+			break;
+		} else {
+			allow_suspend = false;
+		}
+	}
+
+	return allow_suspend;
+}
+
+/*
+ * Query the suspend capability of USB device @target_udev after the action taken from @action_udev
+ * @target_udev: the USB device to be checked
+ * @action_udev: the USB device who takes the action
+ * @action: the action taken from @action_udev
+ *
+ * If @target_udev is a hub, this function doesn't recursively check the child devices under it.
+ */
+static bool xhci_exynos_allow_suspend_with_action(struct usb_device *target_udev,
+						  struct usb_device *action_udev,
+						  unsigned long action)
+{
+	bool allow_suspend = false;
+
+	if (!action_udev || !target_udev)
+		return true;
+
+	/* Since @target_udev is being removed, it won't block the bus suspend. Return true.*/
+	if (target_udev == action_udev && action == USB_DEVICE_REMOVE)
+		return true;
+
+	/*
+	 * If @target_udev is a hub, query all child devices. Note that it won't check recursively
+	 * if a child device is also a hub.
+	 */
+	if (target_udev->descriptor.bDeviceClass == USB_CLASS_HUB) {
+		struct usb_device *child_udev;
+		int port;
+
+		/* Don't support suspend if the hub itself doesn't support remote_wakeup */
+		allow_suspend = xhci_exynos_allow_suspend_by_descriptor(target_udev);
+		if (!allow_suspend)
+			return false;
+
+		/*
+		 * Visit all child devices to find any audio device and check remote_wakeup.
+		 * If one of them doesn't support remote_wakeup, then we can't support auto-suspend.
+		 */
+		usb_hub_for_each_child(target_udev, port, child_udev) {
+			/*
+			 * We don't need to check the descriptor if the child_udev is exactly the
+			 * same as @action_dev (the USB device which is doing @action) and it is
+			 * removed, Skip to check the rest of ports to know if we can support
+			 * suspend or not.
+			 */
+			if (child_udev && action == USB_DEVICE_REMOVE && action_udev == child_udev)
+				continue;
+
+			if (child_udev && child_udev->state == USB_STATE_CONFIGURED) {
+				if (!child_udev->config->interface[0])
+					continue;
+
+				allow_suspend = xhci_exynos_allow_suspend_by_descriptor(child_udev);
+			}
+
+			/* Don't allow if one of the child devices doesn't allow suspend. */
+			if (!allow_suspend)
+				return false;
+		}
+	} else {
+		allow_suspend = xhci_exynos_allow_suspend_by_descriptor(target_udev);
+	}
+
+	return allow_suspend;
+}
+
+/*
+ * Scan the child devices of @root_hub. Set port_state accordingly and update the suspend flag.
+ *
+ * @root_hub: the root hub of main hcd or shared hcd
+ * @action_udev: the USB device which is doing @action
+ * @action: the action taken from @action_udev
+ * @suspend: allow suspend or not
+ *
+ * Note: port_state: the state of the port directly under the root hub.
+ */
+static void xhci_exynos_scan_roothub(struct xhci_hcd_exynos *xhci_exynos,
+				     struct usb_device *root_hub, struct usb_device *action_udev,
+				     unsigned long action, bool *suspend)
+{
+	struct usb_device *child_udev;
+	int port;
+
+	usb_hub_for_each_child(root_hub, port, child_udev) {
+		if (child_udev && child_udev->state == USB_STATE_CONFIGURED) {
+			int bInterfaceClass;
+
+			if (!child_udev->config->interface[0])
+				continue;
+
+			bInterfaceClass = child_udev->config->interface[0]
+					->cur_altsetting->desc.bInterfaceClass;
+
+			if (bInterfaceClass == USB_CLASS_HUB)
+				xhci_exynos->port_state = PORT_HUB;
+			else if (bInterfaceClass == USB_CLASS_BILLBOARD)
+				xhci_exynos->port_state = PORT_DP;
+			else if (child_udev->speed >= USB_SPEED_SUPER)
+				xhci_exynos->port_state = PORT_USB3;
+			else
+				xhci_exynos->port_state = PORT_USB2;
+
+			/* If still allow suspend so far, check current child_udev */
+			if (*suspend)
+				*suspend &= xhci_exynos_allow_suspend_with_action(child_udev,
+										  action_udev,
+										  action);
+		} else {
+			dev_dbg(&child_udev->dev, "not configured, state: %d\n", child_udev->state);
+		}
+	}
+}
+
+/*
+ * While @action_udev is doing @action, scan the USB Bus and set the port_state. Also check the
+ * suspend capability of each port (2 levels under root hubs) to decide whether the xhci_exynos
+ * wakelocks are going to be held or released.
+ */
+static int xhci_exynos_check_port(struct xhci_hcd_exynos *xhci_exynos,
+				  struct usb_device *action_udev, unsigned long action)
+{
+	struct usb_device *roothub_main;
+	struct usb_device *roothub_shared;
+	enum usb_port_state pre_state;
+	bool suspend = true;
+
+	if (action_udev->bus->root_hub == action_udev) {
+		dev_dbg(&action_udev->dev, "this dev is a root hub\n");
 		goto skip;
 	}
 
 	pre_state = xhci_exynos->port_state;
 
-	/* Find root hub */
-	hdev = udev->parent;
-	if (!hdev)
-		goto skip;
+	/* clear port_state; it might be set to others when checking the ports under root hubs */
+	xhci_exynos->port_state = PORT_EMPTY;
 
-	hdev = dev->bus->root_hub;
-	if (!hdev)
-		goto skip;
-	dev_dbg(ddev, "root hub maxchild = %d\n", hdev->maxchild);
+	roothub_main = xhci_exynos->hcd->self.root_hub;
+	roothub_shared = xhci_exynos->shared_hcd->self.root_hub;
 
-	/* check all ports */
-	usb_hub_for_each_child(hdev, port, udev) {
-		dev_dbg(ddev, "%s, class = %d, speed = %d\n",
-			__func__, udev->descriptor.bDeviceClass,
-						udev->speed);
-		audio_detected = false;
-		dev_dbg(ddev, "udev = %pK, state = %d\n", udev, udev->state);
-		if (udev && udev->state == USB_STATE_CONFIGURED) {
-			if (!dev->config->interface[0])
-				continue;
+	/* Check all ports from root hub of main_hcd */
+	if (roothub_main)
+		xhci_exynos_scan_roothub(xhci_exynos, roothub_main, action_udev, action, &suspend);
 
-			bInterfaceClass	= udev->config->interface[0]
-					->cur_altsetting->desc.bInterfaceClass;
-			if (on) {
-				config = udev->config;
-				for (i = 0; i < config->desc.bNumInterfaces; i++) {
-					desc = &config->intf_cache[i]->altsetting->desc;
-					if (desc->bInterfaceClass == USB_CLASS_AUDIO) {
-						audio_detected = true;
-						udev->do_remote_wakeup =
-							(udev->config->desc.bmAttributes &
-								USB_CONFIG_ATT_WAKEUP) ? 1 : 0;
-						dev_dbg(ddev, "%s, remote_wakeup = %d\n",
-							__func__, udev->do_remote_wakeup);
-						break;
-					}
-				}
+	/* Check all ports from root hub of shared_hcd; port_state would override if needed */
+	if (roothub_shared)
+		xhci_exynos_scan_roothub(xhci_exynos, roothub_shared, action_udev, action,
+					 &suspend);
 
-				/* do_remote_wakeup may be also set in drivers/usb/core/driver.c */
-				if ((udev->do_remote_wakeup == 1 && audio_detected) ||
-				    xhci_exynos_match_udev(autosuspend_accessories,
-						le16_to_cpu(udev->descriptor.idVendor),
-						le16_to_cpu(udev->descriptor.idProduct))) {
-					device_init_wakeup(ddev, 1);
-					usb_enable_autosuspend(dev);
-					trace_android_vh_sound_usb_support_cpu_suspend(udev, 0,
-									&ap_suspend_enabled);
-					if (ap_suspend_enabled) {
-						xhci_exynos->ap_suspend_enabled = true;
-						__pm_relax(xhci_exynos->main_wakelock);
-						__pm_relax(xhci_exynos->shared_wakelock);
-					}
-				}
-			}
-			if (bInterfaceClass == USB_CLASS_HUB) {
-				xhci_exynos->port_state = PORT_HUB;
-				usb3_hub_detect = 1;
-				break;
-			} else if (bInterfaceClass == USB_CLASS_BILLBOARD) {
-				xhci_exynos->port_state = PORT_DP;
-				usb3_hub_detect = 1;
-				break;
-			}
+	dev_info(&action_udev->dev, "%s action=%d state pre=%d now=%d suspend=%u\n", __func__,
+		 action, pre_state, xhci_exynos->port_state, suspend);
 
-			if (udev->speed >= USB_SPEED_SUPER) {
-				xhci_exynos->port_state = PORT_USB3;
-				usb3_hub_detect = 1;
-				break;
-			} else {
-				xhci_exynos->port_state = PORT_USB2;
-				usb2_detect = 1;
-			}
-		} else {
-			dev_dbg(ddev, "not configured, state = %d\n", udev->state);
+	/* When @action_udev is added, enable autosuspend of @action_udev if it supports */
+	if (action == USB_DEVICE_ADD) {
+		if (xhci_exynos_allow_suspend_by_descriptor(action_udev)) {
+			dev_dbg(&action_udev->dev, "enable autosuspend on device\n");
+			device_init_wakeup(&action_udev->dev, 1);
+			usb_enable_autosuspend(action_udev);
 		}
 	}
 
-	if (!usb3_hub_detect && !usb2_detect)
-		xhci_exynos->port_state = PORT_EMPTY;
+	/*
+	 * Release the wakelock when all (2 levels under root hubs) ports allow to suspend,
+	 * so the System is able to suspend too. Here we also check whether the sub-system
+	 * supports or not.
+	 */
+	if (suspend) {
+		bool ap_suspend_enabled = false;
 
-	dev_dbg(ddev, "%s %s state pre=%d now=%d\n", __func__,
-		on ? "on" : "off", pre_state, xhci_exynos->port_state);
+		trace_android_vh_sound_usb_support_cpu_suspend(action_udev, 0, &ap_suspend_enabled);
+		if (ap_suspend_enabled) {
+			xhci_exynos->ap_suspend_enabled = true;
+			__pm_relax(xhci_exynos->main_wakelock);
+			__pm_relax(xhci_exynos->shared_wakelock);
+		}
+	} else {
+		xhci_exynos->ap_suspend_enabled = false;
+		__pm_stay_awake(xhci_exynos->main_wakelock);
+		__pm_stay_awake(xhci_exynos->shared_wakelock);
+	}
 
 	return xhci_exynos->port_state;
 
@@ -479,13 +591,13 @@ skip:
 	return -EINVAL;
 }
 
-static void xhci_exynos_set_port(struct usb_device *dev, bool on)
+static void xhci_exynos_set_port(struct usb_device *dev, unsigned long action)
 {
 	struct xhci_hcd_exynos *xhci_exynos = dev_get_platdata(&dev->dev);
 	struct device *ddev = &dev->dev;
 	int check_port;
 
-	check_port = xhci_exynos_check_port(xhci_exynos, dev, on);
+	check_port = xhci_exynos_check_port(xhci_exynos, dev, action);
 	if (check_port < 0)
 		return;
 
@@ -522,10 +634,10 @@ static int xhci_exynos_power_notify(struct notifier_block *self,
 {
 	switch (action) {
 	case USB_DEVICE_ADD:
-		xhci_exynos_set_port(dev, 1);
+		xhci_exynos_set_port(dev, action);
 		break;
 	case USB_DEVICE_REMOVE:
-		xhci_exynos_set_port(dev, 0);
+		xhci_exynos_set_port(dev, action);
 		break;
 	}
 	return NOTIFY_OK;
@@ -744,7 +856,7 @@ int xhci_exynos_wake_lock(struct xhci_hcd_exynos *xhci_exynos,
 
 	if (is_lock) {
 		if (xhci_exynos->ap_suspend_enabled) {
-			dev_info(xhci_exynos->dev, "%s: audio device, skip WAKE LOCK\n", __func__);
+			dev_info(xhci_exynos->dev, "%s: skip WAKE LOCK\n", __func__);
 		} else {
 			if (is_main_hcd) {
 				dev_info(xhci_exynos->dev, "%s: Main HCD WAKE LOCK\n", __func__);
@@ -762,7 +874,7 @@ int xhci_exynos_wake_lock(struct xhci_hcd_exynos *xhci_exynos,
 #endif
 	} else {
 		if (xhci_exynos->ap_suspend_enabled) {
-			dev_info(xhci_exynos->dev, "%s: audio device, skip WAKE UNLOCK\n",
+			dev_info(xhci_exynos->dev, "%s: skip WAKE UNLOCK\n",
 				 __func__);
 		} else {
 			if (is_main_hcd) {
