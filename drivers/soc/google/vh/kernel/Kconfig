@@ -92,6 +92,11 @@ config VH_PREEMPTIRQ_TRACEPOINTS
         depends on VH_SCHED
         default m
 
+config USE_VENDOR_GROUP_UTIL
+        bool "Use cpu util based on vendor groups"
+        depends on VH_SCHED
+        default n
+
 config USE_GROUP_THROTTLE
         bool "Use group throttle of vendor groups"
         depends on VH_SCHED

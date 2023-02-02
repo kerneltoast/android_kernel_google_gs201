@@ -35,6 +35,13 @@ extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum
 					 int *ret);
 
 extern struct vendor_group_property *get_vendor_group_property(enum vendor_group group);
+
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+extern void migrate_vendor_group_util(struct task_struct *p, unsigned int old, unsigned int new);
+extern struct vendor_util_group_property *get_vendor_util_group_property(
+	enum vendor_util_group group);
+#endif
+
 static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id);
 
 static struct uclamp_se uclamp_default[UCLAMP_CNT];
@@ -268,6 +275,67 @@ static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "cam_power", "b
 		}									      \
 		PROC_OPS_WO(__attr##_clear);
 
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+#define VENDOR_UTIL_GROUP_UINT_ATTRIBUTE(__grp, __attr, __vug)				      \
+		static int __grp##_##__attr##_show(struct seq_file *m, void *v) 	\
+		{									      \
+			struct vendor_util_group_property *gp = \
+				get_vendor_util_group_property(__vug);   \
+			seq_printf(m, "%u\n", gp->__attr);	      \
+			return 0;	      \
+		}									      \
+		static ssize_t __grp##_##__attr##_store(struct file *filp,			\
+			const char __user *ubuf, \
+			size_t count, loff_t *pos) \
+		{									      \
+			unsigned int val;					              \
+			struct vendor_util_group_property *gp = \
+				get_vendor_util_group_property(__vug);   \
+			char buf[MAX_PROC_SIZE];	\
+			if (count >= sizeof(buf))	\
+				return -EINVAL;	\
+			if (copy_from_user(buf, ubuf, count))	\
+				return -EFAULT;	\
+			buf[count] = '\0';	\
+			if (kstrtouint(buf, 10, &val))					      \
+				return -EINVAL;						      \
+			gp->__attr = val;						      \
+			return count;							      \
+		}									      \
+		PROC_OPS_RW(__grp##_##__attr);
+
+
+#define VENDOR_UTIL_GROUP_UCLAMP_ATTRIBUTE(__grp, __attr, __vug, __cid)			      \
+		static int __grp##_##__attr##_show(struct seq_file *m, void *v) 	\
+		{									      \
+			struct vendor_util_group_property *gp = \
+				get_vendor_util_group_property(__vug);   \
+			seq_printf(m, "%u\n", gp->uc_req[__cid].value);		      \
+			return 0;	\
+		}									      \
+		static ssize_t __grp##_##__attr##_store(struct file *filp,			\
+			const char __user *ubuf, \
+			size_t count, loff_t *pos) \
+		{									      \
+			unsigned int val;						      \
+			struct vendor_util_group_property *gp = \
+				get_vendor_util_group_property(__vug);   \
+			char buf[MAX_PROC_SIZE];	\
+			if (count >= sizeof(buf))	\
+				return -EINVAL;	\
+			if (copy_from_user(buf, ubuf, count))	\
+				return -EFAULT;	\
+			buf[count] = '\0';	\
+			if (kstrtouint(buf, 0, &val))					      \
+				return -EINVAL;						      \
+			if (val > 1024)							      \
+				return -EINVAL;						      \
+			gp->uc_req[__cid].value = val;					      \
+			return count;							      \
+		}									      \
+		PROC_OPS_RW(__grp##_##__attr);
+#endif
+
 /// ******************************************************************************** ///
 /// ********************* Create vendor group procfs nodes*************************** ///
 /// ******************************************************************************** ///
@@ -275,7 +343,9 @@ static const char *GRP_NAME[VG_MAX] = {"sys", "ta", "fg", "cam", "cam_power", "b
 VENDOR_GROUP_BOOL_ATTRIBUTE(ta, prefer_idle, VG_TOPAPP);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ta, prefer_high_cap, VG_TOPAPP);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ta, task_spreading, VG_TOPAPP);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(ta, group_throttle, VG_TOPAPP);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(ta, preferred_idle_mask_low, VG_TOPAPP);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(ta, preferred_idle_mask_mid, VG_TOPAPP);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(ta, preferred_idle_mask_high, VG_TOPAPP);
@@ -285,7 +355,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(ta, uclamp_max, VG_TOPAPP, UCLAMP_MAX);
 VENDOR_GROUP_BOOL_ATTRIBUTE(fg, prefer_idle, VG_FOREGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(fg, prefer_high_cap, VG_FOREGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(fg, task_spreading, VG_FOREGROUND);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(fg, group_throttle, VG_FOREGROUND);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(fg, preferred_idle_mask_low, VG_FOREGROUND);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(fg, preferred_idle_mask_mid, VG_FOREGROUND);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(fg, preferred_idle_mask_high, VG_FOREGROUND);
@@ -295,7 +367,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(fg, uclamp_max, VG_FOREGROUND, UCLAMP_MAX);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sys, prefer_idle, VG_SYSTEM);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sys, prefer_high_cap, VG_SYSTEM);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sys, task_spreading, VG_SYSTEM);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(sys, group_throttle, VG_SYSTEM);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(sys, preferred_idle_mask_low, VG_SYSTEM);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(sys, preferred_idle_mask_mid, VG_SYSTEM);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(sys, preferred_idle_mask_high, VG_SYSTEM);
@@ -305,7 +379,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(sys, uclamp_max, VG_SYSTEM, UCLAMP_MAX);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam, prefer_idle, VG_CAMERA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam, prefer_high_cap, VG_CAMERA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam, task_spreading, VG_CAMERA);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(cam, group_throttle, VG_CAMERA);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam, preferred_idle_mask_low, VG_CAMERA);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam, preferred_idle_mask_mid, VG_CAMERA);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam, preferred_idle_mask_high, VG_CAMERA);
@@ -315,7 +391,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam, uclamp_max, VG_CAMERA, UCLAMP_MAX);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam_power, prefer_idle, VG_CAMERA_POWER);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam_power, prefer_high_cap, VG_CAMERA_POWER);
 VENDOR_GROUP_BOOL_ATTRIBUTE(cam_power, task_spreading, VG_CAMERA_POWER);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(cam_power, group_throttle, VG_CAMERA_POWER);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam_power, preferred_idle_mask_low, VG_CAMERA_POWER);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam_power, preferred_idle_mask_mid, VG_CAMERA_POWER);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(cam_power, preferred_idle_mask_high, VG_CAMERA_POWER);
@@ -325,7 +403,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(cam_power, uclamp_max, VG_CAMERA_POWER, UCLAMP_MAX
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, prefer_idle, VG_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, prefer_high_cap, VG_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(bg, task_spreading, VG_BACKGROUND);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(bg, group_throttle, VG_BACKGROUND);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(bg, preferred_idle_mask_low, VG_BACKGROUND);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(bg, preferred_idle_mask_mid, VG_BACKGROUND);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(bg, preferred_idle_mask_high, VG_BACKGROUND);
@@ -335,7 +415,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(bg, uclamp_max, VG_BACKGROUND, UCLAMP_MAX);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sysbg, prefer_idle, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sysbg, prefer_high_cap, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sysbg, task_spreading, VG_SYSTEM_BACKGROUND);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(sysbg, group_throttle, VG_SYSTEM_BACKGROUND);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(sysbg, preferred_idle_mask_low, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(sysbg, preferred_idle_mask_mid, VG_SYSTEM_BACKGROUND);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(sysbg, preferred_idle_mask_high, VG_SYSTEM_BACKGROUND);
@@ -345,7 +427,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(sysbg, uclamp_max, VG_SYSTEM_BACKGROUND, UCLAMP_MA
 VENDOR_GROUP_BOOL_ATTRIBUTE(nnapi, prefer_idle, VG_NNAPI_HAL);
 VENDOR_GROUP_BOOL_ATTRIBUTE(nnapi, prefer_high_cap, VG_NNAPI_HAL);
 VENDOR_GROUP_BOOL_ATTRIBUTE(nnapi, task_spreading, VG_NNAPI_HAL);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(nnapi, group_throttle, VG_NNAPI_HAL);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(nnapi, preferred_idle_mask_low, VG_NNAPI_HAL);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(nnapi, preferred_idle_mask_mid, VG_NNAPI_HAL);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(nnapi, preferred_idle_mask_high, VG_NNAPI_HAL);
@@ -355,7 +439,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(nnapi, uclamp_max, VG_NNAPI_HAL, UCLAMP_MAX);
 VENDOR_GROUP_BOOL_ATTRIBUTE(rt, prefer_idle, VG_RT);
 VENDOR_GROUP_BOOL_ATTRIBUTE(rt, prefer_high_cap, VG_RT);
 VENDOR_GROUP_BOOL_ATTRIBUTE(rt, task_spreading, VG_RT);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(rt, group_throttle, VG_RT);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(rt, preferred_idle_mask_low, VG_RT);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(rt, preferred_idle_mask_mid, VG_RT);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(rt, preferred_idle_mask_high, VG_RT);
@@ -365,7 +451,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(rt, uclamp_max, VG_RT, UCLAMP_MAX);
 VENDOR_GROUP_BOOL_ATTRIBUTE(dex2oat, prefer_idle, VG_DEX2OAT);
 VENDOR_GROUP_BOOL_ATTRIBUTE(dex2oat, prefer_high_cap, VG_DEX2OAT);
 VENDOR_GROUP_BOOL_ATTRIBUTE(dex2oat, task_spreading, VG_DEX2OAT);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(dex2oat, group_throttle, VG_DEX2OAT);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(dex2oat, preferred_idle_mask_low, VG_DEX2OAT);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(dex2oat, preferred_idle_mask_mid, VG_DEX2OAT);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(dex2oat, preferred_idle_mask_high, VG_DEX2OAT);
@@ -375,7 +463,9 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(dex2oat, uclamp_max, VG_DEX2OAT, UCLAMP_MAX);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ota, prefer_idle, VG_OTA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ota, prefer_high_cap, VG_OTA);
 VENDOR_GROUP_BOOL_ATTRIBUTE(ota, task_spreading, VG_OTA);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(ota, group_throttle, VG_OTA);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(ota, preferred_idle_mask_low, VG_OTA);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(ota, preferred_idle_mask_mid, VG_OTA);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(ota, preferred_idle_mask_high, VG_OTA);
@@ -385,12 +475,28 @@ VENDOR_GROUP_UCLAMP_ATTRIBUTE(ota, uclamp_max, VG_OTA, UCLAMP_MAX);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sf, prefer_idle, VG_SF);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sf, prefer_high_cap, VG_SF);
 VENDOR_GROUP_BOOL_ATTRIBUTE(sf, task_spreading, VG_SF);
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 VENDOR_GROUP_UINT_ATTRIBUTE(sf, group_throttle, VG_SF);
+#endif
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(sf, preferred_idle_mask_low, VG_SF);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(sf, preferred_idle_mask_mid, VG_SF);
 VENDOR_GROUP_CPUMASK_ATTRIBUTE(sf, preferred_idle_mask_high, VG_SF);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sf, uclamp_min, VG_SF, UCLAMP_MIN);
 VENDOR_GROUP_UCLAMP_ATTRIBUTE(sf, uclamp_max, VG_SF, UCLAMP_MAX);
+
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
+VENDOR_UTIL_GROUP_UINT_ATTRIBUTE(vug_fg, group_throttle, VUG_FG);
+#endif
+VENDOR_UTIL_GROUP_UCLAMP_ATTRIBUTE(vug_fg, uclamp_min, VUG_FG, UCLAMP_MIN);
+VENDOR_UTIL_GROUP_UCLAMP_ATTRIBUTE(vug_fg, uclamp_max, VUG_FG, UCLAMP_MAX);
+
+#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
+VENDOR_UTIL_GROUP_UINT_ATTRIBUTE(vug_bg, group_throttle, VUG_BG);
+#endif
+VENDOR_UTIL_GROUP_UCLAMP_ATTRIBUTE(vug_bg, uclamp_min, VUG_BG, UCLAMP_MIN);
+VENDOR_UTIL_GROUP_UCLAMP_ATTRIBUTE(vug_bg, uclamp_max, VUG_BG, UCLAMP_MAX);
+#endif
 
 /// ******************************************************************************** ///
 /// ********************* From upstream code for uclamp **************************** ///
@@ -900,6 +1006,10 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 		vp = get_vendor_task_struct(p);
 		old = vp->group;
 		raw_spin_lock_irqsave(&vp->lock, flags);
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+		if (p->prio >= MAX_RT_PRIO)
+			migrate_vendor_group_util(p, old, new);
+#endif
 		if (vp->queued_to_list) {
 			remove_from_vendor_group_list(&vp->node, old);
 			add_to_vendor_group_list(&vp->node, new);
@@ -921,6 +1031,10 @@ static int update_vendor_group_attribute(const char *buf, enum vendor_group_attr
 			}
 			vp->group = new;
 			raw_spin_unlock_irqrestore(&vp->lock, flags);
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+			if (p->prio >= MAX_RT_PRIO)
+				migrate_vendor_group_util(t, old, new);
+#endif
 			for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
 				uclamp_update_active(t, clamp_id);
 			put_task_struct(t);
@@ -1430,7 +1544,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(ta_prefer_idle),
 	PROC_ENTRY(ta_prefer_high_cap),
 	PROC_ENTRY(ta_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(ta_group_throttle),
+#endif
 	PROC_ENTRY(ta_preferred_idle_mask_low),
 	PROC_ENTRY(ta_preferred_idle_mask_mid),
 	PROC_ENTRY(ta_preferred_idle_mask_high),
@@ -1440,7 +1556,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(fg_prefer_idle),
 	PROC_ENTRY(fg_prefer_high_cap),
 	PROC_ENTRY(fg_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(fg_group_throttle),
+#endif
 	PROC_ENTRY(fg_preferred_idle_mask_low),
 	PROC_ENTRY(fg_preferred_idle_mask_mid),
 	PROC_ENTRY(fg_preferred_idle_mask_high),
@@ -1450,7 +1568,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(sys_prefer_idle),
 	PROC_ENTRY(sys_prefer_high_cap),
 	PROC_ENTRY(sys_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(sys_group_throttle),
+#endif
 	PROC_ENTRY(sys_preferred_idle_mask_low),
 	PROC_ENTRY(sys_preferred_idle_mask_mid),
 	PROC_ENTRY(sys_preferred_idle_mask_high),
@@ -1460,7 +1580,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(cam_prefer_idle),
 	PROC_ENTRY(cam_prefer_high_cap),
 	PROC_ENTRY(cam_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(cam_group_throttle),
+#endif
 	PROC_ENTRY(cam_preferred_idle_mask_low),
 	PROC_ENTRY(cam_preferred_idle_mask_mid),
 	PROC_ENTRY(cam_preferred_idle_mask_high),
@@ -1470,7 +1592,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(cam_power_prefer_idle),
 	PROC_ENTRY(cam_power_prefer_high_cap),
 	PROC_ENTRY(cam_power_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(cam_power_group_throttle),
+#endif
 	PROC_ENTRY(cam_power_preferred_idle_mask_low),
 	PROC_ENTRY(cam_power_preferred_idle_mask_mid),
 	PROC_ENTRY(cam_power_preferred_idle_mask_high),
@@ -1480,7 +1604,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(bg_prefer_idle),
 	PROC_ENTRY(bg_prefer_high_cap),
 	PROC_ENTRY(bg_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(bg_group_throttle),
+#endif
 	PROC_ENTRY(bg_preferred_idle_mask_low),
 	PROC_ENTRY(bg_preferred_idle_mask_mid),
 	PROC_ENTRY(bg_preferred_idle_mask_high),
@@ -1490,7 +1616,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(sysbg_prefer_idle),
 	PROC_ENTRY(sysbg_prefer_high_cap),
 	PROC_ENTRY(sysbg_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(sysbg_group_throttle),
+#endif
 	PROC_ENTRY(sysbg_preferred_idle_mask_low),
 	PROC_ENTRY(sysbg_preferred_idle_mask_mid),
 	PROC_ENTRY(sysbg_preferred_idle_mask_high),
@@ -1500,7 +1628,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(nnapi_prefer_idle),
 	PROC_ENTRY(nnapi_prefer_high_cap),
 	PROC_ENTRY(nnapi_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(nnapi_group_throttle),
+#endif
 	PROC_ENTRY(nnapi_preferred_idle_mask_low),
 	PROC_ENTRY(nnapi_preferred_idle_mask_mid),
 	PROC_ENTRY(nnapi_preferred_idle_mask_high),
@@ -1510,7 +1640,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(rt_prefer_idle),
 	PROC_ENTRY(rt_prefer_high_cap),
 	PROC_ENTRY(rt_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(rt_group_throttle),
+#endif
 	PROC_ENTRY(rt_preferred_idle_mask_low),
 	PROC_ENTRY(rt_preferred_idle_mask_mid),
 	PROC_ENTRY(rt_preferred_idle_mask_high),
@@ -1520,7 +1652,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(dex2oat_prefer_idle),
 	PROC_ENTRY(dex2oat_prefer_high_cap),
 	PROC_ENTRY(dex2oat_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(dex2oat_group_throttle),
+#endif
 	PROC_ENTRY(dex2oat_preferred_idle_mask_low),
 	PROC_ENTRY(dex2oat_preferred_idle_mask_mid),
 	PROC_ENTRY(dex2oat_preferred_idle_mask_high),
@@ -1530,7 +1664,9 @@ static struct pentry entries[] = {
 	PROC_ENTRY(ota_prefer_idle),
 	PROC_ENTRY(ota_prefer_high_cap),
 	PROC_ENTRY(ota_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(ota_group_throttle),
+#endif
 	PROC_ENTRY(ota_preferred_idle_mask_low),
 	PROC_ENTRY(ota_preferred_idle_mask_mid),
 	PROC_ENTRY(ota_preferred_idle_mask_high),
@@ -1540,12 +1676,28 @@ static struct pentry entries[] = {
 	PROC_ENTRY(sf_prefer_idle),
 	PROC_ENTRY(sf_prefer_high_cap),
 	PROC_ENTRY(sf_task_spreading),
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	PROC_ENTRY(sf_group_throttle),
+#endif
 	PROC_ENTRY(sf_preferred_idle_mask_low),
 	PROC_ENTRY(sf_preferred_idle_mask_mid),
 	PROC_ENTRY(sf_preferred_idle_mask_high),
 	PROC_ENTRY(sf_uclamp_min),
 	PROC_ENTRY(sf_uclamp_max),
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+	// FG util group attributes
+#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
+	PROC_ENTRY(vug_fg_group_throttle),
+#endif
+	PROC_ENTRY(vug_fg_uclamp_min),
+	PROC_ENTRY(vug_fg_uclamp_max),
+	// BG util group attributes
+#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
+	PROC_ENTRY(vug_bg_group_throttle),
+#endif
+	PROC_ENTRY(vug_bg_uclamp_min),
+	PROC_ENTRY(vug_bg_uclamp_max),
+#endif
 	// Vendor group attributes
 	PROC_ENTRY(set_task_group_ta),
 	PROC_ENTRY(set_task_group_fg),

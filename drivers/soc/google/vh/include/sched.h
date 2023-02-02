@@ -15,9 +15,16 @@
 			       __stringify(_new) );
 
 // Maximum size: u64[2] for ANDROID_VENDOR_DATA_ARRAY(1, 2) in task_struct
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+enum vendor_util_group {
+	VUG_FG = 0,
+	VUG_BG,
+	VUG_MAX,
+};
+#endif
 
 enum vendor_group {
-	VG_SYSTEM=0,
+	VG_SYSTEM = 0,
 	VG_TOPAPP,
 	VG_FOREGROUND,
 	VG_CAMERA,

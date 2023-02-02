@@ -72,12 +72,23 @@ struct vendor_group_property {
 	bool prefer_idle;
 	bool prefer_high_cap;
 	bool task_spreading;
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	unsigned int group_throttle;
+#endif
 	cpumask_t preferred_idle_mask_low;
 	cpumask_t preferred_idle_mask_mid;
 	cpumask_t preferred_idle_mask_high;
 	struct uclamp_se uc_req[UCLAMP_CNT];
 };
+
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+struct vendor_util_group_property {
+#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
+	unsigned int group_throttle;
+#endif
+	struct uclamp_se uc_req[UCLAMP_CNT];
+};
+#endif
 
 struct uclamp_stats {
 	spinlock_t lock;
@@ -97,6 +108,15 @@ struct uclamp_stats {
 	u64 effect_time_in_state_max[UCLAMP_STATS_SLOTS];
 };
 
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+struct vendor_cfs_util {
+	raw_spinlock_t lock;
+	struct sched_avg avg;
+	unsigned long util_removed;
+	unsigned long util_est;
+};
+#endif
+
 struct vendor_group_list {
 	struct list_head list;
 	raw_spinlock_t lock;
@@ -111,11 +131,13 @@ enum vendor_group_attribute {
 	VTA_PROC_GROUP,
 };
 
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 struct vendor_task_group_struct {
 	enum vendor_group group;
 };
 
 ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[4], struct vendor_task_group_struct t);
+#endif
 
 extern bool vendor_sched_reduce_prefer_idle;
 extern struct vendor_group_property vg[VG_MAX];
@@ -152,11 +174,12 @@ static inline unsigned long task_util_est(struct task_struct *p)
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
-
+#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 static inline struct vendor_task_group_struct *get_vendor_task_group_struct(struct task_group *tg)
 {
 	return (struct vendor_task_group_struct *)tg->android_vendor_data1;
 }
+#endif
 
 struct vendor_rq_struct {
 	raw_spinlock_t lock;
