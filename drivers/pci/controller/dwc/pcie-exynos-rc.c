@@ -91,6 +91,7 @@ static void exynos_d3_sleep_hook(void *unused, struct pci_dev *dev,
 
 #define MODEM_CH_NUM    0
 #define WIFI_CH_NUM     1
+#define NUM_PMA_REGS	2048
 
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 struct phys_mem {
@@ -341,6 +342,53 @@ static const struct dma_map_ops pcie_dma_ops = {
 	.get_merge_boundary = NULL,
 };
 #endif
+
+static void save_pma_regs(struct exynos_pcie *exynos_pcie)
+{
+	struct device *dev = exynos_pcie->pci->dev;
+	u32 *save;
+	int i;
+
+	if (!exynos_pcie)
+		return;
+
+	if (exynos_pcie->pma_regs_valid)
+		return;
+
+	save = exynos_pcie->pma_regs;
+	for (i = 0; i < NUM_PMA_REGS; i++) {
+		*save = exynos_phy_read(exynos_pcie, i * sizeof(u32));
+		dev_dbg(dev, "i=%d val=0x%08x\n", i, *save);
+		save++;
+	}
+	exynos_pcie->pma_regs_valid = true;
+}
+
+static void restore_pma_regs(struct exynos_pcie *exynos_pcie)
+{
+	struct device *dev = exynos_pcie->pci->dev;
+	u32 *save;
+	u32 val;
+	int i;
+
+	if (!exynos_pcie)
+		return;
+
+	if (!exynos_pcie->pma_regs_valid) {
+		dev_err(dev, "pma regs are not valid, restore skipped\n");
+		return;
+	}
+
+	save = exynos_pcie->pma_regs;
+	for (i = 0; i < NUM_PMA_REGS; i++) {
+		val = exynos_phy_read(exynos_pcie, i * sizeof(u32));
+		if (val != *save)
+			dev_err(dev, "diff i=%d curr_val=0x%08x save_val=0x%08x\n",
+				i, val, *save);
+		exynos_phy_write(exynos_pcie, *save, i * sizeof(u32));
+		save++;
+	}
+}
 
 static void exynos_pcie_phy_isolation(struct exynos_pcie *exynos_pcie, int val)
 {
@@ -3008,6 +3056,8 @@ retry:
 			try_cnt, LINK_STATE_DISP(val), val);
 		exynos_pcie->link_stats.link_up_failure_count++;
 
+		restore_pma_regs(exynos_pcie);
+
 		if (try_cnt < 10) {
 			gpio_set_value(exynos_pcie->perst_gpio, 0);
 			dev_dbg(dev, "%s: Set PERST to LOW, gpio val = %d\n", __func__,
@@ -3038,6 +3088,8 @@ retry:
 		      & PCIE_ELBI_LTSSM_STATE_MASK;
 		dev_info(dev, "%s(0x%x)\n", LINK_STATE_DISP(val), val);
 		link_stats_log_link_up(exynos_pcie, count);
+
+		save_pma_regs(exynos_pcie);
 
 		dev_dbg(dev, "(phy+0xC08=0x%x)(phy+0x1408=0x%x)(phy+0xC6C=0x%x)(phy+0x146C=0x%x)\n",
 			exynos_phy_read(exynos_pcie, 0xC08),
@@ -4878,6 +4930,14 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 
 	pp = &pci->pp;
 	pp->ops = &exynos_pcie_rc_ops;
+
+	/* Reserve memory for pma_regs that may need to be restored on
+	 * pcie link up failure.
+	 */
+	exynos_pcie->pma_regs = devm_kcalloc(&pdev->dev, NUM_PMA_REGS,
+					     sizeof(u32), GFP_KERNEL);
+	if (!exynos_pcie->pma_regs)
+		return -ENOMEM;
 
 	spin_lock_init(&exynos_pcie->pcie_l1_exit_lock);
 	spin_lock_init(&exynos_pcie->conf_lock);

@@ -245,6 +245,7 @@ struct exynos_pcie {
 	void __iomem		*rc_dbi_base;
 	void __iomem		*phy_pcs_base;
 	void __iomem		*ia_base;
+	u32			*pma_regs;
 	u32			elbi_base_physical_addr;
 	u32			phy_base_physical_addr;
 	u32			ia_base_physical_addr;
@@ -280,6 +281,7 @@ struct exynos_pcie {
 	bool			use_nclkoff_en;
 	bool                    cpl_timeout_recovery;
 	bool			sudden_linkdown;
+	bool			pma_regs_valid;
 	spinlock_t		conf_lock;		/* pcie config - link status change */
 	spinlock_t		reg_lock;		/* pcie config - reg_lock(reserved) */
 	spinlock_t		pcie_l1_exit_lock;	/* pcie l1.2 exit - ctrl_id_state */
