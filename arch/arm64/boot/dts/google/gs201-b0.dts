@@ -677,7 +677,7 @@
 			cooling-maps {
 				map0 {
 					trip = <&aur_control_temp>;
-					cooling-device = <&gxp_cooling 0 0>;
+					cooling-device = <&gxp_cooling 0 6>;
 				};
 			};
 		};
