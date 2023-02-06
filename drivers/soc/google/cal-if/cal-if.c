@@ -11,6 +11,8 @@
 #include <soc/google/exynos-bcm_dbg.h>
 #endif
 
+#include <trace/events/power.h>
+
 #include "pwrcal-env.h"
 #include "pwrcal-rae.h"
 #include "cmucal.h"
@@ -258,18 +260,27 @@ EXPORT_SYMBOL_GPL(cal_pd_set_smc_id);
 
 int cal_pm_enter(int mode)
 {
+	char clock_name[32] = {0};
+	scnprintf(clock_name, 32, "CAL_PM_ENTER_%d", mode);
+	trace_clock_set_rate(clock_name, 1, raw_smp_processor_id());
 	return pmucal_system_enter(mode);
 }
 EXPORT_SYMBOL_GPL(cal_pm_enter);
 
 int cal_pm_exit(int mode)
 {
+	char clock_name[32] = {0};
+	scnprintf(clock_name, 32, "CAL_PM_ENTER_%d", mode);
+	trace_clock_set_rate(clock_name, 0, raw_smp_processor_id());
 	return pmucal_system_exit(mode);
 }
 EXPORT_SYMBOL_GPL(cal_pm_exit);
 
 int cal_pm_earlywakeup(int mode)
 {
+	char clock_name[32] = {0};
+	scnprintf(clock_name, 32, "CAL_PM_ENTER_%d", mode);
+	trace_clock_set_rate(clock_name, 0, raw_smp_processor_id());
 	return pmucal_system_earlywakeup(mode);
 }
 EXPORT_SYMBOL_GPL(cal_pm_earlywakeup);
@@ -313,10 +324,14 @@ EXPORT_SYMBOL_GPL(cal_cpu_status);
 int cal_cluster_enable(unsigned int cluster)
 {
 	int ret;
+	char clock_name[32] = {0};
 
 	spin_lock(&pmucal_cpu_lock);
 	ret = pmucal_cpu_cluster_enable(cluster);
 	spin_unlock(&pmucal_cpu_lock);
+
+	scnprintf(clock_name, 32, "CAL_CLUSTER_ENABLE_%u", cluster);
+	trace_clock_set_rate(clock_name, 1, raw_smp_processor_id());
 
 	return ret;
 }
@@ -325,10 +340,15 @@ EXPORT_SYMBOL_GPL(cal_cluster_enable);
 int cal_cluster_disable(unsigned int cluster)
 {
 	int ret;
+	char clock_name[32] = {0};
 
 	spin_lock(&pmucal_cpu_lock);
 	ret = pmucal_cpu_cluster_disable(cluster);
 	spin_unlock(&pmucal_cpu_lock);
+
+
+	scnprintf(clock_name, 32, "CAL_CLUSTER_ENABLE_%u", cluster);
+	trace_clock_set_rate(clock_name, 0, raw_smp_processor_id());
 
 	return ret;
 }
