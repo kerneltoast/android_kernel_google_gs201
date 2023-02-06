@@ -1077,6 +1077,7 @@
 	serial_18: serial@181B0000 {
 		compatible = "samsung,exynos-uart";
 		samsung,fifo-size = <256>;
+		samsung,rts-trig-level = <0x01>;
 		reg-io-width = <4>;
 		samsung,separate-uart-clk;
 		samsung,usi-serial-v2;
