@@ -456,6 +456,9 @@
 		/* Device node name */
 		node-name = "ipp";
 
+		/* Thread priority */
+		transaction-thread-priority = <99>;
+
 		/* Register space */
 		reg =
 			<0x0 0x1AC40000 0x10000>, /* IPP0 */
@@ -623,6 +626,9 @@
 
 		/* Device node name */
 		node-name = "g3aa";
+
+		/* Thread priority */
+		transaction-thread-priority = <99>;
 
 		/* Register space */
 		reg =

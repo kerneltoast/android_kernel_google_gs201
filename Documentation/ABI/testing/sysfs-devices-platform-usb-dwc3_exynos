@@ -35,3 +35,11 @@ Description:
 		add the delay time. When userspace enables the specific usb functions,
 		userspace should also write "1" to the file. Otherwise, userspace should
 		write "0" to the file.
+
+What:		/sys/devices/platform/*.usb/dwc3_exynos_gadget_state
+Date:		Feb, 2023
+Contact:	Ray Chi <raychi@google.com>
+Description:
+		This file is used to show the gadget state of dwc3-exynos driver. If
+		peripheral mode is active, it will display "1", otherwise "0".
+		Userspace can read this file to know gadget state of dwc3-exynos.

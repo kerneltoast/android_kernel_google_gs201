@@ -40,6 +40,8 @@ struct max77759_plat {
 	enum typec_data_role active_data_role;
 	/* Data role from the TCPM stack */
 	enum typec_data_role data_role;
+	/* CC polarity from the TCPM stack */
+	enum typec_cc_polarity polarity;
 	/* protects tcpc_enable_data_path */
 	struct mutex data_path_lock;
 	/* Vote for data from BC1.2 */
@@ -204,4 +206,5 @@ enum tcpm_psy_online_states {
 void enable_data_path_locked(struct max77759_plat *chip);
 void data_alt_path_active(struct max77759_plat *chip, bool active);
 void register_data_active_callback(void (*callback)(void *data_active_payload), void *data);
+void register_orientation_callback(void (*callback)(void *orientation_payload), void *data);
 #endif /* __TCPCI_MAX77759_H */

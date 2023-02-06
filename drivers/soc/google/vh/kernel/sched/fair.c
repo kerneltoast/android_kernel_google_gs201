@@ -26,7 +26,7 @@ extern bool vendor_sched_npi_packing;
 unsigned int sched_capacity_margin[CPU_NUM] = {
 			[0 ... CPU_NUM-1] = DEF_UTIL_THRESHOLD };
 
-extern struct vendor_group_list vendor_group_list[VG_MAX];
+struct vendor_group_property vg[VG_MAX];
 
 extern struct vendor_group_list vendor_group_list[VG_MAX];
 
