@@ -929,7 +929,7 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 		util = max_t(long, READ_ONCE(rq->cfs.avg.util_avg) - unclamped_util + util, 0);
 
 	if (sched_feat(UTIL_EST)) {
-		util_est = READ_ONCE(cfs_rq->avg.util_est.enqueued);
+		util_est = READ_ONCE(rq->cfs.avg.util_est.enqueued);
 
 		if (dst_cpu == cpu)
 			util_est += _task_util_est(p);
