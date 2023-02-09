@@ -77,6 +77,8 @@ extern void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
 	const struct cpumask *cpu_valid_mask, const struct cpumask *new_mask, int *dest_cpu);
 void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_flags *rf,
 		int *pulled_task, int *done);
+extern void rvh_can_migrate_task_pixel_mod(void *data, struct task_struct *p, int dst_cpu,
+						int *can_migrate);
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 extern void rvh_attach_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_rq,
 						 struct sched_entity *se);
@@ -184,6 +186,10 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_rvh_dequeue_task(rvh_dequeue_task_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_can_migrate_task(rvh_can_migrate_task_pixel_mod, NULL);
 	if (ret)
 		return ret;
 

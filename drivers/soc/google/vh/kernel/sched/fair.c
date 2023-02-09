@@ -2729,6 +2729,21 @@ void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_f
 	return;
 }
 
+void rvh_can_migrate_task_pixel_mod(void *data, struct task_struct *mp,
+	int dst_cpu, int *can_migrate)
+{
+	struct vendor_task_struct *mvp = get_vendor_task_struct(mp);
+	struct vendor_rq_struct *vrq = get_vendor_rq_struct(cpu_rq(dst_cpu));
+
+	if (!mvp->uclamp_fork_reset || !get_prefer_idle(mp))
+		return;
+
+	lockdep_assert_held(&cpu_rq(dst_cpu)->lock);
+
+	if (atomic_read(&vrq->num_adpf_tasks))
+		*can_migrate = 0;
+}
+
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 void rvh_attach_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_rq,
 					  struct sched_entity *se)
