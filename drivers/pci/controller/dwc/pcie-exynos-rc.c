@@ -396,6 +396,7 @@ static void exynos_pcie_phy_isolation(struct exynos_pcie *exynos_pcie, int val)
 	int ret;
 
 	dev_dbg(dev, "PCIe PHY ISOLATION = %d\n", val);
+	logbuffer_log(exynos_pcie->log, "Phy isolation val=%d", val);
 	exynos_pcie->phy_control = val;
 	ret = rmw_priv_reg(exynos_pcie->pmu_alive_pa +
 			   exynos_pcie->pmu_offset, PCIE_PHY_CONTROL_MASK, val);
@@ -917,13 +918,15 @@ static int check_exynos_pcie_reg_status(struct exynos_pcie *exynos_pcie,
 
 	timestamp = ktime_sub(ktime_get(), timestamp);
 	dev_dbg(exynos_pcie->pci->dev, "elapsed time: %lld uS\n", ktime_to_us(timestamp));
+	logbuffer_log(exynos_pcie->log, "elapsed time: %lld uS", ktime_to_us(timestamp));
 
 	if (status == 0)
-		dev_err(exynos_pcie->pci->dev, "status 0x%x failed\n",
-			offset);
-	else
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR, "status 0x%x failed", offset);
+	else {
 		dev_dbg(exynos_pcie->pci->dev, "status 0x%x passed cnt=%d\n",
 			offset, i);
+		logbuffer_log(exynos_pcie->log, "status 0x%x passed cnt=%d", offset, i);
+	}
 
 	return status;
 }
@@ -2548,6 +2551,8 @@ void exynos_pcie_rc_resumed_phydown(struct pcie_port *pp)
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	int ret;
 
+	logbuffer_log(exynos_pcie->log, "resumed_phydown");
+
 	ret = exynos_pcie_rc_clock_enable(pp, PCIE_ENABLE_CLOCK);
 	dev_dbg(dev, "pcie clk enable, ret value = %d\n", ret);
 
@@ -2694,14 +2699,16 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 
 	/* only support after EXYNOS9820 EVT 1.1 */
 	if (val_irq1 & IRQ_LINK_DOWN_ASSERT) {
-		dev_info(dev, "! PCIE LINK DOWN-irq1_state: 0x%x !\n", val_irq1);
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_INFO,
+			       "! PCIE LINK DOWN-irq1_state: 0x%x !", val_irq1);
 		dev_info(dev, "(irq0 = 0x%x, irq1 = 0x%x, irq2 = 0x%x)\n",
 			 val_irq0, val_irq1, val_irq2);
 		exynos_pcie->link_stats.link_down_irq_count++;
 
-		if (exynos_pcie->cpl_timeout_recovery) {
-			dev_err(dev, "already in cpl recovery\n");
-		} else {
+		if (exynos_pcie->cpl_timeout_recovery)
+			logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR, "already in cpl recovery");
+		else {
+			logbuffer_log(exynos_pcie->log, "start linkdown recovery");
 			exynos_pcie->sudden_linkdown = 1;
 			exynos_pcie->state = STATE_LINK_DOWN_TRY;
 			queue_work(exynos_pcie->pcie_wq, &exynos_pcie->dislink_work.work);
@@ -2709,7 +2716,8 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 	}
 
 	if (val_irq2 & IRQ_RADM_CPL_TIMEOUT_ASSERT) {
-		dev_info(dev, "!! PCIE_CPL_TIMEOUT-irq2_state: 0x%x !!\n", val_irq2);
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_INFO,
+			       "!! PCIE_CPL_TIMEOUT-irq2_state: 0x%x !!", val_irq2);
 		dev_info(dev, "(irq0 = 0x%x, irq1 = 0x%x, irq2 = 0x%x)\n",
 				val_irq0, val_irq1, val_irq2);
 		exynos_pcie->link_stats.cmpl_timeout_irq_count++;
@@ -2717,12 +2725,15 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 		val_irq2 = exynos_elbi_read(exynos_pcie, PCIE_IRQ2);
 		dev_info(dev, "check irq22 pending clear: irq2_state = 0x%x\n", val_irq2);
 
-		if (exynos_pcie->sudden_linkdown) {
-			dev_err(dev, "in linkdown recovery\n");
-		} else {
-			if (exynos_pcie->cpl_timeout_recovery) {
-				dev_err(dev, "in cpl recovery\n");
-			} else {
+		if (exynos_pcie->sudden_linkdown)
+			logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+				       "already in linkdown recovery");
+		else {
+			if (exynos_pcie->cpl_timeout_recovery)
+				logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+					      "in cpl recovery");
+			else {
+				logbuffer_log(exynos_pcie->log, "start cpl recovery");
 				exynos_pcie->cpl_timeout_recovery = 1;
 				exynos_pcie->state = STATE_LINK_DOWN_TRY;
 				queue_work(exynos_pcie->pcie_wq,
@@ -2865,10 +2876,15 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 	/* L1.2 enable check */
 	dev_dbg(dev, "Current PM state(PCS + 0x188) : 0x%x\n",
 		readl(exynos_pcie->phy_pcs_base + 0x188));
+	logbuffer_log(exynos_pcie->log, "Current PM state(PCS + 0x188) : 0x%x",
+		      readl(exynos_pcie->phy_pcs_base + 0x188));
 	dev_dbg(dev, "DBI Link Control Register: 0x%x\n", readl(exynos_pcie->rc_dbi_base + 0x80));
+	logbuffer_log(exynos_pcie->log, "DBI Link Control Register: 0x%x",
+		      readl(exynos_pcie->rc_dbi_base + 0x80));
 
 	val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & PCIE_ELBI_LTSSM_STATE_MASK;
 	dev_dbg(dev, "%s: link state:%x\n", __func__, val);
+	logbuffer_log(exynos_pcie->log, "link state:%x", val);
 	if (!(val >= S_RCVRY_LOCK && val <= S_L1_IDLE)) {
 		dev_info(dev, "%s, pcie link is not up\n", __func__);
 
@@ -2882,10 +2898,12 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 	exynos_elbi_write(exynos_pcie, val, PCIE_APP_REQ_EXIT_L1_MODE);
 
 	exynos_elbi_write(exynos_pcie, 0x1, XMIT_PME_TURNOFF);
+	logbuffer_log(exynos_pcie->log, "Xmit OFF sent");
 
 	while (count < MAX_L2_TIMEOUT) {
 		if ((exynos_elbi_read(exynos_pcie, PCIE_IRQ0) & IRQ_RADM_PM_TO_ACK)) {
 			dev_dbg(dev, "ack message is ok\n");
+			logbuffer_log(exynos_pcie->log, "ack message is ok");
 			udelay(10);
 
 			break;
@@ -2895,7 +2913,8 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 		count++;
 	}
 	if (count >= MAX_L2_TIMEOUT)
-		dev_err(dev, "cannot receive ack message from EP\n");
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+			       "cannot receive ack message from EP");
 
 	exynos_elbi_write(exynos_pcie, 0x0, XMIT_PME_TURNOFF);
 
@@ -2905,7 +2924,7 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 		      & PCIE_ELBI_LTSSM_STATE_MASK;
 		if (val == S_L2_IDLE) {
 			dev_dbg(dev, "received Enter_L23_READY DLLP packet\n");
-
+			logbuffer_log(exynos_pcie->log, "received Enter_L23_READY DLLP packet");
 			break;
 		}
 		udelay(10);
@@ -2913,7 +2932,8 @@ static void exynos_pcie_rc_send_pme_turn_off(struct exynos_pcie *exynos_pcie)
 	} while (count < MAX_L2_TIMEOUT);
 
 	if (count >= MAX_L2_TIMEOUT)
-		dev_err(dev, "cannot receive L23_READY DLLP packet(0x%x)\n", val);
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+			       "cannot receive L23_READY DLLP packet(0x%x)", val);
 }
 
 static int exynos_pcie_rc_establish_link(struct pcie_port *pp)
@@ -2949,6 +2969,10 @@ retry:
 		dev_err(dev, "OC Fail : PLL_LOCK : 0x%x, CDR_LOCK : 0x%x, OC : 0x%x\n",
 			pll_lock, cdr_lock, oc_done);
 
+	logbuffer_log(exynos_pcie->log,
+		      "PLL_LOCK : 0x%x, CDR_LOCK : 0x%x, OC_DONE : 0x%x",
+		      pll_lock, cdr_lock, oc_done);
+
 	/* Soft Power RST */
 	val = exynos_elbi_read(exynos_pcie, PCIE_SOFT_RESET);
 	val &= ~SOFT_PWR_RESET;
@@ -2960,12 +2984,13 @@ retry:
 
 	val = exynos_phy_read(exynos_pcie, 0x0E18) & (1 << 7);
 	if (!val) {
-		dev_err(dev, "OC Fail after soft power reset!\n");
-		dev_err(dev, "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)\n",
-			exynos_phy_read(exynos_pcie, 0x760),
-			exynos_phy_read(exynos_pcie, 0xE0C),
-			exynos_phy_read(exynos_pcie, 0x3F0),
-			exynos_phy_read(exynos_pcie, 0xFC0));
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR, "OC Fail after soft power reset!");
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+			      "PMA Info : 0x760(0x%x), 0xE0C(0x%x), 0x3F0(0x%x), 0xFC0(0x%x)",
+			      exynos_phy_read(exynos_pcie, 0x760),
+			      exynos_phy_read(exynos_pcie, 0xE0C),
+			      exynos_phy_read(exynos_pcie, 0x3F0),
+			      exynos_phy_read(exynos_pcie, 0xFC0));
 	}
 	/* Device Type (Sub Controller: DEVICE_TYPE offset: 0x80  */
 	exynos_elbi_write(exynos_pcie, 0x04, 0x80);
@@ -3028,7 +3053,7 @@ retry:
 	if (exynos_pcie->use_cache_coherency)
 		exynos_pcie_rc_set_iocc(pp, 1);
 
-	dev_info(dev, "D state: %x, LTSSM: %x\n",
+	logbuffer_logk(exynos_pcie->log, LOGLEVEL_INFO, "D state: %x, LTSSM: %x",
 		exynos_elbi_read(exynos_pcie, PCIE_PM_DSTATE) & PCIE_PM_DSTATE_MASK,
 		exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP) & PCIE_ELBI_LTSSM_STATE_MASK);
 
@@ -3052,8 +3077,9 @@ retry:
 
 		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
 		      & PCIE_ELBI_LTSSM_STATE_MASK;
-		dev_err(dev, "Link is not up, try count: %d, linksts: %s(0x%x)\n",
-			try_cnt, LINK_STATE_DISP(val), val);
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+			       "Link is not up, try count: %d, linksts: %s(0x%x)",
+			       try_cnt, LINK_STATE_DISP(val), val);
 		exynos_pcie->link_stats.link_up_failure_count++;
 
 		restore_pma_regs(exynos_pcie);
@@ -3062,6 +3088,8 @@ retry:
 			gpio_set_value(exynos_pcie->perst_gpio, 0);
 			dev_dbg(dev, "%s: Set PERST to LOW, gpio val = %d\n", __func__,
 				gpio_get_value(exynos_pcie->perst_gpio));
+			logbuffer_log(exynos_pcie->log, "%s: Set PERST to LOW, gpio val = %d",
+				      __func__, gpio_get_value(exynos_pcie->perst_gpio));
 			/* LTSSM disable */
 			exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE,
 					  PCIE_APP_LTSSM_ENABLE);
@@ -3086,7 +3114,8 @@ retry:
 	} else {
 		val = exynos_elbi_read(exynos_pcie, PCIE_ELBI_RDLH_LINKUP)
 		      & PCIE_ELBI_LTSSM_STATE_MASK;
-		dev_info(dev, "%s(0x%x)\n", LINK_STATE_DISP(val), val);
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_INFO, "%s(0x%x)", LINK_STATE_DISP(val),
+			       val);
 		link_stats_log_link_up(exynos_pcie, count);
 
 		save_pma_regs(exynos_pcie);
@@ -3096,6 +3125,12 @@ retry:
 			exynos_phy_read(exynos_pcie, 0x1408),
 			exynos_phy_read(exynos_pcie, 0xC6C),
 			exynos_phy_read(exynos_pcie, 0x146C));
+		logbuffer_log(exynos_pcie->log,
+			      "(phy+0xC08=0x%x)(phy+0x1408=0x%x)(phy+0xC6C=0x%x)(phy+0x146C=0x%x)",
+			      exynos_phy_read(exynos_pcie, 0xC08),
+			      exynos_phy_read(exynos_pcie, 0x1408),
+			      exynos_phy_read(exynos_pcie, 0xC6C),
+			      exynos_phy_read(exynos_pcie, 0x146C));
 
 		/* need delay for link speed change from GEN1 to Max(ex GEN3) */
 		usleep_range(2800, 3000); /* 3 ms - OK */
@@ -3104,6 +3139,8 @@ retry:
 		val = (val >> 16) & 0xf;
 		dev_dbg(dev, "Current Link Speed is GEN%d (MAX GEN%d)\n",
 			val, exynos_pcie->max_link_speed);
+		logbuffer_log(exynos_pcie->log, "Current Link Speed is GEN%d (MAX GEN%d)",
+			      val, exynos_pcie->max_link_speed);
 
 		/* check link training result(speed) */
 		if (exynos_pcie->ip_ver >= 0x982000 && val < exynos_pcie->max_link_speed) {
@@ -3178,6 +3215,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 	dev = pci->dev;
 
 	dev_dbg(dev, "start poweron, state: %d\n", exynos_pcie->state);
+	logbuffer_log(exynos_pcie->log, "start poweron, state: %d", exynos_pcie->state);
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		if (exynos_pcie->use_phy_isol_con)
 			exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
@@ -3188,6 +3226,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 		}
 		ret = exynos_pcie_rc_clock_enable(pp, PCIE_ENABLE_CLOCK);
 		dev_dbg(dev, "pcie clk enable, ret value = %d\n", ret);
+		logbuffer_log(exynos_pcie->log, "pcie clk enable, ret value = %d", ret);
 
 #if IS_ENABLED(CONFIG_CPU_IDLE)
 		if (exynos_pcie->use_sicd) {
@@ -3202,6 +3241,8 @@ int exynos_pcie_rc_poweron(int ch_num)
 						     exynos_pcie->int_min_lock);
 			dev_dbg(dev, "%s: pcie int_min_lock = %d\n",
 				__func__, exynos_pcie->int_min_lock);
+			logbuffer_log(exynos_pcie->log, "%s: pcie int_min_lock = %d", __func__,
+				      exynos_pcie->int_min_lock);
 		}
 #endif
 		/* Enable SysMMU */
@@ -3230,7 +3271,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 		enable_irq(pp->irq);
 
 		if (exynos_pcie_rc_establish_link(pp)) {
-			dev_err(dev, "pcie link up fail\n");
+			logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR, "pcie link up fail");
 			goto poweron_fail;
 		}
 
@@ -3259,11 +3300,14 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 			exynos_pcie->pci_dev = pci_get_device(vendor_id, device_id, NULL);
 			if (!exynos_pcie->pci_dev) {
-				dev_err(dev, "Failed to get pci device\n");
+				logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+					       "Failed to get pci device");
 
 				goto poweron_fail;
 			}
 			dev_dbg(dev, "(%s):ep_pci_device:vendor/device id = 0x%x\n", __func__, val);
+			logbuffer_log(exynos_pcie->log, "ep_pci_device:vendor/device id = 0x%x",
+				      val);
 
 			pci_rescan_bus(exynos_pcie->pci_dev->bus);
 			if (exynos_pcie->use_msi) {
@@ -3302,8 +3346,9 @@ int exynos_pcie_rc_poweron(int ch_num)
 			if (exynos_pcie->use_msi) {
 				ret = exynos_pcie_rc_msi_init(pp);
 				if (ret) {
-					dev_err(dev, "%s: Failed MSI initialization(%d)\n",
-						__func__, ret);
+					logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+						      "%s: Failed MSI initialization(%d)",
+						      __func__, ret);
 
 					return ret;
 				}
@@ -3311,7 +3356,8 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 			if (pci_load_saved_state(exynos_pcie->pci_dev,
 						 exynos_pcie->pci_saved_configs)) {
-				dev_err(dev, "Failed to load pcie state\n");
+				logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+					       "Failed to load pcie state");
 
 				goto poweron_fail;
 			}
@@ -3320,6 +3366,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 	}
 
 	dev_dbg(dev, "end poweron, state: %d\n", exynos_pcie->state);
+	logbuffer_log(exynos_pcie->log, "end poweron, state: %d\n", exynos_pcie->state);
 
 	return 0;
 
@@ -3349,6 +3396,7 @@ void exynos_pcie_rc_poweroff(int ch_num)
 	dev = pci->dev;
 
 	dev_dbg(dev, "start poweroff, state: %d\n", exynos_pcie->state);
+	logbuffer_log(exynos_pcie->log, "start poweroff, state: %d", exynos_pcie->state);
 
 	if (exynos_pcie->state == STATE_LINK_UP ||
 	    exynos_pcie->state == STATE_LINK_DOWN_TRY) {
@@ -3387,6 +3435,8 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		gpio_set_value(exynos_pcie->perst_gpio, 0);
 		dev_dbg(dev, "%s: Set PERST to LOW, gpio val = %d\n",
 			__func__, gpio_get_value(exynos_pcie->perst_gpio));
+		logbuffer_log(exynos_pcie->log, "%s: Set PERST to LOW, gpio val = %d", __func__,
+			      gpio_get_value(exynos_pcie->perst_gpio));
 
 		/* LTSSM disable */
 		exynos_elbi_write(exynos_pcie, PCIE_ELBI_LTSSM_DISABLE, PCIE_APP_LTSSM_ENABLE);
@@ -3434,20 +3484,23 @@ void exynos_pcie_rc_poweroff(int ch_num)
 
 	if (exynos_pcie->use_pcieon_sleep) {
 		dev_dbg(dev, "%s, pcie_is_linkup 0\n", __func__);
+		logbuffer_log(exynos_pcie->log, "%s, pcie_is_linkup 0", __func__);
 		pcie_is_linkup = 0;
 	}
 
 	dev_dbg(dev, "end poweroff, state: %d\n", exynos_pcie->state);
+	logbuffer_log(exynos_pcie->log, "end poweroff, state: %d\n", exynos_pcie->state);
 }
 
 void exynos_pcie_pm_suspend(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
-	struct dw_pcie *pci = exynos_pcie->pci;
 	unsigned long flags;
 
+	logbuffer_log(exynos_pcie->log, "pm_suspend api called");
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
-		dev_info(pci->dev, "RC%d already off\n", exynos_pcie->ch_num);
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_INFO, "RC%d already off",
+			       exynos_pcie->ch_num);
 
 		return;
 	}
@@ -3462,6 +3515,9 @@ EXPORT_SYMBOL_GPL(exynos_pcie_pm_suspend);
 
 int exynos_pcie_pm_resume(int ch_num)
 {
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+
+	logbuffer_log(exynos_pcie->log, "pm_resume api called");
 	return exynos_pcie_rc_poweron(ch_num);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_pm_resume);
@@ -3470,6 +3526,8 @@ bool exynos_pcie_rc_get_sudden_linkdown_state(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
 
+	logbuffer_log(exynos_pcie->log, "get_sudden_linkdown state=%d",
+		      exynos_pcie->sudden_linkdown);
 	return exynos_pcie->sudden_linkdown;
 }
 EXPORT_SYMBOL(exynos_pcie_rc_get_sudden_linkdown_state);
@@ -5113,6 +5171,7 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 	u32 val, val_irq0, val_irq1, val_irq2;
 
+	logbuffer_log(exynos_pcie->log, "pm_suspend_no_irq called");
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		dev_info(dev, "PCIe PMU ISOLATION\n");
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
@@ -5163,6 +5222,7 @@ static int exynos_pcie_rc_resume_noirq(struct device *dev)
 	u32 val;
 
 	dev_dbg(dev, "## RESUME[%s] pcie_is_linkup: %d)\n", __func__, pcie_is_linkup);
+	logbuffer_log(exynos_pcie->log, "pm_resume_no_irq called");
 
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
 		dev_dbg(dev, "[%s] dislink state after resume -> phy pwr off\n", __func__);
@@ -5181,6 +5241,7 @@ static int exynos_pcie_suspend_prepare(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 
+	logbuffer_log(exynos_pcie->log, "suspend_prepare called");
 	if (exynos_pcie->use_phy_isol_con)
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_BYPASS);
 
@@ -5199,6 +5260,7 @@ static void exynos_pcie_resume_complete(struct device *dev)
 {
 	struct exynos_pcie *exynos_pcie = dev_get_drvdata(dev);
 
+	logbuffer_log(exynos_pcie->log, "resume_complete called");
 	if (exynos_pcie->use_phy_isol_con &&
 	    exynos_pcie->state == STATE_LINK_DOWN)
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
