@@ -1017,6 +1017,84 @@ static void vsafe0v_debounce_work(struct kthread_work *work)
 	tcpm_vbus_change(tcpci->port);
 }
 
+void disconnect_missing_rp_partner(struct max77759_plat *chip)
+{
+	union power_supply_propval val;
+	int ret;
+
+	logbuffer_log(chip->log, "Disconnect missing Rp partner");
+	val.intval = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+	max77759_set_vbus(chip->tcpci, chip->tcpci->data, false, false);
+	update_compliance_warnings(chip, COMPLIANCE_WARNING_MISSING_RP, false);
+	chip->vbus_mv = 0;
+	/* val.intval does not matter */
+	ret = power_supply_set_property(chip->usb_psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &val);
+	if (ret < 0)
+		logbuffer_log(chip->log, "unable to set max voltage to %d, ret=%d",
+			      chip->vbus_mv, ret);
+	if (power_supply_set_property(chip->usb_psy, POWER_SUPPLY_PROP_USB_TYPE, &val))
+		logbuffer_log(chip->log, "missing_rp: usb_psy set unknown failed");
+	usb_psy_set_sink_state(chip->usb_psy_data, false);
+}
+
+static void check_missing_rp_work(struct kthread_work *work)
+{
+	struct max77759_plat *chip  =
+		container_of(container_of(work, struct kthread_delayed_work, work),
+			     struct max77759_plat, check_missing_rp_work);
+	union power_supply_propval val;
+	unsigned int pwr_status;
+	int ret;
+
+	ret = regmap_read(chip->data.regmap, TCPC_POWER_STATUS, &pwr_status);
+	if (ret < 0) {
+		logbuffer_log(chip->log,
+			      "Abort %s; TCPC_POWER_STATUS read error", __func__);
+		return;
+	}
+
+	if (!!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES) &&
+	    cc_open_or_toggling(chip->cc1, chip->cc2) && !chip->compliance_warnings->missing_rp) {
+		logbuffer_log(chip->log, "%s: Missing Rp partner detected. Enable WAR", __func__);
+		/* Assume DCP for missing Rp non-compliant power source */
+		val.intval = POWER_SUPPLY_USB_TYPE_DCP;
+		max77759_set_vbus(chip->tcpci, chip->tcpci->data, false, true);
+		if (power_supply_set_property(chip->usb_psy, POWER_SUPPLY_PROP_USB_TYPE, &val))
+			logbuffer_log(chip->log, "%s: usb_psy set dcp failed", __func__);
+		chip->vbus_mv = 5000;
+		/* val.intval does not matter */
+		ret = power_supply_set_property(chip->usb_psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &val);
+		if (ret < 0)
+			logbuffer_log(chip->log, "%s: unable to set max voltage to %d, ret=%d",
+				      chip->vbus_mv, ret, __func__);
+		update_compliance_warnings(chip, COMPLIANCE_WARNING_MISSING_RP, true);
+		usb_psy_set_sink_state(chip->usb_psy_data, true);
+	} else if (chip->compliance_warnings->missing_rp) {
+		disconnect_missing_rp_partner(chip);
+	}
+}
+
+static void check_missing_rp(struct max77759_plat *chip, bool vbus_present,
+			     enum typec_cc_status cc1, enum typec_cc_status cc2)
+{
+	unsigned int pwr_status;
+	int ret;
+
+	ret = regmap_read(chip->data.regmap, TCPC_POWER_STATUS, &pwr_status);
+	if (ret < 0) {
+		logbuffer_log(chip->log,
+			      "Abort %s; TCPC_POWER_STATUS read error", __func__);
+		return;
+	}
+
+	if (!!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES) && cc_open_or_toggling(cc1, cc2)) {
+		kthread_mod_delayed_work(chip->wq, &chip->check_missing_rp_work,
+					 msecs_to_jiffies(2000));
+	} else if (chip->compliance_warnings->missing_rp) {
+		kthread_cancel_delayed_work_sync(&chip->check_missing_rp_work);
+		disconnect_missing_rp_partner(chip);
+	}
+}
 
 static void process_power_status(struct max77759_plat *chip)
 {
@@ -1072,6 +1150,8 @@ static void process_power_status(struct max77759_plat *chip)
 		chip->vbus_present = 0;
 	logbuffer_log(chip->log, "[%s]: vbus_present %d", __func__, chip->vbus_present);
 	tcpm_vbus_change(tcpci->port);
+	/* Check for missing-rp non compliant power source */
+	check_missing_rp(chip, !!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES), chip->cc1, chip->cc2);
 
 	if (chip->quick_ramp_vbus_ovp && chip->vbus_present) {
 		kthread_cancel_delayed_work_sync(&chip->reset_ovp_work);
@@ -1313,6 +1393,7 @@ static irqreturn_t _max77759_irq_locked(struct max77759_plat *chip, u16 status,
 	u8 reg_status;
 	bool contaminant_cc_update_handled = false;
 	bool invoke_tcpm_for_cc_update = false;
+	unsigned int pwr_status;
 
 	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
 	logbuffer_log(log, "TCPC_ALERT status: %#x", status);
@@ -1443,6 +1524,10 @@ static irqreturn_t _max77759_irq_locked(struct max77759_plat *chip, u16 status,
 		if (invoke_tcpm_for_cc_update) {
 			tcpm_cc_change(tcpci->port);
 			max77759_cache_cc(chip);
+			/* Check for missing-rp non compliant power source */
+			if (!regmap_read(tcpci->regmap, TCPC_POWER_STATUS, &pwr_status))
+				check_missing_rp(chip, !!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES),
+						 chip->cc1, chip->cc2);
 			/* TCPM has detected valid CC terminations */
 			if (!tcpm_is_toggling(tcpci->port)) {
 				chip->floating_cable_or_sink_detected = 0;
@@ -2672,6 +2757,7 @@ static int max77759_probe(struct i2c_client *client,
 	kthread_init_delayed_work(&chip->enable_vbus_work, enable_vbus_work);
 	kthread_init_delayed_work(&chip->vsafe0v_work, vsafe0v_debounce_work);
 	kthread_init_delayed_work(&chip->max77759_io_error_work, max77759_io_error_work);
+	kthread_init_delayed_work(&chip->check_missing_rp_work, check_missing_rp_work);
 
 	/*
 	 * b/218797880 Some OVP chips are restricted to quick Vin ramp-up time which means that if
@@ -2810,6 +2896,7 @@ static void max77759_shutdown(struct i2c_client *client)
 	int ret;
 
 	dev_info(&client->dev, "disabling Type-C upon shutdown\n");
+	kthread_cancel_delayed_work_sync(&chip->check_missing_rp_work);
 	/* Set current limit to 0. Will eventually happen after hi-Z as well */
 	max77759_vote_icl(chip, 0);
 	/* Prevent re-enabling toggling */
