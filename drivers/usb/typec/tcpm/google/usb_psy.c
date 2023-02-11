@@ -15,6 +15,7 @@
 #include <misc/logbuffer.h>
 #include <uapi/linux/sched/types.h>
 
+#include "tcpci_max77759.h"
 #include "usb_psy.h"
 #include "usb_icl_voter.h"
 
@@ -45,7 +46,7 @@
 #define ERR_RETRY_COUNT    3
 
 /* Fall back to DCP when neither SDP_*_CONN_UA nor SDP_*_CONFIG_UA is signalled */
-#define SDP_ENUMERATION_TIMEOUT_MS	60000
+#define SDP_ENUMERATION_TIMEOUT_MS	5000
 
 /* Signal wakeup event to allow userspace to process the update */
 #define DCP_UPDATE_MS			10000
@@ -58,6 +59,9 @@ struct usb_psy_data {
 	struct power_supply *chg_psy;
 	struct power_supply *main_chg_psy;
 	enum power_supply_usb_type usb_type;
+
+	void *chip;
+	non_compliant_bc12_callback non_compliant_bc12_callback;
 
 	/* Casts final vote on usb psy current max */
 	struct gvotable_election *usb_icl_el;
@@ -503,6 +507,10 @@ void usb_psy_set_attached_state(void *usb_psy, bool attached)
 
 		/* Cancel sdp alarm if scheduled */
 		alarm_cancel(&usb->sdp_timeout_alarm);
+
+		/* Clear BC12 by default; only clears when already set */
+		if (usb->non_compliant_bc12_callback)
+			usb->non_compliant_bc12_callback(usb->chip, false);
 	}
 
 	usb->attached = attached;
@@ -722,6 +730,8 @@ static void sdp_timeout_work_item(struct kthread_work *work)
 	ret = power_supply_set_property(usb->usb_psy, POWER_SUPPLY_PROP_USB_TYPE, &val);
 	logbuffer_log(usb->log, "%s: Falling back to DCP %s:%d", __func__, ret < 0 ? "error" :
 		      "success", ret);
+	if (usb->non_compliant_bc12_callback)
+		usb->non_compliant_bc12_callback(usb->chip, true);
 }
 
 static enum alarmtimer_restart sdp_timeout_alarm_cb(struct alarm *alarm, ktime_t now)
@@ -735,7 +745,7 @@ static enum alarmtimer_restart sdp_timeout_alarm_cb(struct alarm *alarm, ktime_t
 }
 
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
-		    struct usb_psy_ops *ops)
+		    struct usb_psy_ops *ops, void *chip, non_compliant_bc12_callback callback)
 {
 	struct usb_psy_data *usb;
 	struct power_supply_config usb_cfg = {};
@@ -759,6 +769,8 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	usb->tcpc_client = client;
 	usb->log = log;
 	usb->psy_ops = ops;
+	usb->chip = chip;
+	usb->non_compliant_bc12_callback = callback;
 
 	usb->usb_type_wq = kthread_create_worker(0, "wq-tcpm-usb-psy-usb-type");
 	if (IS_ERR_OR_NULL(usb->usb_type_wq)) {

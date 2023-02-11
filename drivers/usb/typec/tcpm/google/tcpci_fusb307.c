@@ -734,7 +734,7 @@ static int fusb307b_probe(struct i2c_client *client,
 		fusb307b_set_port_data_capable;
 
 	chip->usb_psy_data = usb_psy_setup(client, chip->log,
-					   &chip->psy_ops);
+					   &chip->psy_ops, chip, NULL);
 	if (IS_ERR_OR_NULL(chip->usb_psy_data)) {
 		dev_err(&client->dev, "USB psy failed to initialize");
 		ret = PTR_ERR(chip->usb_psy_data);

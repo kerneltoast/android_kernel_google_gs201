@@ -122,6 +122,9 @@ static void vendor_bc12_alert(struct work_struct *work)
 					      POWER_SUPPLY_PROP_USB_TYPE,
 					      &val))
 			logbuffer_log(plat->log, "BC12: usb_psy update failed");
+		/* Always start SDP timeout */
+		if ((update->vendor_bc_status1 & CHGTYP) == CHGTYP_SDP)
+			usb_psy_start_sdp_timeout(usb_psy_data);
 	}
 
 	if (update->vendor_alert1_status & CHGTYPRUNRINT) {
@@ -134,10 +137,8 @@ static void vendor_bc12_alert(struct work_struct *work)
 		if (bc12->bc12_callback)
 			bc12->bc12_callback(bc12->chip, false);
 	}
-	if (update->vendor_alert1_status & PRCHGTYPINT) {
-		logbuffer_log(plat->log, "BC12: Proprietary port. Starting sdp timeout");
-		usb_psy_start_sdp_timeout(usb_psy_data);
-	}
+	if (update->vendor_alert1_status & PRCHGTYPINT)
+		logbuffer_log(plat->log, "BC12: Proprietary port");
 
 exit:
 	mutex_unlock(&bc12->lock);

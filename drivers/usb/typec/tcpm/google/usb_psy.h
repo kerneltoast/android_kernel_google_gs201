@@ -10,6 +10,10 @@
 #include <misc/logbuffer.h>
 #include <linux/power_supply.h>
 
+#include "../tcpci.h"
+
+struct max77759_plat;
+
 struct usb_psy_ops {
 	int (*tcpc_get_vbus_voltage_max_mv)(struct i2c_client *tcpc_client);
 	int (*tcpc_set_vbus_voltage_max_mv)(struct i2c_client *tcpc_client,
@@ -20,10 +24,12 @@ struct usb_psy_ops {
 					   usb_type);
 };
 
+typedef void (*non_compliant_bc12_callback) (void *chip, bool status);
+
 void usb_psy_set_sink_state(void *usb_psy, bool enabled);
 void usb_psy_set_attached_state(void *usb_psy, bool attached);
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
-		    struct usb_psy_ops *ops);
+		    struct usb_psy_ops *ops, void *chip, non_compliant_bc12_callback callback);
 void usb_psy_teardown(void *usb_data);
 void usb_psy_start_sdp_timeout(void *usb_psy);
 #endif
