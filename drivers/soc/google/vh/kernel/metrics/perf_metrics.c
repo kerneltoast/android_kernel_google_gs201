@@ -18,10 +18,11 @@
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/device.h>
-
+#include <trace/events/power.h>
 #include <trace/events/irq.h>
 #include <trace/hooks/suspend.h>
 #include "perf_metrics.h"
+#include "../systrace.h"
 
 struct irq_entry {
 	int irq_num;
@@ -100,6 +101,16 @@ static void hook_softirq_end(void *data, unsigned int vec_nr)
 			WARN(1, "Got a long running softirq: SOFTIRQ %u in cpu: %d\n",
 						vec_nr, cpu_num);
 		atomic64_inc(&(long_irq_stat.long_softirq_count));
+		atomic64_inc(&(long_irq_stat.long_softirq_count_arr[cpu_num]));
+		if (trace_clock_set_rate_enabled()) {
+			char trace_name[32] = {0};
+			scnprintf(trace_name, sizeof(trace_name), "long_softirq_count_cpu%d",
+							cpu_num);
+			trace_clock_set_rate(trace_name,
+				(unsigned int)
+				atomic64_read(&long_irq_stat.long_softirq_count_arr[cpu_num]),
+				cpu_num);
+		}
 	}
 	do {
 		curr_max_irq = long_irq_stat.long_softirq_arr[vec_nr];
@@ -112,8 +123,16 @@ static void hook_softirq_end(void *data, unsigned int vec_nr)
 static void hook_irq_begin(void *data, int irq, struct irqaction *action)
 {
 	int cpu_num;
+	if (irq >= MAX_IRQ_NUM)
+		return;
 	cpu_num = raw_smp_processor_id();
 	long_irq_stat.irq_start[cpu_num][irq] = ktime_get();
+	if (long_irq_stat.long_irq_arr[irq] >= long_irq_stat.long_irq_threshold) {
+		char trace_name[32] = {0};
+		scnprintf(trace_name, sizeof(trace_name), "long_irq_%d",
+							irq);
+		ATRACE_BEGIN(trace_name);
+    }
 }
 
 static void hook_irq_end(void *data, int irq, struct irqaction *action, int ret)
@@ -127,10 +146,22 @@ static void hook_irq_end(void *data, int irq, struct irqaction *action, int ret)
 	long_irq_stat.irq_end = ktime_get();
 	irq_usec = ktime_to_us(ktime_sub(long_irq_stat.irq_end,
 				long_irq_stat.irq_start[cpu_num][irq]));
+	if (long_irq_stat.long_irq_arr[irq] >= long_irq_stat.long_irq_threshold)
+		ATRACE_END();
 	if (irq_usec >= long_irq_stat.long_irq_threshold) {
 		if (long_irq_stat.display_warning)
 			WARN(1, "Got a long running hardirq: IRQ %d in cpu: %d\n", irq, cpu_num);
 		atomic64_inc(&(long_irq_stat.long_irq_count));
+		atomic64_inc(&(long_irq_stat.long_irq_count_arr[cpu_num]));
+		if (trace_clock_set_rate_enabled()) {
+			char trace_name[32] = {0};
+			scnprintf(trace_name, sizeof(trace_name), "long_irq_count_cpu%d",
+							cpu_num);
+			trace_clock_set_rate(trace_name,
+				(unsigned int)
+				atomic64_read(&long_irq_stat.long_irq_count_arr[cpu_num]),
+				cpu_num);
+		}
 	}
 	do {
 		curr_max_irq = long_irq_stat.long_irq_arr[irq];

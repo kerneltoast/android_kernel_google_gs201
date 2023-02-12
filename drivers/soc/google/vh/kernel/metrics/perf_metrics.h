@@ -45,6 +45,8 @@ struct long_irq {
 	ktime_t irq_end;
 	atomic64_t long_softirq_count;
 	atomic64_t long_irq_count;
+	atomic64_t long_softirq_count_arr[CONFIG_VH_SCHED_CPU_NR];
+	atomic64_t long_irq_count_arr[CONFIG_VH_SCHED_CPU_NR];
 	s64 long_softirq_arr[NR_SOFTIRQS];
 	s64 long_irq_arr[MAX_IRQ_NUM];
 	s64 long_softirq_threshold;
