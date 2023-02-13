@@ -1203,9 +1203,9 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 
 	otg_set_peripheral(&exynos->dotg->otg, exynos->dwc->gadget);
 
-	ret = usb_gadget_deactivate(exynos->dwc->gadget);
-	if (ret < 0)
-		dev_err(dev, "USB gadget deactivate failed with %d\n", ret);
+	/* disconnect gadget in probe */
+	usb_udc_vbus_handler(exynos->dwc->gadget, false);
+
 	/*
 	 * To avoid missing notification in kernel booting check extcon
 	 * state to run state machine.
