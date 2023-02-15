@@ -54,6 +54,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <misc/logbuffer.h>
 
+
 /* Debug logging */
 #define DATA_BYTES_PER_LINE     (16)
 
@@ -63,6 +64,8 @@
 
 #define EXYNOS_SERIAL_CTRL_NUM			0x4
 #define EXYNOS_SERIAL_BAUD_NUM			0x2
+
+#define S5PV210_UMCON_RTSTRIG_SHIFT		(5)
 
 struct exynos_uart_info {
 	char			*name;
@@ -3154,6 +3157,7 @@ static struct exynos_serial_drv_data exynos_serial_drv_data = {
 		.tx_fifofull	= S5PV210_UFSTAT_TXFULL,
 		.tx_fifomask	= S5PV210_UFSTAT_TXMASK,
 		.tx_fifoshift	= S5PV210_UFSTAT_TXSHIFT,
+		.rts_trig_shift = S5PV210_UMCON_RTSTRIG_SHIFT,
 		.def_clk_sel	= S3C2410_UCON_CLKSEL0,
 		.num_clks	= 1,
 		.clksel_mask	= 0,
