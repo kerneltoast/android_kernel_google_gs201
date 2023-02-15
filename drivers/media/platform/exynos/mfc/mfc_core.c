@@ -842,6 +842,11 @@ static void mfc_core_shutdown(struct platform_device *pdev)
 
 	mfc_core_info("MFC core shutdown is called\n");
 
+	if (core->shutdown) {
+		mfc_core_info("MFC core shutdown is already set\n");
+		return;
+	}
+
 	if (!mfc_core_pm_get_pwr_ref_cnt(core)) {
 		core->shutdown = 1;
 		mfc_core_info("MFC is not running\n");

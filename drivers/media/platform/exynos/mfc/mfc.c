@@ -35,6 +35,7 @@
 #include "mfc_meminfo.h"
 #include "mfc_memlog.h"
 
+#include "mfc_core_hwlock.h"
 #include "mfc_core_pm.h"
 #include "mfc_core_hw_reg_api.h"
 #include "mfc_llc.h"
@@ -1190,7 +1191,7 @@ static void mfc_shutdown(struct platform_device *pdev)
 {
 	struct mfc_dev *dev = platform_get_drvdata(pdev);
 	struct mfc_core *core;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < dev->num_core; i++) {
 		core = dev->core[i];
@@ -1200,10 +1201,19 @@ static void mfc_shutdown(struct platform_device *pdev)
 		}
 
 		if (!core->shutdown) {
-			mfc_core_risc_off(core);
-			core->shutdown = 1;
-			mfc_clear_all_bits(&core->work_bits);
-			mfc_core_err("core forcibly shutdown\n");
+			ret = mfc_core_get_hwlock_dev(core);
+			if (ret < 0)
+				mfc_core_err("Failed to get hwlock\n");
+			if (!mfc_core_pm_get_pwr_ref_cnt(core)) {
+				core->shutdown = 1;
+				mfc_core_info("MFC is not running\n");
+			} else {
+				mfc_core_risc_off(core);
+				core->shutdown = 1;
+				mfc_clear_all_bits(&core->work_bits);
+				mfc_core_err("core forcibly shutdown\n");
+			}
+			mfc_core_release_hwlock_dev(core);
 		}
 	}
 
