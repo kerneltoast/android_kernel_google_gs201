@@ -45,6 +45,11 @@ struct dbg_snapshot_log_item {
 	struct dbg_snapshot_info entry;
 };
 
+struct dbg_snapshot_suspend_diag_item {
+	const char *action;
+	unsigned long long timeout;
+};
+
 struct dbg_snapshot_desc {
 	struct device *dev;
 	raw_spinlock_t ctrl_lock;
