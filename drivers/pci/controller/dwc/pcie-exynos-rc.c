@@ -901,18 +901,22 @@ static void link_stats_log_link_up(struct exynos_pcie *pcie, u32 link_up_time)
 }
 
 static int check_exynos_pcie_reg_status(struct exynos_pcie *exynos_pcie,
-					void __iomem *base, int offset, int bit,
-					int *cnt)
+					void __iomem *base, int offset,
+					u32 mask, u32 mask_value, int *cnt)
 {
 	int i;
-	u32 status;
+	bool status = false;
+	u32 value;
 	ktime_t timestamp = ktime_get();
 
-	for (i = 0; i < 1000; i++) {
-		udelay(10);
-		status = readl(base + offset) & BIT(bit);
-		if (status != 0)
+	for (i = 0; i < 10000; i++) {
+		udelay(1);
+		value = readl(base + offset);
+
+		status = (value & mask) == mask_value;
+		if (status)
 			break;
+
 	}
 	*cnt = i;
 
@@ -920,12 +924,12 @@ static int check_exynos_pcie_reg_status(struct exynos_pcie *exynos_pcie,
 	dev_dbg(exynos_pcie->pci->dev, "elapsed time: %lld uS\n", ktime_to_us(timestamp));
 	logbuffer_log(exynos_pcie->log, "elapsed time: %lld uS", ktime_to_us(timestamp));
 
-	if (status == 0)
-		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR, "status 0x%x failed", offset);
-	else {
-		dev_dbg(exynos_pcie->pci->dev, "status 0x%x passed cnt=%d\n",
-			offset, i);
-		logbuffer_log(exynos_pcie->log, "status 0x%x passed cnt=%d", offset, i);
+	if (status) {
+		dev_dbg(exynos_pcie->pci->dev, "status %#x passed cnt=%d\n", offset, i);
+		logbuffer_log(exynos_pcie->log, "status %#x passed cnt=%d", offset, i);
+	} else {
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+			       "status %#x=%#x failed", offset, value);
 	}
 
 	return status;
@@ -2945,7 +2949,7 @@ static int exynos_pcie_rc_establish_link(struct pcie_port *pp)
 	u32 val, busdev;
 	int count = 0, try_cnt = 0;
 	unsigned int save_before_state = 0xff;
-	u32 pll_lock, cdr_lock, oc_done;
+	bool pll_lock, cdr_lock, oc_done;
 	int lock_cnt;
 retry:
 
@@ -2954,23 +2958,23 @@ retry:
 
 	/* check pll lock */
 	pll_lock = check_exynos_pcie_reg_status(exynos_pcie, phy_base_regs,
-						0x03F0, 3, &lock_cnt);
+						0x03F0, BIT(3), BIT(3), &lock_cnt);
 
 	/* check cdr lock */
 	cdr_lock = check_exynos_pcie_reg_status(exynos_pcie, phy_base_regs,
-						0x0FC0, 4, &lock_cnt);
+						0x0E0C, BIT(2), BIT(2), &lock_cnt);
 	if (cdr_lock)
 		link_stats_log_pll_lock(exynos_pcie, lock_cnt);
 
 	/* check offset calibration */
 	oc_done = check_exynos_pcie_reg_status(exynos_pcie, phy_base_regs,
-					       0x0E18, 7, &lock_cnt);
+					       0x0DE8, 0xf, 0xf, &lock_cnt);
 	if (!oc_done)
-		dev_err(dev, "OC Fail : PLL_LOCK : 0x%x, CDR_LOCK : 0x%x, OC : 0x%x\n",
+		dev_err(dev, "OC Fail: PLL_LOCK:%d, CDR_LOCK:%d, OC:%d\n",
 			pll_lock, cdr_lock, oc_done);
 
 	logbuffer_log(exynos_pcie->log,
-		      "PLL_LOCK : 0x%x, CDR_LOCK : 0x%x, OC_DONE : 0x%x",
+		      "PLL_LOCK:%d, CDR_LOCK:%d, OC:%d",
 		      pll_lock, cdr_lock, oc_done);
 
 	/* Soft Power RST */
