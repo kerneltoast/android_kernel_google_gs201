@@ -46,6 +46,16 @@ struct vendor_binder_task_struct {
 	bool active;
 };
 
+struct uclamp_filter {
+	unsigned int uclamp_min_ignored : 1;
+	unsigned int uclamp_max_ignored : 1;
+};
+
+/*
+ * Always remember to initialize any new fields added here in
+ * vh_dup_task_struct_pixel_mod() or you'll find newly forked tasks inheriting
+ * random states from the parent.
+ */
 struct vendor_task_struct {
 	raw_spinlock_t lock;
 	enum vendor_group group;
@@ -54,6 +64,7 @@ struct vendor_task_struct {
 	bool queued_to_list;
 	bool uclamp_fork_reset;
 	bool prefer_idle;
+	struct uclamp_filter uclamp_filter;
 
 	/* parameters for binder inheritance */
 	struct vendor_binder_task_struct binder_task;

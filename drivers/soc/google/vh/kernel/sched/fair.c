@@ -76,6 +76,19 @@ unsigned int map_scaling_freq(int cpu, unsigned int freq);
 extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum uclamp_id clamp_id,
 					 struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff,
 					 int *ret);
+/*
+ * Ignore uclamp_min for tasks if
+ *
+ *	runtime >= policy->cpuinfo.transition_latency * multiplier
+ */
+unsigned int sysctl_sched_uclamp_min_filter_multiplier = 2;
+
+/*
+ * Ignore uclamp_max for tasks if
+ *
+ *	runtime < sched_slice() / divider
+ */
+unsigned int sysctl_sched_uclamp_max_filter_divider = 4;
 
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
@@ -1487,6 +1500,182 @@ inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
 }
 /* UPSTREAM UCLAMP CODE - end */
 
+/*
+ * Check if we can ignore uclamp_min requirement of a task. The goal is to
+ * prevent small transient tasks from boosting frequency unnecessarily.
+ *
+ * Returns true if a task can finish its work within a
+ * policy->cpuinfo.transition_latency * multiplier.
+ *
+ * We look at the immediate history of how long the task ran previously.
+ * Converting task util_avg into runtime is not trivial and expensive
+ * operations.
+ */
+static inline bool uclamp_can_ignore_uclamp_min(struct rq *rq,
+						struct task_struct *p)
+{
+	unsigned long runtime, rate_limit;
+	struct cpufreq_policy *policy;
+	struct sched_entity *se;
+
+	if (SCHED_WARN_ON(!uclamp_is_used()))
+		return false;
+
+	if (task_on_rq_migrating(p))
+		return false;
+
+	/*
+	 * Based on previous runtime, we check that runtime is sufficiently
+	 * larger than policy->cpuinfo.transition_latency
+	 *
+	 *
+	 *	runtime >= policy->cpuinfo->transition_latency * multiplier
+	 *
+	 * There are 2 caveats:
+	 *
+	 * 1- When a task migrates on big.LITTLE system, the runtime will not
+	 *    be representative then. But this would be one time off error.
+	 *
+	 * 2. runtime is not frequency invariant. See comment in
+	 *    uclamp_can_ignore_uclamp_max()
+	 *
+	 */
+	se = &p->se;
+	runtime = se->sum_exec_runtime - se->prev_sum_exec_runtime;
+	if (!runtime)
+		return false;
+
+	/*
+	 * XXX: This can explode if the governor changes in the wrong moment.
+	 * We need to create per cpu variables and access those instead. This
+	 * will be addressed in the future.
+	 */
+	policy = cpufreq_cpu_get_raw(cpu_of(rq));
+	if (!policy)
+		return false;
+
+	rate_limit = policy->cpuinfo.transition_latency;
+	rate_limit *= sysctl_sched_uclamp_min_filter_multiplier;
+
+	if (runtime >= rate_limit)
+		return false;
+
+	return true;
+}
+
+/*
+ * Check if we can ignore uclamp_max requirement of a task. The goal is to
+ * prevent small transient tasks that share the rq with other tasks that are
+ * capped to lift the capping easily/unnecessarily, hence increase power
+ * consumption.
+ *
+ * Returns true if a task can finish its work within a sched_slice() / divider.
+ *
+ * We look at the immediate history of how long the task ran previously.
+ * Converting task util_avg into runtime or sched_slice() into capacity is not
+ * trivial and is an expensive operations. In practice this simple approach
+ * proved effective to address the common source of noise. If a task suddenly
+ * becomes a busy task, we should detect that and lift the capping at tick, see
+ * task_tick_uclamp().
+ */
+static inline bool uclamp_can_ignore_uclamp_max(struct rq *rq,
+						struct task_struct *p)
+{
+	unsigned long uclamp_max, util;
+	unsigned long runtime, slice;
+	struct sched_entity *se;
+	struct cfs_rq *cfs_rq;
+
+	if (SCHED_WARN_ON(!uclamp_is_used()))
+		return false;
+
+	if (task_on_rq_migrating(p))
+		return false;
+
+	/*
+	 * If util has crossed uclamp_max threshold, then we have to ensure
+	 * this is always enforced.
+	 */
+	util = task_util_est(p);
+	uclamp_max = uclamp_eff_value(p, UCLAMP_MAX);
+	if (util >= uclamp_max)
+		return false;
+
+	/*
+	 * Based on previous runtime, we check the allowed sched_slice() of the
+	 * task is large enough for this task to run without preemption.
+	 *
+	 *
+	 *	runtime < sched_slice() / divider
+	 *
+	 * ==>
+	 *
+	 *	runtime * divider < sched_slice()
+	 *
+	 * There are 2 caveats:
+	 *
+	 * 1- When a task migrates on big.LITTLE system, the runtime will not
+	 *    be representative then (not capacity invariant). But this would
+	 *    be one time off error.
+	 *
+	 * 2. runtime is not frequency invariant either. If the
+	 *    divider >= fmax/fmin we should be okay in general because that's
+	 *    the worst case scenario of how much the runtime will be stretched
+	 *    due to it being capped to minimum frequency but the rq should run
+	 *    at max. The rule here is that the task should finish its work
+	 *    within its sched_slice(). Without this runtime scaling there's a
+	 *    small opportunity for the task to ping-pong between capped and
+	 *    uncapped state.
+	 *
+	 */
+	se = &p->se;
+
+	runtime = se->sum_exec_runtime - se->prev_sum_exec_runtime;
+	if (!runtime)
+		return false;
+
+	cfs_rq = cfs_rq_of(se);
+	slice = sched_slice(cfs_rq, se);
+	runtime *= sysctl_sched_uclamp_max_filter_divider;
+
+	if (runtime >= slice)
+		return false;
+
+	return true;
+}
+
+static inline void uclamp_set_ignore_uclamp_min(struct task_struct *p)
+{
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	vp->uclamp_filter.uclamp_min_ignored = 1;
+}
+static inline void uclamp_reset_ignore_uclamp_min(struct task_struct *p)
+{
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	vp->uclamp_filter.uclamp_min_ignored = 0;
+}
+static inline void uclamp_set_ignore_uclamp_max(struct task_struct *p)
+{
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	vp->uclamp_filter.uclamp_max_ignored = 1;
+}
+static inline void uclamp_reset_ignore_uclamp_max(struct task_struct *p)
+{
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	vp->uclamp_filter.uclamp_max_ignored = 0;
+}
+
+static inline bool uclamp_is_ignore_uclamp_min(struct task_struct *p)
+{
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	return vp->uclamp_filter.uclamp_min_ignored;
+}
+static inline bool uclamp_is_ignore_uclamp_max(struct task_struct *p)
+{
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	return vp->uclamp_filter.uclamp_max_ignored;
+}
+
 static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool sync_boost,
 		cpumask_t *valid_mask)
 {
@@ -2229,6 +2418,8 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 	INIT_LIST_HEAD(&v_tsk->node);
 	raw_spin_lock_init(&v_tsk->lock);
 	v_tsk->queued_to_list = false;
+	v_tsk->uclamp_filter.uclamp_min_ignored = 0;
+	v_tsk->uclamp_filter.uclamp_max_ignored = 0;
 
 	vbinder->uclamp[UCLAMP_MIN] = uclamp_none(UCLAMP_MIN);
 	vbinder->uclamp[UCLAMP_MAX] = uclamp_none(UCLAMP_MAX);
