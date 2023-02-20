@@ -30,13 +30,6 @@ extern void update_uclamp_stats(int cpu, u64 time);
 #define for_each_clamp_id(clamp_id) \
 	for ((clamp_id) = 0; (clamp_id) < UCLAMP_CNT; (clamp_id)++)
 
-inline unsigned int uclamp_none(enum uclamp_id clamp_id)
-{
-	if (clamp_id == UCLAMP_MIN)
-		return 0;
-	return SCHED_CAPACITY_SCALE;
-}
-
 static inline void uclamp_se_set(struct uclamp_se *uc_se,
 				 unsigned int value, bool user_defined)
 {

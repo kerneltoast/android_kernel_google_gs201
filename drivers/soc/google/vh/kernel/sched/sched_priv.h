@@ -152,6 +152,7 @@ extern struct vendor_group_property vg[VG_MAX];
  * Any change for these functions in upstream GKI would require extensive review
  * to make proper adjustment in vendor hook.
  */
+extern struct uclamp_se uclamp_default[UCLAMP_CNT];
 
 static inline unsigned long task_util(struct task_struct *p)
 {
@@ -180,6 +181,18 @@ static inline bool uclamp_rq_is_idle(struct rq *rq)
 {
 	return rq->uclamp_flags & UCLAMP_FLAG_IDLE;
 }
+
+static inline unsigned int uclamp_none(enum uclamp_id clamp_id)
+{
+	if (clamp_id == UCLAMP_MIN)
+		return 0;
+	return SCHED_CAPACITY_SCALE;
+}
+
+extern inline void uclamp_rq_inc_id(struct rq *rq, struct task_struct *p,
+				    enum uclamp_id clamp_id);
+extern inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
+				    enum uclamp_id clamp_id);
 
 static inline unsigned long capacity_of(int cpu)
 {
