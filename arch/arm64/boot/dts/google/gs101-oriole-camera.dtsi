@@ -45,6 +45,11 @@
 	};
 };
 
+&spi14_cs2{
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
 &hsi2c_1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -95,7 +100,7 @@
 	clock-frequency = <370000>;
 
 	pinctrl-names = "default","on_i2c","off_i2c";
-	pinctrl-0 = <&hsi2c7_bus>;
+	pinctrl-0 = <&hsi2c7_bus &spi14_cs2>;
 	pinctrl-1 = <&hsi2c7_bus>;
 	pinctrl-2 = <&hsi2c7_bus>;
 };
