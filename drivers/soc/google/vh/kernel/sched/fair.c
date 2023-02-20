@@ -1676,6 +1676,43 @@ static inline bool uclamp_is_ignore_uclamp_max(struct task_struct *p)
 	return vp->uclamp_filter.uclamp_max_ignored;
 }
 
+void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
+{
+	/* Can only process uclamp after sched_slice() was updated */
+	if (uclamp_is_used()) {
+		if (uclamp_can_ignore_uclamp_max(rq, p)) {
+			uclamp_set_ignore_uclamp_max(p);
+			/* GKI has incremented it already, undo that */
+			uclamp_rq_dec_id(rq, p, UCLAMP_MAX);
+		}
+
+		if (uclamp_can_ignore_uclamp_min(rq, p)) {
+			uclamp_set_ignore_uclamp_min(p);
+			/* GKI has incremented it already, undo that */
+			uclamp_rq_dec_id(rq, p, UCLAMP_MIN);
+		}
+	}
+
+	/* XXX: sched_pixel rate limit could drop this if GKI
+	 * enqueue_task_fair() called cpufreq_update_util() due to iowait boost
+	 *
+	 * We could try to suppress the call and delay it to be done here since
+	 * we already override iowait boost.
+	 */
+	cpufreq_update_util(rq, 0);
+}
+
+void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
+{
+	if (uclamp_is_used()) {
+		if (uclamp_is_ignore_uclamp_max(p))
+			uclamp_reset_ignore_uclamp_max(p);
+
+		if (uclamp_is_ignore_uclamp_min(p))
+			uclamp_reset_ignore_uclamp_min(p);
+	}
+}
+
 static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool sync_boost,
 		cpumask_t *valid_mask)
 {
