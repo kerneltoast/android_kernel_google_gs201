@@ -31,6 +31,8 @@ extern void vh_set_sugov_sched_attr_pixel_mod(void *data, struct sched_attr *att
 extern void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost);
 extern void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
 					    int sd_flag, int wake_flags, int *new_cpu);
+extern void rvh_update_misfit_status_pixel_mod(void *data, struct task_struct *p,
+					       struct rq *rq, bool *need_update);
 extern void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized);
 extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p,
 					 enum uclamp_id clamp_id, struct uclamp_se *uclamp_max,
@@ -178,6 +180,10 @@ static int vh_sched_init(void)
 		return ret;
 
 	ret = register_trace_android_rvh_select_task_rq_rt(rvh_select_task_rq_rt_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_update_misfit_status(rvh_update_misfit_status_pixel_mod, NULL);
 	if (ret)
 		return ret;
 

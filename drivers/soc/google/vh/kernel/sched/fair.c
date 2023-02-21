@@ -2142,6 +2142,61 @@ void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iow
 	*should_iowait_boost = p->in_iowait && uclamp_boosted(p);
 }
 
+#ifdef CONFIG_UCLAMP_TASK
+static inline void task_tick_uclamp(struct rq *rq, struct task_struct *curr)
+{
+	bool can_ignore;
+	bool is_ignored;
+	bool reset_idle_flag = false;
+
+	if (!uclamp_is_used())
+		return;
+
+	/*
+	 * Condition might have changed since we enqueued the task.
+	 */
+
+	can_ignore = uclamp_can_ignore_uclamp_max(rq, curr);
+	is_ignored = uclamp_is_ignore_uclamp_max(curr);
+
+	if (is_ignored && !can_ignore) {
+		uclamp_reset_ignore_uclamp_max(curr);
+		uclamp_rq_inc_id(rq, curr, UCLAMP_MAX);
+		reset_idle_flag = true;
+	}
+
+	can_ignore = uclamp_can_ignore_uclamp_min(rq, curr);
+	is_ignored = uclamp_is_ignore_uclamp_min(curr);
+
+	if (is_ignored && !can_ignore) {
+		uclamp_reset_ignore_uclamp_min(curr);
+		uclamp_rq_inc_id(rq, curr, UCLAMP_MIN);
+		reset_idle_flag = true;
+	}
+
+	/* Reset clamp idle holding when there is one RUNNABLE task */
+	if (reset_idle_flag && rq->uclamp_flags & UCLAMP_FLAG_IDLE)
+		rq->uclamp_flags &= ~UCLAMP_FLAG_IDLE;
+}
+#else
+static inline void task_tick_uclamp(struct rq *rq, struct task_struct *curr) {}
+#endif
+
+void rvh_update_misfit_status_pixel_mod(void *data, struct task_struct *p,
+					struct rq *rq, bool *need_update)
+{
+	/*
+	 * We use this as tick_task_fair() - we don't really care about misfit
+	 * status but reusing the existing trace point as it's called from
+	 * there. we just need to be careful it's called from other locations
+	 * too.
+	 */
+	if (!p || p != rq->curr)
+		return;
+
+	task_tick_uclamp(rq, p);
+}
+
 void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 {
 	unsigned long rq_util_min = uclamp_rq_get(cpu_rq(cpu), UCLAMP_MIN);
