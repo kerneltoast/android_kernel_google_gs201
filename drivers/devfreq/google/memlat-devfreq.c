@@ -41,8 +41,8 @@ static int gs_memlat_devfreq_target(struct device *parent,
 	unsigned int cpu;
 
 	for_each_online_cpu(cpu) {
-			if (READ_ONCE(memlat_cpu_qos_array[cpu]) && active_cpu!= cpu) {
-				if ((memlat_cpuidle_state_aware[cpu] ==
+		if (READ_ONCE(memlat_cpu_qos_array[cpu]) && active_cpu!= cpu) {
+			if ((memlat_cpuidle_state_aware[cpu] ==
 					DEEP_MEMLAT_CPUIDLE_STATE_AWARE
 					&& hw->get_cpu_idle_state(cpu) > 0)
 					|| memlat_cpuidle_state_aware[cpu] ==
@@ -162,8 +162,8 @@ static ssize_t memlat_cpuidle_state_aware_store(struct device *dev,
 	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
 
 	ret = kstrtoint(buf, 10, &memlat_cpuidle_state_aware[data->cpu]);
-	if (ret != 1)
-		return -EINVAL;
+	if (ret)
+		return ret;
 
 	return count;
 }
