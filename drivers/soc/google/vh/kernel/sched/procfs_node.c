@@ -511,6 +511,9 @@ uclamp_update_active(struct task_struct *p, enum uclamp_id clamp_id)
 	struct rq_flags rf;
 	struct rq *rq;
 
+	if (!uclamp_is_used())
+		return;
+
 	/*
 	 * Lock the task and the rq where the task is (or was) queued.
 	 *
