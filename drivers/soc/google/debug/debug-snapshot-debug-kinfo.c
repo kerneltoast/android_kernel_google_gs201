@@ -31,6 +31,12 @@ struct vendor_kernel_info {
 	__u32 names_total_len;
 	/* For suspend diag */
 	__u64 suspend_diag_va;
+	/* For kernel virt_to_phys */
+	u32 va_bits;
+	u64 page_offset;
+	u64 page_end;
+	u64 phys_offset;
+	u64 kimage_voffset;
 } __packed;
 
 struct vendor_kernel_all_info {
@@ -65,6 +71,11 @@ static void update_vendor_kernel_all_info(void)
 
 	info->names_total_len = kallsyms_aosp_names_total_len();
 	info->suspend_diag_va = (__u64)dbg_snapshot_get_suspend_diag();
+	info->va_bits = VA_BITS;
+	info->page_offset = PAGE_OFFSET;
+	info->page_end = PAGE_END;
+	info->phys_offset = PHYS_OFFSET;
+	info->kimage_voffset = kimage_voffset;
 
 	vendor_checksum_info = (u32 *)info;
 	for (index = 0; index < sizeof(*info) / sizeof(u32); index++)
