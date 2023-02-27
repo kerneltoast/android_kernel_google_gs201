@@ -240,4 +240,6 @@ source "drivers/most/Kconfig"
 
 source "drivers/bts/Kconfig"
 
+source "google-modules/Kconfig"
+
 endmenu
