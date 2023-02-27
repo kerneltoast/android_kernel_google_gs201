@@ -2242,7 +2242,21 @@ void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 				      unsigned long cap, int cpu)
 {
-	return (freq * sched_capacity_margin[cpu] >> SCHED_CAPACITY_SHIFT) * util / cap;
+	struct rq *rq = cpu_rq(cpu);
+	unsigned long rq_util = cpu_util(cpu) + cpu_util_rt(rq);
+	unsigned long uclamp_min = rq->uclamp[UCLAMP_MIN].value;
+	unsigned long uclamp_max = rq->uclamp[UCLAMP_MAX].value;
+
+	/* if uclamp_min boosted, don't apply any additional boost */
+	if (rq_util < uclamp_min)
+		return freq * util / cap;
+
+	util = util * sched_capacity_margin[cpu] >> SCHED_CAPACITY_SHIFT;
+
+	/* Don't allow the boost to go beyond uclamp_max */
+	util = util >= uclamp_max ? uclamp_max : util;
+
+	return freq * util / cap;
 }
 
 static inline struct uclamp_se
