@@ -5,6 +5,10 @@ SUBLEVEL = 193
 EXTRAVERSION =
 NAME = Dare mighty things
 
+ifeq ($(MAKECMDGOALS),)
+MAKECMDGOALS := Image.lz4 google/dtbo.img
+endif
+
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
