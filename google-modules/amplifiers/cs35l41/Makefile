@@ -7,7 +7,7 @@ snd-soc-wm-adsp-objs := wm_adsp.o
 obj-$(CONFIG_SND_SOC_CS35L41)		+= snd-soc-cs35l41.o
 obj-$(CONFIG_SND_SOC_CS35L41_SPI)	+= snd-soc-cs35l41-spi.o
 obj-$(CONFIG_SND_SOC_CS35L41_I2C)	+= snd-soc-cs35l41-i2c.o
-obj-$(CONFIG_SND_SOC_WM_ADSP)		+= snd-soc-wm-adsp.o
+#obj-$(CONFIG_SND_SOC_WM_ADSP)		+= snd-soc-wm-adsp.o
 
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 M ?= $(shell pwd)
