@@ -154,6 +154,12 @@ struct max77759_plat {
 	/* non compliant reasons */
 	struct max77759_compliance_warnings *compliance_warnings;
 
+	/*
+	 * When set missing Rp detection has a longer delay to overcome
+	 * additional delay during boot.
+	 */
+	bool first_rp_missing_timeout;
+
 	/* EXT_BST_EN exposed as GPIO */
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio;

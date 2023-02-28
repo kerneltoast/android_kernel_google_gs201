@@ -65,6 +65,10 @@
 /* Vote value doesn't matter. Only status matters. */
 #define MAX77759_DISABLE_TOGGLE_VOTE			1
 
+/* Longer delay to accommodate additional Rp update latency during boot. */
+#define MAX77759_FIRST_RP_MISSING_TIMEOUT_MS           5000
+#define MAX77759_RP_MISSING_TIMEOUT_MS                 2000
+
 /* system use cases */
 enum gbms_charger_modes {
 	GBMS_USB_BUCK_ON	= 0x30,
@@ -1099,7 +1103,10 @@ static void check_missing_rp(struct max77759_plat *chip, bool vbus_present,
 
 	if (!!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES) && cc_open_or_toggling(cc1, cc2)) {
 		kthread_mod_delayed_work(chip->wq, &chip->check_missing_rp_work,
-					 msecs_to_jiffies(2000));
+					 msecs_to_jiffies(chip->first_rp_missing_timeout ?
+					 MAX77759_FIRST_RP_MISSING_TIMEOUT_MS :
+					 MAX77759_RP_MISSING_TIMEOUT_MS));
+		chip->first_rp_missing_timeout = false;
 	} else if (chip->compliance_warnings->missing_rp) {
 		kthread_cancel_delayed_work_sync(&chip->check_missing_rp_work);
 		disconnect_missing_rp_partner(chip);
@@ -2628,6 +2635,7 @@ static int max77759_probe(struct i2c_client *client,
 	mutex_init(&chip->irq_status_lock);
 	spin_lock_init(&g_caps_lock);
 	chip->first_toggle = true;
+	chip->first_rp_missing_timeout = true;
 
 	ret = max77759_read8(chip->data.regmap, TCPC_POWER_STATUS,
 			     &power_status);

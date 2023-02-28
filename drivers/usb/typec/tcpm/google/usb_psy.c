@@ -45,8 +45,14 @@
 #define ERR_RETRY_DELAY_MS 20
 #define ERR_RETRY_COUNT    3
 
-/* Fall back to DCP when neither SDP_*_CONN_UA nor SDP_*_CONFIG_UA is signalled */
-#define SDP_ENUMERATION_TIMEOUT_MS	5000
+/*
+ * Fall back to DCP when neither SDP_*_CONN_UA nor SDP_*_CONFIG_UA is signalled.
+ * SDP_ENUMERATION_TIMEOUT_FIRST_CONNECT_MS is for first SDP connect after boot.
+ * This is done to accommodate enumeration delay during boot.
+ * SDP_ENUMERATION_TIMEOUT_MS otherwise.
+ */
+#define SDP_ENUMERATION_TIMEOUT_MS     5000
+#define SDP_ENUMERATION_TIMEOUT_FIRST_CONNECT_MS 60000
 
 /* Signal wakeup event to allow userspace to process the update */
 #define DCP_UPDATE_MS			10000
@@ -121,6 +127,8 @@ struct usb_psy_data {
 	struct alarm sdp_timeout_alarm;
 	/* Bottom half for sdp alarm */
 	struct kthread_work sdp_timeout_work;
+	/* first SDP timeout after boot */
+	bool first_sdp_timeout;
 };
 
 void init_vote(struct usb_vote *vote, const char *reason,
@@ -464,9 +472,13 @@ void usb_psy_start_sdp_timeout(void *usb_psy)
 	if (!usb)
 		return;
 
-	if (usb->usb_type == POWER_SUPPLY_USB_TYPE_SDP)
+	if (usb->usb_type == POWER_SUPPLY_USB_TYPE_SDP) {
 		alarm_start_relative(&usb->sdp_timeout_alarm,
-				     ms_to_ktime(SDP_ENUMERATION_TIMEOUT_MS));
+				     ms_to_ktime(usb->first_sdp_timeout ?
+				     SDP_ENUMERATION_TIMEOUT_FIRST_CONNECT_MS :
+				     SDP_ENUMERATION_TIMEOUT_MS));
+		usb->first_sdp_timeout = false;
+	}
 }
 EXPORT_SYMBOL_GPL(usb_psy_start_sdp_timeout);
 
@@ -771,6 +783,7 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	usb->psy_ops = ops;
 	usb->chip = chip;
 	usb->non_compliant_bc12_callback = callback;
+	usb->first_sdp_timeout = true;
 
 	usb->usb_type_wq = kthread_create_worker(0, "wq-tcpm-usb-psy-usb-type");
 	if (IS_ERR_OR_NULL(usb->usb_type_wq)) {
