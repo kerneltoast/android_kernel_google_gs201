@@ -32,6 +32,19 @@
 		wc-mbox-non-wake-channels = <0xF000>;
 	};
 
+	mbox_aoc_p6: mbox@18340000 {
+		compatible = "google,mailbox-whitechapel";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0x0 0x18340000 0x1000>;
+		interrupts = <GIC_SPI IRQ_MAILBOX_AOCP62AP_ALIVE
+				IRQ_TYPE_LEVEL_HIGH>;
+		mbox-name = "aoc_p6_ap";
+		#mbox-cells = <1>;
+
+		wc-mbox-non-wake-channels = <0xF000>;
+	};
+
 	pinctrl@10840000 {
 		aoc_vsync_pins: aoc-vsync-pins {
 			/* go/p22-gpio */
@@ -94,6 +107,22 @@
 		&mbox_aoc_f1 13
 		&mbox_aoc_f1 14
 		&mbox_aoc_f1 15
+		&mbox_aoc_p6 0
+		&mbox_aoc_p6 1
+		&mbox_aoc_p6 2
+		&mbox_aoc_p6 3
+		&mbox_aoc_p6 4
+		&mbox_aoc_p6 5
+		&mbox_aoc_p6 6
+		&mbox_aoc_p6 7
+		&mbox_aoc_p6 8
+		&mbox_aoc_p6 9
+		&mbox_aoc_p6 10
+		&mbox_aoc_p6 11
+		&mbox_aoc_p6 12
+		&mbox_aoc_p6 13
+		&mbox_aoc_p6 14
+		&mbox_aoc_p6 15
 		>;
 
 		acpm-ipc-channel = <13>;
