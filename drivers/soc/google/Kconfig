@@ -25,6 +25,13 @@ config BOARD_CLOUDRIPPER
 	bool "Google Cloudripper Board"
 	depends on SOC_GS201
 	select OF_GENERATE_SYMBOLS
+	# Force enable the GKI hack dependencies for tristate dependencies of
+	# cloudripper modules so that the dependencies are =y instead of =m,
+	# since they're expected to be =y. This lets cloudripper work correctly
+	# without needing to enable unnecessary cruft from the GKI hack configs.
+	select DRM_KMS_HELPER
+	select V4L2_MEM2MEM_DEV
+	select VIDEOBUF2_DMA_SG
 
 config GS_CHIPID
 	tristate "GS Chipid controller driver"
