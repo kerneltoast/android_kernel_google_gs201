@@ -139,6 +139,11 @@ struct memlat_mon {
 int register_memlat(struct device *dev, struct memlat_hwmon *hw);
 int register_compute(struct device *dev, struct memlat_hwmon *hw);
 int update_memlat(struct memlat_hwmon *hw);
+int exynos_devfreq_get_boundary(unsigned int devfreq_type,
+				unsigned int *max_freq, unsigned int *min_freq);
+struct device **get_memlat_dev_array(void);
+struct exynos_pm_qos_request **get_memlat_cpu_qos_array(void);
+int *get_memlat_cpuidle_state_aware(void);
 #else
 static inline int register_memlat(struct device *dev,
 				  struct memlat_hwmon *hw)
@@ -153,6 +158,23 @@ static inline int register_compute(struct device *dev,
 static inline int update_memlat(struct memlat_hwmon *hw)
 {
 	return 0;
+}
+static int exynos_devfreq_get_boundary(unsigned int devfreq_type,
+				       unsigned int *max_freq, unsigned int *min_freq)
+{
+	return 0;
+}
+static struct device **get_memlat_dev_array(void)
+{
+	return NULL;
+}
+static struct exynos_pm_qos_request **get_memlat_cpu_qos_array(void)
+{
+	return NULL;
+}
+static int *get_memlat_cpuidle_state_aware(void)
+{
+	return NULL;
 }
 #endif
 

@@ -23,46 +23,36 @@
 #define MEMLAT_DEVFREQ_MODULE_NAME	"gs101-memlat-devfreq"
 #define HZ_PER_KHZ	1000
 
-static struct exynos_pm_qos_request *memlat_cpu_qos_array[CONFIG_VH_SCHED_CPU_NR];
 static struct device  *memlat_dev_array[CONFIG_VH_SCHED_CPU_NR];
-static spinlock_t memlat_cpu_lock;
+static struct exynos_pm_qos_request *memlat_cpu_qos_array[CONFIG_VH_SCHED_CPU_NR];
 static int memlat_cpuidle_state_aware[CONFIG_VH_SCHED_CPU_NR];
+static spinlock_t memlat_cpu_lock;
+
+struct device **get_memlat_dev_array(void)
+{
+	return memlat_dev_array;
+}
+EXPORT_SYMBOL_GPL(get_memlat_dev_array);
+
+struct exynos_pm_qos_request **get_memlat_cpu_qos_array(void)
+{
+	return memlat_cpu_qos_array;
+}
+EXPORT_SYMBOL_GPL(get_memlat_cpu_qos_array);
+
+int *get_memlat_cpuidle_state_aware(void)
+{
+	return memlat_cpuidle_state_aware;
+}
+EXPORT_SYMBOL_GPL(get_memlat_cpuidle_state_aware);
 
 static int gs_memlat_devfreq_target(struct device *parent,
 				    unsigned long *target_freq, u32 flags)
 {
 	struct platform_device *pdev = container_of(parent, struct platform_device, dev);
 	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
-	struct devfreq *df = data->devfreq;
-	struct memlat_node *node = df->data;
-	struct memlat_hwmon *hw = node->hw;
-	struct memlat_mon *mon = to_mon(hw);
-	unsigned int active_cpu = cpumask_first(&mon->cpus);
-	unsigned int cpu;
-
-	for_each_online_cpu(cpu) {
-		if (READ_ONCE(memlat_cpu_qos_array[cpu]) && active_cpu!= cpu) {
-			if ((memlat_cpuidle_state_aware[cpu] ==
-					DEEP_MEMLAT_CPUIDLE_STATE_AWARE
-					&& hw->get_cpu_idle_state(cpu) > 0)
-					|| memlat_cpuidle_state_aware[cpu] ==
-					ALL_MEMLAT_CPUIDLE_STATE_AWARE) {
-				exynos_pm_qos_update_request(
-					memlat_cpu_qos_array[cpu], data->min_freq);
-				spin_lock(&memlat_cpu_lock);
-				memlat_cpu_qos_array[cpu] = NULL;
-				spin_unlock(&memlat_cpu_lock);
-				trace_clock_set_rate(dev_name(memlat_dev_array[cpu]),
-						     data->min_freq, cpu);
-			}
-		}
-	}
 
 	if (exynos_pm_qos_request_active(&data->sys_pm_qos_min)) {
-		spin_lock(&memlat_cpu_lock);
-		memlat_cpu_qos_array[active_cpu] = &data->sys_pm_qos_min;
-		memlat_dev_array[active_cpu] = data->dev;
-		spin_unlock(&memlat_cpu_lock);
 		exynos_pm_qos_update_request(&data->sys_pm_qos_min, *target_freq);
 		trace_clock_set_rate(dev_name(data->dev), *target_freq, raw_smp_processor_id());
 	}
@@ -313,13 +303,15 @@ static int gs_memlat_devfreq_probe(struct platform_device *pdev)
 				   data->governor_name, data->governor_data);
 	if (IS_ERR(data->devfreq)) {
 		dev_err(data->dev, "failed devfreq device added\n");
-		ret = -EINVAL;
+		ret = -EPROBE_DEFER;
 		goto err_devfreq;
 	}
 
 	exynos_pm_qos_add_request(&data->sys_pm_qos_min,
 				  (int)data->pm_qos_class,
 				  data->min_freq);
+	memlat_cpu_qos_array[data->cpu] = &data->sys_pm_qos_min;
+	memlat_dev_array[data->cpu] = data->dev;
 
 	ret = sysfs_create_file(&data->devfreq->dev.kobj,
 				&dev_attr_scaling_devfreq_min.attr);
