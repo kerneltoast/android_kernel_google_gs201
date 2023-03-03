@@ -135,7 +135,7 @@ static void exynos_show_wakeup_reason_sysint(unsigned int stat,
 			aoc_id = __raw_readl(pm_info->mbox_aoc + SHARED_SR0);
 			str_idx += scnprintf(wake_reason + str_idx,
 					     MAX_SUSPEND_ABORT_LEN - str_idx,
-					     "%d", aoc_id);
+					     "x%X", aoc_id);
 		}
 	}
 #ifdef CONFIG_SUSPEND
