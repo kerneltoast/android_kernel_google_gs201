@@ -1949,6 +1949,7 @@ static int __mfc_irq_ctx(struct mfc_core *core, struct mfc_ctx *ctx,
 		break;
 	default:
 		mfc_err("Unknown int reason: %d\n", reason);
+		mfc_core_handle_error(core);
 	}
 
 	return 1;
