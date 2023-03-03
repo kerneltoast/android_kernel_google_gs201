@@ -266,7 +266,7 @@ void s51xx_pcie_restore_state(struct pci_dev *pdev)
 	if (ret)
 		mif_err("Can't enable PCIe Device after linkup!\n");
 
-	dev_info(&pdev->dev, "[%s] PCIe RC bme bit setting\n", __func__);
+	dev_dbg(&pdev->dev, "[%s] PCIe RC bme bit setting\n", __func__);
 	pci_set_master(pdev);
 
 	/* DBG: print out EP config values after restore_state */
