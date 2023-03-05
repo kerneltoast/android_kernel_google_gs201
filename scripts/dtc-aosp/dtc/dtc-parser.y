@@ -3,6 +3,7 @@
  * (C) Copyright David Gibson <dwg@au1.ibm.com>, IBM Corporation.  2005.
  */
 %locations
+%expect 5
 
 %{
 #include <stdio.h>
