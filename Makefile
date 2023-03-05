@@ -1476,7 +1476,7 @@ endif
 
 PHONY += scripts_dtc
 scripts_dtc: scripts_basic
-	$(Q)$(MAKE) $(build)=scripts/dtc
+	$(Q)$(MAKE) $(build)=scripts/dtc-aosp
 
 ifneq ($(filter dt_binding_check, $(MAKECMDGOALS)),)
 export CHECK_DT_BINDING=y
