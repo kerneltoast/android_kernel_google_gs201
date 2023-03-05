@@ -23,6 +23,7 @@
 #include "dt_table.h"
 #include "libacpi.h"
 #include "libfdt.h"
+#include "mkdtimg.h"
 
 struct dump_params {
   const char *img_filename;

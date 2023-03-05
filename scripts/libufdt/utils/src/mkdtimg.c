@@ -19,15 +19,7 @@
 #include <string.h>
 #include <unistd.h>
 
-
-extern void handle_usage_help(FILE *out_fp, const char *prog_name);
-extern int handle_command_help(int argc, char *argv[], int arg_start);
-extern void handle_usage_dump(FILE *out_fp, const char *prog_name);
-extern int handle_command_dump(int argc, char *argv[], int arg_start);
-extern void handle_usage_create(FILE *out_fp, const char *prog_name);
-extern int handle_command_create(int argc, char *argv[], int arg_start);
-extern void handle_usage_cfg_create(FILE *out_fp, const char *prog_name);
-extern int handle_command_cfg_create(int argc, char *argv[], int arg_start);
+#include "mkdtimg.h"
 
 
 struct command_info {
