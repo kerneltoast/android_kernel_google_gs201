@@ -21,6 +21,7 @@
 
 #include "dt_table.h"
 #include "mkdtimg_core.h"
+#include "mkdtimg.h"
 
 
 static int calculate_args_entry_count(int argc, char *argv[], int arg_start) {

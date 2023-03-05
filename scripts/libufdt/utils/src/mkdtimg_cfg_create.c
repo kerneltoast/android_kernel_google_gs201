@@ -23,6 +23,7 @@
 
 #include "dt_table.h"
 #include "mkdtimg_core.h"
+#include "mkdtimg.h"
 
 
 struct cfg_create_params {
