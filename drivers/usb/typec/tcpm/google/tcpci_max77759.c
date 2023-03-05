@@ -38,6 +38,8 @@
 #define LIMIT_SINK_VOTER	"LIMIT_SINK_CURRENT_VOTER"
 #define LIMIT_ACCESSORY_VOTER	"LIMIT_ACCESSORY_CURRENT_VOTER"
 
+#define AICL_ACTIVE_EL "AICL_ACTIVE_EL"
+
 #define TCPC_RECEIVE_BUFFER_COUNT_OFFSET                0
 #define TCPC_RECEIVE_BUFFER_FRAME_TYPE_OFFSET           1
 #define TCPC_RECEIVE_BUFFER_RX_BYTE_BUF_OFFSET          2
@@ -2105,6 +2107,15 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 	if (chip->attached && !attached && !bc12_get_status(chip->bc12))
 		bc12_enable(chip->bc12, true);
 
+	/*
+	 * Clear COMPLIANCE_WARNING_OTHER which tracks AICL_ACTIVE only upon disconnect.
+	 * This prevents the incommpatible charging notification to not change status
+	 * during the charging session. AICL active is system/battery load dependent and
+	 * hence can change status during a charge session.
+	 */
+	if (!attached)
+		update_compliance_warnings(chip, COMPLIANCE_WARNING_OTHER, false);
+
 	return 0;
 }
 
@@ -2555,6 +2566,24 @@ exit:
 	return ALARMTIMER_NORESTART;
 }
 
+static int max77759_aicl_active_cb(struct gvotable_election *el, const char *reason, void *value)
+{
+	struct max77759_plat *chip = gvotable_get_data(el);
+	bool aicl_active = !!(long)value;
+
+	logbuffer_log(chip->log, "AICL %s active", aicl_active ? "" : "not");
+	/*
+	 * Set here and clear COMPLIANCE_WARNING_OTHER which tracks AICL_ACTIVE only upon
+	 * disconnect. This prevents the incommpatible charging notification to not change status
+	 * during the charging session. AICL active is system/battery load dependent and hence
+	 * can change status during a charge session.
+	 */
+	if (aicl_active)
+		update_compliance_warnings(chip, COMPLIANCE_WARNING_OTHER, true);
+
+	return 0;
+}
+
 static int max77759_probe(struct i2c_client *client,
 			  const struct i2c_device_id *i2c_id)
 {
@@ -2812,11 +2841,20 @@ static int max77759_probe(struct i2c_client *client,
 		goto unreg_notifier;
 	}
 
+	chip->aicl_active_el =
+		gvotable_create_bool_election(AICL_ACTIVE_EL, max77759_aicl_active_cb, chip);
+	if (IS_ERR_OR_NULL(chip->aicl_active_el)) {
+		ret = PTR_ERR(chip->aicl_active_el);
+		dev_err(chip->dev, "Unable to create aicl_active_el(%d)\n", ret);
+		goto unreg_notifier;
+	}
+	gvotable_set_vote2str(chip->aicl_active_el, gvotable_v2s_int);
+
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
 	if (IS_ERR_OR_NULL(chip->tcpci)) {
 		dev_err(&client->dev, "TCPCI port registration failed");
 		ret = PTR_ERR(chip->tcpci);
-		goto unreg_notifier;
+		goto unreg_aicl_el;
 	}
 	chip->port = tcpci_get_tcpm_port(chip->tcpci);
 
@@ -2865,6 +2903,8 @@ remove_files:
 		device_remove_file(&client->dev, max77759_device_attrs[i]);
 unreg_port:
 	tcpci_unregister_port(chip->tcpci);
+unreg_aicl_el:
+	gvotable_destroy_election(chip->aicl_active_el);
 unreg_notifier:
 	power_supply_unreg_notifier(&chip->psy_notifier);
 destroy_worker:
@@ -2895,6 +2935,8 @@ static int max77759_remove(struct i2c_client *client)
 		device_remove_file(&client->dev, max77759_device_attrs[i]);
 	if (!IS_ERR_OR_NULL(chip->tcpci))
 		tcpci_unregister_port(chip->tcpci);
+	if (!IS_ERR_OR_NULL(chip->aicl_active_el))
+		gvotable_destroy_election(chip->aicl_active_el);
 	if (!IS_ERR_OR_NULL(chip->usb_psy))
 		power_supply_put(chip->usb_psy);
 	if (!IS_ERR_OR_NULL(chip->usb_psy_data))

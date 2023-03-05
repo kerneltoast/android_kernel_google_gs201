@@ -15,6 +15,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/usb/role.h>
 #include <linux/usb/typec_mux.h>
+#include <misc/gvotable.h>
 
 #include "usb_psy.h"
 
@@ -160,6 +161,9 @@ struct max77759_plat {
 	 */
 	bool first_rp_missing_timeout;
 
+	/* Signal from charger when AICL is active. */
+	struct gvotable_election *aicl_active_el;
+
 	/* EXT_BST_EN exposed as GPIO */
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio;
@@ -219,6 +223,7 @@ void data_alt_path_active(struct max77759_plat *chip, bool active);
 void register_data_active_callback(void (*callback)(void *data_active_payload), void *data);
 void register_orientation_callback(void (*callback)(void *orientation_payload), void *data);
 
+/* AICL_OK is tracked with COMPLIANCE_WARNING_OTHER */
 #define COMPLIANCE_WARNING_OTHER 0
 #define COMPLIANCE_WARNING_DEBUG_ACCESSORY 1
 #define COMPLIANCE_WARNING_BC12 2
