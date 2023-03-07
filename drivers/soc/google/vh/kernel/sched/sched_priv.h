@@ -144,6 +144,9 @@ ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[4], struct vendor_task_
 extern bool vendor_sched_reduce_prefer_idle;
 extern struct vendor_group_property vg[VG_MAX];
 
+DECLARE_STATIC_KEY_FALSE(uclamp_min_filter_enable);
+DECLARE_STATIC_KEY_FALSE(uclamp_max_filter_enable);
+
 #define SCHED_PIXEL_BLOCK_UPDATES		BIT(8)
 #define SCHED_PIXEL_RESUME_UPDATES		BIT(9)
 

@@ -90,6 +90,12 @@ unsigned int sysctl_sched_uclamp_min_filter_multiplier = 2;
  */
 unsigned int sysctl_sched_uclamp_max_filter_divider = 4;
 
+/*
+ * Enable and disable uclamp min/max filters at runtime
+ */
+DEFINE_STATIC_KEY_FALSE(uclamp_min_filter_enable);
+DEFINE_STATIC_KEY_FALSE(uclamp_max_filter_enable);
+
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
 /*****************************************************************************/
@@ -1527,6 +1533,9 @@ static inline bool uclamp_can_ignore_uclamp_min(struct rq *rq,
 	if (SCHED_WARN_ON(!uclamp_is_used()))
 		return false;
 
+	if (!static_branch_likely(&uclamp_min_filter_enable))
+		return false;
+
 	if (task_on_rq_migrating(p))
 		return false;
 
@@ -1593,6 +1602,9 @@ static inline bool uclamp_can_ignore_uclamp_max(struct rq *rq,
 	struct cfs_rq *cfs_rq;
 
 	if (SCHED_WARN_ON(!uclamp_is_used()))
+		return false;
+
+	if (!static_branch_likely(&uclamp_max_filter_enable))
 		return false;
 
 	if (task_on_rq_migrating(p))
