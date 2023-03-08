@@ -5177,7 +5177,7 @@ static int exynos_pcie_rc_suspend_noirq(struct device *dev)
 
 	logbuffer_log(exynos_pcie->log, "pm_suspend_no_irq called");
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
-		dev_info(dev, "PCIe PMU ISOLATION\n");
+		dev_dbg(dev, "PCIe PMU ISOLATION\n");
 		exynos_pcie_phy_isolation(exynos_pcie, PCIE_PHY_ISOLATION);
 
 		return 0;
