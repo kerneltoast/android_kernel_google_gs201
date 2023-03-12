@@ -315,7 +315,7 @@ int __pkvm_iommu_register(unsigned long dev_id,
 	struct pkvm_iommu *dev = NULL;
 	struct pkvm_iommu_driver *drv;
 	void *mem_va = NULL;
-	int ret = 0;
+	int i, ret = 0;
 
 	/* New device registration not allowed after __pkvm_iommu_finalize(). */
 	hyp_spin_lock(&iommu_registration_lock);
@@ -356,6 +356,9 @@ int __pkvm_iommu_register(unsigned long dev_id,
 					     mem_size >> PAGE_SHIFT);
 		if (ret)
 			goto out_unlock;
+
+		for (i = 0; i < mem_size / PAGE_SIZE; i++)
+			clear_page(mem_va + i * PAGE_SIZE);
 	}
 
 	host_lock_component();
