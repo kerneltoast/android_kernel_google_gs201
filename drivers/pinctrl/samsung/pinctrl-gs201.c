@@ -159,7 +159,6 @@ static const struct samsung_pin_ctrl gs201_pin_ctrl[] __initconst = {
 		/* pin banks of gs201 pin-controller (ALIVE) */
 		.pin_banks	= gs201_pin_alive,
 		.nr_banks	= ARRAY_SIZE(gs201_pin_alive),
-		.eint_gpio_init = exynos_eint_gpio_init,
 		.eint_wkup_init = exynos_eint_wkup_init,
 		.suspend	= exynos_pinctrl_suspend,
 		.resume		= exynos_pinctrl_resume,
@@ -167,7 +166,6 @@ static const struct samsung_pin_ctrl gs201_pin_ctrl[] __initconst = {
 		/* pin banks of gs201 pin-controller (FAR_ALIVE) */
 		.pin_banks	= gs201_pin_far_alive,
 		.nr_banks	= ARRAY_SIZE(gs201_pin_far_alive),
-		.eint_gpio_init = exynos_eint_gpio_init,
 		.eint_wkup_init = exynos_eint_wkup_init,
 		.suspend	= exynos_pinctrl_suspend,
 		.resume		= exynos_pinctrl_resume,
