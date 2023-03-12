@@ -45,6 +45,10 @@
 
 static struct hc_driver xhci_exynos_hc_driver;
 
+/* Callback for bus suspend */
+void (*bus_suspend_callback)(void *bus_suspend_payload, bool main_hcd, bool suspend);
+void *bus_suspend_payload;
+
 static int xhci_exynos_setup(struct usb_hcd *hcd);
 static int xhci_exynos_start(struct usb_hcd *hcd);
 
@@ -56,6 +60,15 @@ static const struct xhci_driver_overrides xhci_exynos_overrides __initconst = {
 	.bus_suspend = xhci_exynos_bus_suspend,
 	.bus_resume = xhci_exynos_bus_resume,
 };
+
+void register_bus_suspend_callback(void (*callback)(void *bus_suspend_payload, bool main_hcd,
+						    bool suspend),
+				   void *data)
+{
+	bus_suspend_callback = callback;
+	bus_suspend_payload = data;
+}
+EXPORT_SYMBOL_GPL(register_bus_suspend_callback);
 
 /*
  * list of VID:PID pair of udevs which are allowed to enter Suspend state regardless of the
@@ -207,6 +220,9 @@ int xhci_exynos_bus_suspend(struct usb_hcd *hcd)
 
 	xhci_exynos_wake_lock(xhci_exynos, main_hcd, 0);
 
+	if (bus_suspend_callback)
+		(*bus_suspend_callback)(bus_suspend_payload, !!main_hcd, true);
+
 	return ret;
 }
 
@@ -242,6 +258,9 @@ int xhci_exynos_bus_resume(struct usb_hcd *hcd)
 	ret = xhci_bus_resume(hcd);
 
 	xhci_exynos_wake_lock(xhci_exynos, main_hcd, 1);
+
+	if (bus_suspend_callback)
+		(*bus_suspend_callback)(bus_suspend_payload, !!main_hcd, false);
 
 	return ret;
 }
