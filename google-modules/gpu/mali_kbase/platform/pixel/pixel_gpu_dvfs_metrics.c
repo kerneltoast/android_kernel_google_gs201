@@ -380,15 +380,11 @@ int gpu_dvfs_kctx_init(struct kbase_context *kctx)
 	struct pixel_context *pc = kbdev->platform_context;
 	struct pixel_platform_data *pd = kctx->platform_data;
 
-	struct task_struct *task;
-	kuid_t uid;
+	/* Get UID from task_struct */
+	kuid_t uid = current_cred()->uid;
 
 	struct gpu_dvfs_metrics_uid_stats *entry, *stats;
 	int ret = 0;
-
-	/* Get UID from task_struct */
-	task = get_pid_task(find_get_pid(kctx->kprcs->tgid), PIDTYPE_TGID);
-	uid = task->cred->uid;
 
 	mutex_lock(&kbdev->kctx_list_lock);
 
