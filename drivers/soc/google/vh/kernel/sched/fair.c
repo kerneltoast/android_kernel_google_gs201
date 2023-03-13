@@ -1936,7 +1936,6 @@ out:
 					prev_cpu, *target_cpu);
 }
 
-
 static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
 {
 	struct task_struct *p = NULL, *best_task = NULL, *backup = NULL;
