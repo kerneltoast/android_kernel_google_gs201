@@ -799,8 +799,8 @@ static void max77759_non_compliant_bc12_callback(void *data, bool status)
 	struct max77759_plat *chip = data;
 
 	/* Exclude Rp-1.5 or higher power sources */
-	if (status && !(chip->cc1 == TYPEC_CC_RP_3_0 || chip->cc1 == TYPEC_CC_RP_1_5 ||
-			chip->cc2 == TYPEC_CC_RP_3_0 || chip->cc2 == TYPEC_CC_RP_1_5))
+	if ((status && !(chip->cc1 == TYPEC_CC_RP_3_0 || chip->cc1 == TYPEC_CC_RP_1_5 ||
+			chip->cc2 == TYPEC_CC_RP_3_0 || chip->cc2 == TYPEC_CC_RP_1_5)) || !status)
 		update_compliance_warnings(chip, COMPLIANCE_WARNING_BC12, status);
 }
 
