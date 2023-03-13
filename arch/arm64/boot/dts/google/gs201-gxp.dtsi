@@ -43,6 +43,21 @@
 		gxp-fw-region = <&gxp_fw_reserved>;
 		gxp-scratchpad-region = <&gxp_scratchpad_reserved>;
 		gxp-memory-per-core = <0 512>;
+		gcip-dvfs-table-size = <7 2>; /*<row col>*/
+		gcip-dvfs-table = <
+			/*
+			 * when updating gcip-dvfs-table, update gcip-dvfs-table-size as well
+			 * freq   power(mW)
+			 * -------------------
+			 */
+			1065000   78
+			 861000   58
+			 713000   40
+			 560000   27
+			 355000   20
+			 256000   16
+			 178000   13
+		>;
 	};
 	gxp_cooling: gxp-cooling {
 		#cooling-cells = <2>;
