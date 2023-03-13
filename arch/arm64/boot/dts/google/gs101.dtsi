@@ -607,6 +607,7 @@
 		samsung,iommu-group = <&iommu_group_smfc>;
 		iommus = <&sysmmu_g2d2>;
 		dma-coherent;
+		smfc,int_qos_minlock = <533000>;
 	};
 
 	udc: usb@11110000 {
