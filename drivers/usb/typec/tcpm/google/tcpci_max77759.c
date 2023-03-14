@@ -1068,8 +1068,11 @@ static void check_missing_rp_work(struct kthread_work *work)
 	}
 
 	if (!!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES) &&
-	    cc_open_or_toggling(chip->cc1, chip->cc2) && !chip->compliance_warnings->missing_rp) {
-		logbuffer_log(chip->log, "%s: Missing Rp partner detected. Enable WAR", __func__);
+	    (cc_open_or_toggling(chip->cc1, chip->cc2) ||
+	     (chip->cc1 == TYPEC_CC_RP_DEF && chip->cc2 == TYPEC_CC_RP_DEF)) &&
+	    !chip->compliance_warnings->missing_rp) {
+		logbuffer_log(chip->log, "%s: Missing or incorrect Rp partner detected. Enable WAR",
+			      __func__);
 		/* Assume DCP for missing Rp non-compliant power source */
 		val.intval = POWER_SUPPLY_USB_TYPE_DCP;
 		max77759_set_vbus(chip->tcpci, chip->tcpci->data, false, true);
