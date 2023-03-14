@@ -9,7 +9,32 @@
 / {
 	mali_mgm: physical-memory-group-manager {
 		compatible = "arm,physical-memory-group-manager";
-		pt_id = "GPU";
+
+		/* Memory groups */
+		groups =
+			"gpu_g0";
+
+		/* Base partition index per group */
+		group_base_pt = <0>;
+
+		/* Number of partitions per group */
+		group_pt_num = <10>;
+
+		/* SLC partitions */
+		pt_id =
+			"gpu_g0_p0",
+			"gpu_g0_p1",
+			"gpu_g0_p2",
+			"gpu_g0_p3",
+			"gpu_g0_p4",
+			"gpu_g0_p5",
+			"gpu_g0_p6",
+			"gpu_g0_p7",
+			"gpu_g0_p8",
+			"gpu_g0_p9";
+
+		/* SLC partition sizes KB */
+		pt_size = <256 512 768 1024 1536 2048 3072 4096 6144 8192>;
 	};
 
 	mali_pcm: priority-control-manager {
