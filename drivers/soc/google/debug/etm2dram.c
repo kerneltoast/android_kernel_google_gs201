@@ -7,9 +7,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": %s() " fmt, __func__
 
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dynamic_debug.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -90,7 +92,7 @@ int etm2dram_cancel_delayed_start(void)
 }
 EXPORT_SYMBOL_GPL(etm2dram_cancel_delayed_start);
 
-static int etm2dram_set_arm(bool enable)
+static int etm2dram_set_arm_locked(bool enable)
 {
 	struct adv_tracer_ipc_cmd cmd;
 	int ret;
@@ -110,6 +112,37 @@ static int etm2dram_set_arm(bool enable)
 		pr_debug("ipc (channel=%d) success\n", etm2dram_channel_id);
 
 	return ret;
+}
+
+static int arm_update(struct etm2dram_private *data, bool new_value)
+{
+	int ret = 0;
+
+	mutex_lock(&data->arm_lock);
+	if (data->is_armed != new_value) {
+		ret = etm2dram_set_arm_locked(new_value);
+		if (!ret)
+			data->is_armed = new_value;
+	}
+	mutex_unlock(&data->arm_lock);
+
+	return ret;
+}
+
+static void arm_suspend(struct etm2dram_private *data)
+{
+	mutex_lock(&data->arm_lock);
+	if (data->is_armed)
+		etm2dram_set_arm_locked(false);
+	mutex_unlock(&data->arm_lock);
+}
+
+static void arm_resume(struct etm2dram_private *data)
+{
+	mutex_lock(&data->arm_lock);
+	if (data->is_armed)
+		etm2dram_set_arm_locked(true);
+	mutex_unlock(&data->arm_lock);
 }
 
 static int etm2dram_set_databuf(dma_addr_t base, int size)
@@ -143,16 +176,10 @@ static int etm2dram_pm_notifier(struct notifier_block *notifier,
 
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
-		mutex_lock(&data->arm_lock);
-		if (data->is_armed)
-			etm2dram_set_arm(false);
-		mutex_unlock(&data->arm_lock);
+		arm_suspend(data);
 		break;
 	case PM_POST_SUSPEND:
-		mutex_lock(&data->arm_lock);
-		if (data->is_armed)
-			etm2dram_set_arm(true);
-		mutex_unlock(&data->arm_lock);
+		arm_resume(data);
 		break;
 	}
 	return NOTIFY_OK;
@@ -263,21 +290,47 @@ static int devm_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handl
 	return 0;
 }
 
-static ssize_t status_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static void devm_debugfs_remove_recursive(struct device *dev, void *res)
 {
-	struct etm2dram_private *data = dev_get_drvdata(dev);
-	ssize_t s = 0;
+	struct dentry **dentry_res = res;
 
-	s += scnprintf(buf + s, PAGE_SIZE - s, "reserved_mem:\n");
-	s += scnprintf(buf + s, PAGE_SIZE - s, " .base: %pad\n", &data->dbuf_base);
-	s += scnprintf(buf + s, PAGE_SIZE - s, " .size: %#zx\n", data->dbuf_size);
-	s += scnprintf(buf + s, PAGE_SIZE - s, "IPC channel ID: %d\n", etm2dram_channel_id);
-
-	return s;
+	dev_dbg(dev, "unregister debugfs dentry %ps\n", *dentry_res);
+	debugfs_remove_recursive(*dentry_res);
 }
 
-static DEVICE_ATTR_RO(status);
+static struct dentry *devm_debugfs_create_dir(struct device *dev, const char *name, void *data)
+{
+	struct dentry **res;
+	struct dentry *dentry;
+
+	res = devres_alloc(devm_debugfs_remove_recursive, sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return ERR_PTR(-ENOMEM);
+
+	dentry = debugfs_create_dir(name, data);
+	if (IS_ERR_OR_NULL(dentry)) {
+		dev_err(dev, "failed to register debugfs dentry\n");
+		devres_free(res);
+		return ERR_PTR(-EFAULT);
+	}
+
+	dev_dbg(dev, "registered debugfs dentry %ps\n", dentry);
+	*res = dentry;
+	devres_add(dev, res);
+	return dentry;
+}
+
+static int status_show(struct seq_file *s, void *unused)
+{
+	struct etm2dram_private *data = dev_get_drvdata(s->private);
+
+	seq_puts(s, "reserved_mem:\n");
+	seq_printf(s, " .base: %pad\n", &data->dbuf_base);
+	seq_printf(s, " .size: %#zx\n", data->dbuf_size);
+	seq_printf(s, "IPC channel ID: %d\n", etm2dram_channel_id);
+
+	return 0;
+}
 
 static ssize_t
 arm_store(struct device *dev, struct device_attribute *attr,
@@ -291,22 +344,13 @@ arm_store(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		return ret;
 
-	ret = 0;
-	mutex_lock(&data->arm_lock);
-	if (data->is_armed != new_value) {
-		ret = etm2dram_set_arm(new_value);
-		if (!ret)
-			data->is_armed = new_value;
-	}
-	mutex_unlock(&data->arm_lock);
-
-	return ret ?: count;
+	ret = arm_update(data, new_value);
+	return ret ? ret : count;
 }
 
 static DEVICE_ATTR_WO(arm);
 
 static struct attribute *etm2dram_sysfs_attrs[] = {
-	&dev_attr_status.attr,
 	&dev_attr_arm.attr,
 	NULL,
 };
@@ -320,6 +364,7 @@ static int etm2dram_probe(struct platform_device *pdev)
 	int ret;
 	unsigned int channel_len;
 	struct etm2dram_private *data;
+	struct dentry *debug_dir;
 
 	if (etm2dram_channel_id != INVALID_ID)
 		return -EBUSY;
@@ -356,6 +401,14 @@ static int etm2dram_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to add sysfs group: %d\n", ret);
 		return ret;
 	}
+
+	debug_dir = devm_debugfs_create_dir(&pdev->dev, "etm2dram", NULL);
+	if (IS_ERR_OR_NULL(debug_dir)) {
+		dev_err(&pdev->dev, "failed to create debugfs dir\n");
+		return -EFAULT;
+	}
+
+	debugfs_create_devm_seqfile(&pdev->dev, "status", debug_dir, status_show);
 
 	data->pm_nb.notifier_call = etm2dram_pm_notifier;
 	ret = devm_register_pm_notifier(&pdev->dev, &data->pm_nb);

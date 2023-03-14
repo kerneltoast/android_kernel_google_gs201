@@ -89,6 +89,7 @@ extern void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct ta
 extern void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
 					    int flags);
 #endif
+
 extern struct cpufreq_governor sched_pixel_gov;
 
 extern int pmu_poll_init(void);

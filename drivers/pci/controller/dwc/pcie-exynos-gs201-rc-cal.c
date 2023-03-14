@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/exynos-pci-noti.h>
 #include <linux/regmap.h>
+#include <misc/logbuffer.h>
 #include "pcie-designware.h"
 #include "pcie-exynos-common.h"
 #include "pcie-exynos-rc.h"
@@ -131,13 +132,14 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	dev_dbg(exynos_pcie->pci->dev, "[CAL: %s] CAL ver 210802\n", __func__);
 
 	/* Debug code added to check if PCIe PHY is being reset correctly. */
-	dev_info(exynos_pcie->pci->dev, "check reset values\n");
+	logbuffer_log(exynos_pcie->log, "start checking reset values");
 	for (i = 0; i < 6; i++) {
 		val = readl(phy_base_regs + reset_table[i].offset);
 		if (val != reset_table[i].val)
 			dev_err(exynos_pcie->pci->dev, "off=%x, exp=0x%x, act=0x%x\n",
 				reset_table[i].offset, reset_table[i].val, val);
 	}
+	logbuffer_log(exynos_pcie->log, "reset values checked");
 
 	/* init. input clk path */
 	writel(0x28, phy_base_regs + 0xD8);

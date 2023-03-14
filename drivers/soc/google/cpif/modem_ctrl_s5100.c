@@ -1540,7 +1540,7 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 
 	if ((mc->s51xx_pdev != NULL) && mc->pcie_registered) {
 		/* DBG */
-		mif_info("DBG: doorbell: pcie_registered = %d\n", mc->pcie_registered);
+		mif_debug("DBG: doorbell: pcie_registered = %d\n", mc->pcie_registered);
 		if (s51xx_pcie_send_doorbell_int(mc->s51xx_pdev,
 						 mld->intval_ap2cp_pcie_link_ack) != 0) {
 			/* DBG */
