@@ -308,16 +308,22 @@ static int eh_reset(struct eh_device *eh_dev)
 	return 1;
 }
 
+static void eh_setup_src_addr(struct eh_compress_desc *desc, struct page *page)
+{
+	phys_addr_t src_paddr = page_to_phys(page);
+
+	/* Update the source address field in the descriptor */
+	desc->src_addr &= ~EH_COMP_SRC_ADDR_MASK;
+	desc->src_addr |= (src_paddr & EH_COMP_SRC_ADDR_MASK);
+}
 static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
 				unsigned int index)
 {
 	struct eh_compress_desc *desc;
-	phys_addr_t src_paddr;
 
 	desc = eh_descriptor(eh_dev, index);
-	src_paddr = page_to_phys(src_page);
-
-	desc->src_addr = src_paddr;
+	/* Set the source address */
+	eh_setup_src_addr(desc, src_page);
 	/* mark it as pend for hardware */
 	desc->status = EH_CDESC_PENDING;
 	/*

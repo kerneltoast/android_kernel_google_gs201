@@ -104,6 +104,10 @@ struct eh_compress_desc {
 
 #define EH_COMPRESS_DESC_SIZE sizeof(struct eh_compress_desc)
 
+/* Address mask for compression descriptor */
+#define EH_COMP_ADDR_LSB 0x0C
+#define EH_COMP_SRC_ADDR_MASK ~(BIT(EH_COMP_ADDR_LSB)-1)
+
 /*
  * We're using a scheme for encoding the size of an aligned buffer
  * by setting the bit equal to size/2 which is smaller than the least
