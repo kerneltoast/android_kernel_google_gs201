@@ -3965,6 +3965,115 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 
 static void cfi_init(struct module *mod);
 
+static int unknown_integrated_module_param_cb(char *param, char *val,
+					      const char *modname, void *arg)
+{
+	pr_warn("%s: unknown parameter '%s' ignored\n", modname, param);
+	return 0;
+}
+
+static int integrated_module_param_cb(char *param, char *val,
+				      const char *modname, void *arg)
+{
+	size_t nlen, plen, vlen;
+	char *modparam;
+
+	nlen = strlen(modname);
+	plen = strlen(param);
+	vlen = val ? strlen(val) : 0;
+	if (vlen)
+		/* Parameter formatted as "modname.param=val" */
+		modparam = kmalloc(nlen + plen + vlen + 3, GFP_KERNEL);
+	else
+		/* Parameter formatted as "modname.param" */
+		modparam = kmalloc(nlen + plen + 2, GFP_KERNEL);
+	if (!modparam) {
+		pr_err("%s: allocation failed for module '%s' parameter '%s'\n",
+		       __func__, modname, param);
+		return 0;
+	}
+
+	/* Construct the correct parameter name for the built-in module */
+	memcpy(modparam, modname, nlen);
+	modparam[nlen] = '.';
+	memcpy(&modparam[nlen + 1], param, plen);
+	if (vlen) {
+		modparam[nlen + 1 + plen] = '=';
+		memcpy(&modparam[nlen + 1 + plen + 1], val, vlen);
+		modparam[nlen + 1 + plen + 1 + vlen] = '\0';
+	} else {
+		modparam[nlen + 1 + plen] = '\0';
+	}
+
+	/* Now have parse_args() look for the correct parameter name */
+	parse_args(modname, modparam, __start___param,
+		   __stop___param - __start___param,
+		   -32768, 32767, NULL,
+		   unknown_integrated_module_param_cb);
+	kfree(modparam);
+	return 0;
+}
+
+static int load_integrated_module(const char *modname, const char __user *uargs)
+{
+	char *args, kmod[MODULE_NAME_LEN + 20];
+	initcall_entry_t *entry;
+	atomic_t *init_done;
+	int ret;
+
+	/* Find the initdone flag */
+	snprintf(kmod, sizeof(kmod), "__initdone__kmod_%s__", modname);
+	init_done = (void *)kallsyms_lookup_name(kmod);
+	if (!init_done) {
+		pr_info("%s: module '%s' not found\n", __func__, modname);
+		/* Don't return an error even if the module wasn't found */
+		return 0;
+	}
+
+	args = strndup_user(uargs, ~0UL >> 1);
+	if (IS_ERR(args))
+		return PTR_ERR(args);
+
+	/* Find where the initcall entry is stored */
+	snprintf(kmod, sizeof(kmod), "__initcall__kmod_%s__", modname);
+	entry = (void *)kallsyms_lookup_name(kmod);
+
+	/* Initialize the module if it hasn't been initialized already */
+	if (!atomic_cmpxchg(init_done, 0, 1)) {
+		/*
+		 * Parameter parsing is done in two steps for integrated modules
+		 * because built-in modules have their parameter names set as
+		 * "modname.param", which means that each parameter name in the
+		 * arguments must have "modname." prepended to it, or it won't
+		 * be found.
+		 *
+		 * Since parse_args() has a lot of complex logic for actually
+		 * parsing out arguments, do parsing in two parse_args() steps.
+		 * The first step just makes parse_args() parse out each
+		 * parameter/value pair and then pass it to
+		 * integrated_module_param_cb(), which builds the correct
+		 * parameter name for the built-in module and runs parse_args()
+		 * for real. This means that parse_args() recurses, but the
+		 * recursion is fixed because integrated_module_param_cb()
+		 * passes a different unknown handler,
+		 * unknown_integrated_module_param_cb().
+		 */
+		if (*args)
+			parse_args(modname, args, NULL, 0, 0, 0, NULL,
+				   integrated_module_param_cb);
+
+		/* Run the module's initcall if it has one */
+		if (entry) {
+			ret = do_one_initcall(initcall_from_entry(entry));
+			if (ret)
+				pr_info("%s: module '%s' init returned %d\n",
+					__func__, modname, ret);
+		}
+	}
+	kfree(args);
+	return 0;
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static int load_module(struct load_info *info, const char __user *uargs,
@@ -4007,6 +4116,12 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	err = setup_load_info(info, flags);
 	if (err)
 		goto free_copy;
+
+	if (IS_ENABLED(CONFIG_INTEGRATE_MODULES)) {
+		/* Load the built-in version of this module */
+		err = load_integrated_module(info->name, uargs);
+		goto free_copy;
+	}
 
 	/*
 	 * Now that we know we have the correct module name, check

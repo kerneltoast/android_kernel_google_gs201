@@ -2122,9 +2122,32 @@ config MODULE_SIG_FORMAT
 	def_bool n
 	select SYSTEM_DATA_VERIFICATION
 
+config INTEGRATE_MODULES
+	bool "Integrate modularized drivers"
+	select KALLSYMS
+	option modules
+	help
+	  This option allows you to set various configs as =m despite not having
+	  loadable module support. This, in turn, allows drivers built as =m to
+	  not be initialized as part of the kernel's normal initcalls, instead
+	  permitting these drivers to initialize when userspace tries to insmod
+	  the .ko files corresponding to these modules even when they're built
+	  for a different kernel.
+
+	  The usecase here is to unravel Android's GKI system in order to have
+	  all drivers built-in. Building in all drivers on a GKI kernel is
+	  otherwise difficult because there are many modules with init timing
+	  and ordering constraints that are known to userspace but not to the
+	  kernel, and it would be arduous to teach the kernel about these things
+	  because GKI kernels have hundreds of modules.
+
+	  This way, you can build all drivers into the kernel image even with
+	  GKI, and all drivers will automatically initialize at the correct time
+	  when userspace tries to insmod the installed GKI modules.
+
 menuconfig MODULES
 	bool "Enable loadable module support"
-	option modules
+	depends on !INTEGRATE_MODULES
 	help
 	  Kernel modules are small pieces of compiled code which can
 	  be inserted in the running kernel, rather than being
