@@ -22,7 +22,7 @@
  */
 
 #ifndef __ASSEMBLY__
-#ifdef MODULE
+#if defined(MODULE) && !defined(CONFIG_INTEGRATE_MODULES)
 extern struct module __this_module;
 #define THIS_MODULE (&__this_module)
 #else
@@ -97,7 +97,8 @@ struct kernel_symbol {
 
 #endif
 
-#if !defined(CONFIG_MODULES) || defined(__DISABLE_EXPORTS)
+#if !defined(CONFIG_MODULES) || defined(__DISABLE_EXPORTS) || \
+    defined(CONFIG_INTEGRATE_MODULES)
 
 /*
  * Allow symbol exports to be disabled completely so that C code may

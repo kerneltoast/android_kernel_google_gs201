@@ -3,6 +3,10 @@
 # Makefile for linux kernel module support
 #
 
+ifeq ($(CONFIG_INTEGRATE_MODULES),y)
+ccflags-y += -DCONFIG_MODULES=1
+endif
+
 # These are called from save_stack_trace() on slub debug path,
 # and produce insane amounts of uninteresting coverage.
 KCOV_INSTRUMENT_main.o := n
