@@ -63,6 +63,10 @@ ifneq ($(CONFIG_SMP),y)
 obj-y += up.o
 endif
 obj-$(CONFIG_UID16) += uid16.o
+ifeq ($(CONFIG_INTEGRATE_MODULES),y)
+obj-y += module.o
+CFLAGS_module.o += -DCONFIG_MODULES=1
+endif
 obj-$(CONFIG_MODULES) += module.o
 obj-$(CONFIG_MODULE_SIG) += module_signing.o
 obj-$(CONFIG_MODULE_SIG_FORMAT) += module_signature.o
