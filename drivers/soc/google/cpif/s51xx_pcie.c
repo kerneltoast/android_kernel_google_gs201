@@ -371,7 +371,19 @@ static void s51xx_pcie_event_cb(struct exynos_pcie_notify *noti)
 		}
 	}
 }
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+int s51xx_pcie_sysmmu_fault_notifier(struct notifier_block *nb, unsigned long action,
+				     void *nb_data)
+{
+	pr_err("CPIF : SysMMU fault notifier -> Crash dump!\n");
+	s5100_force_crash_exit_ext();
 
+	return 0;
+}
+
+extern int pcie_sysmmu_register_fault_handler(struct notifier_block *pcie_sysmmu_nb,
+					      int hsi_block_num);
+#endif
 static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret;
@@ -386,7 +398,9 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	struct resource *tmp_rsc;
 	int resno = PCI_BRIDGE_MEM_WINDOW;
 	u32 val, db_addr;
-
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	static struct notifier_block sysmmu_fault_notifier;
+#endif
 	dev_info(dev, "%s EP driver Probe(%s), chNum: %d\n",
 			driver->name, __func__, mc->pcie_ch_num);
 
@@ -462,6 +476,11 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	pci_set_master(pdev);
 
 	pci_set_drvdata(pdev, s51xx_pcie);
+
+#if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
+	sysmmu_fault_notifier.notifier_call = s51xx_pcie_sysmmu_fault_notifier;
+	pcie_sysmmu_register_fault_handler(&sysmmu_fault_notifier, mc->pcie_ch_num + 1);
+#endif
 
 	return 0;
 }
