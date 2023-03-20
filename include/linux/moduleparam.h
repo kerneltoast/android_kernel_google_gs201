@@ -8,7 +8,7 @@
 
 /* You can override this manually, but generally this should match the
    module name. */
-#ifdef MODULE
+#if defined(MODULE) && !defined(CONFIG_INTEGRATE_MODULES)
 #define MODULE_PARAM_PREFIX /* empty */
 #define __MODULE_INFO_PREFIX /* empty */
 #else
@@ -594,7 +594,7 @@ extern int param_get_string(char *buffer, const struct kernel_param *kp);
 
 struct module;
 
-#if defined(CONFIG_SYSFS) && defined(CONFIG_MODULES)
+#if defined(CONFIG_SYSFS) && defined(CONFIG_MODULES) && !defined(CONFIG_INTEGRATE_MODULES)
 extern int module_param_sysfs_setup(struct module *mod,
 				    const struct kernel_param *kparam,
 				    unsigned int num_params);

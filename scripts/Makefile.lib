@@ -17,6 +17,11 @@ KBUILD_RUSTFLAGS += $(subdir-rustflags-y)
 # only build the compiled-in version
 obj-m := $(filter-out $(obj-y),$(obj-m))
 
+ifeq ($(CONFIG_INTEGRATE_MODULES),y)
+# Add obj-m targets except for modules.order to obj-y
+obj-y += $(filter-out %/modules.order, $(obj-m))
+endif
+
 # Libraries are always collected in one lib file.
 # Filter out objects already built-in
 lib-y := $(filter-out $(obj-y), $(sort $(lib-y) $(lib-m)))
@@ -53,13 +58,23 @@ multi-search = $(sort $(foreach m, $1, $(if $(call suffix-search, $m, $2, $3 -),
 real-search = $(foreach m, $1, $(if $(call suffix-search, $m, $2, $3 -), $(call suffix-search, $m, $2, $3), $m))
 
 # If $(foo-objs), $(foo-y), $(foo-m), or $(foo-) exists, foo.o is a composite object
+ifeq ($(CONFIG_INTEGRATE_MODULES),y)
+# Include -m composite objects
+multi-obj-y := $(call multi-search, $(obj-y), .o, -objs -y -m)
+else
 multi-obj-y := $(call multi-search, $(obj-y), .o, -objs -y)
+endif
 multi-obj-m := $(call multi-search, $(obj-m), .o, -objs -y -m)
 multi-obj-ym := $(multi-obj-y) $(multi-obj-m)
 
 # Replace multi-part objects by their individual parts,
 # including built-in.a from subdirectories
+ifeq ($(CONFIG_INTEGRATE_MODULES),y)
+# Include -m real objects
+real-obj-y := $(call real-search, $(obj-y), .o, -objs -y -m)
+else
 real-obj-y := $(call real-search, $(obj-y), .o, -objs -y)
+endif
 real-obj-m := $(call real-search, $(obj-m), .o, -objs -y -m)
 
 always-y += $(always-m)
@@ -114,6 +129,9 @@ __modname = $(or $(modname-multi),$(basetarget))
 modname = $(subst $(space),:,$(__modname))
 modfile = $(addprefix $(obj)/,$(__modname))
 
+# Indicate whether this is a module or just an object shared by multiple modules
+is_module = $(if $(findstring :,$(modname)),0,1)
+
 # target with $(obj)/ and its suffix stripped
 target-stem = $(basename $(patsubst $(obj)/%,%,$@))
 
@@ -124,7 +142,8 @@ name-fix-token = $(subst $(comma),_,$(subst -,_,$1))
 name-fix = $(call stringify,$(call name-fix-token,$1))
 basename_flags = -DKBUILD_BASENAME=$(call name-fix,$(basetarget))
 modname_flags  = -DKBUILD_MODNAME=$(call name-fix,$(modname)) \
-		 -D__KBUILD_MODNAME=kmod_$(call name-fix-token,$(modname))
+		 -D__KBUILD_MODNAME=kmod_$(call name-fix-token,$(modname)) \
+		 -DKBUILD_IS_MODULE=$(is_module)
 modfile_flags  = -DKBUILD_MODFILE=$(call stringify,$(modfile))
 
 _c_flags       = $(filter-out $(CFLAGS_REMOVE_$(target-stem).o), \
