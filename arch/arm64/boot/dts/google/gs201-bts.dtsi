@@ -46,6 +46,8 @@
 			    "mfc_uhd_enc60";
 
 		rt-names = "DECON0",
+			   "DECON1",
+			   "DECON2",
 			   "csi",
 			   "ipp",
 			   "g3aa";
