@@ -127,7 +127,8 @@ static void hook_irq_begin(void *data, int irq, struct irqaction *action)
 		return;
 	cpu_num = raw_smp_processor_id();
 	long_irq_stat.irq_start[cpu_num][irq] = ktime_get();
-	if (long_irq_stat.long_irq_arr[irq] >= long_irq_stat.long_irq_threshold) {
+	if (long_irq_stat.display_warning &&
+		long_irq_stat.long_irq_arr[irq] >= long_irq_stat.long_irq_threshold) {
 		char trace_name[32] = {0};
 		scnprintf(trace_name, sizeof(trace_name), "long_irq_%d",
 							irq);
@@ -146,7 +147,8 @@ static void hook_irq_end(void *data, int irq, struct irqaction *action, int ret)
 	long_irq_stat.irq_end = ktime_get();
 	irq_usec = ktime_to_us(ktime_sub(long_irq_stat.irq_end,
 				long_irq_stat.irq_start[cpu_num][irq]));
-	if (long_irq_stat.long_irq_arr[irq] >= long_irq_stat.long_irq_threshold)
+	if (long_irq_stat.display_warning &&
+		long_irq_stat.long_irq_arr[irq] >= long_irq_stat.long_irq_threshold)
 		ATRACE_END();
 	if (irq_usec >= long_irq_stat.long_irq_threshold) {
 		if (long_irq_stat.display_warning)
@@ -161,6 +163,8 @@ static void hook_irq_end(void *data, int irq, struct irqaction *action, int ret)
 				(unsigned int)
 				atomic64_read(&long_irq_stat.long_irq_count_arr[cpu_num]),
 				cpu_num);
+			scnprintf(trace_name, sizeof(trace_name), "irq_%d_last_dur", irq);
+			trace_clock_set_rate(trace_name, (unsigned int)irq_usec, cpu_num);
 		}
 	}
 	do {
