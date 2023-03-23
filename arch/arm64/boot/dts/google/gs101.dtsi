@@ -642,7 +642,7 @@
 	};
 
 	smfc: smfc@1C700000 {
-		compatible = "samsung,exynos-jpeg";
+		compatible = "samsung,exynos8890-jpeg";
 		reg = <0x0 0x1C700000 0x1000>;
 		interrupts = <0 IRQ_JPEG_G2D IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clock GATE_JPEG>;
