@@ -17,8 +17,9 @@
 // Maximum size: u64[2] for ANDROID_VENDOR_DATA_ARRAY(1, 2) in task_struct
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 enum vendor_util_group {
-	VUG_FG = 0,
-	VUG_BG,
+	VUG_BG = 0,
+	// VUG_FG must be the last one so that we could skip it.
+	VUG_FG,
 	VUG_MAX,
 };
 #endif
