@@ -30,6 +30,7 @@
 
 #include <asm/cacheflush.h>
 #include <linux/pgtable.h>
+#include <soc/google/exynos-modem-ctrl.h>
 
 #include "exynos-pcie-iommu.h"
 #include "exynos-pcie-iommu-exp.h"
@@ -187,7 +188,7 @@ static void __sysmmu_enable_nocount(struct sysmmu_drvdata *drvdata, int pcie_vid
 
 	/* Set VID0 MMU_CTRL (Stall mode is default) */
 	ctrl_val = readl_relaxed(drvdata->sfrbase + REG_MMU_CTRL_VID(pcie_vid));
-	writel(ctrl_val | CTRL_MMU_ENABLE | CTRL_FAULT_STALL_MODE,
+	writel(ctrl_val | CTRL_MMU_ENABLE,
 	       drvdata->sfrbase + REG_MMU_CTRL_VID(pcie_vid));
 
 	if (drvdata->pcie_use_iocc) {
@@ -323,6 +324,17 @@ static unsigned int dump_tlb_entry_port_type(void __iomem *sfrbase,
 	}
 	return 0;
 }
+
+int pcie_sysmmu_register_fault_handler(struct notifier_block *pcie_sysmmu_nb, int hsi_block_num)
+{
+	struct sysmmu_drvdata *drvdata = g_sysmmu_drvdata[hsi_block_num];
+
+	dev_info(drvdata->sysmmu, "Add SysMMU Page Fault Handler.\n");
+	atomic_notifier_chain_register(&drvdata->fault_notifiers, pcie_sysmmu_nb);
+
+	return 0;
+}
+EXPORT_SYMBOL(pcie_sysmmu_register_fault_handler);
 
 #define MMU_NUM_TLB_SUBLINE		4
 static void dump_sysmmu_tlb_port(struct sysmmu_drvdata *drvdata)
@@ -467,6 +479,10 @@ static int show_fault_information(struct sysmmu_drvdata *drvdata, int flags,
 	}
 
 	dump_sysmmu_tlb_port(drvdata);
+
+	if (!strncmp(port_name, "PCIe_CH0", 8) && fault_addr == 0x0)
+		ret = SYSMMU_NO_PANIC;
+
 finish:
 	pr_err("----------------------------------------------------------\n");
 
@@ -514,8 +530,10 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	writel_relaxed(int_status, drvdata->sfrbase + REG_INT_CLEAR);
 
 	ret = show_fault_information(drvdata, flags, addr, pcie_vid);
-	if (ret == SYSMMU_NO_PANIC)
+	if (ret == SYSMMU_NO_PANIC) {
+		atomic_notifier_call_chain(&drvdata->fault_notifiers, addr, &flags);
 		return IRQ_HANDLED;
+	}
 
 	atomic_notifier_call_chain(&drvdata->fault_notifiers, addr, &flags);
 
