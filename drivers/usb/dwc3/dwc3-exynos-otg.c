@@ -589,8 +589,13 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 		if (exynos->extra_delay)
 			msleep(100);
 
-		exynos->gadget_state = false;
+
+		if (!dwc3_otg_check_usb_activity(exynos))
+			dev_err(dev, "too long to suspend after cable plug-out\n");
+
 		ret = dwc3_otg_phy_enable(fsm, 0, on);
+
+		exynos->gadget_state = false;
 err1:
 		__pm_relax(dotg->wakelock);
 	}
@@ -886,6 +891,21 @@ bool dwc3_otg_check_usb_suspend(struct dwc3_exynos *exynos)
 	} while (wait_counter < DWC3_EXYNOS_MAX_WAIT_COUNT);
 
 	return wait_counter < DWC3_EXYNOS_MAX_WAIT_COUNT;
+}
+
+bool dwc3_otg_check_usb_activity(struct dwc3_exynos *exynos)
+{
+	int wait_counter = 0;
+
+	do {
+		if ((atomic_read(&exynos->dwc->dev->power.usage_count)) < 2)
+			break;
+
+		wait_counter++;
+		msleep(20);
+	} while (wait_counter < DWC3_EXYNOS_DISCONNECT_COUNT);
+
+	return wait_counter < DWC3_EXYNOS_DISCONNECT_COUNT;
 }
 
 static int dwc3_otg_reboot_notify(struct notifier_block *nb, unsigned long event, void *buf)
