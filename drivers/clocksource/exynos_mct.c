@@ -84,6 +84,7 @@ struct mct_clock_event_device {
 	char name[10];
 };
 
+#if defined(MODULE) && !defined(CONFIG_INTEGRATE_MODULES)
 /**
  * of_irq_count - Count the number of IRQs a node uses
  * @dev: pointer to device tree node
@@ -98,6 +99,7 @@ int of_irq_count(struct device_node *dev)
 
 	return nr;
 }
+#endif
 
 static void exynos4_mct_write(unsigned int value, unsigned long offset)
 {
