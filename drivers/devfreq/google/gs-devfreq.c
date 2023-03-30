@@ -2064,7 +2064,7 @@ static int exynos_devfreq_resume(struct device *dev)
 	return ret;
 }
 
-ssize_t
+static ssize_t
 user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -2076,8 +2076,9 @@ user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%lu\n", devfreq_cdev->sysfs_req);
 }
 
-ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t
+user_vote_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
 	struct exynos_devfreq_data *devfreq_cdev = cdev->devdata;
