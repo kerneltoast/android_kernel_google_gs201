@@ -934,7 +934,7 @@ state2power_table_show(struct device *dev, struct device_attribute *attr, char *
 
 static DEVICE_ATTR_RO(state2power_table);
 
-ssize_t
+static ssize_t
 user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -946,8 +946,9 @@ user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%lu\n", cpufreq_cdev->sysfs_req);
 }
 
-ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t
+user_vote_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
 	struct exynos_cpu_cooling_device *cpufreq_cdev = cdev->devdata;
@@ -974,7 +975,7 @@ ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(user_vote);
 
-ssize_t
+static ssize_t
 user_vote_bypass_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -986,8 +987,9 @@ user_vote_bypass_show(struct device *dev, struct device_attribute *attr, char *b
 	return sysfs_emit(buf, "%d\n", cpufreq_cdev->sysfs_req_bypass);
 }
 
-ssize_t user_vote_bypass_store(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t
+user_vote_bypass_store(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
 	struct exynos_cpu_cooling_device *cpufreq_cdev = cdev->devdata;
