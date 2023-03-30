@@ -185,5 +185,4 @@ static inline bool get_prefer_idle(struct task_struct *p)
 		return vg[vp->group].prefer_idle || vp->prefer_idle || vbinder->prefer_idle;
 }
 
-int acpu_init(void);
 extern struct proc_dir_entry *vendor_sched;
