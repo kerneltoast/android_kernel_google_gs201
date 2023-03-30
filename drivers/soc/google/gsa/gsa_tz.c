@@ -144,7 +144,7 @@ reconnect:
 	}
 
 	/* copy in request */
-	memcpy(mb_put_data(txbuf, req_len), req, sizeof(req_len));
+	memcpy(mb_put_data(txbuf, req_len), req, req_len);
 
 	/* attach buffer to store response */
 	mutex_lock(&ctx->rsp_lock);
