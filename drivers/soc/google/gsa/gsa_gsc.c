@@ -20,7 +20,7 @@
 #include <linux/uaccess.h>
 #include <linux/uio.h>
 
-#include  <linux/gsa/gsa_tpu.h>
+#include <linux/gsa/gsa_tpu.h>
 
 #include "gsa_mbox.h"
 #include "gsa_priv.h"
@@ -51,6 +51,26 @@ struct gsc_state {
 	int ctdl_ap_irq;
 	wait_queue_head_t waitq;
 	atomic_t users;
+};
+
+/* enum gsc_nos_call_args - parameter layout for GSC NOS call request */
+enum gsc_nos_call_args {
+	GSC_NOS_CALL_APP_IDX = 0,
+	GSC_NOS_CALL_PARAM_IDX,
+	GSC_NOS_CALL_ARGS_ADDR_LO_IDX,
+	GSC_NOS_CALL_ARGS_ADDR_HI_IDX,
+	GSC_NOS_CALL_ARGS_LEN_IDX,
+	GSC_NOS_CALL_REPLY_ADDR_LO_IDX,
+	GSC_NOS_CALL_REPLY_ADDR_HI_IDX,
+	GSC_NOS_CALL_REPLY_SIZE_IDX,
+	GSC_NOS_CALL_ARGC,
+};
+
+/* enum gsc_nos_call_rsp - parameter layout for GSC NOS call response */
+enum gsc_nos_call_rsp {
+	GSC_NOS_CALL_RSP_STATUS_IDX = 0,
+	GSC_NOS_CALL_RSP_REPLY_LEN_IDX,
+	GSC_NOS_CALL_RSP_ARGC,
 };
 
 static int gsc_tpm_datagram(struct gsc_state *s,
@@ -106,6 +126,79 @@ out:
 	return ret;
 }
 
+static int gsc_nos_call(struct gsc_state *s, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+	struct gsc_ioc_nos_call_req nos_req;
+	u32 req[GSC_NOS_CALL_ARGC];
+	u32 rsp[GSC_NOS_CALL_RSP_ARGC];
+
+	/* check size */
+	if ((size_t)_IOC_SIZE(cmd) != sizeof(nos_req))
+		return -EINVAL;
+
+	/* copy in request */
+	if (copy_from_user(&nos_req, (const void __user *)arg, sizeof(nos_req)))
+		return -EFAULT;
+
+	dev_dbg(s->dev,
+		"nos_call: app_id = %d, params = %d, arg_len = %d, reply_len = %d\n",
+		nos_req.app_id, nos_req.params, nos_req.arg_len, nos_req.reply_len);
+
+	if (nos_req.reserved != 0)
+		return -EINVAL;
+
+	if ((nos_req.arg_len > s->bbuf_sz) || (nos_req.reply_len > s->bbuf_sz))
+		return -E2BIG;
+
+	mutex_lock(&s->bbuf_lock);
+	if (nos_req.arg_len) {
+		/* copy in data */
+		if (copy_from_user(s->bbuf, (const void __user *)nos_req.buf, nos_req.arg_len)) {
+			ret = -EFAULT;
+			goto out;
+		}
+	}
+
+	/* send command */
+	req[GSC_NOS_CALL_APP_IDX] = nos_req.app_id;
+	req[GSC_NOS_CALL_PARAM_IDX] = nos_req.params;
+	req[GSC_NOS_CALL_ARGS_ADDR_LO_IDX] = (u32)(s->bbuf_da);
+	req[GSC_NOS_CALL_ARGS_ADDR_HI_IDX] = (u32)(s->bbuf_da >> 32);
+	req[GSC_NOS_CALL_ARGS_LEN_IDX] = nos_req.arg_len;
+	req[GSC_NOS_CALL_REPLY_ADDR_LO_IDX] = (u32)(s->bbuf_da);
+	req[GSC_NOS_CALL_REPLY_ADDR_HI_IDX] = (u32)(s->bbuf_da >> 32);
+	req[GSC_NOS_CALL_REPLY_SIZE_IDX] = nos_req.reply_len;
+
+	ret = gsa_send_cmd(s->dev->parent, GSA_MB_CMD_GSC_NOS_CALL,
+			   req, GSC_NOS_CALL_ARGC,
+			   rsp, GSC_NOS_CALL_RSP_ARGC);
+	if (ret < 0)
+		goto out;
+
+	/* get nos_call status and reply data size */
+	nos_req.call_status = rsp[GSC_NOS_CALL_RSP_STATUS_IDX];
+	nos_req.reply_len = rsp[GSC_NOS_CALL_RSP_REPLY_LEN_IDX];
+
+	/* copy out nos_req to caller */
+	if (copy_to_user((void __user *)arg, &nos_req, sizeof(nos_req))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (nos_req.reply_len) {
+		/* copy out data */
+		if (copy_to_user((void __user *)nos_req.buf, s->bbuf, nos_req.reply_len)) {
+			ret = -EFAULT;
+			goto out;
+		}
+	}
+
+out:
+	mutex_unlock(&s->bbuf_lock);
+	return ret;
+}
+
 static int gsc_reset(struct gsc_state *s)
 {
 	int rc;
@@ -138,12 +231,15 @@ static long gsc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case GSC_IOC_TPM_DATAGRAM:
 		return gsc_tpm_datagram(s, cmd, arg);
 
+	case GSC_IOC_GSA_NOS_CALL:
+		return gsc_nos_call(s, cmd, arg);
+
 	case GSC_IOC_RESET:
 		return gsc_reset(s);
 
 	default:
 		dev_err(s->dev, "Unhandled ioctl cmd: 0x%x\n", cmd);
-		return -EINVAL;
+		return -ENOTTY;
 	}
 }
 

@@ -24,13 +24,25 @@
 #define GSC_IOC_MAGIC		'c'
 
 struct gsc_ioc_tpm_datagram {
-	u64 buf;
-	u32 len;
-	u32 command;
+	__u64 buf;
+	__u32 len;
+	__u32 command;
+};
+
+struct gsc_ioc_nos_call_req {
+	__u8 app_id;
+	__u8 reserved;
+	__u16 params;
+	__u32 arg_len;
+	__u64 buf;
+	__u32 reply_len;
+	__u32 call_status;
 };
 
 #define GSC_IOC_TPM_DATAGRAM	_IOW(GSC_IOC_MAGIC, 1, \
 				     struct gsc_ioc_tpm_datagram)
 #define GSC_IOC_RESET		_IO(GSC_IOC_MAGIC, 2)
+#define GSC_IOC_GSA_NOS_CALL	_IOW(GSC_IOC_MAGIC, 3, \
+				     struct gsc_ioc_nos_call_req)
 
 #endif /* GSC_H */

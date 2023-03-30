@@ -36,6 +36,7 @@ enum gsa_mbox_cmd {
 	/* GSC commands */
 	GSA_MB_CMD_GSC_HARD_RESET = 60,
 	GSA_MB_CMD_GSC_TPM_DATAGRAM = 61,
+	GSA_MB_CMD_GSC_NOS_CALL = 65,
 
 	/* KDN */
 	GSA_MB_CMD_KDN_GENERATE_KEY = 70,
