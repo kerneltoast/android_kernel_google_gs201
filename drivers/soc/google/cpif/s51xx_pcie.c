@@ -169,13 +169,13 @@ send_doorbell_again:
 
 check_cpl_timeout:
 	if (exynos_pcie_rc_get_cpl_timeout_state(s51xx_pcie->pcie_channel_num) ||
-			exynos_pcie_rc_get_sudden_linkdown_state(s51xx_pcie->pcie_channel_num)) {
+			exynos_pcie_rc_get_sudden_linkdown_state(s51xx_pcie->pcie_channel_num))
 		mif_err_limited("Can't send Interrupt(link_down_retry_cnt: %d, cto_retry_cnt: %d)!!!\n",
 				mc->pcie_linkdown_retry_cnt, mc->pcie_cto_retry_cnt);
-		return 0;
-	}
+	else
+		exynos_pcie_rc_force_linkdown_work(s51xx_pcie->pcie_channel_num);
 
-	return -EAGAIN;
+	return 0;
 }
 
 void first_save_s51xx_status(struct pci_dev *pdev)

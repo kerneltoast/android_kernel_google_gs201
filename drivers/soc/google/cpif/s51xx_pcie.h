@@ -24,6 +24,7 @@ extern bool exynos_pcie_rc_get_cpl_timeout_state(int ch_num);
 extern void exynos_pcie_rc_set_cpl_timeout_state(int ch_num, bool recovery);
 extern bool exynos_pcie_rc_get_sudden_linkdown_state(int ch_num);
 extern void exynos_pcie_rc_set_sudden_linkdown_state(int ch_num, bool recovery);
+extern void exynos_pcie_rc_force_linkdown_work(int ch_num);
 
 struct s51xx_pcie {
 	unsigned int busdev_num;
