@@ -436,6 +436,7 @@ static void gvotable_debugfs_delete_el(struct election_slot *slot);
 #else
 static int gvotable_debugfs_create_el_int(struct election_slot *slot)
 {
+	return 0;
 }
 
 static void gvotable_debugfs_create_el(struct election_slot *slot)
