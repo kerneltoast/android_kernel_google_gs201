@@ -227,10 +227,6 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 
-	ret = acpu_init();
-	if (ret)
-		return ret;
-
 	// Disable TTWU_QUEUE.
 	sysctl_sched_features &= ~(1UL << __SCHED_FEAT_TTWU_QUEUE);
 	static_key_disable(&sched_feat_keys[__SCHED_FEAT_TTWU_QUEUE]);
