@@ -241,7 +241,7 @@ static void pt_resize_list_enable(struct pt_pts *pts)
  * This thread doesn't hold any mutex, so the callback can
  * call pt_client_*()
  */
-static int pt_resize_thread(void *data)
+static int __noreturn pt_resize_thread(void *data)
 {
 	u32 size;
 	struct pt_pts *pts;
