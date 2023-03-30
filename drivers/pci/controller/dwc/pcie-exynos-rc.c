@@ -2700,6 +2700,31 @@ void exynos_pcie_msi_post_process(struct pcie_port *pp)
 	}
 }
 
+void exynos_pcie_rc_force_linkdown_work(int ch_num) {
+	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct dw_pcie *pci = exynos_pcie->pci;
+	struct pcie_port *pp = &pci->pp;
+	struct device *dev = pci->dev;
+
+	dev_info(dev, "start force Link down S/W recovery\n");
+	if (exynos_pcie->cpl_timeout_recovery)
+		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+				"already in cpl recovery");
+	else {
+		if (exynos_pcie->sudden_linkdown)
+			logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+					"already in linkdown recovery");
+		else {
+			logbuffer_log(exynos_pcie->log, "start linkdown recovery");
+			exynos_pcie->sudden_linkdown = 1;
+			exynos_pcie->state = STATE_LINK_DOWN_TRY;
+			exynos_pcie_notify_callback(pp, EXYNOS_PCIE_EVENT_LINKDOWN);
+		}
+	}
+
+}
+EXPORT_SYMBOL(exynos_pcie_rc_force_linkdown_work);
+
 static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 {
 	struct pcie_port *pp = arg;
@@ -2731,10 +2756,15 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 		if (exynos_pcie->cpl_timeout_recovery)
 			logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR, "already in cpl recovery");
 		else {
-			logbuffer_log(exynos_pcie->log, "start linkdown recovery");
-			exynos_pcie->sudden_linkdown = 1;
-			exynos_pcie->state = STATE_LINK_DOWN_TRY;
-			queue_work(exynos_pcie->pcie_wq, &exynos_pcie->dislink_work.work);
+			if (exynos_pcie->sudden_linkdown)
+				logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+						"already in linkdown recovery");
+			else {
+				logbuffer_log(exynos_pcie->log, "start linkdown recovery");
+				exynos_pcie->sudden_linkdown = 1;
+				exynos_pcie->state = STATE_LINK_DOWN_TRY;
+				queue_work(exynos_pcie->pcie_wq, &exynos_pcie->dislink_work.work);
+			}
 		}
 	}
 
