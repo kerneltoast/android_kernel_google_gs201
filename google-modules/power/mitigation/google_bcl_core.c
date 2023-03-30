@@ -48,10 +48,8 @@
 #include <soc/google/exynos-pm.h>
 #include <soc/google/exynos-pmu-if.h>
 #include "bcl.h"
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#endif
 
 #include <max77759_regs.h>
 #include <max77779.h>

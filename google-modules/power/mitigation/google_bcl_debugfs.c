@@ -20,10 +20,8 @@
 #include <soc/google/exynos-pm.h>
 #include <soc/google/exynos-pmu-if.h>
 #include "bcl.h"
-#if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#endif
 
 static const unsigned int xclkout_source[] = {
 	XCLKOUT_SOURCE_CPU0,
