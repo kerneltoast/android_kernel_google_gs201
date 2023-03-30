@@ -334,17 +334,16 @@ static void of_get_power_down_ok(struct exynos_pm_domain *pd)
 
 static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 {
+	int ret;
+
 	pd->genpd.name = pd->name;
 	pd->genpd.power_off = genpd_power_off;
 	pd->genpd.power_on = genpd_power_on;
 
 	/* pd power on/off latency is less than 1ms */
-	pm_genpd_init(&pd->genpd, NULL, state ? false : true);
-
-	pd->genpd.states = kzalloc(sizeof(*pd->genpd.states), GFP_KERNEL);
-
-	if (!pd->genpd.states)
-		return -ENOMEM;
+	ret = pm_genpd_init(&pd->genpd, NULL, state ? false : true);
+	if (ret)
+		return ret;
 
 	pd->genpd.states[0].power_on_latency_ns = 1000000;
 	pd->genpd.states[0].power_off_latency_ns = 1000000;
