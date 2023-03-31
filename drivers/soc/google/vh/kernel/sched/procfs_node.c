@@ -46,7 +46,7 @@ bool pmu_poll_enabled;
 extern int pmu_poll_enable(void);
 extern void pmu_poll_disable(void);
 
-extern unsigned int sysctl_sched_uclamp_min_filter_multiplier;
+extern unsigned int sysctl_sched_uclamp_min_filter_us;
 extern unsigned int sysctl_sched_uclamp_max_filter_divider;
 
 #define MAX_PROC_SIZE 128
@@ -1347,14 +1347,14 @@ static ssize_t uclamp_min_filter_enable_store(struct file *filp,
 }
 PROC_OPS_RW(uclamp_min_filter_enable);
 
-static uclamp_min_filter_multiplier_show(struct seq_file *m, void *v)
+static uclamp_min_filter_us_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "%d\n", sysctl_sched_uclamp_min_filter_multiplier);
+	seq_printf(m, "%d\n", sysctl_sched_uclamp_min_filter_us);
 	return 0;
 }
-static ssize_t uclamp_min_filter_multiplier_store(struct file *filp,
-						  const char __user *ubuf,
-						  size_t count, loff_t *pos)
+static ssize_t uclamp_min_filter_us_store(struct file *filp,
+					  const char __user *ubuf,
+					  size_t count, loff_t *pos)
 {
 	int val = 0;
 	char buf[MAX_PROC_SIZE];
@@ -1370,10 +1370,10 @@ static ssize_t uclamp_min_filter_multiplier_store(struct file *filp,
 	if (kstrtoint(buf, 10, &val))
 		return -EINVAL;
 
-	sysctl_sched_uclamp_min_filter_multiplier = val;
+	sysctl_sched_uclamp_min_filter_us = val;
 	return count;
 }
-PROC_OPS_RW(uclamp_min_filter_multiplier);
+PROC_OPS_RW(uclamp_min_filter_us);
 
 static uclamp_max_filter_enable_show(struct seq_file *m, void *v)
 {
@@ -1652,7 +1652,7 @@ static struct pentry entries[] = {
 	PROC_ENTRY(sched_lib_name),
 	// uclamp filter
 	PROC_ENTRY(uclamp_min_filter_enable),
-	PROC_ENTRY(uclamp_min_filter_multiplier),
+	PROC_ENTRY(uclamp_min_filter_us),
 	PROC_ENTRY(uclamp_max_filter_enable),
 	PROC_ENTRY(uclamp_max_filter_divider),
 };

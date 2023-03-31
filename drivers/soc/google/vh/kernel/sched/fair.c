@@ -79,9 +79,9 @@ extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum
 /*
  * Ignore uclamp_min for tasks if
  *
- *	runtime >= policy->cpuinfo.transition_latency * multiplier
+ *	runtime >= sysctl_sched_uclamp_min_filter_us
  */
-unsigned int sysctl_sched_uclamp_min_filter_multiplier = 2;
+unsigned int sysctl_sched_uclamp_min_filter_us = 2000;
 
 /*
  * Ignore uclamp_max for tasks if
@@ -1516,8 +1516,7 @@ inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
  * Check if we can ignore uclamp_min requirement of a task. The goal is to
  * prevent small transient tasks from boosting frequency unnecessarily.
  *
- * Returns true if a task can finish its work within a
- * policy->cpuinfo.transition_latency * multiplier.
+ * Returns true if a task can finish its work within a specific threshold.
  *
  * We look at the immediate history of how long the task ran previously.
  * Converting task util_avg into runtime is not trivial and expensive
@@ -1526,9 +1525,9 @@ inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
 static inline bool uclamp_can_ignore_uclamp_min(struct rq *rq,
 						struct task_struct *p)
 {
-	unsigned long runtime, rate_limit;
 	struct cpufreq_policy *policy;
 	struct sched_entity *se;
+	unsigned long runtime;
 
 	if (SCHED_WARN_ON(!uclamp_is_used()))
 		return false;
@@ -1541,10 +1540,10 @@ static inline bool uclamp_can_ignore_uclamp_min(struct rq *rq,
 
 	/*
 	 * Based on previous runtime, we check that runtime is sufficiently
-	 * larger than policy->cpuinfo.transition_latency
+	 * larger than a threshold
 	 *
 	 *
-	 *	runtime >= policy->cpuinfo->transition_latency * multiplier
+	 *	runtime >= sysctl_sched_uclamp_min_filter_us
 	 *
 	 * There are 2 caveats:
 	 *
@@ -1569,10 +1568,7 @@ static inline bool uclamp_can_ignore_uclamp_min(struct rq *rq,
 	if (!policy)
 		return false;
 
-	rate_limit = policy->cpuinfo.transition_latency;
-	rate_limit *= sysctl_sched_uclamp_min_filter_multiplier;
-
-	if (runtime >= rate_limit)
+	if (runtime >= sysctl_sched_uclamp_min_filter_us * 1000)
 		return false;
 
 	return true;
