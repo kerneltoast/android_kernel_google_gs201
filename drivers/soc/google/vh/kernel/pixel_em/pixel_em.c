@@ -510,7 +510,7 @@ static struct pixel_em_profile *generate_default_em_profile(const char *name)
 	if (!res->clusters)
 		goto failed_clusters_allocation;
 
-	res->cpu_to_cluster = kcalloc(pixel_em_max_cpu + 1,
+	res->cpu_to_cluster = kcalloc(CONFIG_VH_SCHED_CPU_NR,
 				      sizeof(*res->cpu_to_cluster),
 				      GFP_KERNEL);
 	if (!res->cpu_to_cluster)
@@ -575,7 +575,7 @@ static struct pixel_idle_em *generate_idle_em(void)
 	if (!idle_em->clusters)
 		goto failed_clusters_allocation;
 
-	idle_em->cpu_to_cluster = kcalloc(pixel_em_max_cpu, sizeof(*idle_em->cpu_to_cluster),
+	idle_em->cpu_to_cluster = kcalloc(CONFIG_VH_SCHED_CPU_NR, sizeof(*idle_em->cpu_to_cluster),
 					  GFP_KERNEL);
 	if (!idle_em->cpu_to_cluster)
 		goto failed_cpu_to_cluster_allocation;
