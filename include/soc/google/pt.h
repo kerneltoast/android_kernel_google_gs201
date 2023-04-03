@@ -86,6 +86,12 @@ void pt_client_free(struct pt_handle *handle, int id);
 ptid_t pt_client_mutate(struct pt_handle *handle, int old_id, int new_id);
 
 /*
+ * See pt_client_mutate
+ * size is output only and will contain the size allocated.
+ */
+ptid_t pt_client_mutate_size(struct pt_handle *handle, int old_id, int new_id, size_t *size);
+
+/*
  * Get the pbha for a previously enabled or allocated ptid
  */
 ptpbha_t pt_pbha(struct device_node *node, int id);
@@ -135,6 +141,12 @@ static inline void pt_client_free(struct pt_handle *handle, int id)
 
 static inline ptid_t pt_client_mutate(struct pt_handle *handle, int old_id,
 				int new_id)
+{
+	return PT_PTID_INVALID;
+}
+
+static inline ptid_t pt_client_mutate_size(struct pt_handle *handle, int old_id,
+				int new_id, size_t *size)
 {
 	return PT_PTID_INVALID;
 }

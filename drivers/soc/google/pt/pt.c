@@ -648,6 +648,12 @@ ptid_t pt_pid_global(enum pt_global_t type)
 
 ptid_t pt_client_mutate(struct pt_handle *handle, int old_id, int new_id)
 {
+	size_t size;
+	return pt_client_mutate_size(handle, old_id, new_id, &size);
+}
+
+ptid_t pt_client_mutate_size(struct pt_handle *handle, int old_id, int new_id, size_t *size)
+{
 	ptid_t ptid;
 	struct pt_driver *driver;
 
@@ -664,6 +670,8 @@ ptid_t pt_client_mutate(struct pt_handle *handle, int old_id, int new_id)
 	ptid = pt_driver_mutate(handle, old_id, new_id);
 	pt_trace(handle, old_id, false);
 	pt_trace(handle, new_id, true);
+	/* Update by driver callback */
+	*size = handle->pts[new_id].size;
 	mutex_unlock(&handle->mt);
 	return ptid;
 
@@ -720,7 +728,8 @@ ptid_t pt_client_enable_size(struct pt_handle *handle, int id, size_t *size)
 		pt_driver_enable(handle, id);
 		pt_trace(handle, id, true);
 	}
-	*size = handle->pts[id].size; // Update by driver callback
+	/* Update by driver callback */
+	*size = handle->pts[id].size;
 	mutex_unlock(&handle->mt);
 	if (ptid != PT_PTID_INVALID)
 		pt_resize_list_enable(&handle->pts[id]);
@@ -1265,6 +1274,7 @@ EXPORT_SYMBOL(pt_pbha_global);
 EXPORT_SYMBOL(pt_client_register);
 EXPORT_SYMBOL(pt_client_enable);
 EXPORT_SYMBOL(pt_client_mutate);
+EXPORT_SYMBOL(pt_client_mutate_size);
 EXPORT_SYMBOL(pt_client_disable);
 EXPORT_SYMBOL(pt_client_unregister);
 EXPORT_SYMBOL(pt_client_enable_size);
