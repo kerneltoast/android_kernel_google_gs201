@@ -476,7 +476,7 @@ static int maxq_detect_contaminant(struct max77759_contaminant *contaminant, u8 
 	return ret;
 }
 
-static bool is_cc_open(cc_status)
+static bool is_cc_open(u8 cc_status)
 {
 	return status_check(cc_status, TCPC_CC_STATUS_CC1_MASK << TCPC_CC_STATUS_CC1_SHIFT,
 			    TCPC_CC_STATE_SRC_OPEN) && status_check(cc_status,
