@@ -29,7 +29,7 @@ extern struct be_path_cache port_array[PORT_MAX];
  * TODO: TDM/I2S will be removed from port naming and will be replaced
  * by sink-associated devices such as spker, headphone, bt, usb, mode
  */
-static aoc_audio_sink[] = {
+static int aoc_audio_sink[] = {
 	[PORT_I2S_0_RX] = SINK_HEADPHONE, [PORT_I2S_0_TX] = -1,
 	[PORT_I2S_1_RX] = SINK_BT,        [PORT_I2S_1_TX] = -1,
 	[PORT_I2S_2_RX] = SINK_USB,       [PORT_I2S_2_TX] = -1,
@@ -162,7 +162,7 @@ static int hw_id_to_phone_mic_source(int hw_id)
 }
 
 /* temp usage */
-static aoc_audio_stream_type[] = {
+static int aoc_audio_stream_type[] = {
 	[0] = MMAPED,  [1] = NORMAL,   [2] = NORMAL,	   [3] = NORMAL,  [4] = NORMAL,
 	[5] = NORMAL,  [6] = COMPRESS, [7] = NORMAL,	   [8] = NORMAL,  [9] = MMAPED,
 	[10] = RAW,    [11] = NORMAL,  [12] = NORMAL,	   [13] = NORMAL, [14] = NORMAL,

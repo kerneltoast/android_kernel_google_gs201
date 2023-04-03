@@ -27,7 +27,7 @@ static void vh_ep_use_pause_in_drain(void *data, bool *use_pause_in_drain, bool 
 	*leave_draining = true;
 }
 
-static int aoc_compr_vh_snd_compr_init()
+static int aoc_compr_vh_snd_compr_init(void)
 {
 	return register_trace_android_vh_snd_compr_use_pause_in_drain(vh_ep_use_pause_in_drain,
 									NULL);
