@@ -426,7 +426,7 @@ static int aoc_usb_match(struct device *dev, void *data)
 	return 0;
 }
 
-static bool aoc_usb_is_hcd_working()
+static bool aoc_usb_is_hcd_working(void)
 {
 	struct device_node *np;
 	struct platform_device *pdev;
