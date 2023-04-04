@@ -1247,15 +1247,9 @@ static void prio_changed(struct task_struct *p, int old_prio, int new_prio, bool
 void update_adpf_prio(struct task_struct *p, struct vendor_task_struct *vp, bool val)
 {
 	int new_prio, old_prio;
-	struct rq_flags rf;
-	struct rq *rq;
 
-	rq = task_rq_lock(p, &rf);
-
-	if (p->prio < MAX_RT_PRIO) {
-		task_rq_unlock(rq, p, &rf);
+	if (p->prio < MAX_RT_PRIO)
 		return;
-	}
 
 	if (val) {
 		raw_spin_lock(&vp->lock);
@@ -1275,8 +1269,6 @@ void update_adpf_prio(struct task_struct *p, struct vendor_task_struct *vp, bool
 
 	if (old_prio != new_prio)
 		prio_changed(p, old_prio, new_prio, true);
-
-	task_rq_unlock(rq, p, &rf);
 }
 
 static void get_uclamp_on_nice(struct task_struct *p, enum uclamp_id clamp_id,
@@ -2603,7 +2595,6 @@ static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
 			if (!is_ui)
 				backup_unfit = p;
 		}
-
 	}
 
 	if (best_task)
@@ -2645,6 +2636,11 @@ void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_f
 	struct task_struct *p = NULL;
 	struct rq_flags src_rf;
 	int this_cpu = this_rq->cpu;
+	struct vendor_rq_struct *vrq = get_vendor_rq_struct(this_rq);
+
+	if (SCHED_WARN_ON(atomic_read(&vrq->num_adpf_tasks)))
+		atomic_set(&vrq->num_adpf_tasks, 0);
+
 
 	/*
 	 * We must set idle_stamp _before_ calling idle_balance(), such that we
@@ -2767,6 +2763,12 @@ void rvh_update_blocked_fair_pixel_mod(void *data, struct rq *rq)
 
 void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	struct vendor_rq_struct *vrq = get_vendor_rq_struct(rq);
+
+	if (vp->uclamp_fork_reset)
+		atomic_inc(&vrq->num_adpf_tasks);
+
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	if (likely(sched_feat(UTIL_EST))) {
 		int group = get_utilization_group(p, get_vendor_group(p));
@@ -2807,6 +2809,12 @@ void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 
 void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
+	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	struct vendor_rq_struct *vrq = get_vendor_rq_struct(rq);
+
+	if (vp->uclamp_fork_reset)
+		atomic_dec(&vrq->num_adpf_tasks);
+
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	if (likely(sched_feat(UTIL_EST))) {
 		int group = get_utilization_group(p, get_vendor_group(p));

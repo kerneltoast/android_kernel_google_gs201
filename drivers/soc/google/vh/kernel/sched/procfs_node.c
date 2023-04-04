@@ -1071,8 +1071,11 @@ static int update_prefer_idle(const char *buf, bool val)
 
 static int update_uclamp_fork_reset(const char *buf, bool val)
 {
+	struct vendor_rq_struct *vrq;
 	struct vendor_task_struct *vp;
 	struct task_struct *p;
+	struct rq_flags rf;
+	struct rq *rq;
 	pid_t pid;
 
 	if (kstrtoint(buf, 0, &pid) || pid <= 0)
@@ -1094,12 +1097,24 @@ static int update_uclamp_fork_reset(const char *buf, bool val)
 	}
 
 	vp = get_vendor_task_struct(p);
+
+	rq = task_rq_lock(p, &rf);
+	if (task_on_rq_queued(p)) {
+		vrq = get_vendor_rq_struct(rq);
+
+		if (!vp->uclamp_fork_reset && val)
+			atomic_inc(&vrq->num_adpf_tasks);
+		else if (vp->uclamp_fork_reset && !val)
+			atomic_dec(&vrq->num_adpf_tasks);
+	}
+
 	if (vp->uclamp_fork_reset != val) {
 		vp->uclamp_fork_reset = val;
 
 		if (vendor_sched_boost_adpf_prio)
 			update_adpf_prio(p, vp, val);
 	}
+	task_rq_unlock(rq, p, &rf);
 
 	put_task_struct(p);
 	rcu_read_unlock();

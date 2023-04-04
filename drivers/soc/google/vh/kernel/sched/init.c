@@ -53,7 +53,6 @@ extern void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
 extern void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
 					      int sd_flag, int wake_flags, int *target_cpu);
 extern void init_vendor_group_data(void);
-extern void init_vendor_rt_rq(void);
 extern void rvh_update_rt_rq_load_avg_pixel_mod(void *data, u64 now, struct rq *rq,
 						struct task_struct *p, int running);
 extern void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsigned int new_cpu);
@@ -99,6 +98,20 @@ extern struct cpufreq_governor sched_pixel_gov;
 extern int pmu_poll_init(void);
 
 extern bool wait_for_init;
+
+void init_vendor_rt_rq(void)
+{
+	int i;
+	struct vendor_rq_struct *vrq;
+
+	for (i = 0; i < CPU_NUM; i++) {
+		vrq = get_vendor_rq_struct(cpu_rq(i));
+		raw_spin_lock_init(&vrq->lock);
+		vrq->util_removed = 0;
+		atomic_set(&vrq->num_adpf_tasks, 0);
+	}
+}
+
 static int init_vendor_task_data(void *data)
 {
 	struct vendor_task_struct *v_tsk;

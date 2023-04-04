@@ -399,18 +399,6 @@ out:
 	return;
 }
 
-void init_vendor_rt_rq(void)
-{
-	int i;
-	struct vendor_rq_struct *vrq;
-
-	for (i = 0; i < CPU_NUM; i++) {
-		vrq = get_vendor_rq_struct(cpu_rq(i));
-		raw_spin_lock_init(&vrq->lock);
-		vrq->util_removed = 0;
-	}
-}
-
 static int update_load_avg_se(u64 now, struct sched_entity *se, int running)
 {
 	if (___update_load_sum(now, &se->avg, running, 0, running)) {
