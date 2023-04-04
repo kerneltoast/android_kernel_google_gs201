@@ -23,6 +23,9 @@
 #include <linux/sort.h>
 #include <linux/swap.h>
 
+#define CREATE_TRACE_POINTS
+#include "trace_chunk_heap.h"
+
 #define GFP_CHUNK_HEAP_NORETRY_NOWARN (__GFP_NORETRY | __GFP_NOWARN)
 
 struct chunk_heap {
@@ -197,6 +200,8 @@ static struct dma_buf *chunk_heap_allocate(struct dma_heap *heap, unsigned long 
 		goto err_export;
 	}
 	kvfree(pages);
+	trace_chunk_heap_allocate(dmabuf, cma_get_name(chunk_heap->cma),
+				  len, nr_chunks);
 
 	return dmabuf;
 

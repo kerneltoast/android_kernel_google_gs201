@@ -33,6 +33,18 @@ TRACE_EVENT(dma_heap_stat,
 		      __entry->total_allocated)
 );
 
+TRACE_EVENT(dma_buf_release,
+	    TP_PROTO(struct dma_buf *dma_buf),
+	    TP_ARGS(dma_buf),
+	    TP_STRUCT__entry(
+		__field(struct dma_buf *, dma_buf)
+	    ),
+	    TP_fast_assign(
+		__entry->dma_buf = dma_buf;
+	    ),
+	    TP_printk("dma_buf=%p",__entry->dma_buf)
+);
+
 #endif /* _DMABUF_HEAP_TRACE_H */
 
 /* This part must be outside protection */

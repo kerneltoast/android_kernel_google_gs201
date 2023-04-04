@@ -446,6 +446,7 @@ static void samsung_heap_dma_buf_release(struct dma_buf *dmabuf)
 	dma_iova_release(dmabuf);
 
 	samsung_track_buffer_destroyed(buffer);
+	trace_dma_buf_release(dmabuf);
 	buffer->heap->release(buffer);
 }
 
