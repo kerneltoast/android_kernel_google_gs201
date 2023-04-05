@@ -235,6 +235,22 @@ TRACE_EVENT(trusty_ipc_rx,
 	TP_printk("chan=%u srv_name=%s buf_id=0x%llx", __entry->chan,
 		__entry->srv_name, __entry->buf_id)
 );
+
+/*
+ * tracepoint when a dma_buf refcount was released from trusty
+ */
+TRACE_EVENT(trusty_dma_buf_put,
+	TP_PROTO(struct dma_buf *dma_buf),
+	TP_ARGS(dma_buf),
+	TP_STRUCT__entry(
+		__field(struct dma_buf *, dma_buf)
+	),
+	TP_fast_assign(
+		__entry->dma_buf = dma_buf
+	),
+	TP_printk("dma_buf=%p", __entry->dma_buf)
+);
+
 #endif /* _TRUSTY_IPC_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH

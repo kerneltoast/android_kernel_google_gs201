@@ -692,8 +692,10 @@ static int tipc_shared_handle_drop(struct tipc_shared_handle *shared_handle)
 					 shared_handle->sgt, DMA_BIDIRECTIONAL);
 	if (shared_handle->attach)
 		dma_buf_detach(shared_handle->dma_buf, shared_handle->attach);
-	if (shared_handle->dma_buf)
+	if (shared_handle->dma_buf) {
 		dma_buf_put(shared_handle->dma_buf);
+		trace_trusty_dma_buf_put(shared_handle->dma_buf);
+	}
 
 	kfree(shared_handle);
 
