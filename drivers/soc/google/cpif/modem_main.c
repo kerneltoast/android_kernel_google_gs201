@@ -909,6 +909,9 @@ static int modem_suspend(struct device *pdev)
 	if (mc->ops.suspend)
 		mc->ops.suspend(mc);
 
+#if defined(CPIF_WAKEPKT_SET_MARK)
+	atomic_set(&mc->mark_skb_wakeup, 1);
+#endif
 	set_wakeup_packet_log(true);
 
 	return 0;

@@ -3,6 +3,7 @@
 
 ccflags-y += -Wformat
 ccflags-y += -Wformat-zero-length
+ccflags-y += -DCPIF_WAKEPKT_SET_MARK=0x80000000
 ccflags-y += -DCONFIG_OPTION_REGION=\"$(PROJECT_REGION)\"
 subdir-ccflags-y += -I$(srctree)/$(src)
 

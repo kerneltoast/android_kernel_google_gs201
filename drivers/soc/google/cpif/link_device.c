@@ -1469,6 +1469,13 @@ static int pass_skb_to_demux(struct mem_link_device *mld, struct sk_buff *skb)
 	mif_pkt(ch, "LNK-RX", skb);
 #endif
 
+#if defined(CPIF_WAKEPKT_SET_MARK)
+	if (atomic_xchg(&ld->mc->mark_skb_wakeup, 0) == 1) {
+		skb->mark |= CPIF_WAKEPKT_SET_MARK;
+		atomic_inc(&mld->misc_wakeup_count);
+	}
+#endif
+
 	ret = iod->recv_skb_single(iod, ld, skb);
 	if (unlikely(ret < 0)) {
 		struct modem_ctl *mc = ld->mc;
@@ -1508,6 +1515,13 @@ static int pass_skb_to_net(struct mem_link_device *mld, struct sk_buff *skb)
 
 #ifdef DEBUG_MODEM_IF_LINK_RX
 	mif_pkt(iod->ch, "LNK-RX", skb);
+#endif
+
+#if defined(CPIF_WAKEPKT_SET_MARK)
+	if (atomic_xchg(&ld->mc->mark_skb_wakeup, 0) == 1) {
+		skb->mark |= CPIF_WAKEPKT_SET_MARK;
+		atomic_inc(&mld->net_wakeup_count);
+	}
 #endif
 
 	ret = iod->recv_net_skb(iod, ld, skb);
@@ -3291,6 +3305,40 @@ static const struct attribute_group napi_group = {
 	.name = "napi",
 };
 
+#if defined(CPIF_WAKEPKT_SET_MARK)
+/* sysfs attribute for wake up events */
+static ssize_t wakeup_events_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct modem_data *modem;
+	struct mem_link_device *mld;
+	ssize_t count = 0;
+
+	modem = (struct modem_data *)dev->platform_data;
+	mld = modem->mld;
+
+	count += scnprintf(&buf[count], PAGE_SIZE - count, \
+		"Wakeup from NET packets: %d\n", \
+		atomic_read(&mld->net_wakeup_count));
+	count += scnprintf(&buf[count], PAGE_SIZE - count, \
+		"Wakeup from misc packets: %d\n", \
+		atomic_read(&mld->misc_wakeup_count));
+
+	return count;
+}
+
+static DEVICE_ATTR_RO(wakeup_events);
+
+static struct attribute *wakeup_attrs[] = {
+	&dev_attr_wakeup_events.attr,
+	NULL,
+};
+
+static const struct attribute_group wakeup_group = {
+	.attrs = wakeup_attrs,
+};
+#endif
+
 #if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
 static ssize_t debug_hw_clat_test_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -4178,6 +4226,11 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 
 	if (sysfs_create_group(&pdev->dev.kobj, &napi_group))
 		mif_err("failed to create sysfs node related napi\n");
+
+#if defined(CPIF_WAKEPKT_SET_MARK)
+	if (sysfs_create_group(&pdev->dev.kobj, &wakeup_group))
+		mif_err("failed to create sysfs node for wakeup events\n");
+#endif
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
 	if (sysfs_create_group(&pdev->dev.kobj, &hw_clat_group))

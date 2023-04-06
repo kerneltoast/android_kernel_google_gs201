@@ -385,6 +385,11 @@ struct mem_link_device {
 #if IS_ENABLED(CONFIG_CP_PKTPROC_CLAT)
 	bool disable_hw_clat;
 #endif
+
+#if defined(CPIF_WAKEPKT_SET_MARK)
+	atomic_t net_wakeup_count;
+	atomic_t misc_wakeup_count;
+#endif
 };
 
 #define to_mem_link_device(ld) \

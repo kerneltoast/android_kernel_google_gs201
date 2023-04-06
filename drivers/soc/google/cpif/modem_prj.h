@@ -729,6 +729,9 @@ struct modem_ctl {
 
 	struct cp_power_stats cp_power_stats;
 	spinlock_t power_stats_lock;
+#if defined(CPIF_WAKEPKT_SET_MARK)
+	atomic_t mark_skb_wakeup;
+#endif
 };
 
 static inline bool cp_offline(struct modem_ctl *mc)
