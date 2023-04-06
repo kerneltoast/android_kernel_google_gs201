@@ -20,7 +20,7 @@
 
 extern void init_uclamp_stats(void);
 extern int create_procfs_node(void);
-#if IS_ENABLED(CONFIG_PIXEL_EM)
+#if IS_ENABLED(CONFIG_VH_SCHED) && IS_ENABLED(CONFIG_PIXEL_EM)
 extern void vh_arch_set_freq_scale_pixel_mod(void *data,
 					     const struct cpumask *cpus,
 					     unsigned long freq,
@@ -222,7 +222,7 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 
-#if IS_ENABLED(CONFIG_PIXEL_EM)
+#if IS_ENABLED(CONFIG_VH_SCHED) && IS_ENABLED(CONFIG_PIXEL_EM)
 	ret = register_trace_android_vh_arch_set_freq_scale(vh_arch_set_freq_scale_pixel_mod, NULL);
 	if (ret)
 		return ret;
