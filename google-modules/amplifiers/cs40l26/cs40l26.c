@@ -386,28 +386,18 @@ int cs40l26_pm_stdby_timeout_ms_get(struct cs40l26_private *cs40l26,
 }
 EXPORT_SYMBOL(cs40l26_pm_stdby_timeout_ms_get);
 
-static void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
+static inline void cs40l26_pm_runtime_setup(struct cs40l26_private *cs40l26)
 {
-	struct device *dev = cs40l26->dev;
-
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_set_autosuspend_delay(dev, CS40L26_AUTOSUSPEND_DELAY_MS);
-	pm_runtime_use_autosuspend(dev);
-
-	cs40l26->pm_ready = true;
+	pm_runtime_mark_last_busy(cs40l26->dev);
+	pm_runtime_use_autosuspend(cs40l26->dev);
+	pm_runtime_set_autosuspend_delay(cs40l26->dev, CS40L26_AUTOSUSPEND_DELAY_MS);
+	pm_runtime_enable(cs40l26->dev);
 }
 
-static void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
+static inline void cs40l26_pm_runtime_teardown(struct cs40l26_private *cs40l26)
 {
-	struct device *dev = cs40l26->dev;
-
-	pm_runtime_set_suspended(dev);
-	pm_runtime_disable(dev);
-	pm_runtime_dont_use_autosuspend(dev);
-
-	cs40l26->pm_ready = false;
+	pm_runtime_disable(cs40l26->dev);
+	pm_runtime_dont_use_autosuspend(cs40l26->dev);
 }
 
 static int cs40l26_check_pm_lock(struct cs40l26_private *cs40l26, bool *locked)
@@ -4936,8 +4926,6 @@ int cs40l26_probe(struct cs40l26_private *cs40l26,
 		goto err;
 	}
 
-	cs40l26->pm_ready = false;
-
 	init_completion(&cs40l26->i2s_cont);
 	init_completion(&cs40l26->erase_cont);
 	init_completion(&cs40l26->cal_f0_cont);
@@ -4990,8 +4978,7 @@ int cs40l26_remove(struct cs40l26_private *cs40l26)
 	mutex_destroy(&cs40l26->lock);
 
 
-	if (cs40l26->pm_ready)
-		cs40l26_pm_runtime_teardown(cs40l26);
+	cs40l26_pm_runtime_teardown(cs40l26);
 
 	if (cs40l26->vibe_workqueue) {
 		cancel_work_sync(&cs40l26->vibe_start_work);
@@ -5060,11 +5047,6 @@ int cs40l26_suspend(struct device *dev)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
 
-	if (!cs40l26->pm_ready) {
-		dev_dbg(dev, "Suspend call ignored\n");
-		return 0;
-	}
-
 	dev_dbg(cs40l26->dev, "%s: Enabling hibernation\n", __func__);
 
 	return cs40l26_pm_state_transition(cs40l26,
@@ -5110,11 +5092,6 @@ EXPORT_SYMBOL(cs40l26_resume_error_handle);
 int cs40l26_resume(struct device *dev)
 {
 	struct cs40l26_private *cs40l26 = dev_get_drvdata(dev);
-
-	if (!cs40l26->pm_ready) {
-		dev_dbg(dev, "Resume call ignored\n");
-		return 0;
-	}
 
 	dev_dbg(cs40l26->dev, "%s: Disabling hibernation\n", __func__);
 

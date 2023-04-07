@@ -1533,7 +1533,6 @@ struct cs40l26_private {
 	bool calib_fw;
 	enum cs40l26_vibe_state vibe_state;
 	bool vibe_state_reporting;
-	bool pm_ready;
 	bool asp_enable;
 	u8 last_wksrc_pol;
 	u8 wksrc_sts;
