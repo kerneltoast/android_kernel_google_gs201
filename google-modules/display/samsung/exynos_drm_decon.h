@@ -513,17 +513,39 @@ static inline struct decon_device *get_decon_drvdata(u32 id)
 	return NULL;
 }
 
+void decon_enable_te_irq(struct decon_device *decon, bool enable);
+#ifdef CONFIG_DEBUG_FS
 bool decon_dump_ignore(enum dpu_event_condition condition);
 void decon_dump(const struct decon_device *decon);
 void decon_dump_all(struct decon_device *decon,
 		enum dpu_event_condition cond, bool async_buf_dump);
-void decon_enable_te_irq(struct decon_device *decon, bool enable);
 void decon_dump_event_condition(const struct decon_device *decon,
 		enum dpu_event_condition condition);
 int dpu_init_debug(struct decon_device *decon);
 void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv);
 void DPU_EVENT_LOG_ATOMIC_COMMIT(int index);
 void DPU_EVENT_LOG_CMD(struct dsim_device *dsim, u8 type, u8 d0, u16 len);
+#else
+static inline
+bool decon_dump_ignore(enum dpu_event_condition condition) { return true; }
+static inline
+void decon_dump(const struct decon_device *decon) { }
+static inline
+void decon_dump_all(struct decon_device *decon,
+		enum dpu_event_condition cond, bool async_buf_dump) { }
+static inline
+void decon_dump_event_condition(const struct decon_device *decon,
+		enum dpu_event_condition condition) { }
+static inline
+int dpu_init_debug(struct decon_device *decon) { return 0; }
+
+static inline
+void DPU_EVENT_LOG(enum dpu_event_type type, int index, void *priv) { }
+static inline
+void DPU_EVENT_LOG_ATOMIC_COMMIT(int index) { }
+static inline
+void DPU_EVENT_LOG_CMD(struct dsim_device *dsim, u8 type, u8 d0, u16 len) { }
+#endif
 void decon_force_vblank_event(struct decon_device *decon);
 
 #if IS_ENABLED(CONFIG_EXYNOS_BTS)

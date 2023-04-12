@@ -935,10 +935,18 @@ int exynos_panel_init(struct exynos_panel *ctx);
 void exynos_panel_reset(struct exynos_panel *ctx);
 int exynos_panel_set_power(struct exynos_panel *ctx, bool on);
 int exynos_panel_set_brightness(struct exynos_panel *exynos_panel, u16 br);
+#ifdef CONFIG_DEBUG_FS
 void exynos_panel_debugfs_create_cmdset(struct exynos_panel *ctx,
 					struct dentry *parent,
 					const struct exynos_dsi_cmd_set *cmdset,
 					const char *name);
+#else
+static inline
+void exynos_panel_debugfs_create_cmdset(struct exynos_panel *ctx,
+					struct dentry *parent,
+					const struct exynos_dsi_cmd_set *cmdset,
+					const char *name) { }
+#endif
 void exynos_panel_send_cmd_set_flags(struct exynos_panel *ctx, const struct exynos_dsi_cmd_set *cmd_set,
 			       u32 flags);
 static inline void exynos_panel_send_cmd_set(struct exynos_panel *ctx,

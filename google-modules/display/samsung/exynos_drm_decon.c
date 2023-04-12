@@ -90,6 +90,7 @@ static inline unsigned long fps_timeout(int fps)
 	return msecs_to_jiffies(frame_time_ms) + FRAME_TIMEOUT;
 }
 
+#ifdef CONFIG_DEBUG_FS
 void decon_dump(const struct decon_device *decon)
 {
 	int i;
@@ -123,6 +124,7 @@ void decon_dump(const struct decon_device *decon)
 	if (decon->cgc_dma)
 		cgc_dump(&p, decon->cgc_dma);
 }
+#endif
 
 static inline u32 win_start_pos(int x, int y)
 {
@@ -1599,7 +1601,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	iommu_register_device_fault_handler(dev, dpu_sysmmu_fault_handler, decon);
 
-#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON) && defined(CONFIG_DEBUG_FS)
 	decon->itmon_nb.notifier_call = dpu_itmon_notifier;
 	itmon_notifier_chain_register(&decon->itmon_nb);
 #endif
