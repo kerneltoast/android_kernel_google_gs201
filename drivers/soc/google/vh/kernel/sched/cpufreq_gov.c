@@ -444,12 +444,12 @@ static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
  * cpufreq driver limitations.
  */
 static unsigned int get_next_freq(struct sugov_policy *sg_policy,
-				  unsigned long util, unsigned long max)
+				  unsigned long util, unsigned long max, int cpu)
 {
 	struct cpufreq_policy *policy = sg_policy->policy;
 	unsigned int freq = policy->cpuinfo.max_freq;
 
-	freq = map_util_freq_pixel_mod(util, freq, max, policy->cpu);
+	freq = map_util_freq_pixel_mod(util, freq, max, cpu);
 	trace_sugov_next_freq(policy->cpu, util, max, freq);
 
 	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
@@ -759,7 +759,7 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	trace_sugov_util_update(sg_cpu->cpu, util, max, flags);
 
 	util = sugov_iowait_apply(sg_cpu, time, util, max);
-	next_f = get_next_freq(sg_policy, util, max);
+	next_f = get_next_freq(sg_policy, util, max, sg_cpu->cpu);
 	/*
 	 * Do not reduce the frequency if the CPU has not been idle
 	 * recently, as the reduction is likely to be premature then.
@@ -793,6 +793,7 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 	unsigned long util = 0, max = 1;
 	unsigned int j;
 	bool update_pmu_limit = true;
+	int max_cpu = policy->cpu;
 
 	for_each_cpu(j, policy->cpus) {
 		struct sugov_cpu *j_sg_cpu = &per_cpu(sugov_cpu, j);
@@ -808,10 +809,11 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 		if (j_util * max > j_max * util) {
 			util = j_util;
 			max = j_max;
+			max_cpu = j;
 		}
 	}
 
-	return get_next_freq(sg_policy, util, max);
+	return get_next_freq(sg_policy, util, max, max_cpu);
 }
 
 static void
