@@ -9,13 +9,13 @@
 #include <stdint.h>
 #endif
 
-enum core_ramdump_status : u32 {
+enum core_ramdump_status {
 	CORE_RAMDUMP_NOT_STARTED = 0,
 	CORE_RAMDUMP_IN_PROGRESS,
 	CORE_RAMDUMP_COMPLETED,
 };
 
-enum ramdump_section_type : u32 {
+enum ramdump_section_type {
 	SECTION_TYPE_MEMORY = 0,
 	SECTION_TYPE_CPU_REGISTER,
 	SECTION_TYPE_CPU_DCACHE,
@@ -27,7 +27,7 @@ enum ramdump_section_type : u32 {
 	SECTION_TYPE_CRASH_INFO,
 };
 
-enum ramdump_section_flag : u32 {
+enum ramdump_section_flag {
 	RAMDUMP_FLAG_VALID = 0x1,
 };
 
@@ -61,7 +61,7 @@ enum ramdump_section_index {
 	RAMDUMP_NUM_SECTIONS,
 };
 
-enum RamdumpPlatform : uint32_t {
+enum RamdumpPlatform {
 	RAMDUMP_PLATFORM_WHI = 1,
 	RAMDUMP_PLATFORM_WHI_PRO,
 };
