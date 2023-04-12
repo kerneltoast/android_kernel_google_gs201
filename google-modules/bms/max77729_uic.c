@@ -528,7 +528,7 @@ static int dbg_init_fs(struct max77729_uic_data *data)
 }
 
 #else
-static int dbg_init_fs(struct max77729_chgr_data *data)
+static int dbg_init_fs(void *data)
 {
 	return 0;
 }

@@ -551,7 +551,6 @@ int gbms_storage_offline(const char *name, bool flush)
 EXPORT_SYMBOL_GPL(gbms_storage_offline);
 
 /* ------------------------------------------------------------------------ */
-#ifdef CONFIG_DEBUG_FS
 
 static int gbms_storage_show_cache(struct seq_file *m, void *data)
 {
@@ -860,8 +859,6 @@ static ssize_t debug_export_tag(struct file *filp,
 }
 
 GBMS_DEBUG_ATTRIBUTE(gbms_providers_export_ops, NULL, debug_export_tag);
-
-#endif
 
 /* ------------------------------------------------------------------------ */
 
