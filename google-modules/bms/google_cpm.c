@@ -3111,8 +3111,6 @@ static const struct thermal_cooling_device_ops chg_mdis_tcd_ops = {
 	.set_cur_state = gcpm_set_mdis_charge_cntl_limit,
 };
 
-#ifdef CONFIG_DEBUG_FS
-
 static ssize_t mdis_tm_store(struct file *filp, const char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
@@ -3353,8 +3351,6 @@ static int dc_cc_lim_store(void *data, u64 val)
 DEFINE_SIMPLE_ATTRIBUTE(dc_cc_lim_fops, dc_cc_lim_show,
 			dc_cc_lim_store, "%lld\n");
 
-
-#endif // CONFIG_DEBUG_FS
 
 /* ------------------------------------------------------------------------- */
 
