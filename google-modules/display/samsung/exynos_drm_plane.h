@@ -58,6 +58,12 @@ enum {
 int exynos_plane_init(struct drm_device *dev,
 		      struct exynos_drm_plane *exynos_plane, unsigned int index,
 		      const struct exynos_drm_plane_config *config);
+
+#ifdef CONFIG_DEBUG_FS
 int exynos_drm_debugfs_plane_add(struct exynos_drm_plane *exynos_plane);
+#else
+static inline
+int exynos_drm_debugfs_plane_add(struct exynos_drm_plane *exynos_plane) { return 0; }
+#endif
 
 #endif /* __EXYNOS_DRM_PLANE_H__ */

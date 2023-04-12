@@ -1639,11 +1639,6 @@ static const struct file_operations recovery_fops = {
 	.release = seq_release,
 };
 
-bool is_console_enabled(void)
-{
-	return exynos_uart_console_enabled();
-}
-
 static void buf_dump_all(const struct decon_device *decon)
 {
 	struct drm_printer p = is_console_enabled() ?

@@ -1286,10 +1286,18 @@ int exynos_panel_init_brightness(struct exynos_panel_desc *desc,
 				u32 num_configs, u32 panel_rev);
 int exynos_panel_set_brightness(struct exynos_panel *exynos_panel, u16 br);
 u16 exynos_panel_get_brightness(struct exynos_panel *exynos_panel);
+#ifdef CONFIG_DEBUG_FS
 void exynos_panel_debugfs_create_cmdset(struct exynos_panel *ctx,
 					struct dentry *parent,
 					const struct exynos_dsi_cmd_set *cmdset,
 					const char *name);
+#else
+static inline
+void exynos_panel_debugfs_create_cmdset(struct exynos_panel *ctx,
+					struct dentry *parent,
+					const struct exynos_dsi_cmd_set *cmdset,
+					const char *name) { }
+#endif
 void exynos_panel_send_cmd_set_flags(struct exynos_panel *ctx, const struct exynos_dsi_cmd_set *cmd_set,
 			       u32 flags);
 inline void exynos_panel_msleep(u32 delay_ms);

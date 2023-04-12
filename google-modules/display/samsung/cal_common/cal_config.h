@@ -195,8 +195,14 @@ static inline void cal_set_write_protected(struct cal_regs_desc *regs_desc,
 
 #define cal_mask(val, mask)	(((val) & (mask)) >> (ffs(mask) - 1))
 
+#ifdef CONFIG_DEBUG_FS
 void dpu_print_hex_dump(struct drm_printer *p, void __iomem *regs,
 			const void *buf, size_t len);
+#else
+static inline
+void dpu_print_hex_dump(struct drm_printer *p, void __iomem *regs,
+			const void *buf, size_t len) { }
+#endif
 
 /* log messages */
 #define cal_msg(func, _id, fmt, ...)	\
