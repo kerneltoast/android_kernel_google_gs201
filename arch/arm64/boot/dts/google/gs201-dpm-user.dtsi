@@ -33,7 +33,6 @@
 			method = DSS_LOG_TASK,
 			       DSS_LOG_WORK,
 			       DSS_LOG_CPUIDLE,
-			       DSS_LOG_SUSPEND,
 			       DSS_LOG_IRQ,
 			       DSS_LOG_HRTIMER,
 			       DSS_LOG_CLK,
