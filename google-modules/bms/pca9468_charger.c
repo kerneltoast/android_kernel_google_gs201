@@ -1606,7 +1606,7 @@ static int pca9468_set_ta_voltage_comp(struct pca9468_charger *pca9468)
 {
 	const int iin_high = pca9468->iin_cc + pca9468->pdata->iin_cc_comp_offset;
 	const int iin_low = pca9468->iin_cc - pca9468->pdata->iin_cc_comp_offset;
-	const ibat_limit = (pca9468->cc_max * FCC_POWER_INCREASE_THRESHOLD) / 100;
+	const int ibat_limit = (pca9468->cc_max * FCC_POWER_INCREASE_THRESHOLD) / 100;
 	int rc, ibat, icn = -EINVAL, iin = -EINVAL;
 	bool ovc_flag;
 
