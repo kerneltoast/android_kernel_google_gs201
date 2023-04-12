@@ -1111,7 +1111,7 @@ void lwis_dev_power_seq_list_print(struct lwis_device_power_sequence_list *list)
 	}
 }
 
-static struct lwis_device *find_top_dev()
+static struct lwis_device *find_top_dev(void)
 {
 	struct lwis_device *lwis_dev;
 
