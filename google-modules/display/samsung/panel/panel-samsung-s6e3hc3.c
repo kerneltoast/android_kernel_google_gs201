@@ -819,7 +819,7 @@ static void s6e3hc3_extra_lhbm_settings(struct exynos_panel *ctx,
 	}
 }
 
-static inline is_local_gamma_supported(struct exynos_panel *ctx)
+static inline bool is_local_gamma_supported(struct exynos_panel *ctx)
 {
 	if ((ctx->panel_rev == PANEL_REV_EVT1) &&
 			 s6e3hc3_panel_id3_doe3_config(ctx))
