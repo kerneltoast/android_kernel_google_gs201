@@ -46,7 +46,7 @@ exynos-drm-y += exynos_drm_format.o
 exynos-drm-y += exynos_drm_gem.o
 exynos-drm-y += exynos_drm_plane.o
 
-exynos-drm-y += exynos_drm_debug.o
+exynos-drm-$(CONFIG_DEBUG_FS) += exynos_drm_debug.o
 exynos-drm-y += exynos_drm_dqe.o
 exynos-drm-y += exynos_drm_hibernation.o
 exynos-drm-y += exynos_drm_partial.o
