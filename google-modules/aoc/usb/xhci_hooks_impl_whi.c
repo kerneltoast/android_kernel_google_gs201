@@ -746,6 +746,7 @@ static struct xhci_ring *alloc_transfer_ring(struct xhci_hcd *xhci,
 	return ep_ring;
 }
 
+#if defined(CONFIG_MODULES) && defined(MODULE)
 struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_container_ctx *ctx)
 {
 	if (ctx->type != XHCI_CTX_TYPE_INPUT)
@@ -753,6 +754,7 @@ struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_container_
 
 	return (struct xhci_input_control_ctx *)ctx->bytes;
 }
+#endif
 
 static void free_transfer_ring(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev, unsigned int ep_index)
