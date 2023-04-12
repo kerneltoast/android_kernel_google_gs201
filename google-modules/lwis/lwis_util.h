@@ -59,7 +59,7 @@ const char *lwis_device_type_to_string(int32_t type);
  * This wrapper is created to encourage consistent usage of clock source
  * throughout LWIS implementations.
  */
-static inline ktime_t lwis_get_time()
+static inline ktime_t lwis_get_time(void)
 {
 	return ktime_get_boottime();
 }
