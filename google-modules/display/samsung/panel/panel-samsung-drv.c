@@ -2164,6 +2164,7 @@ static int panel_debugfs_add(struct exynos_panel *ctx, struct dentry *parent)
 
 	return 0;
 }
+#endif
 
 static ssize_t exynos_dsi_dcs_transfer(struct mipi_dsi_device *dsi, u8 type,
 				     const void *data, size_t len, u16 flags)
@@ -2214,6 +2215,7 @@ ssize_t exynos_dsi_dcs_write_buffer(struct mipi_dsi_device *dsi,
 }
 EXPORT_SYMBOL(exynos_dsi_dcs_write_buffer);
 
+#ifdef CONFIG_DEBUG_FS
 static int exynos_dsi_name_show(struct seq_file *m, void *data)
 {
 	struct mipi_dsi_device *dsi = m->private;
@@ -2224,6 +2226,7 @@ static int exynos_dsi_name_show(struct seq_file *m, void *data)
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(exynos_dsi_name);
+#endif
 
 static ssize_t parse_byte_buf(u8 *out, size_t len, char *src)
 {
@@ -2265,6 +2268,7 @@ static ssize_t exynos_panel_parse_byte_buf(char *input_str, size_t input_len,
 	return rc;
 }
 
+#ifdef CONFIG_DEBUG_FS
 struct exynos_dsi_reg_data {
 	struct mipi_dsi_device *dsi;
 	u8 address;
