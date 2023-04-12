@@ -2797,8 +2797,6 @@ static const struct thermal_cooling_device_ops chg_mdis_tcd_ops = {
 	.set_cur_state = gcpm_set_mdis_charge_cntl_limit,
 };
 
-#ifdef CONFIG_DEBUG_FS
-
 static ssize_t mdis_tm_store(struct file *filp, const char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
@@ -2886,8 +2884,6 @@ error_done:
 }
 
 DEBUG_ATTRIBUTE_WO(mdis_out);
-
-#endif // CONFIG_DEBUG_FS
 
 /* ------------------------------------------------------------------------- */
 

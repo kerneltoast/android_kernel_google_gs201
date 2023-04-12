@@ -980,6 +980,7 @@ static inline int dbg_init_fs(struct max77729_chgr_data *data)
 	return 0;
 }
 static inline void dbg_remove_fs(struct max77729_chgr_data *data) { }
+static inline void dbg_cleanup_fs(struct max77729_chgr_data *data) { }
 #define DBG_INC(count)
 #endif
 
