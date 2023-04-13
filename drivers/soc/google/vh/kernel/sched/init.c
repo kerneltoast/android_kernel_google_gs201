@@ -96,6 +96,21 @@ extern struct cpufreq_governor sched_pixel_gov;
 
 extern int pmu_poll_init(void);
 
+static int init_vendor_task_data(void *data)
+{
+	struct vendor_task_struct *v_tsk;
+	struct task_struct *p, *t;
+
+	for_each_process_thread(p, t) {
+		get_task_struct(t);
+		v_tsk = get_vendor_task_struct(t);
+		init_vendor_task_struct(v_tsk);
+		put_task_struct(t);
+	}
+
+	return register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+}
+
 static int vh_sched_init(void)
 {
 	int ret;
@@ -118,7 +133,15 @@ static int vh_sched_init(void)
 
 	init_vendor_group_data();
 
-	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+	/*
+	 * Heavy handed, but necessary. We want to initialize our private data
+	 * structure for every task running in the system now. And register
+	 * a hook to ensure we initialize them for future ones via
+	 * dup_task_struct() vh.
+	 *
+	 * stop_machine provides atomic way to guarantee this without races.
+	 */
+	ret = stop_machine(init_vendor_task_data, NULL, cpumask_of(smp_processor_id()));
 	if (ret)
 		return ret;
 

@@ -53,10 +53,11 @@ struct uclamp_filter {
 
 /*
  * Always remember to initialize any new fields added here in
- * vh_dup_task_struct_pixel_mod() or you'll find newly forked tasks inheriting
+ * init_vendor_task_struct() or you'll find newly forked tasks inheriting
  * random states from the parent.
  */
 struct vendor_task_struct {
+	bool initialized;
 	raw_spinlock_t lock;
 	enum vendor_group group;
 	unsigned long direct_reclaim_ts;

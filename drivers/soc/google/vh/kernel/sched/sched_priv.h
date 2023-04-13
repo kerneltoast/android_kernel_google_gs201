@@ -370,5 +370,28 @@ static inline bool get_prefer_idle(struct task_struct *p)
 		return vg[vp->group].prefer_idle || vp->prefer_idle || vbinder->prefer_idle;
 }
 
+static inline void init_vendor_task_struct(struct vendor_task_struct *v_tsk)
+{
+	if (v_tsk->initialized)
+		return;
+
+	v_tsk->initialized = true;
+	raw_spin_lock_init(&v_tsk->lock);
+	v_tsk->group = VG_SYSTEM;
+	v_tsk->direct_reclaim_ts = 0;
+	INIT_LIST_HEAD(&v_tsk->node);
+	v_tsk->queued_to_list = false;
+	v_tsk->uclamp_fork_reset = false;
+	v_tsk->prefer_idle = false;
+	v_tsk->uclamp_filter.uclamp_min_ignored = 0;
+	v_tsk->uclamp_filter.uclamp_max_ignored = 0;
+	v_tsk->binder_task.uclamp[UCLAMP_MIN] = uclamp_none(UCLAMP_MIN);
+	v_tsk->binder_task.uclamp[UCLAMP_MIN] = uclamp_none(UCLAMP_MAX);
+	v_tsk->binder_task.prefer_idle = false;
+	v_tsk->binder_task.active = false;
+	v_tsk->uclamp_pi[UCLAMP_MIN] = uclamp_none(UCLAMP_MIN);
+	v_tsk->uclamp_pi[UCLAMP_MAX] = uclamp_none(UCLAMP_MAX);
+}
+
 int acpu_init(void);
 extern struct proc_dir_entry *vendor_sched;

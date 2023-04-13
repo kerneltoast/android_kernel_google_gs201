@@ -396,13 +396,12 @@ static inline const cpumask_t *get_preferred_idle_mask(struct task_struct *p)
 void init_vendor_group_data(void)
 {
 	int i;
-	struct vendor_task_struct *v_tsk;
-	struct task_struct *p, *t;
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	int j;
 	struct rq *rq;
 	int group;
 	struct rq_flags rf;
+	struct task_struct *p;
 #endif
 
 	for (i = 0; i < VG_MAX; i++) {
@@ -438,19 +437,6 @@ void init_vendor_group_data(void)
 		rq_unlock_irqrestore(rq, &rf);
 	}
 #endif
-
-	rcu_read_lock();
-	for_each_process_thread(p, t) {
-		get_task_struct(t);
-		v_tsk = get_vendor_task_struct(t);
-		v_tsk->group = VG_SYSTEM;
-		v_tsk->prefer_idle = false;
-		INIT_LIST_HEAD(&v_tsk->node);
-		raw_spin_lock_init(&v_tsk->lock);
-		v_tsk->queued_to_list = false;
-		put_task_struct(t);
-	}
-	rcu_read_unlock();
 }
 
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
@@ -2552,21 +2538,8 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 	v_tsk = get_vendor_task_struct(tsk);
 	v_orig = get_vendor_task_struct(orig);
 	vbinder = get_vendor_binder_task_struct(tsk);
+	init_vendor_task_struct(v_tsk);
 	v_tsk->group = v_orig->group;
-	v_tsk->prefer_idle = false;
-	INIT_LIST_HEAD(&v_tsk->node);
-	raw_spin_lock_init(&v_tsk->lock);
-	v_tsk->queued_to_list = false;
-	v_tsk->uclamp_filter.uclamp_min_ignored = 0;
-	v_tsk->uclamp_filter.uclamp_max_ignored = 0;
-
-	vbinder->uclamp[UCLAMP_MIN] = uclamp_none(UCLAMP_MIN);
-	vbinder->uclamp[UCLAMP_MAX] = uclamp_none(UCLAMP_MAX);
-	vbinder->prefer_idle = false;
-	vbinder->active = false;
-
-	v_tsk->uclamp_pi[UCLAMP_MIN] = uclamp_none(UCLAMP_MIN);
-	v_tsk->uclamp_pi[UCLAMP_MAX] = uclamp_none(UCLAMP_MAX);
 }
 
 void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
