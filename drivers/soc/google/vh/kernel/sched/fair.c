@@ -1067,16 +1067,15 @@ static inline unsigned long get_idle_cost(int cpu, int opp_level)
 }
 
 static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
-				unsigned long max_util, unsigned long sum_util, bool count_idle)
+				unsigned long max_util, unsigned long sum_util, bool count_idle,
+				int dst_cpu, int max_cpu)
 {
 	unsigned long freq, scale_cpu, cost;
 	struct em_perf_state *ps;
-	int i, cpu;
+	int i;
 
 	if (!sum_util)
 		return 0;
-
-	cpu = cpumask_first(to_cpumask(pd->cpus));
 
 #if IS_ENABLED(CONFIG_PIXEL_EM)
 	{
@@ -1085,7 +1084,7 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 		if (profile_ptr_snapshot) {
 			struct pixel_em_profile *profile = READ_ONCE(*profile_ptr_snapshot);
 			if (profile) {
-				struct pixel_em_cluster *cluster = profile->cpu_to_cluster[cpu];
+				struct pixel_em_cluster *cluster = profile->cpu_to_cluster[max_cpu];
 				struct pixel_em_opp *max_opp;
 				struct pixel_em_opp *opp;
 
@@ -1094,8 +1093,8 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 				freq = map_util_freq_pixel_mod(max_util,
 							       max_opp->freq,
 							       max_opp->capacity,
-							       cpu);
-				freq = map_scaling_freq(cpu, freq);
+							       max_cpu);
+				freq = map_scaling_freq(max_cpu, freq);
 
 				for (i = 0; i < cluster->num_opps; i++) {
 					opp = &cluster->opps[i];
@@ -1106,8 +1105,8 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 				cost = opp->cost * sum_util / max_opp->capacity;
 
 				if (count_idle) {
-					unsigned long cur_freq = (arch_scale_freq_capacity(cpu) *
-						max_opp->freq) >> SCHED_CAPACITY_SHIFT;
+					unsigned long cur_freq = arch_scale_freq_capacity(max_cpu) *
+						max_opp->freq >> SCHED_CAPACITY_SHIFT;
 
 					for (i = 0; i < cluster->num_opps; i++) {
 						opp = &cluster->opps[i];
@@ -1115,7 +1114,7 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 							break;
 					}
 
-					cost += get_idle_cost(cpu, i);
+					cost += get_idle_cost(dst_cpu, i);
 				}
 
 				return cost;
@@ -1124,10 +1123,10 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 	}
 #endif
 
-	scale_cpu = arch_scale_cpu_capacity(cpu);
+	scale_cpu = arch_scale_cpu_capacity(max_cpu);
 	ps = &pd->table[pd->nr_perf_states - 1];
-	freq = map_util_freq_pixel_mod(max_util, ps->frequency, scale_cpu, cpu);
-	freq = map_scaling_freq(cpu, freq);
+	freq = map_util_freq_pixel_mod(max_util, ps->frequency, scale_cpu, max_cpu);
+	freq = map_scaling_freq(max_cpu, freq);
 
 	for (i = 0; i < pd->nr_perf_states; i++) {
 		ps = &pd->table[i];
@@ -1144,7 +1143,7 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, unsig
 	unsigned long max_util, util_cfs, cpu_util, cpu_cap;
 	unsigned long sum_util, energy = 0;
 	struct task_struct *tsk;
-	int cpu;
+	int cpu, max_util_cpu_in_pd;
 	bool count_idle = false;
 
 	for (; pd; pd = pd->next) {
@@ -1156,6 +1155,7 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, unsig
 		 */
 		cpu_cap = arch_scale_cpu_capacity(cpumask_first(pd_mask));
 		max_util = sum_util = 0;
+		max_util_cpu_in_pd = cpumask_first(pd_mask);
 
 		/*
 		 * The capacity state of CPUs of the current rd can be driven by
@@ -1189,13 +1189,18 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, unsig
 			tsk = cpu == dst_cpu ? p : NULL;
 			cpu_util = schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
 						      FREQUENCY_UTIL, tsk);
-			max_util = max(max_util, cpu_util);
+
+			if (cpu_util > max_util) {
+				max_util_cpu_in_pd = cpu;
+				max_util = cpu_util;
+			}
 		}
 
 		if (cpumask_test_cpu(dst_cpu, pd_mask) && exit_lat > C1_EXIT_LATENCY)
 			count_idle = true;
 
-		energy += em_cpu_energy_pixel_mod(pd->em_pd, max_util, sum_util, count_idle);
+		energy += em_cpu_energy_pixel_mod(pd->em_pd, max_util, sum_util, count_idle,
+						  dst_cpu, max_util_cpu_in_pd);
 	}
 
 	trace_sched_compute_energy(p, dst_cpu, energy);
