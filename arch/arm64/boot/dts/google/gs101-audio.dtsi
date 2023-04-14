@@ -558,6 +558,21 @@
 				};
 			};
 
+			dai_fe_hotword_tap_tx: fe_hotword_tap_tx {
+				dai-name = "audio_hotword_tap";
+				stream-name = "audio_hotword_tap";
+				id = <IDX_HOTWORD_TAP_TX>;
+				capture;
+				cpu {
+					sound-dai = <&aud_aoc_path IDX_HOTWORD_TAP_TX>;
+				};
+				platform {
+					tx1 {
+						of_drv = <&aoc_incall_ep>;
+					};
+				};
+			};
+
 			dai_be_i2s0_rx: be_i2s0_rx {
 				dai-name = "I2S_0_RX Playback";
 				stream-name = "I2S_0_RX Playback";
