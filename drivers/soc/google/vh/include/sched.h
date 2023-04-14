@@ -57,7 +57,6 @@ struct uclamp_filter {
  * random states from the parent.
  */
 struct vendor_task_struct {
-	bool initialized;
 	raw_spinlock_t lock;
 	enum vendor_group group;
 	unsigned long direct_reclaim_ts;

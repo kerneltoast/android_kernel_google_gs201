@@ -372,10 +372,10 @@ static inline bool get_prefer_idle(struct task_struct *p)
 
 static inline void init_vendor_task_struct(struct vendor_task_struct *v_tsk)
 {
-	if (v_tsk->initialized)
-		return;
+	/* Guarantee everything is not random first, just in case */
+	memset(v_tsk, 0, sizeof(struct vendor_task_struct));
 
-	v_tsk->initialized = true;
+	/* Then explicitly set what we expect init value to be */
 	raw_spin_lock_init(&v_tsk->lock);
 	v_tsk->group = VG_SYSTEM;
 	v_tsk->direct_reclaim_ts = 0;
