@@ -1080,14 +1080,16 @@ static inline unsigned long get_idle_cost(int cpu, int opp_level)
 
 static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 				unsigned long max_util, unsigned long sum_util, bool count_idle,
-				int dst_cpu, int max_cpu)
+				int dst_cpu)
 {
 	unsigned long freq, scale_cpu, cost;
 	struct em_perf_state *ps;
-	int i;
+	int i, cpu;
 
 	if (!sum_util)
 		return 0;
+
+	cpu = cpumask_first(to_cpumask(pd->cpus));
 
 #if IS_ENABLED(CONFIG_PIXEL_EM)
 	{
@@ -1096,7 +1098,7 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 		if (profile_ptr_snapshot) {
 			struct pixel_em_profile *profile = READ_ONCE(*profile_ptr_snapshot);
 			if (profile) {
-				struct pixel_em_cluster *cluster = profile->cpu_to_cluster[max_cpu];
+				struct pixel_em_cluster *cluster = profile->cpu_to_cluster[cpu];
 				struct pixel_em_opp *max_opp;
 				struct pixel_em_opp *opp;
 
@@ -1104,9 +1106,8 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 
 				freq = map_util_freq_pixel_mod(max_util,
 							       max_opp->freq,
-							       max_opp->capacity,
-							       max_cpu);
-				freq = map_scaling_freq(max_cpu, freq);
+							       max_opp->capacity);
+				freq = map_scaling_freq(cpu, freq);
 
 				for (i = 0; i < cluster->num_opps; i++) {
 					opp = &cluster->opps[i];
@@ -1117,7 +1118,7 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 				cost = opp->cost * sum_util / max_opp->capacity;
 
 				if (count_idle) {
-					unsigned long cur_freq = arch_scale_freq_capacity(max_cpu) *
+					unsigned long cur_freq = arch_scale_freq_capacity(cpu) *
 						max_opp->freq >> SCHED_CAPACITY_SHIFT;
 
 					for (i = 0; i < cluster->num_opps; i++) {
@@ -1135,10 +1136,10 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 	}
 #endif
 
-	scale_cpu = arch_scale_cpu_capacity(max_cpu);
+	scale_cpu = arch_scale_cpu_capacity(cpu);
 	ps = &pd->table[pd->nr_perf_states - 1];
-	freq = map_util_freq_pixel_mod(max_util, ps->frequency, scale_cpu, max_cpu);
-	freq = map_scaling_freq(max_cpu, freq);
+	freq = map_util_freq_pixel_mod(max_util, ps->frequency, scale_cpu);
+	freq = map_scaling_freq(cpu, freq);
 
 	for (i = 0; i < pd->nr_perf_states; i++) {
 		ps = &pd->table[i];
@@ -1155,7 +1156,7 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, unsig
 	unsigned long max_util, util_cfs, cpu_util, cpu_cap;
 	unsigned long sum_util, energy = 0;
 	struct task_struct *tsk;
-	int cpu, max_util_cpu_in_pd;
+	int cpu;
 	bool count_idle = false;
 
 	for (; pd; pd = pd->next) {
@@ -1167,7 +1168,6 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, unsig
 		 */
 		cpu_cap = arch_scale_cpu_capacity(cpumask_first(pd_mask));
 		max_util = sum_util = 0;
-		max_util_cpu_in_pd = cpumask_first(pd_mask);
 
 		/*
 		 * The capacity state of CPUs of the current rd can be driven by
@@ -1202,17 +1202,14 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd, unsig
 			cpu_util = schedutil_cpu_util_pixel_mod(cpu, util_cfs, cpu_cap,
 						      FREQUENCY_UTIL, tsk);
 
-			if (cpu_util > max_util) {
-				max_util_cpu_in_pd = cpu;
-				max_util = cpu_util;
-			}
+			max_util = max(max_util, cpu_util);
 		}
 
 		if (cpumask_test_cpu(dst_cpu, pd_mask) && exit_lat > C1_EXIT_LATENCY)
 			count_idle = true;
 
 		energy += em_cpu_energy_pixel_mod(pd->em_pd, max_util, sum_util, count_idle,
-						  dst_cpu, max_util_cpu_in_pd);
+						  dst_cpu);
 	}
 
 	trace_sched_compute_energy(p, dst_cpu, energy);
@@ -2221,23 +2218,25 @@ void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
 	*overutilized = !util_fits_cpu(cpu_util(cpu), rq_util_min, rq_util_max, cpu);
 }
 
-unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
-				      unsigned long cap, int cpu)
+/*
+ * Implements a headroom function which gives the utilization (or the tasks
+ * extra CPU bandwidth) to grow. The goal is to use the outcome to select the
+ * frequency. We don't want an exact frequency selection so that if the tasks
+ * running on the CPU don't go to sleep, they'll grow in that additional
+ * headroom until we do the next frequency update to a higher one.
+ */
+unsigned long apply_dvfs_headroom(unsigned long util, int cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long rq_util = cpu_util(cpu) + cpu_util_rt(rq);
-	unsigned long uclamp_min = rq->uclamp[UCLAMP_MIN].value;
-	unsigned long uclamp_max = rq->uclamp[UCLAMP_MAX].value;
+	return util * sched_capacity_margin[cpu] >> SCHED_CAPACITY_SHIFT;
+}
 
-	/* if uclamp_min boosted, don't apply any additional boost */
-	if (rq_util < uclamp_min)
-		return freq * util / cap;
-
-	util = util * sched_capacity_margin[cpu] >> SCHED_CAPACITY_SHIFT;
-
-	/* Don't allow the boost to go beyond uclamp_max */
-	util = util >= uclamp_max ? uclamp_max : util;
-
+/*
+ * Caller must have called apply_dvfs_headroom() before doing the mapping to
+ * frequency.
+ */
+unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
+				      unsigned long cap)
+{
 	return freq * util / cap;
 }
 

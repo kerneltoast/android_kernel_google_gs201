@@ -145,7 +145,7 @@ static inline bool update_pmu_throttle_on_ignored_cpus(struct sugov_policy *sg_p
 	if (sg_policy->tunables->pmu_limit_enable && sg_policy->under_pmu_throttle &&
 	    !sg_policy->relax_pmu_throttle &&
 	    cpumask_test_cpu(cpu, &sg_policy->pmu_ignored_mask) &&
-	    map_util_freq_pixel_mod(util, freq, cap, cpu) > sg_policy->tunables->limit_frequency) {
+	    map_util_freq_pixel_mod(util, freq, cap) > sg_policy->tunables->limit_frequency) {
 		sg_policy->relax_pmu_throttle = true;
 
 		return false;
@@ -447,12 +447,12 @@ static void sugov_deferred_update(struct sugov_policy *sg_policy, u64 time,
  * cpufreq driver limitations.
  */
 static unsigned int get_next_freq(struct sugov_policy *sg_policy,
-				  unsigned long util, unsigned long max, int cpu)
+				  unsigned long util, unsigned long max)
 {
 	struct cpufreq_policy *policy = sg_policy->policy;
 	unsigned int freq = policy->cpuinfo.max_freq;
 
-	freq = map_util_freq_pixel_mod(util, freq, max, cpu);
+	freq = map_util_freq_pixel_mod(util, freq, max);
 	trace_sugov_next_freq(policy->cpu, util, max, freq);
 
 	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
@@ -519,6 +519,7 @@ unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
 	 */
 	util = util_cfs + cpu_util_rt(rq);
 	if (type == FREQUENCY_UTIL) {
+		util = apply_dvfs_headroom(util, cpu);
 		util = uclamp_rq_util_with(rq, util, p);
 		trace_schedutil_cpu_util_clamp(cpu, util_cfs, cpu_util_rt(rq), util, max);
 	}
@@ -552,9 +553,13 @@ unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
 	 *              max - irq
 	 *   U' = irq + --------- * U
 	 *                 max
+	 *
+	 * We don't need to apply dvfs headroom to scale_irq_capacity() as util
+	 * (U) already got the headroom applied. Only the 'irq' part needs to
+	 * be multiplied by the headroom.
 	 */
 	util = scale_irq_capacity(util, irq, max);
-	util += irq;
+	util += type == FREQUENCY_UTIL ? apply_dvfs_headroom(irq, cpu) : irq;
 
 	/*
 	 * Bandwidth required by DEADLINE must always be granted while, for
@@ -567,7 +572,7 @@ unsigned long schedutil_cpu_util_pixel_mod(int cpu, unsigned long util_cfs,
 	 * an interface. So, we only do the latter for now.
 	 */
 	if (type == FREQUENCY_UTIL)
-		util += cpu_bw_dl(rq);
+		util += apply_dvfs_headroom(cpu_bw_dl(rq), cpu);
 
 	return min(max, util);
 }
@@ -765,7 +770,7 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	trace_sugov_util_update(sg_cpu->cpu, util, max, flags);
 
 	util = sugov_iowait_apply(sg_cpu, time, util, max);
-	next_f = get_next_freq(sg_policy, util, max, sg_cpu->cpu);
+	next_f = get_next_freq(sg_policy, util, max);
 	/*
 	 * Do not reduce the frequency if the CPU has not been idle
 	 * recently, as the reduction is likely to be premature then.
@@ -799,7 +804,6 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 	unsigned long util = 0, max = 1;
 	unsigned int j;
 	bool update_pmu_limit = true;
-	int max_cpu = policy->cpu;
 
 	for_each_cpu(j, policy->cpus) {
 		struct sugov_cpu *j_sg_cpu = &per_cpu(sugov_cpu, j);
@@ -815,11 +819,10 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 		if (j_util * max > j_max * util) {
 			util = j_util;
 			max = j_max;
-			max_cpu = j;
 		}
 	}
 
-	return get_next_freq(sg_policy, util, max, max_cpu);
+	return get_next_freq(sg_policy, util, max);
 }
 
 static void
@@ -1083,7 +1086,7 @@ static void pmu_limit_work(struct kthread_work *work)
 			if (!check_pmu_limit_conditions(lcpi, spc, sg_policy)) {
 				sg_cpu = &per_cpu(sugov_cpu, ccpu);
 				freq = map_util_freq_pixel_mod(sugov_get_util(sg_cpu),
-					policy->cpuinfo.max_freq, sg_cpu->max, ccpu);
+					policy->cpuinfo.max_freq, sg_cpu->max);
 				// Ignore this cpu if freq is <= limit freq.
 				if (freq <= sg_policy->tunables->limit_frequency) {
 					cpumask_set_cpu(ccpu, &local_pmu_ignored_mask);
