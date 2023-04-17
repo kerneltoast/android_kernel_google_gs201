@@ -2198,19 +2198,12 @@ static inline void task_tick_uclamp(struct rq *rq, struct task_struct *curr)
 static inline void task_tick_uclamp(struct rq *rq, struct task_struct *curr) {}
 #endif
 
-void rvh_update_misfit_status_pixel_mod(void *data, struct task_struct *p,
-					struct rq *rq, bool *need_update)
+void vh_scheduler_tick_pixel_mod(void *data, struct rq *rq)
 {
-	/*
-	 * We use this as tick_task_fair() - we don't really care about misfit
-	 * status but reusing the existing trace point as it's called from
-	 * there. we just need to be careful it's called from other locations
-	 * too.
-	 */
-	if (!p || p != rq->curr)
-		return;
-
-	task_tick_uclamp(rq, p);
+	struct rq_flags rf;
+	rq_lock(rq, &rf);
+	task_tick_uclamp(rq, rq->curr);
+	rq_unlock(rq, &rf);
 }
 
 void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
