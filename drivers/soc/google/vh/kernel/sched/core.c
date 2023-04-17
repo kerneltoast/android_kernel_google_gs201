@@ -18,6 +18,25 @@ struct vendor_group_list vendor_group_list[VG_MAX];
 extern void update_uclamp_stats(int cpu, u64 time);
 #endif
 
+/*
+ * Ignore uclamp_min for tasks if
+ *
+ *	runtime >= sysctl_sched_uclamp_min_filter_us
+ */
+unsigned int sysctl_sched_uclamp_min_filter_us = 2000;
+
+/*
+ * Ignore uclamp_max for tasks if
+ *
+ *	runtime < sched_slice() / divider
+ */
+unsigned int sysctl_sched_uclamp_max_filter_divider = 4;
+
+/*
+ * Enable and disable uclamp min/max filters at runtime
+ */
+DEFINE_STATIC_KEY_FALSE(uclamp_min_filter_enable);
+DEFINE_STATIC_KEY_FALSE(uclamp_max_filter_enable);
 
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
@@ -72,6 +91,54 @@ static inline void uclamp_fork_pixel_mod(struct task_struct *p)
 void rvh_sched_fork_pixel_mod(void *data, struct task_struct *p)
 {
 	uclamp_fork_pixel_mod(p);
+}
+
+#ifdef CONFIG_UCLAMP_TASK
+static inline void task_tick_uclamp(struct rq *rq, struct task_struct *curr)
+{
+	bool can_ignore;
+	bool is_ignored;
+	bool reset_idle_flag = false;
+
+	if (!uclamp_is_used())
+		return;
+
+	/*
+	 * Condition might have changed since we enqueued the task.
+	 */
+
+	can_ignore = uclamp_can_ignore_uclamp_max(rq, curr);
+	is_ignored = uclamp_is_ignore_uclamp_max(curr);
+
+	if (is_ignored && !can_ignore) {
+		uclamp_reset_ignore_uclamp_max(curr);
+		uclamp_rq_inc_id(rq, curr, UCLAMP_MAX);
+		reset_idle_flag = true;
+	}
+
+	can_ignore = uclamp_can_ignore_uclamp_min(rq, curr);
+	is_ignored = uclamp_is_ignore_uclamp_min(curr);
+
+	if (is_ignored && !can_ignore) {
+		uclamp_reset_ignore_uclamp_min(curr);
+		uclamp_rq_inc_id(rq, curr, UCLAMP_MIN);
+		reset_idle_flag = true;
+	}
+
+	/* Reset clamp idle holding when there is one RUNNABLE task */
+	if (reset_idle_flag && rq->uclamp_flags & UCLAMP_FLAG_IDLE)
+		rq->uclamp_flags &= ~UCLAMP_FLAG_IDLE;
+}
+#else
+static inline void task_tick_uclamp(struct rq *rq, struct task_struct *curr) {}
+#endif
+
+void vh_scheduler_tick_pixel_mod(void *data, struct rq *rq)
+{
+	struct rq_flags rf;
+	rq_lock(rq, &rf);
+	task_tick_uclamp(rq, rq->curr);
+	rq_unlock(rq, &rf);
 }
 
 void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
