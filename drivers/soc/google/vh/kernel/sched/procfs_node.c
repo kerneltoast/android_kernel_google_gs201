@@ -1104,6 +1104,34 @@ static ssize_t reset_uclamp_stats_store(struct file *filp,
 PROC_OPS_WO(reset_uclamp_stats);
 #endif
 
+static int uclamp_max_filter_rt_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", sysctl_sched_uclamp_max_filter_rt);
+	return 0;
+}
+static ssize_t uclamp_max_filter_rt_store(struct file *filp,
+					  const char __user *ubuf,
+					  size_t count, loff_t *pos)
+{
+	int val = 0;
+	char buf[MAX_PROC_SIZE];
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, count))
+		return -EFAULT;
+
+	buf[count] = '\0';
+
+	if (kstrtoint(buf, 10, &val))
+		return -EINVAL;
+
+	sysctl_sched_uclamp_max_filter_rt = val;
+	return count;
+}
+PROC_OPS_RW(uclamp_max_filter_rt);
+
 static int util_post_init_scale_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "%d\n", vendor_sched_util_post_init_scale);
@@ -1374,6 +1402,34 @@ static ssize_t uclamp_min_filter_us_store(struct file *filp,
 	return count;
 }
 PROC_OPS_RW(uclamp_min_filter_us);
+
+static int uclamp_min_filter_rt_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", sysctl_sched_uclamp_min_filter_rt);
+	return 0;
+}
+static ssize_t uclamp_min_filter_rt_store(struct file *filp,
+					  const char __user *ubuf,
+					  size_t count, loff_t *pos)
+{
+	int val = 0;
+	char buf[MAX_PROC_SIZE];
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, count))
+		return -EFAULT;
+
+	buf[count] = '\0';
+
+	if (kstrtoint(buf, 10, &val))
+		return -EINVAL;
+
+	sysctl_sched_uclamp_min_filter_rt = val;
+	return count;
+}
+PROC_OPS_RW(uclamp_min_filter_rt);
 
 static uclamp_max_filter_enable_show(struct seq_file *m, void *v)
 {
@@ -1653,8 +1709,10 @@ static struct pentry entries[] = {
 	// uclamp filter
 	PROC_ENTRY(uclamp_min_filter_enable),
 	PROC_ENTRY(uclamp_min_filter_us),
+	PROC_ENTRY(uclamp_min_filter_rt),
 	PROC_ENTRY(uclamp_max_filter_enable),
 	PROC_ENTRY(uclamp_max_filter_divider),
+	PROC_ENTRY(uclamp_max_filter_rt),
 };
 
 

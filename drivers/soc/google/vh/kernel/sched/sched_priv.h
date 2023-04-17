@@ -426,6 +426,8 @@ extern struct proc_dir_entry *vendor_sched;
 extern u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se);
 extern unsigned int sysctl_sched_uclamp_min_filter_us;
 extern unsigned int sysctl_sched_uclamp_max_filter_divider;
+extern unsigned int sysctl_sched_uclamp_min_filter_rt;
+extern unsigned int sysctl_sched_uclamp_max_filter_rt;
 
 /*
  * Check if we can ignore uclamp_min requirement of a task. The goal is to
@@ -452,6 +454,9 @@ static inline bool uclamp_can_ignore_uclamp_min(struct rq *rq,
 
 	if (task_on_rq_migrating(p))
 		return false;
+
+	if (rt_task(p))
+		return task_util(p) < sysctl_sched_uclamp_min_filter_rt;
 
 	/*
 	 * Based on previous runtime, we check that runtime is sufficiently
@@ -511,6 +516,7 @@ static inline bool uclamp_can_ignore_uclamp_max(struct rq *rq,
 	unsigned long runtime, slice;
 	struct sched_entity *se;
 	struct cfs_rq *cfs_rq;
+	bool is_rt = rt_task(p);
 
 	if (SCHED_WARN_ON(!uclamp_is_used()))
 		return false;
@@ -525,10 +531,13 @@ static inline bool uclamp_can_ignore_uclamp_max(struct rq *rq,
 	 * If util has crossed uclamp_max threshold, then we have to ensure
 	 * this is always enforced.
 	 */
-	util = task_util_est(p);
+	util = is_rt ? task_util(p) : task_util_est(p);
 	uclamp_max = uclamp_eff_value(p, UCLAMP_MAX);
 	if (util >= uclamp_max)
 		return false;
+
+	if (is_rt)
+		return util < sysctl_sched_uclamp_max_filter_rt;
 
 	/*
 	 * Based on previous runtime, we check the allowed sched_slice() of the
