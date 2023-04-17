@@ -646,6 +646,10 @@
 			/* vptid 40, max size 8192KB, priority 0, pbha 5 */
 			id_size_priority = <0x28 0x007fd001 0x0 0x5>;
 		};
+		gpu_g1_p0 {
+			/* vptid 2, max size 8192KB, priority 0, pbha 6 */
+			id_size_priority = <0x2 0xffffffff 0x0 0x6>;
+		};
 		CAMERA2WAY {
 			/* vptid 3, size 512KB, priority 0 (highest), pbha 0 */
 			id_size_priority = < 0x3 0x00002001 0x0 0x0 >;

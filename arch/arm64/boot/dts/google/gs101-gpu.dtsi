@@ -12,13 +12,14 @@
 
 		/* Memory groups */
 		groups =
-			"gpu_g0";
+			"gpu_g0",
+			"gpu_g1";
 
-		/* Base partition index per group */
-		group_base_pt = <0>;
+		/* Base partition index for each group */
+		group_base_pt = <0 10>;
 
-		/* Number of partitions per group */
-		group_pt_num = <10>;
+		/* Number of partitions for each group */
+		group_pt_num = <10 1>;
 
 		/* SLC partitions */
 		pt_id =
@@ -31,10 +32,11 @@
 			"gpu_g0_p6",
 			"gpu_g0_p7",
 			"gpu_g0_p8",
-			"gpu_g0_p9";
+			"gpu_g0_p9",
+			"gpu_g1_p0";
 
 		/* SLC partition sizes KB */
-		pt_size = <256 512 768 1024 1536 2048 3072 4096 6144 8192>;
+		pt_size = <256 512 768 1024 1536 2048 3072 4096 6144 8192 8192>;
 	};
 
 	mali_pcm: priority-control-manager {
