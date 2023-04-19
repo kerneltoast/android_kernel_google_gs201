@@ -594,7 +594,6 @@ void mfc_core_get_img_size(struct mfc_core *core, struct mfc_ctx *ctx,
 			ctx->img_width, ctx->img_height, ctx->raw_buf.stride[0]);
 
 	if (img_size == MFC_GET_RESOL_DPB_SIZE) {
-		ctx->dpb_count = mfc_core_get_dpb_count();
 		ctx->scratch_buf_size = mfc_core_get_scratch_size();
 		for (i = 0; i < ctx->dst_fmt->num_planes; i++) {
 			ctx->min_dpb_size[i] = mfc_core_get_min_dpb_size(i);
