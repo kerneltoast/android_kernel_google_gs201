@@ -755,7 +755,7 @@ static inline unsigned long get_group_util(int cpu, struct task_struct *p, unsig
 					   bool subtract)
 {
 	int group = get_vendor_util_group(p);
-	unsigned long util;
+	unsigned long util = cpu_rq(cpu)->cfs.avg.util_avg;
 
 	if (group == VUG_BG) {
 		util = vendor_cfs_util[VUG_BG][cpu].avg.util_avg;
