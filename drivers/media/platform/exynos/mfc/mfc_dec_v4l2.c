@@ -462,7 +462,8 @@ static int __mfc_dec_update_disp_res(struct mfc_ctx *ctx, struct v4l2_format *f)
 	struct mfc_raw_info *raw;
 	int i;
 
-	dec->disp_res_change = 0;
+	dec->disp_res_change--;
+	mfc_debug(2, "[DRC] disp_res_change %d\n", dec->disp_res_change);
 
 	if (mfc_rm_query_state(ctx, EQUAL_BIGGER, MFCINST_RUNNING)) {
 		mfc_debug(2, "dec update disp_res\n");

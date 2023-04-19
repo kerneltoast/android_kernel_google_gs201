@@ -403,11 +403,12 @@ static struct mfc_buf *__mfc_handle_frame_output_del(struct mfc_core *core,
 
 		if ((IS_VP9_DEC(ctx) && mfc_core_get_disp_res_change()) ||
 			(IS_AV1_DEC(ctx) && mfc_core_get_disp_res_change_av1())) {
-			mfc_ctx_info("[FRAME] display resolution changed\n");
+			mfc_ctx_info("[FRAME][DRC] display resolution changed\n");
 			mutex_lock(&ctx->drc_wait_mutex);
 			ctx->wait_state = WAIT_G_FMT;
 			mfc_core_get_img_size(core, ctx, MFC_GET_RESOL_SIZE);
-			dec->disp_res_change = 1;
+			dec->disp_res_change++;
+			mfc_debug(2, "[DRC] disp_res_change %d\n", dec->disp_res_change);
 			mfc_set_mb_flag(dst_mb, MFC_FLAG_DISP_RES_CHANGE);
 			mutex_unlock(&ctx->drc_wait_mutex);
 		}

@@ -590,7 +590,7 @@ void mfc_core_get_img_size(struct mfc_core *core, struct mfc_ctx *ctx,
 		if (IS_2BIT_NEED(ctx))
 			ctx->raw_buf.stride_2bits[i] = mfc_core_get_stride_size_2bit(i);
 	}
-	mfc_debug(2, "[FRAME] resolution changed, %dx%d => %dx%d (stride: %d)\n", w, h,
+	mfc_debug(2, "[FRAME][DRC] resolution changed, %dx%d => %dx%d (stride: %d)\n", w, h,
 			ctx->img_width, ctx->img_height, ctx->raw_buf.stride[0]);
 
 	if (img_size == MFC_GET_RESOL_DPB_SIZE) {
@@ -602,7 +602,7 @@ void mfc_core_get_img_size(struct mfc_core *core, struct mfc_ctx *ctx,
 				ctx->min_dpb_size_2bits[i] = mfc_core_get_min_dpb_size_2bit(i);
 		}
 
-		mfc_debug(2, "[FRAME] DPB count %d, min_dpb_size %d(%#x) min_dpb_size_2bits %d scratch %zu(%#zx)\n",
+		mfc_debug(2, "[FRAME][DRC] DPB count %d, min_dpb_size %d(%#x) min_dpb_size_2bits %d scratch %zu(%#zx)\n",
 			ctx->dpb_count, ctx->min_dpb_size[0], ctx->min_dpb_size[0], ctx->min_dpb_size_2bits[0],
 			ctx->scratch_buf_size, ctx->scratch_buf_size);
 	}
