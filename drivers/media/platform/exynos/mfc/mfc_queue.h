@@ -149,4 +149,5 @@ void mfc_cleanup_nal_queue(struct mfc_core_ctx *core_ctx);
 
 int mfc_check_buf_mb_flag(struct mfc_core_ctx *core_ctx, enum mfc_mb_flag f);
 
+void mfc_dec_drc_find_del_buf(struct mfc_core_ctx *core_ctx);
 #endif /* __MFC_QUEUE_H */
