@@ -264,6 +264,27 @@ static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
 	return css ? container_of(css, struct task_group, css) : NULL;
 }
 
+static void
+prio_changed_fair(struct rq *rq, struct task_struct *p, int oldprio)
+{
+	if (!task_on_rq_queued(p))
+		return;
+
+	if (rq->cfs.nr_running == 1)
+		return;
+
+	/*
+	 * Reschedule if we are currently running on this runqueue and
+	 * our priority decreased, or if we are not currently running on
+	 * this runqueue and our priority is higher than the current's
+	 */
+	if (rq->curr == p) {
+		if (p->prio > oldprio)
+			resched_curr(rq);
+	} else
+		check_preempt_curr(rq, p, 0);
+}
+
 /*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
@@ -1195,6 +1216,73 @@ static inline bool group_overutilized(int cpu, struct task_group *tg)
 }
 #endif
 #endif
+
+static void prio_changed(struct task_struct *p, int old_prio, int new_prio, bool lock)
+{
+	struct rq_flags rf;
+	struct rq *rq;
+	bool queued, running;
+
+	if (lock) {
+		rq = task_rq_lock(p, &rf);
+		update_rq_clock(rq);
+	} else {
+		rq = task_rq(p);
+	}
+
+	p->prio = new_prio;
+
+	if (lock) {
+		queued = task_on_rq_queued(p);
+		running = task_current(rq, p);
+
+		if (queued)
+			p->sched_class->dequeue_task(rq, p, DEQUEUE_SAVE | DEQUEUE_NOCLOCK);
+		if (running)
+			put_prev_task(rq, p);
+	}
+
+	reweight_task(p, new_prio - MAX_RT_PRIO);
+
+	if (lock) {
+		if (queued)
+			p->sched_class->enqueue_task(rq, p, ENQUEUE_RESTORE | ENQUEUE_NOCLOCK);
+		if (running)
+			set_next_task(rq, p);
+
+		prio_changed_fair(rq, p, old_prio);
+
+		task_rq_unlock(rq, p, &rf);
+	}
+}
+
+void update_adpf_prio(struct task_struct *p, struct vendor_task_struct *vp, bool val)
+{
+	unsigned long flags;
+	int new_prio, old_prio;
+
+	if (p->prio < MAX_RT_PRIO)
+		return;
+
+	if (val) {
+		raw_spin_lock_irqsave(&vp->lock, flags);
+		vp->orig_prio = p->prio;
+		raw_spin_unlock_irqrestore(&vp->lock, flags);
+	}
+
+	old_prio = p->prio;
+
+	if (val) {
+		p->prio = NICE_TO_PRIO(MIN_NICE);
+	} else {
+		p->prio = vp->orig_prio;
+	}
+
+	new_prio = p->prio;
+
+	if (old_prio != new_prio)
+		prio_changed(p, old_prio, new_prio, true);
+}
 
 /*****************************************************************************/
 /*                       Modified Code Section                               */
@@ -2258,6 +2346,7 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 	vbinder = get_vendor_binder_task_struct(tsk);
 	init_vendor_task_struct(v_tsk);
 	v_tsk->group = v_orig->group;
+	v_tsk->orig_prio = orig->static_prio;
 }
 
 void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
@@ -2337,6 +2426,58 @@ out:
 					uclamp_eff_value(p, UCLAMP_MIN),
 					uclamp_eff_value(p, UCLAMP_MAX),
 					prev_cpu, *target_cpu);
+}
+
+void rvh_set_user_nice_pixel_mod(void *data, struct task_struct *p, long *nice, bool *allowed)
+{
+	struct vendor_task_struct *vp;
+	unsigned long flags;
+
+	if (p->prio < MAX_RT_PRIO)
+		return;
+
+	get_task_struct(p);
+
+	vp = get_vendor_task_struct(p);
+	if (vp->uclamp_fork_reset) {
+		raw_spin_lock_irqsave(&vp->lock, flags);
+		p->static_prio = vp->orig_prio = NICE_TO_PRIO(*nice);
+		raw_spin_unlock_irqrestore(&vp->lock, flags);
+	}
+
+	put_task_struct(p);
+}
+
+void rvh_setscheduler_pixel_mod(void *data, struct task_struct *p)
+{
+	struct vendor_task_struct *vp;
+	unsigned long flags;
+
+	if (p->prio < MAX_RT_PRIO)
+		return;
+
+	vp = get_vendor_task_struct(p);
+	if (vp->uclamp_fork_reset) {
+		raw_spin_lock_irqsave(&vp->lock, flags);
+		vp->orig_prio = p->prio;
+		raw_spin_unlock_irqrestore(&vp->lock, flags);
+		if (vg[vp->group].prefer_idle && p->prio != NICE_TO_PRIO(MIN_NICE)){
+			p->prio = NICE_TO_PRIO(MIN_NICE);
+			prio_changed(p, vp->orig_prio, p->prio, false);
+		}
+	}
+}
+
+void rvh_prepare_prio_fork_pixel_mod(void *data, struct task_struct *p)
+{
+	struct vendor_task_struct *vp;
+
+	if (p->prio < MAX_RT_PRIO)
+		return;
+
+	vp = get_vendor_task_struct(current);
+	if (vp->uclamp_fork_reset)
+		p->prio = p->static_prio = vp->orig_prio;
 }
 
 static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)

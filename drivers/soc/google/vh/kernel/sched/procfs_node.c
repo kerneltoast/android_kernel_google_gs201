@@ -38,6 +38,8 @@ extern struct vendor_util_group_property *get_vendor_util_group_property(
 	enum vendor_util_group group);
 #endif
 
+extern void update_adpf_prio(struct task_struct *p, struct vendor_task_struct *vp, bool val);
+
 static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id);
 
 struct uclamp_se uclamp_default[UCLAMP_CNT];
@@ -745,7 +747,10 @@ static int update_uclamp_fork_reset(const char *buf, bool val)
 	}
 
 	vp = get_vendor_task_struct(p);
-	vp->uclamp_fork_reset = val;
+	if (vp->uclamp_fork_reset != val) {
+		vp->uclamp_fork_reset = val;
+		update_adpf_prio(p, vp, val);
+	}
 
 	put_task_struct(p);
 	rcu_read_unlock();

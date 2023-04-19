@@ -65,6 +65,7 @@ struct vendor_task_struct {
 	bool uclamp_fork_reset;
 	bool prefer_idle;
 	struct uclamp_filter uclamp_filter;
+	int orig_prio;
 
 	/* parameters for binder inheritance */
 	struct vendor_binder_task_struct binder_task;
