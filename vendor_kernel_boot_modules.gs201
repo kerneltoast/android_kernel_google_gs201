@@ -114,6 +114,7 @@ phy-exynos-usbdrd-super.ko
 pinctrl-samsung-core.ko
 pixel-boot-metrics.ko
 pixel-debug-test.ko
+pixel-suspend-diag.ko
 pixel-em.ko
 pkvm-s2mpu.ko
 pl330.ko
