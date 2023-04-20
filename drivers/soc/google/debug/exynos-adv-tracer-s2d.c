@@ -14,6 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 #include <linux/keydebug.h>
+#include <linux/suspend.h>
 #include <soc/google/debug-snapshot.h>
 #include <soc/google/exynos-adv-tracer.h>
 #include <soc/google/exynos-pmu-if.h>
@@ -28,6 +29,8 @@ enum s2d_ipc_cmd {
 	eS2D_IPC_CMD_SET_ENABLE,
 	eS2D_IPC_CMD_GET_ENABLE,
 	eS2D_IPC_CMD_SET_BLK,
+	eS2D_IPC_CMD_SET_DISABLE_GPR,
+	eS2D_IPC_CMD_GET_DISABLE_GPR,
 };
 
 struct plugin_s2d_info {
@@ -38,6 +41,7 @@ struct plugin_s2d_info {
 	int sel_scanmode;
 	int dbgsel_sw;
 	bool arraydump_done;
+	struct notifier_block pm_nb;
 	int blk_count;
 	const char **blk_names;
 };
@@ -123,6 +127,54 @@ static int adv_tracer_s2d_set_enable(int en)
 	}
 	plugin_s2d.enable = en;
 	return 0;
+}
+
+static int adv_tracer_s2d_get_disable_gpr(void)
+{
+	struct adv_tracer_ipc_cmd cmd = { 0 };
+	int ret = 0;
+
+	cmd.cmd_raw.cmd = eS2D_IPC_CMD_GET_DISABLE_GPR;
+	ret = adv_tracer_ipc_send_data(plugin_s2d.s2d_dev->id, &cmd);
+	if (ret < 0) {
+		dev_err(plugin_s2d.dev, "ipc can't get enable\n");
+		return ret;
+	}
+	return cmd.buffer[1];
+}
+
+static int adv_tracer_s2d_set_disable_gpr(int disable)
+{
+	struct adv_tracer_ipc_cmd cmd = { 0 };
+	int ret = 0;
+
+	cmd.cmd_raw.cmd = eS2D_IPC_CMD_SET_DISABLE_GPR;
+	cmd.buffer[1] = disable;
+	ret = adv_tracer_ipc_send_data(plugin_s2d.s2d_dev->id, &cmd);
+	if (ret < 0) {
+		dev_err(plugin_s2d.dev, "ipc can't enable setting\n");
+		return ret;
+	}
+	return 0;
+}
+
+static int s2d_pm_notifier(struct notifier_block *notifier,
+			   unsigned long pm_event, void *v)
+{
+	static int was_gpr_disabled;
+
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+		was_gpr_disabled = adv_tracer_s2d_get_disable_gpr();
+		if (!was_gpr_disabled)
+			adv_tracer_s2d_set_disable_gpr(1);
+		break;
+	case PM_POST_SUSPEND:
+		if (!was_gpr_disabled)
+			adv_tracer_s2d_set_disable_gpr(0);
+		break;
+	}
+	return NOTIFY_OK;
 }
 
 static int adv_tracer_s2d_get_all_blk(unsigned long *p_blocks)
@@ -388,6 +440,39 @@ static struct attribute *adv_tracer_s2d_sysfs_attrs[] = {
 };
 ATTRIBUTE_GROUPS(adv_tracer_s2d_sysfs);
 
+static void devm_unregister_pm_notifier(struct device *dev, void *res)
+{
+	int ret;
+	struct notifier_block **nb_res = res;
+
+	dev_dbg(dev, "unregister notifier %ps\n", *nb_res);
+	ret = unregister_pm_notifier(*nb_res);
+	if (ret)
+		dev_err(dev, "unregister notifier failed: %d\n", ret);
+}
+
+static int devm_register_pm_notifier(struct device *dev, struct notifier_block *nb)
+{
+	int ret;
+	struct notifier_block **nb_res;
+
+	nb_res = devres_alloc(devm_unregister_pm_notifier, sizeof(*nb_res), GFP_KERNEL);
+	if (!nb_res)
+		return -ENOMEM;
+
+	ret = register_pm_notifier(nb);
+	if (ret) {
+		dev_err(dev, "failed to register notifier: %d\n", ret);
+		devres_free(nb_res);
+		return ret;
+	}
+
+	dev_dbg(dev, "registered notifier %ps\n", nb);
+	*nb_res = nb;
+	devres_add(dev, nb_res);
+	return 0;
+}
+
 static int adv_tracer_s2d_dt_init(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -424,6 +509,11 @@ static int adv_tracer_s2d_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct adv_tracer_plugin *s2d = NULL;
 	int ret;
+
+	plugin_s2d.pm_nb.notifier_call = s2d_pm_notifier;
+	ret = devm_register_pm_notifier(&pdev->dev, &plugin_s2d.pm_nb);
+	if (ret < 0)
+		return ret;
 
 	s2d = devm_kzalloc(&pdev->dev, sizeof(struct adv_tracer_plugin),
 			GFP_KERNEL);
