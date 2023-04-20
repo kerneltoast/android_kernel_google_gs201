@@ -377,7 +377,6 @@ int __mfc_core_instance_init(struct mfc_core *core, struct mfc_ctx *ctx)
 	core_ctx->inst_no = MFC_NO_INSTANCE_SET;
 	core->core_ctx[core_ctx->num] = core_ctx;
 
-	init_waitqueue_head(&core_ctx->drc_wq);
 	init_waitqueue_head(&core_ctx->cmd_wq);
 	mfc_core_init_listable_wq_ctx(core_ctx);
 	spin_lock_init(&core_ctx->buf_queue_lock);

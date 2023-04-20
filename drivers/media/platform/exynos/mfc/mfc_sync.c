@@ -284,31 +284,6 @@ void mfc_wake_up_core_ctx(struct mfc_core_ctx *core_ctx, unsigned int reason,
 	wake_up(&core_ctx->cmd_wq);
 }
 
-/* DRC process wait queue */
-int mfc_wait_for_done_drc(struct mfc_core_ctx *core_ctx)
-{
-	struct mfc_core *core = core_ctx->core;
-	unsigned int timeout = MFC_INT_TIMEOUT;
-	int ret;
-
-	ret = wait_event_timeout(core_ctx->drc_wq,
-			(core_ctx->state == MFCINST_RES_CHANGE_END),
-			msecs_to_jiffies(timeout));
-	if (ret == 0) {
-		mfc_err("[DRC] DRC processing timed out during %dms\n", timeout);
-		core->logging_data->cause |= (1 << MFC_CAUSE_FAIL_DRC_WAIT);
-		call_dop(core, dump_and_stop_debug_mode, core);
-		return 1;
-	}
-
-	return 0;
-}
-
-void mfc_wake_up_drc_ctx(struct mfc_core_ctx *core_ctx)
-{
-	wake_up(&core_ctx->drc_wq);
-}
-
 int mfc_core_get_new_ctx(struct mfc_core *core)
 {
 	struct mfc_dev *dev = core->dev;

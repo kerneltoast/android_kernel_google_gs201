@@ -1046,7 +1046,6 @@ static void __mfc_handle_frame(struct mfc_core *core, struct mfc_ctx *ctx,
 			mfc_debug(2, "[DRC] Last frame received after resolution change\n");
 			__mfc_handle_frame_all_extracted(core, ctx);
 			mfc_change_state(core_ctx, MFCINST_RES_CHANGE_END);
-			mfc_wake_up_drc_ctx(core_ctx);
 
 			if (IS_MULTI_CORE_DEVICE(dev))
 				mfc_rm_load_balancing(ctx, MFC_RM_LOAD_DELETE);

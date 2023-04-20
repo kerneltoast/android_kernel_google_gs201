@@ -48,9 +48,6 @@ void mfc_wake_up_core(struct mfc_core *core, unsigned int reason,
 void mfc_wake_up_core_ctx(struct mfc_core_ctx *core_ctx, unsigned int reason,
 		unsigned int err);
 
-int mfc_wait_for_done_drc(struct mfc_core_ctx *core_ctx);
-void mfc_wake_up_drc_ctx(struct mfc_core_ctx *core_ctx);
-
 int mfc_core_get_new_ctx(struct mfc_core *core);
 int mfc_core_get_next_ctx(struct mfc_core *core);
 

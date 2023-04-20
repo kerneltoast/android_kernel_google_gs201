@@ -346,7 +346,6 @@ enum mfc_debug_cause {
 	MFC_CAUSE_FAIL_DPB_FLUSH		= 12,
 	MFC_CAUSE_FAIL_CACHE_FLUSH		= 13,
 	MFC_CAUSE_FAIL_MOVE_INST		= 14,
-	MFC_CAUSE_FAIL_DRC_WAIT			= 15,
 	/* last information */
 	MFC_LAST_INFO_BLACK_BAR                 = 26,
 	MFC_LAST_INFO_NAL_QUEUE                 = 27,
@@ -2341,7 +2340,6 @@ struct mfc_core_ctx {
 
 	/* wait queue */
 	wait_queue_head_t cmd_wq;
-	wait_queue_head_t drc_wq;
 	struct mfc_listable_wq hwlock_wq;
 };
 
