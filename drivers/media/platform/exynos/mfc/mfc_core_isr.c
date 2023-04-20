@@ -404,10 +404,12 @@ static struct mfc_buf *__mfc_handle_frame_output_del(struct mfc_core *core,
 		if ((IS_VP9_DEC(ctx) && mfc_core_get_disp_res_change()) ||
 			(IS_AV1_DEC(ctx) && mfc_core_get_disp_res_change_av1())) {
 			mfc_ctx_info("[FRAME] display resolution changed\n");
+			mutex_lock(&ctx->drc_wait_mutex);
 			ctx->wait_state = WAIT_G_FMT;
 			mfc_core_get_img_size(core, ctx, MFC_GET_RESOL_SIZE);
 			dec->disp_res_change = 1;
 			mfc_set_mb_flag(dst_mb, MFC_FLAG_DISP_RES_CHANGE);
+			mutex_unlock(&ctx->drc_wait_mutex);
 		}
 
 		if (dec->black_bar_updated) {
@@ -997,17 +999,21 @@ static void __mfc_handle_frame(struct mfc_core *core, struct mfc_ctx *ctx,
 
 	if (res_change) {
 		mfc_debug(2, "[DRC] Resolution change set to %d\n", res_change);
+		mutex_lock(&ctx->drc_wait_mutex);
 		mfc_change_state(core_ctx, MFCINST_RES_CHANGE_INIT);
 		ctx->wait_state = WAIT_G_FMT | WAIT_STOP;
 		mfc_debug(2, "[DRC] Decoding waiting! : %d\n", ctx->wait_state);
+		mutex_unlock(&ctx->drc_wait_mutex);
 		return;
 	}
 
 	if (need_dpb_change || need_scratch_change) {
 		mfc_ctx_info("[DRC] Interframe resolution changed\n");
+		mutex_lock(&ctx->drc_wait_mutex);
 		ctx->wait_state = WAIT_G_FMT | WAIT_STOP;
 		mfc_core_get_img_size(core, ctx, MFC_GET_RESOL_DPB_SIZE);
 		dec->inter_res_change = 1;
+		mutex_unlock(&ctx->drc_wait_mutex);
 		__mfc_handle_frame_all_extracted(core, ctx);
 		return;
 	}
@@ -1022,10 +1028,12 @@ static void __mfc_handle_frame(struct mfc_core *core, struct mfc_ctx *ctx,
 		dst_frame_status == MFC_REG_DEC_STATUS_DECODING_ONLY) {
 		mfc_debug(2, "Frame packing SEI exists for a frame\n");
 		mfc_debug(2, "Reallocate DPBs and issue init_buffer\n");
+		mutex_lock(&ctx->drc_wait_mutex);
 		ctx->is_dpb_realloc = 1;
 		mfc_change_state(core_ctx, MFCINST_HEAD_PARSED);
 		ctx->capture_state = QUEUE_FREE;
 		ctx->wait_state = WAIT_STOP;
+		mutex_unlock(&ctx->drc_wait_mutex);
 		__mfc_handle_frame_all_extracted(core, ctx);
 		goto leave_handle_frame;
 	}

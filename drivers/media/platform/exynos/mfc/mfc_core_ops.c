@@ -866,12 +866,14 @@ void mfc_core_instance_dpb_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 		index++;
 	}
 
+	mutex_lock(&ctx->drc_wait_mutex);
 	if (ctx->wait_state & WAIT_STOP) {
 		ctx->wait_state &= ~(WAIT_STOP);
 		mfc_debug(2, "clear WAIT_STOP %d\n", ctx->wait_state);
 		MFC_TRACE_CORE_CTX("** DEC clear WAIT_STOP(wait_state %d)\n",
 				ctx->wait_state);
 	}
+	mutex_unlock(&ctx->drc_wait_mutex);
 
 	if (core_ctx->state == MFCINST_FINISHING)
 		mfc_change_state(core_ctx, MFCINST_RUNNING);

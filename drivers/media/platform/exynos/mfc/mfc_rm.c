@@ -1365,9 +1365,11 @@ void mfc_rm_request_work(struct mfc_dev *dev, enum mfc_request_work work,
 		goto err_req_work;
 	}
 
+	mutex_lock(&ctx->drc_wait_mutex);
 	if ((ctx->wait_state == WAIT_G_FMT) &&
 			(mfc_get_queue_count(&ctx->buf_queue_lock, &ctx->dst_buf_queue) > 0))
 		mfc_dec_drc_find_del_buf(core_ctx);
+	mutex_unlock(&ctx->drc_wait_mutex);
 
 	/* set core context work bit if it is ready */
 	if (mfc_ctx_ready_set_bit(core_ctx, &core->work_bits))

@@ -439,6 +439,7 @@ static int mfc_open(struct file *file)
 	spin_lock_init(&ctx->meminfo_queue_lock);
 	spin_lock_init(&ctx->corelock.lock);
 	mutex_init(&ctx->intlock.core_mutex);
+	mutex_init(&ctx->drc_wait_mutex);
 	init_waitqueue_head(&ctx->migrate_wq);
 	init_waitqueue_head(&ctx->corelock.wq);
 	init_waitqueue_head(&ctx->corelock.migrate_wq);

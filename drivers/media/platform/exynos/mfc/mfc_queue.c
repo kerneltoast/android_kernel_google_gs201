@@ -1009,9 +1009,13 @@ int mfc_check_buf_mb_flag(struct mfc_core_ctx *core_ctx, enum mfc_mb_flag f)
 void mfc_dec_drc_find_del_buf(struct mfc_core_ctx *core_ctx)
 {
 	struct mfc_ctx *ctx = core_ctx->ctx;
+	struct mfc_dec *dec = ctx->dec_priv;
 	struct mfc_core *core = core_ctx->core;
 	struct mfc_buf *dst_mb;
 	int i;
+
+	if (!dec || dec->disp_res_change)
+		return;
 
 	dst_mb = mfc_get_del_buf(ctx, &ctx->dst_buf_queue, MFC_BUF_NO_TOUCH_USED);
 	if (!dst_mb)
