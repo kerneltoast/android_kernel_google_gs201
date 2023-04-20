@@ -17,7 +17,8 @@
 
 #define need_to_dpb_flush(core_ctx)		\
 	((core_ctx->state == MFCINST_FINISHING) ||	\
-	  (core_ctx->state == MFCINST_RUNNING))
+	 (core_ctx->state == MFCINST_RUNNING)	||	\
+	 (core_ctx->state == MFCINST_RES_CHANGE_END))
 #define need_to_wait_nal_abort(core_ctx)		 \
 	(core_ctx->state == MFCINST_ABORT_INST)
 #define need_to_special_parsing(core_ctx)		\

@@ -795,6 +795,27 @@ int mfc_core_instance_move_from(struct mfc_core *core, struct mfc_ctx *ctx)
 	return ret;
 }
 
+static void __mfc_core_cancel_drc(struct mfc_core *core, struct mfc_core_ctx *core_ctx)
+{
+	struct mfc_ctx *ctx = core_ctx->ctx;
+
+	mfc_ctx_info("[DRC] DRC is running yet (state: %d) cancel DRC\n", core_ctx->state);
+
+	mutex_lock(&ctx->drc_wait_mutex);
+	mfc_change_state(core_ctx, MFCINST_RES_CHANGE_END);
+
+	ctx->wait_state &= ~(WAIT_STOP);
+	mfc_debug(2, "clear WAIT_STOP %d\n", ctx->wait_state);
+	MFC_TRACE_CORE_CTX("** DEC clear WAIT_STOP(wait_state %d)\n",
+			ctx->wait_state);
+
+	if (ctx->wait_state != WAIT_G_FMT) {
+		ctx->wait_state = WAIT_G_FMT;
+		mfc_debug(2, "set WAIT_G_FMT only for inform to user that needs g_fmt\n");
+	}
+	mutex_unlock(&ctx->drc_wait_mutex);
+}
+
 void mfc_core_instance_dpb_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	struct mfc_dec *dec = ctx->dec_priv;
@@ -814,28 +835,8 @@ void mfc_core_instance_dpb_flush(struct mfc_core *core, struct mfc_ctx *ctx)
 	}
 
 	if (core_ctx->state == MFCINST_RES_CHANGE_INIT ||
-			core_ctx->state == MFCINST_RES_CHANGE_FLUSH) {
-		mfc_ctx_info("[DRC] DRC is running yet (state: %d) wait while process is done\n",
-				core_ctx->state);
-		mfc_core_release_hwlock_ctx(core_ctx);
-		mfc_ctx_ready_set_bit(core_ctx, &core->work_bits);
-		if (mfc_core_is_work_to_do(core)) {
-			queue_work(core->butler_wq, &core->butler_work);
-
-			if (mfc_wait_for_done_drc(core_ctx)) {
-				mfc_err("[DRC] timed out waiting for DRC processing\n");
-				return;
-			}
-		}
-
-		ret = mfc_core_get_hwlock_ctx(core_ctx);
-		if (ret < 0) {
-			mfc_err("Failed to get hwlock after DRC\n");
-			MFC_TRACE_CTX_LT("[ERR][Release] failed to get hwlock (shutdown: %d)\n",
-					core->shutdown);
-			return;
-		}
-	}
+			core_ctx->state == MFCINST_RES_CHANGE_FLUSH)
+		__mfc_core_cancel_drc(core, core_ctx);
 
 	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_queue);
 	mfc_cleanup_queue(&ctx->buf_queue_lock, &ctx->dst_buf_err_queue);
@@ -935,6 +936,10 @@ void mfc_core_instance_csd_parsing(struct mfc_core *core, struct mfc_ctx *ctx)
 		MFC_TRACE_CTX_LT("[ERR][Release] failed to get hwlock (shutdown: %d)\n", core->shutdown);
 		return;
 	}
+
+	if (core_ctx->state == MFCINST_RES_CHANGE_INIT ||
+			core_ctx->state == MFCINST_RES_CHANGE_FLUSH)
+		__mfc_core_cancel_drc(core, core_ctx);
 
 	/* Header parsed buffer is in src_buf_ready_queue */
 	mfc_move_buf_all(ctx, &core_ctx->src_buf_queue,
