@@ -161,6 +161,14 @@ config PIXEL_BOOT_METRICS
 	  Say m or y here to add support for attributes that can get boot
 	  metrics information.
 
+config PIXEL_SUSPEND_DIAG
+	tristate "Pixel Suspend Diag Information Support"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  Say m or y here to add support for attributes that can get suspend
+	  diag information.
+
 config GS_SJTAG
         tristate "GS SJTAG driver"
         default n

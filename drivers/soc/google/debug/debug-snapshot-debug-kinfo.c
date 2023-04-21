@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 #include <generated/utsrelease.h>
 #include <soc/google/debug-snapshot.h>
+#include <soc/google/pixel-suspend-diag.h>
 #include "../../../../drivers/staging/android/debug_kinfo.h"
 
 #define UPDATE_VENDOR_KERNEL_INFO_PERIOD_MS		10
@@ -70,7 +71,9 @@ static void update_vendor_kernel_all_info(void)
 	strscpy(info->uts_release, UTS_RELEASE, sizeof(info->uts_release));
 
 	info->names_total_len = kallsyms_aosp_names_total_len();
-	info->suspend_diag_va = (__u64)dbg_snapshot_get_suspend_diag();
+#if IS_ENABLED(CONFIG_PIXEL_SUSPEND_DIAG)
+	info->suspend_diag_va = (__u64)pixel_suspend_diag_get_info();
+#endif
 	info->va_bits = VA_BITS;
 	info->page_offset = PAGE_OFFSET;
 	info->page_end = PAGE_END;
