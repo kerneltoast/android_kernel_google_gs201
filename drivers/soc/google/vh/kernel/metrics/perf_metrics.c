@@ -27,6 +27,7 @@
 struct irq_entry {
 	int irq_num;
 	s64 latency;
+	s64 max_storm_count;
 };
 static struct resume_latency resume_latency_stats;
 static struct long_irq long_irq_stat;
@@ -89,12 +90,13 @@ static void hook_softirq_end(void *data, unsigned int vec_nr)
 {
 	s64 irq_usec;
 	int cpu_num;
+	ktime_t softirq_end;
 	s64 curr_max_irq;
 	if (vec_nr >= NR_SOFTIRQS)
 		return;
 	cpu_num = raw_smp_processor_id();
-	long_irq_stat.softirq_end = ktime_get();
-	irq_usec = ktime_to_us(ktime_sub(long_irq_stat.softirq_end,
+	softirq_end = ktime_get();
+	irq_usec = ktime_to_us(ktime_sub(softirq_end,
 						long_irq_stat.softirq_start[cpu_num][vec_nr]));
 	if (irq_usec >= long_irq_stat.long_softirq_threshold) {
 		if (long_irq_stat.display_warning)
@@ -123,10 +125,36 @@ static void hook_softirq_end(void *data, unsigned int vec_nr)
 static void hook_irq_begin(void *data, int irq, struct irqaction *action)
 {
 	int cpu_num;
+	ktime_t irq_start;
+	ktime_t prev_irq_start;
+	s64 irq_start_diff_usec;
+	s64 curr_storm_count;
+	s64 curr_max_storm_count;
 	if (irq >= MAX_IRQ_NUM)
 		return;
 	cpu_num = raw_smp_processor_id();
-	long_irq_stat.irq_start[cpu_num][irq] = ktime_get();
+
+
+	prev_irq_start = atomic64_read(&(long_irq_stat.irq_storms[irq].irq_storm_start));
+
+	irq_start = ktime_get();
+	long_irq_stat.irq_start[cpu_num][irq] = irq_start;
+	atomic64_set(&(long_irq_stat.irq_storms[irq].irq_storm_start), irq_start);
+
+	irq_start_diff_usec = ktime_to_us(ktime_sub(irq_start, prev_irq_start));
+	if (irq_start_diff_usec <= long_irq_stat.irq_storm_threshold_us) {
+		atomic64_inc(&(long_irq_stat.irq_storms[irq].storm_count));
+	} else {
+		curr_storm_count = atomic64_read(&(long_irq_stat.irq_storms[irq].storm_count));
+		do {
+			curr_max_storm_count = long_irq_stat.irq_storms[irq].max_storm_count;
+			if (curr_storm_count <= curr_max_storm_count)
+				break;
+		} while (cmpxchg64(&long_irq_stat.irq_storms[irq].max_storm_count,
+			curr_max_storm_count, curr_storm_count) != curr_max_storm_count);
+		atomic64_set(&(long_irq_stat.irq_storms[irq].storm_count), 0);
+	}
+
 	if (long_irq_stat.display_warning &&
 		long_irq_stat.long_irq_arr[irq] >= long_irq_stat.long_irq_threshold) {
 		char trace_name[32] = {0};
@@ -140,12 +168,13 @@ static void hook_irq_end(void *data, int irq, struct irqaction *action, int ret)
 {
 	s64 irq_usec;
 	int cpu_num;
+	ktime_t irq_end;
 	s64 curr_max_irq;
 	if (irq >= MAX_IRQ_NUM)
 		return;
 	cpu_num = raw_smp_processor_id();
-	long_irq_stat.irq_end = ktime_get();
-	irq_usec = ktime_to_us(ktime_sub(long_irq_stat.irq_end,
+	irq_end = ktime_get();
+	irq_usec = ktime_to_us(ktime_sub(irq_end,
 				long_irq_stat.irq_start[cpu_num][irq]));
 	if (long_irq_stat.display_warning &&
 		long_irq_stat.long_irq_arr[irq] >= long_irq_stat.long_irq_threshold)
@@ -179,9 +208,14 @@ static void hook_irq_end(void *data, int irq, struct irqaction *action, int ret)
  *                          HELPER FUNCTIONS                         *
  *********************************************************************/
 
-static int irq_entry_cmp(const void *a, const void *b)
+static int irq_latency_cmp(const void *a, const void *b)
 {
 	return ((struct irq_entry *)b)->latency - ((struct irq_entry *)a)->latency;
+}
+
+static int irq_storm_count_cmp(const void *a, const void *b)
+{
+	return ((struct irq_entry *)b)->max_storm_count - ((struct irq_entry *)a)->max_storm_count;
 }
 
 /*******************************************************************
@@ -247,14 +281,14 @@ static ssize_t resume_latency_metrics_store(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t modify_resume_latency_threshold_show(struct kobject *kobj,
+static ssize_t resume_latency_threshold_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *buf)
 {
 	return sysfs_emit(buf, "%llu\n", resume_latency_stats.resume_latency_threshold);
 }
 
-static ssize_t modify_resume_latency_threshold_store(struct kobject *kobj,
+static ssize_t resume_latency_threshold_store(struct kobject *kobj,
 					  struct kobj_attribute *attr,
 					  const char *buf,
 					  size_t count)
@@ -311,7 +345,7 @@ static ssize_t long_irq_metrics_show(struct kobject *kobj,
 		sorted_softirq_arr[index].irq_num = index;
 		sorted_softirq_arr[index].latency = long_irq_stat.long_softirq_arr[index];
 	}
-	sort(sorted_softirq_arr, NR_SOFTIRQS, sizeof(struct irq_entry), irq_entry_cmp, NULL);
+	sort(sorted_softirq_arr, NR_SOFTIRQS, sizeof(struct irq_entry), irq_latency_cmp, NULL);
 	for (index = 0; index < NR_SOFTIRQS; index++) {
 		latency = sorted_softirq_arr[index].latency;
 		irq_num = sorted_softirq_arr[index].irq_num;
@@ -327,7 +361,7 @@ static ssize_t long_irq_metrics_show(struct kobject *kobj,
 		sorted_irq_arr[index].irq_num = index;
 		sorted_irq_arr[index].latency = long_irq_stat.long_irq_arr[index];
 	}
-	sort(sorted_irq_arr, MAX_IRQ_NUM, sizeof(struct irq_entry), irq_entry_cmp, NULL);
+	sort(sorted_irq_arr, MAX_IRQ_NUM, sizeof(struct irq_entry), irq_latency_cmp, NULL);
 
 	for (index = 0; index < IRQ_ARR_LIMIT; index++) {
 		latency = sorted_irq_arr[index].latency;
@@ -335,56 +369,105 @@ static ssize_t long_irq_metrics_show(struct kobject *kobj,
 		if (latency > 0)
 			count += sysfs_emit_at(buf, count, "%d %lld\n", irq_num, latency);
 	}
+
 	kfree(sorted_softirq_arr);
 	kfree(sorted_irq_arr);
 	return count;
 }
 
-static ssize_t modify_softirq_threshold_show(struct kobject *kobj,
+static ssize_t storm_irq_metrics_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *buf)
 {
 	ssize_t count = 0;
-	count += sysfs_emit_at(buf, count,"%lld\n", long_irq_stat.long_softirq_threshold);
+	int index;
+	s64 storm_count;
+	int irq_num;
+	struct irq_entry *sorted_irq_arr;
+	sorted_irq_arr = kmalloc(MAX_IRQ_NUM * sizeof(struct irq_entry), GFP_KERNEL);
+	if (!sorted_irq_arr) {
+		return -ENOMEM;
+	}
+	count += sysfs_emit_at(buf, count, "storm IRQ detail (num, storm_count):\n");
+	for (index = 0; index < MAX_IRQ_NUM; index++) {
+		sorted_irq_arr[index].irq_num = index;
+		sorted_irq_arr[index].max_storm_count =
+						long_irq_stat.irq_storms[index].max_storm_count;
+	}
+	sort(sorted_irq_arr, MAX_IRQ_NUM, sizeof(struct irq_entry), irq_storm_count_cmp, NULL);
+	for (index = 0; index < IRQ_ARR_LIMIT; index++) {
+		storm_count = sorted_irq_arr[index].max_storm_count;
+		irq_num = sorted_irq_arr[index].irq_num;
+		if (storm_count > 0)
+			count += sysfs_emit_at(buf, count, "%d %lld\n", irq_num, storm_count);
+	}
+
+	kfree(sorted_irq_arr);
 	return count;
 }
 
-static ssize_t modify_softirq_threshold_store(struct kobject *kobj,
+static ssize_t softirq_threshold_show(struct kobject *kobj,
+					 struct kobj_attribute *attr,
+					 char *buf)
+{
+	return sysfs_emit(buf, "%lld\n", long_irq_stat.long_softirq_threshold);
+}
+
+static ssize_t softirq_threshold_store(struct kobject *kobj,
 					  struct kobj_attribute *attr,
 					  const char *buf,
 					  size_t count)
 {
 	s64 new_threshold_us;
-	int err = sscanf (buf, "%lld", &new_threshold_us);
+	int err = kstrtoll(buf, 10, &new_threshold_us);
 	if (!err || new_threshold_us < 0) {
-		return count;
+		return -EINVAL;
 	}
 	long_irq_stat.long_softirq_threshold = new_threshold_us;
 	atomic64_set(&(long_irq_stat.long_softirq_count), 0);
 	return count;
 }
 
-static ssize_t modify_irq_threshold_show(struct kobject *kobj,
+static ssize_t irq_threshold_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *buf)
 {
-	ssize_t count = 0;
-	count += sysfs_emit_at(buf, count,"%lld\n", long_irq_stat.long_irq_threshold);
-	return count;
+	return sysfs_emit(buf, "%lld\n", long_irq_stat.long_irq_threshold);
 }
 
-static ssize_t modify_irq_threshold_store(struct kobject *kobj,
+static ssize_t irq_threshold_store(struct kobject *kobj,
 					  struct kobj_attribute *attr,
 					  const char *buf,
 					  size_t count)
 {
 	s64 new_threshold_us;
-	int err = sscanf (buf, "%lld", &new_threshold_us);
+	int err = kstrtoll(buf, 10, &new_threshold_us);
 	if (!err || new_threshold_us < 0) {
-		return count;
+		return -EINVAL;
 	}
 	long_irq_stat.long_irq_threshold = new_threshold_us;
 	atomic64_set(&(long_irq_stat.long_irq_count), 0);
+	return count;
+}
+
+static ssize_t irq_storm_threshold_show(struct kobject *kobj,
+					 struct kobj_attribute *attr,
+					 char *buf)
+{
+	return sysfs_emit(buf, "%lld\n", long_irq_stat.irq_storm_threshold_us);
+}
+
+static ssize_t irq_storm_threshold_store(struct kobject *kobj,
+					  struct kobj_attribute *attr,
+					  const char *buf,
+					  size_t count)
+{
+	s64 new_threshold_us;
+	int err = kstrtoll(buf, 10, &new_threshold_us);
+	if (!err || new_threshold_us < 0) {
+		return -EINVAL;
+	}
+	long_irq_stat.irq_storm_threshold_us = new_threshold_us;
 	return count;
 }
 
@@ -421,15 +504,29 @@ static ssize_t irq_display_warning_store(struct kobject *kobj,
 	}
 	return count;
 }
-
+static ssize_t irq_stats_reset_store(struct kobject *kobj,
+					  struct kobj_attribute *attr,
+					  const char *buf,
+					  size_t count)
+{
+	memset(long_irq_stat.long_softirq_arr, 0, NR_SOFTIRQS *
+		sizeof(long_irq_stat.long_softirq_arr[0]));
+	memset(long_irq_stat.long_irq_arr, 0, MAX_IRQ_NUM *
+		sizeof(long_irq_stat.long_irq_arr[0]));
+	memset(long_irq_stat.irq_storms, 0, MAX_IRQ_NUM *
+		sizeof(struct irq_storm_data));
+	atomic64_set(&(long_irq_stat.long_irq_count), 0);
+	atomic64_set(&(long_irq_stat.long_softirq_count), 0);
+	return count;
+}
 static struct kobj_attribute resume_latency_metrics_attr = __ATTR(resume_latency_metrics,
 							  0664,
 							  resume_latency_metrics_show,
 							  resume_latency_metrics_store);
-static struct kobj_attribute modify_resume_latency_threshold_attr = __ATTR(modify_threshold,
+static struct kobj_attribute resume_latency_threshold_attr = __ATTR(threshold,
 							  0664,
-							  modify_resume_latency_threshold_show,
-							  modify_resume_latency_threshold_store);
+							  resume_latency_threshold_show,
+							  resume_latency_threshold_store);
 static struct kobj_attribute resume_latency_display_warning_attr = __ATTR(display_warning,
 							  0664,
 							  resume_latency_display_warning_show,
@@ -438,24 +535,42 @@ static struct kobj_attribute long_irq_metrics_attr = __ATTR(long_irq_metrics,
 							  0444,
 							  long_irq_metrics_show,
 							  NULL);
-static struct kobj_attribute modify_softirq_threshold_attr = __ATTR(modify_softirq_threshold,
+
+static struct kobj_attribute storm_irq_metrics_attr = __ATTR(storm_irq_metrics,
+							  0444,
+							  storm_irq_metrics_show,
+							  NULL);
+static struct kobj_attribute softirq_threshold_attr = __ATTR(softirq_threshold,
 							  0664,
-							  modify_softirq_threshold_show,
-							  modify_softirq_threshold_store);
-static struct kobj_attribute modify_irq_threshold_attr = __ATTR(modify_irq_threshold,
+							  softirq_threshold_show,
+							  softirq_threshold_store);
+static struct kobj_attribute irq_threshold_attr = __ATTR(irq_threshold,
 							  0664,
-							  modify_irq_threshold_show,
-							  modify_irq_threshold_store);
+							  irq_threshold_show,
+							  irq_threshold_store);
+static struct kobj_attribute irq_storm_threshold_attr = __ATTR(irq_storm_threshold,
+							  0664,
+							  irq_storm_threshold_show,
+							  irq_storm_threshold_store);
 static struct kobj_attribute irq_display_warning_attr = __ATTR(display_warning,
 							  0664,
 							  irq_display_warning_show,
 							  irq_display_warning_store);
 
+static struct kobj_attribute irq_stats_reset_attr = __ATTR(
+							stats_reset,
+							0200,
+							NULL,
+							irq_stats_reset_store);
+
 static struct attribute *irq_attrs[] = {
 	&long_irq_metrics_attr.attr,
-	&modify_softirq_threshold_attr.attr,
-	&modify_irq_threshold_attr.attr,
+	&storm_irq_metrics_attr.attr,
+	&softirq_threshold_attr.attr,
+	&irq_threshold_attr.attr,
+	&irq_storm_threshold_attr.attr,
 	&irq_display_warning_attr.attr,
+	&irq_stats_reset_attr.attr,
 	NULL
 };
 
@@ -466,7 +581,7 @@ static const struct attribute_group irq_attr_group = {
 
 static struct attribute *resume_latency_attrs[] = {
 	&resume_latency_metrics_attr.attr,
-	&modify_resume_latency_threshold_attr.attr,
+	&resume_latency_threshold_attr.attr,
 	&resume_latency_display_warning_attr.attr,
 	NULL
 };
@@ -511,6 +626,7 @@ int perf_metrics_init(struct kobject *metrics_kobj)
 	}
 	long_irq_stat.long_softirq_threshold = 10000;
 	long_irq_stat.long_irq_threshold = 500;
+	long_irq_stat.irq_storm_threshold_us = 500;
 	ret = register_trace_softirq_entry(hook_softirq_begin, NULL);
 	if (ret) {
 		pr_err("Register soft irq handler hook fail %d\n", ret);
