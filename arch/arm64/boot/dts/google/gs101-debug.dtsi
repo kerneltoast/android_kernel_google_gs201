@@ -101,6 +101,11 @@
 		offset = <0x880>;
 	};
 
+	pixel-suspend-diag {
+		compatible = "google,pixel-suspend-diag";
+		memory-region = <&suspend_diag_log_reserved>;
+	};
+
 	gs101-itmon {
 		compatible = "google,gs101-itmon";
 		interrupts =
