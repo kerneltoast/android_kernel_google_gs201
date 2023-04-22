@@ -511,8 +511,8 @@ static inline void update_vendor_group_util(u64 now, struct cfs_rq *cfs_rq,
 		divider = get_pelt_divider(sa);
 		raw_spin_lock(&vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].lock);
 		swap(vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].util_removed, removed_util);
-		sub_positive(&sa->util_avg, removed_util);
-		sub_positive(&sa->util_sum, removed_util * divider);
+		lsub_positive(&sa->util_avg, removed_util);
+		lsub_positive(&sa->util_sum, removed_util * divider);
 		sa->util_sum = max_t(unsigned long, sa->util_sum, sa->util_avg * PELT_MIN_DIVIDER);
 		raw_spin_unlock(&vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].lock);
 	}
@@ -526,16 +526,17 @@ static inline void update_vendor_group_util(u64 now, struct cfs_rq *cfs_rq,
 }
 
 /* This function hooks to update_blocked_fair */
-static inline void update_vendor_group_util_all(u64 now, struct cfs_rq *cfs_rq)
+static inline void update_vendor_group_util_blocked(u64 now, struct rq *rq)
 {
 	struct sched_avg *sa;
 
-	sa = &vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].avg;
-	if (sa->util_avg != 0 || sa->util_sum != 0) {
-		raw_spin_lock(&vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].lock);
+	sa = &vendor_cfs_util[VUG_BG][rq->cpu].avg;
+	if ((available_idle_cpu(rq->cpu) || task_is_realtime(rq->curr)) &&
+	    (sa->util_avg != 0 || sa->util_sum != 0)) {
+		raw_spin_lock(&vendor_cfs_util[VUG_BG][rq->cpu].lock);
 		if (___update_load_sum(now, sa, 0, 0, 0))
 			___update_load_avg(sa, 1);
-		raw_spin_unlock(&vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].lock);
+		raw_spin_unlock(&vendor_cfs_util[VUG_BG][rq->cpu].lock);
 	}
 }
 
@@ -559,10 +560,10 @@ static inline void detach_vendor_group_util(struct cfs_rq *cfs_rq, struct sched_
 
 	if (group == VUG_BG) {
 		raw_spin_lock(&vendor_cfs_util[group][cfs_rq->rq->cpu].lock);
-		sub_positive(&vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_avg,
-			     se->avg.util_avg);
-		sub_positive(&vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_sum,
-			     se->avg.util_sum);
+		lsub_positive(&vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_avg,
+			      se->avg.util_avg);
+		lsub_positive(&vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_sum,
+			      se->avg.util_sum);
 		vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_sum = max_t(unsigned long,
 			vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_sum,
 			vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_avg * PELT_MIN_DIVIDER);
@@ -615,7 +616,8 @@ static inline unsigned long cpu_vendor_group_util(int cpu, bool with, struct tas
 	util = min_t(unsigned long, util, vug[VUG_BG].uc_req[UCLAMP_MAX].value);
 
 	// For fg group, we use root util - bg group util.
-	fg_group_util = cpu_rq(cpu)->cfs.avg.util_avg - vendor_cfs_util[VUG_BG][cpu].avg.util_avg;
+	fg_group_util = cpu_rq(cpu)->cfs.avg.util_avg;
+	lsub_positive(&fg_group_util, vendor_cfs_util[VUG_BG][cpu].avg.util_avg);
 
 	if (group == VUG_FG) {
 		if (with) {
@@ -665,8 +667,8 @@ static inline unsigned long cpu_vendor_group_util_est(int cpu, bool with, struct
 	util_est = min_t(unsigned long, util_est, vug[VUG_BG].uc_req[UCLAMP_MAX].value);
 
 	// For fg group, we use root util_est - bg group util_est.
-	fg_group_util_est = cpu_rq(cpu)->cfs.avg.util_est.enqueued -
-			    vendor_cfs_util[VUG_BG][cpu].util_est;
+	fg_group_util_est = cpu_rq(cpu)->cfs.avg.util_est.enqueued;
+	lsub_positive(&fg_group_util_est, vendor_cfs_util[VUG_BG][cpu].util_est);
 
 	if (group == VUG_FG) {
 		if (with) {
@@ -777,7 +779,8 @@ static inline unsigned long get_group_util(int cpu, struct task_struct *p, unsig
 		}
 	// For fg group, we use root util - bg group util
 	} else if (group == VUG_FG) {
-		util = cpu_rq(cpu)->cfs.avg.util_avg - vendor_cfs_util[VUG_BG][cpu].avg.util_avg;
+		util = cpu_rq(cpu)->cfs.avg.util_avg;
+		lsub_positive(&util, vendor_cfs_util[VUG_BG][cpu].avg.util_avg);
 
 		if (subtract && (cpu == task_cpu(p) && READ_ONCE(p->se.avg.last_update_time)))
 			lsub_positive(&util, task_util(p));
@@ -2833,7 +2836,7 @@ void rvh_remove_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_rq,
 
 void rvh_update_blocked_fair_pixel_mod(void *data, struct rq *rq)
 {
-	update_vendor_group_util_all(rq_clock_pelt(rq), &rq->cfs);
+	update_vendor_group_util_blocked(rq_clock_pelt(rq), rq);
 }
 
 void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
