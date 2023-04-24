@@ -23,7 +23,7 @@ extern void update_uclamp_stats(int cpu, u64 time);
  *
  *	runtime >= sysctl_sched_uclamp_min_filter_us
  */
-unsigned int sysctl_sched_uclamp_min_filter_us = 2000;
+unsigned int sysctl_sched_uclamp_min_filter_us = 1000;
 
 /*
  * Ignore uclamp_max for CFS tasks if
@@ -37,7 +37,7 @@ unsigned int sysctl_sched_uclamp_max_filter_divider = 4;
  *
  *	task_util(p) < sysctl_sched_uclamp_min_filter_rt
  */
-unsigned int sysctl_sched_uclamp_min_filter_rt = 100;
+unsigned int sysctl_sched_uclamp_min_filter_rt = 50;
 
 /*
  * Ignore uclamp_max for RT tasks if
