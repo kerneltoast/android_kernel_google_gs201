@@ -1483,13 +1483,7 @@ void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 
 void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
-	if (uclamp_is_used()) {
-		if (uclamp_is_ignore_uclamp_max(p))
-			uclamp_reset_ignore_uclamp_max(p);
-
-		if (uclamp_is_ignore_uclamp_min(p))
-			uclamp_reset_ignore_uclamp_min(p);
-	}
+	/* Resetting uclamp filter is handled in dequeue_task() */
 }
 
 static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool sync_boost,
