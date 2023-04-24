@@ -2037,8 +2037,28 @@ void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
  * running on the CPU don't go to sleep, they'll grow in that additional
  * headroom until we do the next frequency update to a higher one.
  */
-unsigned long apply_dvfs_headroom(unsigned long util, int cpu)
+unsigned long apply_dvfs_headroom(unsigned long util, int cpu, bool tapered)
 {
+	if (tapered && static_branch_unlikely(&tapered_dvfs_headroom_enable)) {
+		unsigned long capacity = capacity_orig_of(cpu);
+		unsigned long headroom;
+
+		if (util >= capacity)
+			return util;
+
+		/*
+		 * Taper the boosting at e top end as these are expensive and
+		 * we don't need that much of a big headroom as we approach max
+		 * capacity
+		 *
+		 */
+		headroom = (capacity - util);
+		/* formula: headroom * (1.X - 1) == headroom * 0.X */
+		headroom = headroom *
+			(sched_dvfs_headroom[cpu] - SCHED_CAPACITY_SCALE) >> SCHED_CAPACITY_SHIFT;
+		return util + headroom;
+	}
+
 	return util * sched_dvfs_headroom[cpu] >> SCHED_CAPACITY_SHIFT;
 }
 

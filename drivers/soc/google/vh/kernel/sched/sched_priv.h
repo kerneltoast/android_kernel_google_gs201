@@ -142,7 +142,7 @@ struct vendor_group_list {
 	struct list_head *cur_iterator;
 };
 
-unsigned long apply_dvfs_headroom(unsigned long util, int cpu);
+unsigned long apply_dvfs_headroom(unsigned long util, int cpu, bool tapered);
 unsigned long map_util_freq_pixel_mod(unsigned long util, unsigned long freq,
 				      unsigned long cap);
 
@@ -164,6 +164,8 @@ extern struct vendor_group_property vg[VG_MAX];
 
 DECLARE_STATIC_KEY_FALSE(uclamp_min_filter_enable);
 DECLARE_STATIC_KEY_FALSE(uclamp_max_filter_enable);
+
+DECLARE_STATIC_KEY_FALSE(tapered_dvfs_headroom_enable);
 
 #define SCHED_PIXEL_BLOCK_UPDATES		BIT(8)
 #define SCHED_PIXEL_RESUME_UPDATES		BIT(9)
