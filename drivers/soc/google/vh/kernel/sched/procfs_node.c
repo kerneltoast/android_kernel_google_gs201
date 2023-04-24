@@ -792,6 +792,63 @@ fail:
 	return -EINVAL;
 }
 
+static int update_sched_dvfs_headroom(const char *buf, int count)
+{
+	char *tok, *str1, *str2;
+	unsigned int val, tmp[CPU_NUM];
+	int index = 0;
+
+	str1 = kstrndup(buf, count, GFP_KERNEL);
+	str2 = str1;
+
+	if (!str2)
+		return -EINVAL;
+
+	while (1) {
+		tok = strsep(&str2, " ");
+
+		if (tok == NULL)
+			break;
+
+		if (kstrtouint(tok, 0, &val))
+			goto fail;
+
+		if (val > DEF_UTIL_THRESHOLD || val < SCHED_CAPACITY_SCALE)
+			goto fail;
+
+		tmp[index] = val;
+		index++;
+
+		if (index == CPU_NUM)
+			break;
+	}
+
+	if (index == 1) {
+		for (index = 0; index < CPU_NUM; index++) {
+			sched_dvfs_headroom[index] = tmp[0];
+		}
+	} else if (index == CLUSTER_NUM) {
+		for (index = MIN_CAPACITY_CPU; index < MID_CAPACITY_CPU; index++)
+			sched_dvfs_headroom[index] = tmp[0];
+
+		for (index = MID_CAPACITY_CPU; index < MAX_CAPACITY_CPU; index++)
+			sched_dvfs_headroom[index] = tmp[1];
+
+		for (index = MAX_CAPACITY_CPU; index < CPU_NUM; index++)
+			sched_dvfs_headroom[index] = tmp[2];
+	} else if (index == CPU_NUM) {
+		memcpy(sched_dvfs_headroom, tmp, sizeof(sched_dvfs_headroom));
+	} else {
+		goto fail;
+	}
+
+	kfree(str1);
+	return count;
+fail:
+	kfree(str1);
+	return -EINVAL;
+}
+
 static inline struct task_struct *get_next_task(int group, struct list_head *head)
 {
 	unsigned long flags;
@@ -1090,6 +1147,36 @@ static ssize_t util_threshold_store(struct file *filp,
 }
 
 PROC_OPS_RW(util_threshold);
+
+static int dvfs_headroom_show(struct seq_file *m, void *v)
+{
+	int i;
+
+	for (i = 0; i < CPU_NUM; i++) {
+		seq_printf(m, "%u ", sched_dvfs_headroom[i]);
+	}
+
+	seq_printf(m, "\n");
+
+	return 0;
+}
+static ssize_t dvfs_headroom_store(struct file *filp,
+				  const char __user *ubuf,
+				  size_t count, loff_t *pos)
+{
+	char buf[MAX_PROC_SIZE];
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, count))
+		return -EFAULT;
+
+	buf[count] = '\0';
+
+	return update_sched_dvfs_headroom(buf, count);
+}
+PROC_OPS_RW(dvfs_headroom);
 
 static int npi_packing_show(struct seq_file *m, void *v)
 {
@@ -2054,6 +2141,8 @@ static struct pentry entries[] = {
 	PROC_ENTRY(uclamp_max_filter_enable),
 	PROC_ENTRY(uclamp_max_filter_divider),
 	PROC_ENTRY(uclamp_max_filter_rt),
+	// dvfs headroom
+	PROC_ENTRY(dvfs_headroom),
 };
 
 

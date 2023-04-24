@@ -61,6 +61,7 @@ extern unsigned int vendor_sched_util_post_init_scale;
 extern bool vendor_sched_npi_packing;
 
 unsigned int sched_capacity_margin[CPU_NUM] = { [0 ... CPU_NUM - 1] = DEF_UTIL_THRESHOLD };
+unsigned int sched_dvfs_headroom[CPU_NUM] = { [0 ... CPU_NUM - 1] = DEF_UTIL_THRESHOLD };
 
 struct vendor_group_property vg[VG_MAX];
 
@@ -2045,7 +2046,7 @@ void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
  */
 unsigned long apply_dvfs_headroom(unsigned long util, int cpu)
 {
-	return util * sched_capacity_margin[cpu] >> SCHED_CAPACITY_SHIFT;
+	return util * sched_dvfs_headroom[cpu] >> SCHED_CAPACITY_SHIFT;
 }
 
 /*

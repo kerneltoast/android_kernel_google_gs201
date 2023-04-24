@@ -34,6 +34,8 @@
 		      UCLAMP_BUCKETS - 1)
 
 extern unsigned int sched_capacity_margin[CPU_NUM];
+extern unsigned int sched_dvfs_headroom[CPU_NUM];
+
 #define cpu_overutilized(cap, max, cpu)	\
 		((cap) * sched_capacity_margin[cpu] > (max) << SCHED_CAPACITY_SHIFT)
 
