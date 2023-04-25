@@ -797,6 +797,7 @@ struct mfc_platdata {
 	unsigned int dithering_enable;
 	unsigned int stride_align;
 	unsigned int stride_type;
+	unsigned int support_8K_cavlc;
 	/* Formats */
 	unsigned int support_10bit;
 	unsigned int support_422;

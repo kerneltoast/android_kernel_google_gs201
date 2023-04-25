@@ -610,7 +610,7 @@ static void __mfc_set_enc_params_h264(struct mfc_core *core,
 			mfc_ctx_info("Set High profile for MB %d\n", mb);
 			p_264->profile = 0x2;
 		}
-		if (p_264->entropy_mode != 0x1) {
+		if (!ctx->dev->pdata->support_8K_cavlc && (p_264->entropy_mode != 0x1)) {
 			mfc_ctx_info("Set Entropy mode CABAC\n");
 			p_264->entropy_mode = 1;
 		}
