@@ -76,6 +76,8 @@
 		stride_align = <64>;
 		/* Decoder stride calculation type (new: 1, old: 0) */
 		stride_type = <1>;
+		/* Encoder 8K entropy mode (0: CABAC fix, 1: selectable) */
+		support_8K_cavlc = <1>;
 
 		/* Formats */
 		support_10bit = <1>;
