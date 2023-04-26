@@ -59,7 +59,6 @@ struct dwc3_otg {
 	struct dwc3_ext_otg_ops *ext_otg_ops;
 
 	struct work_struct	recov_work;
-	struct delayed_work	gadget_pending_work;
 
 	struct notifier_block	pm_nb;
 	struct notifier_block	psy_notifier;

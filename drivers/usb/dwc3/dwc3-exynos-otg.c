@@ -550,9 +550,7 @@ static int dwc3_otg_start_gadget(struct otg_fsm *fsm, int on)
 
 			if (wait_counter > 500) {
 				dev_err(dev, "Can't wait gadget start!\n");
-				schedule_delayed_work(&dotg->gadget_pending_work,
-						      msecs_to_jiffies(5 * 1000));
-				goto err1;
+				break;
 			}
 		}
 
@@ -621,9 +619,6 @@ void dwc3_otg_run_sm(struct otg_fsm *fsm)
 	/* Prevent running SM on early system resume */
 	if (!dotg->ready)
 		return;
-
-	if (delayed_work_pending(&dotg->gadget_pending_work))
-		cancel_delayed_work(&dotg->gadget_pending_work);
 
 	mutex_lock(&fsm->lock);
 
@@ -970,33 +965,6 @@ int dwc3_otg_get_idle_ip_index(void)
 }
 EXPORT_SYMBOL_GPL(dwc3_otg_get_idle_ip_index);
 
-static void dwc3_otg_gadget_pending(struct work_struct *work)
-{
-	struct dwc3_otg *dotg = container_of(work, struct dwc3_otg, gadget_pending_work.work);
-	struct dwc3_exynos *exynos = dotg->exynos;
-	struct otg_fsm  *fsm = &dotg->fsm;
-
-	if (dotg->in_shutdown)
-		return;
-
-	__pm_stay_awake(dotg->reconn_wakelock);
-	/* Lock to avoid real cable insert/remove operation. */
-	mutex_lock(&fsm->lock);
-
-	if (exynos->gadget_state)
-		goto out;
-
-	if (extcon_get_state(exynos->edev, EXTCON_USB) <= 0)
-		goto out;
-
-	dwc3_otg_start_gadget(fsm, 1);
-
-out:
-	mutex_unlock(&fsm->lock);
-	__pm_relax(dotg->reconn_wakelock);
-	return;
-}
-
 static void dwc3_otg_recovery_reconnection(struct work_struct *w)
 {
 	struct dwc3_otg *dotg = container_of(w, struct dwc3_otg,
@@ -1017,8 +985,6 @@ static void dwc3_otg_recovery_reconnection(struct work_struct *w)
 
 	/* To ignore PHY disable */
 	dwc3_otg_phy_enable(fsm, DWC3_PHY_OWNER_EMEG, 1);
-
-
 
 	if (dotg->otg_connection == 1) {
 		pr_err("Recovery Host Reconnection\n");
@@ -1164,7 +1130,6 @@ int dwc3_exynos_otg_init(struct dwc3 *dwc, struct dwc3_exynos *exynos)
 	dotg->fsm.otg = &dotg->otg;
 
 	INIT_WORK(&dotg->recov_work, dwc3_otg_recovery_reconnection);
-	INIT_DELAYED_WORK(&dotg->gadget_pending_work, dwc3_otg_gadget_pending);
 	dotg->vbus_reg = devm_regulator_get(dwc->dev, "dwc3-vbus");
 	if (IS_ERR(dotg->vbus_reg))
 		dev_err(dwc->dev, "failed to obtain vbus regulator\n");
