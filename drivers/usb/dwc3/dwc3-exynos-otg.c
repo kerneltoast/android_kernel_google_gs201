@@ -266,8 +266,10 @@ static void usb3_phy_control(struct dwc3_otg	*dotg,
 
 static void dwc3_usb3_phy_restart(struct dwc3_otg *dotg)
 {
+	struct otg_fsm *fsm = &dotg->fsm;
 	struct dwc3 *dwc = dotg->dwc;
 
+	mutex_lock(&fsm->lock);
 	mutex_lock(&dotg->lock);
 
 	usb3_phy_control(dotg, 0, 0);
@@ -275,6 +277,7 @@ static void dwc3_usb3_phy_restart(struct dwc3_otg *dotg)
 	usb3_phy_control(dotg, 0, 1);
 
 	mutex_unlock(&dotg->lock);
+	mutex_unlock(&fsm->lock);
 }
 
 int dwc3_otg_phy_enable(struct otg_fsm *fsm, int owner, bool on)
