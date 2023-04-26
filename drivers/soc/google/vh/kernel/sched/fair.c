@@ -1284,6 +1284,50 @@ void update_adpf_prio(struct task_struct *p, struct vendor_task_struct *vp, bool
 		prio_changed(p, old_prio, new_prio, true);
 }
 
+static bool get_uclamp_on_nice(struct task_struct *p, enum uclamp_id clamp_id,
+			       struct uclamp_se *uc_req)
+{
+	unsigned int value, group = get_vendor_group(p);
+
+	if (clamp_id == UCLAMP_MIN) {
+		if (!vg[group].uclamp_min_on_nice_enable)
+			return false;
+
+		if (p->prio <= vg[group].uclamp_min_on_nice_high_prio) {
+			value = vg[group].uclamp_min_on_nice_high_value;
+		} else if (p->prio <= vg[group].uclamp_min_on_nice_mid_prio) {
+			value = vg[group].uclamp_min_on_nice_mid_value;
+		} else {
+			value = vg[group].uclamp_min_on_nice_low_value;
+		}
+
+		if (value != uclamp_none(UCLAMP_MIN)) {
+			uc_req->value = value;
+			uc_req->bucket_id = get_bucket_id(value);
+			return true;
+		}
+	} else if (clamp_id == UCLAMP_MAX) {
+		if (!vg[group].uclamp_max_on_nice_enable)
+			return false;
+
+		if (p->prio <= vg[group].uclamp_max_on_nice_high_prio) {
+			value = vg[group].uclamp_max_on_nice_high_value;
+		} else if (p->prio <= vg[group].uclamp_max_on_nice_mid_prio) {
+			value = vg[group].uclamp_max_on_nice_mid_value;
+		} else {
+			value = vg[group].uclamp_max_on_nice_low_value;
+		}
+
+		if (value != uclamp_none(UCLAMP_MAX)) {
+			uc_req->value = value;
+			uc_req->bucket_id = get_bucket_id(value);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /*****************************************************************************/
 /*                       Modified Code Section                               */
 /*****************************************************************************/
@@ -2057,6 +2101,9 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 #ifdef CONFIG_UCLAMP_TASK_GROUP
 	unsigned int tg_min, tg_max, vnd_min, vnd_max, value;
 
+	if (get_uclamp_on_nice(p, clamp_id, &uc_req))
+		return uc_req;
+
 	// Task group restriction
 	tg_min = task_group(p)->uclamp[UCLAMP_MIN].value;
 	tg_max = task_group(p)->uclamp[UCLAMP_MAX].value;
@@ -2130,6 +2177,20 @@ void initialize_vendor_group_property(void)
 		cpumask_copy(&vg[i].preferred_idle_mask_low, cpu_possible_mask);
 		cpumask_copy(&vg[i].preferred_idle_mask_mid, cpu_possible_mask);
 		cpumask_copy(&vg[i].preferred_idle_mask_high, cpu_possible_mask);
+		vg[i].uclamp_min_on_nice_low_value = uclamp_none(UCLAMP_MIN);
+		vg[i].uclamp_min_on_nice_mid_value = uclamp_none(UCLAMP_MIN);
+		vg[i].uclamp_min_on_nice_high_value = uclamp_none(UCLAMP_MIN);
+		vg[i].uclamp_max_on_nice_low_value = uclamp_none(UCLAMP_MAX);
+		vg[i].uclamp_max_on_nice_mid_value = uclamp_none(UCLAMP_MAX);
+		vg[i].uclamp_max_on_nice_high_value = uclamp_none(UCLAMP_MAX);
+		vg[i].uclamp_min_on_nice_low_prio = DEFAULT_PRIO + 1;
+		vg[i].uclamp_min_on_nice_mid_prio = DEFAULT_PRIO;
+		vg[i].uclamp_min_on_nice_high_prio = PREFER_IDLE_PRIO_HIGH;
+		vg[i].uclamp_max_on_nice_low_prio = DEFAULT_PRIO + 1;
+		vg[i].uclamp_max_on_nice_mid_prio = DEFAULT_PRIO;
+		vg[i].uclamp_max_on_nice_high_prio = PREFER_IDLE_PRIO_HIGH;
+		vg[i].uclamp_min_on_nice_enable = false;
+		vg[i].uclamp_max_on_nice_enable = false;
 		vg[i].uc_req[UCLAMP_MIN].value = min_val;
 		vg[i].uc_req[UCLAMP_MIN].bucket_id = get_bucket_id(min_val);
 		vg[i].uc_req[UCLAMP_MIN].user_defined = false;

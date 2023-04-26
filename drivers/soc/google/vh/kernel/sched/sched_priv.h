@@ -80,6 +80,20 @@ struct vendor_group_property {
 	cpumask_t preferred_idle_mask_low;
 	cpumask_t preferred_idle_mask_mid;
 	cpumask_t preferred_idle_mask_high;
+	unsigned int uclamp_min_on_nice_low_value;
+	unsigned int uclamp_min_on_nice_mid_value;
+	unsigned int uclamp_min_on_nice_high_value;
+	unsigned int uclamp_max_on_nice_low_value;
+	unsigned int uclamp_max_on_nice_mid_value;
+	unsigned int uclamp_max_on_nice_high_value;
+	unsigned int uclamp_min_on_nice_low_prio;
+	unsigned int uclamp_min_on_nice_mid_prio;
+	unsigned int uclamp_min_on_nice_high_prio;
+	unsigned int uclamp_max_on_nice_low_prio;
+	unsigned int uclamp_max_on_nice_mid_prio;
+	unsigned int uclamp_max_on_nice_high_prio;
+	bool uclamp_min_on_nice_enable;
+	bool uclamp_max_on_nice_enable;
 	struct uclamp_se uc_req[UCLAMP_CNT];
 };
 
