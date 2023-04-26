@@ -26,7 +26,6 @@
 				google,ttf-soc-table =  <50 58 76 83 87 91  93  100>;
 				google,ttf-elap-table = <38 44 58 76 89 121 165 178>;
 				google,ttf-tier-table = <0 59 77>;
-				google,aacr-disable;
 
 				google,batt-id-2-cos {
 					google,batt-id = <2>;

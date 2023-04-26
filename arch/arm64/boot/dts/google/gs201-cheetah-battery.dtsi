@@ -34,8 +34,6 @@
 				google,ttf-elap-table = <41 47 54 59 76 84 93 111 152 176>;
 				google,ttf-tier-table = <0 48 72>;
 
-				google,aacr-disable;
-
 				google,batt-id-1-atl {
 					google,batt-id = <1>;
 					google,aacr-ref-cycles = <200 300 400 500 600 700 800>;
