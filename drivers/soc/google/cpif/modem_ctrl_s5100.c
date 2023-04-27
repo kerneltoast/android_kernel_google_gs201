@@ -793,6 +793,30 @@ static void gpio_power_wreset_cp(struct modem_ctl *mc)
 #endif
 }
 
+static void clear_boot_stage(struct modem_ctl *mc)
+{
+	struct link_device *ld = get_current_link(mc->iod);
+	struct mem_link_device *mld = to_mem_link_device(ld);
+	int val;
+
+	if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE) {
+		if (!mld->msi_reg_base) {
+			u32 cp_num = ld->mdm_data->cp_num;
+			mld->msi_reg_base = cp_shmem_get_region(cp_num, SHMEM_MSI);
+			if (!mld->msi_reg_base) {
+				mif_err("Failed to get valid msi reg base.\n");
+				return;
+			}
+		}
+
+		iowrite32(0, mld->msi_reg_base +
+			offsetof(struct msi_reg_type, boot_stage));
+		val = ioread32(mld->msi_reg_base +
+			offsetof(struct msi_reg_type, boot_stage));
+		mif_info("Clear boot_stage == 0x%X\n", val);
+	}
+}
+
 static int power_on_cp(struct modem_ctl *mc)
 {
 	struct link_device *ld = get_current_link(mc->iod);
@@ -800,6 +824,8 @@ static int power_on_cp(struct modem_ctl *mc)
 	struct mem_link_device *mld = to_mem_link_device(ld);
 
 	mif_info("%s: +++\n", mc->name);
+
+	clear_boot_stage(mc);
 
 	mif_disable_irq(&mc->cp_gpio_irq[CP_GPIO_IRQ_CP2AP_CP_ACTIVE]);
 	mif_disable_irq(&mc->cp_gpio_irq[CP_GPIO_IRQ_CP2AP_WAKEUP]);
@@ -896,6 +922,8 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 	struct mem_link_device *mld = to_mem_link_device(ld);
 
 	mif_info("%s: +++\n", mc->name);
+
+	clear_boot_stage(mc);
 
 	if (ld->sbd_ipc && hrtimer_active(&mld->sbd_print_timer))
 		hrtimer_cancel(&mld->sbd_print_timer);
