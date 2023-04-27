@@ -197,8 +197,8 @@
 							enable = <1>;
 							measure = <TPMON_MEASURE_TP>;
 							proto = <TPMON_PROTO_ALL>;
-							boost_threshold = <500 1600>;
-							unboost_threshold_mbps = <200 600>;
+							boost_threshold = <150 1600>;
+							unboost_threshold_mbps = <60 600>;
 						};
 					};
 
