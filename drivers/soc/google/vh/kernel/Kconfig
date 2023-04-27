@@ -80,7 +80,7 @@ config VH_I2C
 config UCLAMP_STATS
         bool "Uclamp stats"
         depends on VH_KERNEL
-        default y
+        default n
 
 config VH_PREEMPTIRQ_TRACEPOINTS
         tristate "Vendor hooks for long preemptirq trace points"
