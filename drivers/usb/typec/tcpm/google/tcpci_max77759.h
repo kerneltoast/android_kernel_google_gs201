@@ -164,6 +164,13 @@ struct max77759_plat {
 	/* Signal from charger when AICL is active. */
 	struct gvotable_election *aicl_active_el;
 
+	/* Timer to check for AICL status */
+	struct alarm aicl_check_alarm;
+	/* Bottom half for alarm */
+	struct kthread_work aicl_check_alarm_work;
+	/* AICL status from hardware */
+	bool aicl_active;
+
 	/* EXT_BST_EN exposed as GPIO */
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio;

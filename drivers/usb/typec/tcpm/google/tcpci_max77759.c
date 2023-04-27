@@ -71,6 +71,8 @@
 #define MAX77759_FIRST_RP_MISSING_TIMEOUT_MS           5000
 #define MAX77759_RP_MISSING_TIMEOUT_MS                 2000
 
+#define AICL_CHECK_MS				       10000
+
 /* system use cases */
 enum gbms_charger_modes {
 	GBMS_USB_BUCK_ON	= 0x30,
@@ -1042,6 +1044,11 @@ void disconnect_missing_rp_partner(struct max77759_plat *chip)
 	val.intval = POWER_SUPPLY_USB_TYPE_UNKNOWN;
 	max77759_set_vbus(chip->tcpci, chip->tcpci->data, false, false);
 	update_compliance_warnings(chip, COMPLIANCE_WARNING_MISSING_RP, false);
+	/*
+	 * clear AICL warning for missing rp as detach will not be signalled for
+	 * MISSING_RP + OTHER(AICL)
+	 */
+	update_compliance_warnings(chip, COMPLIANCE_WARNING_OTHER, false);
 	chip->vbus_mv = 0;
 	/* val.intval does not matter */
 	ret = power_supply_set_property(chip->usb_psy, POWER_SUPPLY_PROP_VOLTAGE_MAX, &val);
@@ -2566,20 +2573,83 @@ exit:
 	return ALARMTIMER_NORESTART;
 }
 
-static int max77759_aicl_active_cb(struct gvotable_election *el, const char *reason, void *value)
+static bool is_aicl_limited(struct max77759_plat *chip)
 {
-	struct max77759_plat *chip = gvotable_get_data(el);
-	bool aicl_active = !!(long)value;
+	unsigned int vbus_present, snk_vbus, pwr_status;
+	union power_supply_propval current_now = {0};
+	int ret;
+	bool default_power, is_dcp;
 
-	logbuffer_log(chip->log, "AICL %s active", aicl_active ? "" : "not");
+	ret = regmap_read(chip->data.regmap, TCPC_POWER_STATUS, &pwr_status);
+	if (ret < 0) {
+		logbuffer_log(chip->log,
+			      "Abort %s; TCPC_POWER_STATUS read error", __func__);
+		return false;
+	}
+
+	vbus_present = pwr_status & TCPC_POWER_STATUS_VBUS_PRES;
+	snk_vbus = pwr_status & TCPC_POWER_STATUS_SINKING_VBUS;
+	power_supply_get_property(chip->usb_psy, POWER_SUPPLY_PROP_CURRENT_NOW, &current_now);
+	default_power = !(chip->cc1 == TYPEC_CC_RP_3_0 || chip->cc1 == TYPEC_CC_RP_1_5 ||
+			  chip->cc2 == TYPEC_CC_RP_3_0 || chip->cc2 == TYPEC_CC_RP_1_5);
+	is_dcp = (get_usb_type(chip->bc12) == POWER_SUPPLY_USB_TYPE_DCP);
+
+	logbuffer_log(chip->log,
+		      "AICL %s active vbus_present:%c snk_vbus:%c current_now:%d default_power:%c DCP:%c",
+		      chip->aicl_active ? "" : "not", vbus_present ? 'y' : 'n',
+		      snk_vbus ? 'y' : 'n', current_now.intval, default_power ? 'y' : 'n',
+		      is_dcp ? 'y' : 'n');
+	/*
+	 * AICL_ACTIVE + Charging over USB + USB input current less than 500mA and charging from
+	 * default power sources.
+	 */
+	if (chip->aicl_active && vbus_present && snk_vbus && current_now.intval < 500000 &&
+	    default_power && is_dcp)
+		return true;
+
+	return false;
+}
+
+static void aicl_check_alarm_work_item(struct kthread_work *work)
+{
+	struct max77759_plat *chip = container_of(work, struct max77759_plat,
+						  aicl_check_alarm_work);
+
 	/*
 	 * Set here and clear COMPLIANCE_WARNING_OTHER which tracks AICL_ACTIVE only upon
 	 * disconnect. This prevents the incommpatible charging notification to not change status
 	 * during the charging session. AICL active is system/battery load dependent and hence
 	 * can change status during a charge session.
 	 */
-	if (aicl_active)
+	if (is_aicl_limited(chip))
 		update_compliance_warnings(chip, COMPLIANCE_WARNING_OTHER, true);
+}
+
+static enum alarmtimer_restart aicl_check_alarm_handler(struct alarm *alarm, ktime_t time)
+{
+	struct max77759_plat *chip = container_of(alarm, struct max77759_plat, aicl_check_alarm);
+
+	logbuffer_log(chip->log, "timer fired: %s", __func__);
+	kthread_queue_work(chip->wq, &chip->aicl_check_alarm_work);
+	pm_wakeup_event(chip->dev, AICL_CHECK_MS);
+
+	return ALARMTIMER_NORESTART;
+}
+
+static int max77759_aicl_active_cb(struct gvotable_election *el, const char *reason, void *value)
+{
+	struct max77759_plat *chip = gvotable_get_data(el);
+	bool aicl_active = !!(long)value;
+
+	chip->aicl_active = aicl_active;
+
+	if (is_aicl_limited(chip)) {
+		/* Recheck after AICL_CHECK_MS */
+		alarm_start_relative(&chip->aicl_check_alarm, ms_to_ktime(AICL_CHECK_MS));
+	} else {
+		alarm_cancel(&chip->aicl_check_alarm);
+		kthread_cancel_work_sync(&chip->aicl_check_alarm_work);
+	}
 
 	return 0;
 }
@@ -2618,6 +2688,9 @@ static int max77759_probe(struct i2c_client *client,
 			  reenable_auto_ultra_low_power_mode_work_item);
 	alarm_init(&chip->reenable_auto_ultra_low_power_mode_alarm, ALARM_BOOTTIME,
 		   reenable_auto_ultra_low_power_mode_alarm_handler);
+	kthread_init_work(&chip->aicl_check_alarm_work, aicl_check_alarm_work_item);
+	alarm_init(&chip->aicl_check_alarm, ALARM_BOOTTIME, aicl_check_alarm_handler);
+
 	dn = dev_of_node(&client->dev);
 	if (!dn) {
 		dev_err(&client->dev, "of node not found\n");
