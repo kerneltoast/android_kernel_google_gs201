@@ -1585,39 +1585,6 @@ inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
 }
 /* UPSTREAM UCLAMP CODE - end */
 
-void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
-{
-	/* Can only process uclamp after sched_slice() was updated */
-	if (uclamp_is_used()) {
-		if (uclamp_can_ignore_uclamp_max(rq, p)) {
-			uclamp_set_ignore_uclamp_max(p);
-			/* GKI has incremented it already, undo that */
-			uclamp_rq_dec_id(rq, p, UCLAMP_MAX);
-		}
-
-		if (uclamp_can_ignore_uclamp_min(rq, p)) {
-			uclamp_set_ignore_uclamp_min(p);
-			/* GKI has incremented it already, undo that */
-			uclamp_rq_dec_id(rq, p, UCLAMP_MIN);
-		}
-	}
-
-	/*
-	 * We strategically tell schedutil to ignore requests to update
-	 * frequencies when we call rvh_set_iowait_pixel_mod().
-	 *
-	 * Now we have applied the uclamp filter, we'll unconditionally request
-	 * a frequency update which should take all changes into account in one
-	 * go.
-	 */
-	cpufreq_update_util(rq, SCHED_PIXEL_RESUME_UPDATES);
-}
-
-void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
-{
-	/* Resetting uclamp filter is handled in dequeue_task() */
-}
-
 static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool sync_boost,
 		cpumask_t *valid_mask)
 {
@@ -2756,9 +2723,11 @@ void rvh_update_blocked_fair_pixel_mod(void *data, struct rq *rq)
 {
 	update_vendor_group_util_blocked(rq_clock_pelt(rq), rq);
 }
+#endif
 
 void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	if (likely(sched_feat(UTIL_EST))) {
 		int group = get_vendor_util_group(p);
 
@@ -2768,10 +2737,37 @@ void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 			raw_spin_unlock(&vendor_cfs_util[group][rq->cpu].lock);
 		}
 	}
+#endif
+
+	/* Can only process uclamp after sched_slice() was updated */
+	if (uclamp_is_used()) {
+		if (uclamp_can_ignore_uclamp_max(rq, p)) {
+			uclamp_set_ignore_uclamp_max(p);
+			/* GKI has incremented it already, undo that */
+			uclamp_rq_dec_id(rq, p, UCLAMP_MAX);
+		}
+
+		if (uclamp_can_ignore_uclamp_min(rq, p)) {
+			uclamp_set_ignore_uclamp_min(p);
+			/* GKI has incremented it already, undo that */
+			uclamp_rq_dec_id(rq, p, UCLAMP_MIN);
+		}
+	}
+
+	/*
+	 * We strategically tell schedutil to ignore requests to update
+	 * frequencies when we call rvh_set_iowait_pixel_mod().
+	 *
+	 * Now we have applied the uclamp filter, we'll unconditionally request
+	 * a frequency update which should take all changes into account in one
+	 * go.
+	 */
+	cpufreq_update_util(rq, SCHED_PIXEL_RESUME_UPDATES);
 }
 
 void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	if (likely(sched_feat(UTIL_EST))) {
 		int group = get_vendor_util_group(p);
 
@@ -2785,5 +2781,7 @@ void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 			raw_spin_unlock(&vendor_cfs_util[group][rq->cpu].lock);
 		}
 	}
-}
 #endif
+
+/* Resetting uclamp filter is handled in dequeue_task() */
+}
