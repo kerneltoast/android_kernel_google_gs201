@@ -2012,7 +2012,12 @@ EXPORT_SYMBOL_GPL(vh_arch_set_freq_scale_pixel_mod);
 
 void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost)
 {
+	unsigned int flags = SCHED_PIXEL_BLOCK_UPDATES;
+
 	*should_iowait_boost = p->in_iowait && uclamp_boosted(p);
+
+	if (*should_iowait_boost)
+		flags |= SCHED_CPUFREQ_IOWAIT;
 
 	/*
 	 * Tell sched pixel to ignore cpufreq updates. this happens at
@@ -2026,7 +2031,7 @@ void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iow
 	 * - this strategic block will ensure all subsequent requests are
 	 *   ignored.
 	 */
-	cpufreq_update_util(task_rq(p), SCHED_PIXEL_BLOCK_UPDATES);
+	cpufreq_update_util(task_rq(p), flags);
 }
 
 void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
