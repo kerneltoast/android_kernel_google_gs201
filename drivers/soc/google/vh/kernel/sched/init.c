@@ -99,6 +99,7 @@ extern struct cpufreq_governor sched_pixel_gov;
 
 extern int pmu_poll_init(void);
 
+extern bool wait_for_init;
 static int init_vendor_task_data(void *data)
 {
 	struct vendor_task_struct *v_tsk;
@@ -112,7 +113,10 @@ static int init_vendor_task_data(void *data)
 		put_task_struct(t);
 	}
 
-	return register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+	/* our module can start handling the initialization now */
+	wait_for_init = false;
+
+	return 0;
 }
 
 static int vh_sched_init(void)
@@ -136,6 +140,20 @@ static int vh_sched_init(void)
 	init_vendor_rt_rq();
 
 	init_vendor_group_data();
+
+	/*
+	 * We must register this first but it won't do anything until we
+	 * initialize vendor task data for all currently running tasks.
+	 *
+	 * We can't call this directly in init_vendor_task_data() as it'll hold
+	 * a mutex and the context in stop_machine is atomic.
+	 *
+	 * init_vendor_task_data() should set a flag to enable this function to
+	 * work as soon as we have initialized the task data.
+	 */
+	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+	if (ret)
+		return ret;
 
 	/*
 	 * Heavy handed, but necessary. We want to initialize our private data
