@@ -5,6 +5,8 @@ ccflags-y += -Wformat
 ccflags-y += -Wformat-zero-length
 ccflags-y += -DCPIF_WAKEPKT_SET_MARK=0x80000000
 ccflags-y += -DCONFIG_OPTION_REGION=\"$(PROJECT_REGION)\"
+# This gives the drivers access to the logbuffer interface
+subdir-ccflags-y += -I$(KERNEL_SRC)/../private/google-modules/bms
 subdir-ccflags-y += -I$(srctree)/$(src)
 
 obj-$(CONFIG_MCU_IPC) += mcu_ipc.o

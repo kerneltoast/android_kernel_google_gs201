@@ -777,6 +777,10 @@ static int cpif_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	modemctl->log = logbuffer_register("cpif");
+	if (IS_ERR_OR_NULL(modemctl->log))
+		mif_err("Failed to register logbuffer!\n");
+
 	if (toe_dev_create(pdev)) {
 		mif_err("%s: toe dev not created\n", pdata->name);
 		goto free_mc;

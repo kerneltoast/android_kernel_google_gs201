@@ -1540,7 +1540,8 @@ int s5100_poweron_pcie(struct modem_ctl *mc, bool boot_on)
 
 	if ((mc->s51xx_pdev != NULL) && mc->pcie_registered) {
 		/* DBG */
-		mif_debug("DBG: doorbell: pcie_registered = %d\n", mc->pcie_registered);
+		logbuffer_log(mc->log, "DBG: doorbell: pcie_registered = %d", \
+				mc->pcie_registered);
 		if (s51xx_pcie_send_doorbell_int(mc->s51xx_pdev,
 						 mld->intval_ap2cp_pcie_link_ack) != 0) {
 			/* DBG */
@@ -1566,7 +1567,8 @@ exit:
 
 	spin_lock_irqsave(&mc->pcie_tx_lock, flags);
 	if ((mc->s51xx_pdev != NULL) && mc->pcie_powered_on && mc->reserve_doorbell_int) {
-		mif_info("DBG: doorbell: doorbell_reserved = %d\n", mc->reserve_doorbell_int);
+		logbuffer_log(mc->log, "DBG: doorbell: doorbell_reserved = %d", \
+				mc->reserve_doorbell_int);
 		mc->reserve_doorbell_int = false;
 		if (s51xx_pcie_send_doorbell_int(mc->s51xx_pdev, mld->intval_ap2cp_msg) != 0)
 			force_crash = true;

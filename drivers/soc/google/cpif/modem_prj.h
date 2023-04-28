@@ -31,6 +31,7 @@
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 #include <soc/google/s2mpu.h>
 #endif
+#include <misc/logbuffer.h>
 #endif
 #include "modem_v1.h"
 
@@ -732,6 +733,7 @@ struct modem_ctl {
 #if defined(CPIF_WAKEPKT_SET_MARK)
 	atomic_t mark_skb_wakeup;
 #endif
+	struct logbuffer *log;
 };
 
 static inline bool cp_offline(struct modem_ctl *mc)
