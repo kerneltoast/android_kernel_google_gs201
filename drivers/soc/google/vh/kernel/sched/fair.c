@@ -298,7 +298,7 @@ static inline int get_vendor_util_group(struct task_struct *p)
 {
 	int group = get_vendor_group(p);
 	// Always consider task prio >= 130 as background loading except VG_DEX2OAT group
-	if (group != VG_DEX2OAT && p->prio >= PRIO_BACKGROUND)
+	if (group != VG_DEX2OAT && p->prio >= THREAD_PRIORITY_BACKGROUND)
 		return VUG_BG;
 
 	return vug_mapping[group];
@@ -347,7 +347,7 @@ static inline bool is_preferred_idle_cpu(struct task_struct *p, int cpu)
 	if (p->wake_q_count > 1)
 		return true;
 
-	if (p->prio <= PREFER_IDLE_PRIO_HIGH) {
+	if (p->prio <= THREAD_PRIORITY_TOP_APP_BOOST) {
 		return cpumask_test_cpu(cpu, &vg[vendor_group].preferred_idle_mask_high);
 	} else if (p->prio <= DEFAULT_PRIO) {
 		return cpumask_test_cpu(cpu, &vg[vendor_group].preferred_idle_mask_mid);
@@ -363,7 +363,7 @@ static inline const cpumask_t *get_preferred_idle_mask(struct task_struct *p)
 	if (p->wake_q_count > 1)
 		return cpu_possible_mask;
 
-	if (p->prio <= PREFER_IDLE_PRIO_HIGH) {
+	if (p->prio <= THREAD_PRIORITY_TOP_APP_BOOST) {
 		return &vg[vendor_group].preferred_idle_mask_high;
 	} else if (p->prio <= DEFAULT_PRIO) {
 		return &vg[vendor_group].preferred_idle_mask_mid;
@@ -428,8 +428,8 @@ void migrate_vendor_group_util(struct task_struct *p, unsigned int old, unsigned
 	unsigned long util_est;
 	int old_mapping, new_mapping;
 
-	old_mapping = (p->prio >= PRIO_BACKGROUND) ? VUG_BG : vug_mapping[old];
-	new_mapping = (p->prio >= PRIO_BACKGROUND) ? VUG_BG : vug_mapping[new];
+	old_mapping = (p->prio >= THREAD_PRIORITY_BACKGROUND) ? VUG_BG : vug_mapping[old];
+	new_mapping = (p->prio >= THREAD_PRIORITY_BACKGROUND) ? VUG_BG : vug_mapping[new];
 
 	if (old_mapping == new_mapping)
 		return;
@@ -1287,48 +1287,34 @@ void update_adpf_prio(struct task_struct *p, struct vendor_task_struct *vp, bool
 		prio_changed(p, old_prio, new_prio, true);
 }
 
-static bool get_uclamp_on_nice(struct task_struct *p, enum uclamp_id clamp_id,
-			       struct uclamp_se *uc_req)
+static void get_uclamp_on_nice(struct task_struct *p, enum uclamp_id clamp_id,
+			       unsigned int *value)
 {
-	unsigned int value, group = get_vendor_group(p);
+	int group = get_vendor_group(p);
 
 	if (clamp_id == UCLAMP_MIN) {
 		if (!vg[group].uclamp_min_on_nice_enable)
-			return false;
+			return;
 
 		if (p->prio <= vg[group].uclamp_min_on_nice_high_prio) {
-			value = vg[group].uclamp_min_on_nice_high_value;
+			*value = vg[group].uclamp_min_on_nice_high_value;
 		} else if (p->prio <= vg[group].uclamp_min_on_nice_mid_prio) {
-			value = vg[group].uclamp_min_on_nice_mid_value;
+			*value = vg[group].uclamp_min_on_nice_mid_value;
 		} else {
-			value = vg[group].uclamp_min_on_nice_low_value;
-		}
-
-		if (value != uclamp_none(UCLAMP_MIN)) {
-			uc_req->value = value;
-			uc_req->bucket_id = get_bucket_id(value);
-			return true;
+			*value = vg[group].uclamp_min_on_nice_low_value;
 		}
 	} else if (clamp_id == UCLAMP_MAX) {
 		if (!vg[group].uclamp_max_on_nice_enable)
-			return false;
+			return;
 
 		if (p->prio <= vg[group].uclamp_max_on_nice_high_prio) {
-			value = vg[group].uclamp_max_on_nice_high_value;
+			*value = vg[group].uclamp_max_on_nice_high_value;
 		} else if (p->prio <= vg[group].uclamp_max_on_nice_mid_prio) {
-			value = vg[group].uclamp_max_on_nice_mid_value;
+			*value = vg[group].uclamp_max_on_nice_mid_value;
 		} else {
-			value = vg[group].uclamp_max_on_nice_low_value;
-		}
-
-		if (value != uclamp_none(UCLAMP_MAX)) {
-			uc_req->value = value;
-			uc_req->bucket_id = get_bucket_id(value);
-			return true;
+			*value = vg[group].uclamp_max_on_nice_low_value;
 		}
 	}
-
-	return false;
 }
 
 /*****************************************************************************/
@@ -2075,9 +2061,11 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 
 #ifdef CONFIG_UCLAMP_TASK_GROUP
 	unsigned int tg_min, tg_max, vnd_min, vnd_max, value;
+	unsigned int nice_min = uclamp_none(UCLAMP_MIN), nice_max = uclamp_none(UCLAMP_MAX);
 
-	if (get_uclamp_on_nice(p, clamp_id, &uc_req))
-		return uc_req;
+	// Task prio specific restriction
+	get_uclamp_on_nice(p, UCLAMP_MIN, &nice_min);
+	get_uclamp_on_nice(p, UCLAMP_MAX, &nice_max);
 
 	// Task group restriction
 	tg_min = task_group(p)->uclamp[UCLAMP_MIN].value;
@@ -2087,7 +2075,8 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 	vnd_max = vg[vp->group].uc_req[UCLAMP_MAX].value;
 
 	value = uc_req.value;
-	value = clamp(value, max(tg_min, vnd_min),  min(tg_max, vnd_max));
+	value = clamp(value, max(nice_min, max(tg_min, vnd_min)),
+		      min(nice_max, min(tg_max, vnd_max)));
 
 	// Inherited uclamp restriction
 	if (vbinder->active)
@@ -2158,12 +2147,12 @@ void initialize_vendor_group_property(void)
 		vg[i].uclamp_max_on_nice_low_value = uclamp_none(UCLAMP_MAX);
 		vg[i].uclamp_max_on_nice_mid_value = uclamp_none(UCLAMP_MAX);
 		vg[i].uclamp_max_on_nice_high_value = uclamp_none(UCLAMP_MAX);
-		vg[i].uclamp_min_on_nice_low_prio = DEFAULT_PRIO + 1;
-		vg[i].uclamp_min_on_nice_mid_prio = DEFAULT_PRIO;
-		vg[i].uclamp_min_on_nice_high_prio = PREFER_IDLE_PRIO_HIGH;
-		vg[i].uclamp_max_on_nice_low_prio = DEFAULT_PRIO + 1;
-		vg[i].uclamp_max_on_nice_mid_prio = DEFAULT_PRIO;
-		vg[i].uclamp_max_on_nice_high_prio = PREFER_IDLE_PRIO_HIGH;
+		vg[i].uclamp_min_on_nice_low_prio = THREAD_PRIORITY_LOWEST;
+		vg[i].uclamp_min_on_nice_mid_prio = THREAD_PRIORITY_BACKGROUND;
+		vg[i].uclamp_min_on_nice_high_prio = DEFAULT_PRIO;
+		vg[i].uclamp_max_on_nice_low_prio = THREAD_PRIORITY_LOWEST;
+		vg[i].uclamp_max_on_nice_mid_prio = THREAD_PRIORITY_BACKGROUND;
+		vg[i].uclamp_max_on_nice_high_prio = DEFAULT_PRIO;
 		vg[i].uclamp_min_on_nice_enable = false;
 		vg[i].uclamp_max_on_nice_enable = false;
 		vg[i].uc_req[UCLAMP_MIN].value = min_val;
