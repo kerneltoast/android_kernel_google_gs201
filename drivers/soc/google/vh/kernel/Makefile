@@ -1,7 +1,11 @@
 ## SPDX-License-Identifier: GPL-2.0-only
 
 # vh/kernel/sched
+ifneq ($(CONFIG_VH_SCHED),)
 obj-$(CONFIG_VH_SCHED)	+= sched/
+else
+obj-y			+= no_vh_sched.o
+endif
 
 # systrace
 obj-$(CONFIG_VH_SYSTRACE) += systrace.o
