@@ -64,7 +64,6 @@
 		hsi-block-num = <1>;
 		pcie-vid-num = <0>;
 		#iommu-cells = <0>;
-		ignore-tlb-inval = <1>;
 		use-map-once = "false";
 		status = "okay";
 	};
