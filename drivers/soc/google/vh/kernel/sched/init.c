@@ -48,7 +48,6 @@ extern void rvh_check_preempt_wakeup_pixel_mod(void *data, struct rq *rq, struct
 extern void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk,
 						   int clamp_id, unsigned int value);
 extern void init_uclamp_stats(void);
-extern void rvh_sched_fork_pixel_mod(void *data, struct task_struct *tsk);
 extern void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
 					 struct task_struct *orig);
 extern void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
@@ -164,10 +163,6 @@ static int vh_sched_init(void)
 	 * stop_machine provides atomic way to guarantee this without races.
 	 */
 	ret = stop_machine(init_vendor_task_data, NULL, cpumask_of(smp_processor_id()));
-	if (ret)
-		return ret;
-
-	ret = register_trace_android_rvh_sched_fork(rvh_sched_fork_pixel_mod, NULL);
 	if (ret)
 		return ret;
 

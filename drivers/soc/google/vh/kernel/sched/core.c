@@ -55,25 +55,6 @@ DEFINE_STATIC_KEY_FALSE(uclamp_max_filter_enable);
 DEFINE_STATIC_KEY_FALSE(tapered_dvfs_headroom_enable);
 
 /*****************************************************************************/
-/*                       Upstream Code Section                               */
-/*****************************************************************************/
-/*
- * This part of code is copied from Android common GKI kernel and unmodified.
- * Any change for these functions in upstream GKI would require extensive review
- * to make proper adjustment in vendor hook.
- */
-#define for_each_clamp_id(clamp_id) \
-	for ((clamp_id) = 0; (clamp_id) < UCLAMP_CNT; (clamp_id)++)
-
-static inline void uclamp_se_set(struct uclamp_se *uc_se,
-				 unsigned int value, bool user_defined)
-{
-	uc_se->value = value;
-	uc_se->bucket_id = get_bucket_id(value);
-	uc_se->user_defined = user_defined;
-}
-
-/*****************************************************************************/
 /*                       New Code Section                                    */
 /*****************************************************************************/
 /*
@@ -87,28 +68,6 @@ static inline void uclamp_se_set(struct uclamp_se *uc_se,
  * This part of code is vendor hook functions, which modify or extend the original
  * functions.
  */
-static inline void uclamp_fork_pixel_mod(struct task_struct *p)
-{
-	enum uclamp_id clamp_id;
-	struct vendor_task_struct *vp;
-
-	vp = get_vendor_task_struct(p);
-	if (likely(!vp->uclamp_fork_reset))
-		return;
-
-	vp->uclamp_fork_reset = 0;
-
-	for_each_clamp_id(clamp_id) {
-		uclamp_se_set(&p->uclamp_req[clamp_id],
-			      uclamp_none(clamp_id), false);
-	}
-}
-
-void rvh_sched_fork_pixel_mod(void *data, struct task_struct *p)
-{
-	uclamp_fork_pixel_mod(p);
-}
-
 #ifdef CONFIG_UCLAMP_TASK
 static inline void task_tick_uclamp(struct rq *rq, struct task_struct *curr)
 {

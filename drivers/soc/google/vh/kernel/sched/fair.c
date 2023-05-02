@@ -89,6 +89,17 @@ extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum
  * to make proper adjustment in vendor hook.
  */
 
+#define for_each_clamp_id(clamp_id) \
+	for ((clamp_id) = 0; (clamp_id) < UCLAMP_CNT; (clamp_id)++)
+
+static inline void uclamp_se_set(struct uclamp_se *uc_se,
+				 unsigned int value, bool user_defined)
+{
+	uc_se->value = value;
+	uc_se->bucket_id = get_bucket_id(value);
+	uc_se->user_defined = user_defined;
+}
+
 static void attach_task(struct rq *rq, struct task_struct *p)
 {
 	lockdep_assert_held(&rq->lock);
@@ -2381,17 +2392,32 @@ void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk,
 	}
 }
 
+static inline void uclamp_fork_pixel_mod(struct task_struct *p, struct task_struct *orig)
+{
+	enum uclamp_id clamp_id;
+	struct vendor_task_struct *v_orig;
+
+	v_orig = get_vendor_task_struct(orig);
+
+	if (likely(!v_orig->uclamp_fork_reset))
+		return;
+
+	for_each_clamp_id(clamp_id) {
+		uclamp_se_set(&p->uclamp_req[clamp_id],
+			      uclamp_none(clamp_id), false);
+	}
+}
+
 void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct task_struct *orig)
 {
 	struct vendor_task_struct *v_tsk, *v_orig;
-	struct vendor_binder_task_struct *vbinder;
 
 	if (wait_for_init)
 		return;
 
 	v_tsk = get_vendor_task_struct(tsk);
 	v_orig = get_vendor_task_struct(orig);
-	vbinder = get_vendor_binder_task_struct(tsk);
+	uclamp_fork_pixel_mod(tsk, orig);
 	init_vendor_task_struct(v_tsk);
 	v_tsk->group = v_orig->group;
 	v_tsk->orig_prio = orig->static_prio;
