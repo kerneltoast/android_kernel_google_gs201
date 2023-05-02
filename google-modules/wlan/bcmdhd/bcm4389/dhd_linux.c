@@ -3916,7 +3916,7 @@ dhd_dpc_tasklet_dispatcher_work(struct work_struct * work)
 
 	DHD_INFO(("%s:\n", __FUNCTION__));
 
-	tasklet_schedule(&dhd->tasklet);
+	dhd_sched_dpc(&dhd->pub);
 }
 
 void
