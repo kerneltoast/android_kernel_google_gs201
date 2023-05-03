@@ -164,7 +164,6 @@ touch_bus_negotiator.ko
 touch_offload.ko
 trusty-core.ko
 trusty-ipc.ko
-trusty-irq.ko
 trusty-log.ko
 trusty-test.ko
 trusty-virtio.ko
