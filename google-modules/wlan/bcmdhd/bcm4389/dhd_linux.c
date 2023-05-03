@@ -18090,7 +18090,6 @@ int dhd_os_wake_unlock(dhd_pub_t *pub)
 	unsigned long flags;
 	int ret = 0;
 
-	dhd_os_wake_lock_timeout(pub);
 	if (dhd && (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 		DHD_WAKE_SPIN_LOCK(&dhd->wakelock_spinlock, flags);
 
