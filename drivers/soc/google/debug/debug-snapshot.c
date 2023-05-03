@@ -624,6 +624,8 @@ static int dbg_snapshot_probe(struct platform_device *pdev)
 	dbg_snapshot_init_utils();
 	dbg_snapshot_init_dpm();
 
+	dbg_snapshot_register_vh_log();
+
 	dbg_snapshot_set_slcdump_status();
 
 	dbg_snapshot_set_enable(true);
