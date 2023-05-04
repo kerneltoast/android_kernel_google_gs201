@@ -1051,7 +1051,7 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 		}
 	}
 
-	active_profile = default_profile;
+	apply_profile(default_profile);
 
 	// Probe is successful => do not attempt to free cpu_to_em_pd.
 	platform_dev = dev;
