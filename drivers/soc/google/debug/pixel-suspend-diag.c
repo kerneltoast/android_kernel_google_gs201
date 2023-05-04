@@ -26,9 +26,9 @@
 	(((delta) >> PIXEL_SUSPEND_DIAG_DELTA_TIME_L_SHIFT) & PIXEL_SUSPEND_DIAG_DELTA_TIME_L_MASK)
 
 #define PIXEL_SUSPEND_DIAG_DELTA_TIME(delta_h, delta_l) \
-	((((int64_t)(delta_h) & PIXEL_SUSPEND_DIAG_DELTA_TIME_H_MASK) << \
+	((((uint64_t)(delta_h) & PIXEL_SUSPEND_DIAG_DELTA_TIME_H_MASK) << \
 	  PIXEL_SUSPEND_DIAG_DELTA_TIME_H_SHIFT) | \
-	 (((int64_t)(delta_l) & PIXEL_SUSPEND_DIAG_DELTA_TIME_L_MASK) << \
+	 (((uint64_t)(delta_l) & PIXEL_SUSPEND_DIAG_DELTA_TIME_L_MASK) << \
 	  PIXEL_SUSPEND_DIAG_DELTA_TIME_L_SHIFT))
 
 enum pixel_suspend_diag_item_index {
@@ -100,7 +100,7 @@ static void pixel_suspend_diag_handle_suspend_resume(struct dbg_snapshot_log *ds
 {
 	uint64_t idx = (last_idx + 1) % ARRAY_SIZE(dss_log->suspend);
 	bool has_dev_pm_cb = (idx != curr_idx);
-	int64_t delta_time = 0;
+	uint64_t delta_time = 0;
 	int i;
 
 	if (!has_dev_pm_cb) {
@@ -139,13 +139,13 @@ static void pixel_suspend_diag_handle_suspend_resume(struct dbg_snapshot_log *ds
 crash:
 	pixel_suspend_diag_inst.force_panic = 0x1;
 	pixel_suspend_diag_inst.timeout = pixel_suspend_diag_items[i].timeout;
-	panic("%s: %s%s(%ld) to %s%s(%ld) %stook %lld ns\n", __func__,
+	panic("%s: %s%s(%ld) to %s%s(%ld) %stook %llu.%llu s\n", __func__,
 	      dss_log->suspend[last_idx].log ? dss_log->suspend[last_idx].log : "",
 	      dss_log->suspend[last_idx].en == DSS_FLAG_IN ? " IN" : " OUT", last_idx,
 	      dss_log->suspend[curr_idx].log ? dss_log->suspend[curr_idx].log : "",
 	      dss_log->suspend[curr_idx].en == DSS_FLAG_IN ? " IN" : " OUT", curr_idx,
 	      has_dev_pm_cb ? "callbacks " : "",
-	      delta_time);
+	      delta_time / NSEC_PER_SEC, (delta_time % NSEC_PER_SEC) / USEC_PER_SEC);
 }
 
 void pixel_suspend_diag_suspend_resume(void *dbg_snapshot_log, const char *action, bool start,
@@ -175,7 +175,7 @@ bool pixel_suspend_diag_dev_pm_cb_end(void *dbg_snapshot_log, uint64_t first_log
 	uint64_t i;
 	struct dbg_snapshot_log *dss_log = dbg_snapshot_log;
 	uint64_t end_time;
-	int64_t delta_time;
+	uint64_t delta_time;
 
 	if (!pixel_suspend_diag_inst.enable)
 		return false;

@@ -63,8 +63,8 @@ struct suspend_log {
 	int event;
 #if IS_ENABLED(CONFIG_PIXEL_SUSPEND_DIAG)
 	short core;
-	short delta_time_h;
-	int delta_time_l;
+	unsigned short delta_time_h;
+	unsigned int delta_time_l;
 #else
 	int core;
 #endif
