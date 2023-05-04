@@ -139,7 +139,7 @@ static void pixel_suspend_diag_handle_suspend_resume(struct dbg_snapshot_log *ds
 crash:
 	pixel_suspend_diag_inst.force_panic = 0x1;
 	pixel_suspend_diag_inst.timeout = pixel_suspend_diag_items[i].timeout;
-	panic("%s: %s%s(%ld) to %s%s(%ld) %stook %llu.%llu s\n", __func__,
+	panic("%s: %s%s(%llu) to %s%s(%llu) %stook %llu.%llu s\n", __func__,
 	      dss_log->suspend[last_idx].log ? dss_log->suspend[last_idx].log : "",
 	      dss_log->suspend[last_idx].en == DSS_FLAG_IN ? " IN" : " OUT", last_idx,
 	      dss_log->suspend[curr_idx].log ? dss_log->suspend[curr_idx].log : "",
