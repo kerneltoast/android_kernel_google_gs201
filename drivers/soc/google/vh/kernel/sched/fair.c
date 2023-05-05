@@ -1233,16 +1233,13 @@ static inline bool group_overutilized(int cpu, struct task_group *tg)
 
 static void prio_changed(struct task_struct *p, int old_prio, int new_prio, bool lock)
 {
-	struct rq_flags rf;
 	struct rq *rq;
 	bool queued, running;
 
-	if (lock) {
-		rq = task_rq_lock(p, &rf);
+	rq = task_rq(p);
+
+	if (lock)
 		update_rq_clock(rq);
-	} else {
-		rq = task_rq(p);
-	}
 
 	p->prio = new_prio;
 
@@ -1265,23 +1262,26 @@ static void prio_changed(struct task_struct *p, int old_prio, int new_prio, bool
 			set_next_task(rq, p);
 
 		prio_changed_fair(rq, p, old_prio);
-
-		task_rq_unlock(rq, p, &rf);
 	}
 }
 
 void update_adpf_prio(struct task_struct *p, struct vendor_task_struct *vp, bool val)
 {
-	unsigned long flags;
 	int new_prio, old_prio;
+	struct rq_flags rf;
+	struct rq *rq;
 
-	if (p->prio < MAX_RT_PRIO)
+	rq = task_rq_lock(p, &rf);
+
+	if (p->prio < MAX_RT_PRIO) {
+		task_rq_unlock(rq, p, &rf);
 		return;
+	}
 
 	if (val) {
-		raw_spin_lock_irqsave(&vp->lock, flags);
+		raw_spin_lock(&vp->lock);
 		vp->orig_prio = p->prio;
-		raw_spin_unlock_irqrestore(&vp->lock, flags);
+		raw_spin_unlock(&vp->lock);
 	}
 
 	old_prio = p->prio;
@@ -1296,6 +1296,8 @@ void update_adpf_prio(struct task_struct *p, struct vendor_task_struct *vp, bool
 
 	if (old_prio != new_prio)
 		prio_changed(p, old_prio, new_prio, true);
+
+	task_rq_unlock(rq, p, &rf);
 }
 
 static void get_uclamp_on_nice(struct task_struct *p, enum uclamp_id clamp_id,
