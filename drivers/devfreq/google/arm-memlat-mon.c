@@ -353,10 +353,7 @@ static int memlat_cpuhp_up(unsigned int cpu)
 	struct memlat_mon *mon;
 	struct cpu_data *cpu_data;
 	struct event_data *common_evs;
-	struct perf_event_attr *attr = alloc_attr();
-
-	if (!attr)
-		return -ENOMEM;
+	struct perf_event_attr *attr;
 
 	list_for_each_entry(cpu_grp, &cpu_grp_list, node) {
 		if (!cpu_grp->initialized)
@@ -366,10 +363,12 @@ static int memlat_cpuhp_up(unsigned int cpu)
 			break;
 	}
 
-	if (!cpu_grp) {
-		kfree(attr);
-		return -EINVAL;
-	}
+	if (list_entry_is_head(cpu_grp, &cpu_grp_list, node))
+		return 0;
+
+	attr = alloc_attr();
+	if (!attr)
+		return 0;
 
 	mutex_lock(&cpu_grp->mons_lock);
 	if (!cpu_grp->num_active_mons)
@@ -409,11 +408,10 @@ static int memlat_cpuhp_up(unsigned int cpu)
 unlock_out:
 	mutex_unlock(&cpu_grp->mons_lock);
 	kfree(attr);
-	return ret;
+	return 0;
 }
 static int memlat_cpuhp_down(unsigned int cpu)
 {
-	int ret = 0;
 	unsigned int i, mon_idx;
 	struct memlat_cpu_grp *cpu_grp;
 	struct memlat_mon *mon;
@@ -427,8 +425,8 @@ static int memlat_cpuhp_down(unsigned int cpu)
 			break;
 	}
 
-	if (!cpu_grp)
-		return -EINVAL;
+	if (list_entry_is_head(cpu_grp, &cpu_grp_list, node))
+		return 0;
 
 	mutex_lock(&cpu_grp->mons_lock);
 	if (!cpu_grp->num_active_mons)
@@ -453,7 +451,7 @@ static int memlat_cpuhp_down(unsigned int cpu)
 
 unlock_out:
 	mutex_unlock(&cpu_grp->mons_lock);
-	return ret;
+	return 0;
 }
 
 static int init_memlat_cpuhp(void)
