@@ -85,37 +85,49 @@ static void pm_qos_set_value(struct pm_qos_constraints *c, s32 value)
 }
 
 static bool pm_qos_is_cpu_latency(struct pm_qos_constraints *c);
-static inline void pm_qos_set_value_for_cpus(struct pm_qos_constraints *c)
+static inline void pm_qos_set_value_for_cpus(struct pm_qos_request *new_req,
+					     struct pm_qos_constraints *c)
 {
-	struct pm_qos_request *req = NULL;
+	s32 qos_val[NR_CPUS] = {
+		[0 ... (NR_CPUS - 1)] = PM_QOS_CPU_LATENCY_DEFAULT_VALUE
+	};
+	struct pm_qos_request *req;
+	unsigned long new_req_cpus;
+	bool changed = false;
 	int cpu;
-	s32 qos_val[NR_CPUS] = { [0 ... (NR_CPUS - 1)] = c->default_value };
 
 	/* This request might not be for CPU latency */
 	if (!pm_qos_is_cpu_latency(c))
 		return;
 
-	plist_for_each_entry(req, &c->list, node) {
-		unsigned long affined_cpus = atomic_read(&req->cpus_affine);
-
-		for_each_cpu(cpu, to_cpumask(&affined_cpus)) {
-			switch (c->type) {
-			case PM_QOS_MIN:
-				if (qos_val[cpu] > req->node.prio)
-					qos_val[cpu] = req->node.prio;
-				break;
-			case PM_QOS_MAX:
-				if (req->node.prio > qos_val[cpu])
-					qos_val[cpu] = req->node.prio;
-				break;
-			default:
-				break;
-			}
+	new_req_cpus = atomic_read(&new_req->cpus_affine);
+	for_each_cpu(cpu, to_cpumask(&new_req_cpus)) {
+		if (c->target_per_cpu[cpu] != new_req->node.prio) {
+			changed = true;
+			break;
 		}
 	}
 
-	for_each_possible_cpu(cpu)
-		c->target_per_cpu[cpu] = qos_val[cpu];
+	if (!changed)
+		return;
+
+	plist_for_each_entry(req, &c->list, node) {
+		unsigned long affected_cpus;
+
+		affected_cpus = atomic_read(&req->cpus_affine) & new_req_cpus;
+		if (!affected_cpus)
+			continue;
+
+		for_each_cpu(cpu, to_cpumask(&affected_cpus)) {
+			if (qos_val[cpu] > req->node.prio)
+				qos_val[cpu] = req->node.prio;
+		}
+	}
+
+	for_each_cpu(cpu, to_cpumask(&new_req_cpus)) {
+		if (c->target_per_cpu[cpu] != qos_val[cpu])
+			c->target_per_cpu[cpu] = qos_val[cpu];
+	}
 }
 
 /**
@@ -138,6 +150,7 @@ static inline void pm_qos_set_value_for_cpus(struct pm_qos_constraints *c)
 int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 			 enum pm_qos_req_action action, int value)
 {
+	struct pm_qos_request *req = container_of(node, typeof(*req), node);
 	int prev_value, curr_value, new_value;
 
 	spin_lock(&pm_qos_lock);
@@ -170,7 +183,7 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 
 	curr_value = pm_qos_get_value(c);
 	pm_qos_set_value(c, curr_value);
-	pm_qos_set_value_for_cpus(c);
+	pm_qos_set_value_for_cpus(req, c);
 
 	spin_unlock(&pm_qos_lock);
 
