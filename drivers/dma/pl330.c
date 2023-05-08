@@ -2784,7 +2784,7 @@ static void pl330_issue_pending(struct dma_chan *chan)
 	list_splice_tail_init(&pch->submitted_list, &pch->work_list);
 	spin_unlock_irqrestore(&pch->lock, flags);
 
-	tasklet_hi_schedule(&pch->task);
+	pl330_tasklet((unsigned long)pch);
 }
 
 /*
