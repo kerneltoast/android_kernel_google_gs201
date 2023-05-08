@@ -399,7 +399,8 @@ static ssize_t temp_residency_name_store(struct kobject *kobj,
 	int instance;
 	char name[THERMAL_NAME_LENGTH];
 	struct temperature_residency_stats *stats;
-	sscanf(buf, "%s", name);
+	if (strscpy(name, buf, sizeof(name)) < 0)
+		return -EINVAL;
 	for (instance = 0 ; instance < MAX_NUM_SUPPORTED_THERMAL_ZONES ; instance++) {
 		stats = &residency_stat_array[instance];
 		if (!strncmp(stats->name, name, THERMAL_NAME_LENGTH))
