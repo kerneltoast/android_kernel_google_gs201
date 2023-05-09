@@ -45,6 +45,7 @@ struct exynos_pm_info {
 	void __iomem *eint_far_base;
 	void __iomem *gic_base;		/* GICD_ISPENDRn base to check wkup reason */
 	void __iomem *mbox_aoc;
+	void __iomem *mbox_aocf1;
 	unsigned int num_eint;		/* Total number of EINT sources */
 	unsigned int num_eint_far;
 	unsigned int num_gic;		/* Total number of GIC sources */

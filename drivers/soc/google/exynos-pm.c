@@ -21,6 +21,7 @@
 #define SHARED_SR0 0x80
 #define WS_BIT_MAILBOX_AOC2AP		(7)
 #define WS2_BIT_MAILBOX_AOCA322AP	(5)
+#define WS2_BIT_MAILBOX_AOCF12AP	(6)
 #define WS2_BIT_VGPIO2PMU_EINT		(13)
 
 static struct exynos_pm_info *pm_info;
@@ -133,6 +134,12 @@ static void exynos_show_wakeup_reason_sysint(unsigned int stat,
 		if ((wakeup_stat_id == 0 && bit == WS_BIT_MAILBOX_AOC2AP) ||
 		    (wakeup_stat_id == 1 && bit == WS2_BIT_MAILBOX_AOCA322AP)) {
 			aoc_id = __raw_readl(pm_info->mbox_aoc + SHARED_SR0);
+			str_idx += scnprintf(wake_reason + str_idx,
+					     MAX_SUSPEND_ABORT_LEN - str_idx,
+					     "x%X", aoc_id);
+		} else if (wakeup_stat_id == 1 && bit == WS2_BIT_MAILBOX_AOCF12AP &&
+				!IS_ERR(pm_info->mbox_aocf1)) {
+			aoc_id = __raw_readl(pm_info->mbox_aocf1 + SHARED_SR0);
 			str_idx += scnprintf(wake_reason + str_idx,
 					     MAX_SUSPEND_ABORT_LEN - str_idx,
 					     "x%X", aoc_id);
@@ -524,6 +531,12 @@ static int exynos_pm_drvinit(struct platform_device *pdev)
 	pm_info->mbox_aoc = devm_ioremap_resource(dev, res);
 	if (IS_ERR(pm_info->mbox_aoc))
 		return PTR_ERR(pm_info->mbox_aoc);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
+	pm_info->mbox_aocf1 = devm_ioremap_resource(dev, res);
+	if (IS_ERR(pm_info->mbox_aocf1)) {
+		dev_warn(dev, "drvinit: unabled to get the mapped address of mbox_aocf1\n");
+	}
 
 	ret = of_property_read_u32(np, "num-eint", &pm_info->num_eint);
 	if (ret) {
