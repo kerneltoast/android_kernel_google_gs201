@@ -322,4 +322,14 @@ static inline unsigned long teo_cpu_get_util_threshold(int cpu) {return -1;}
 static inline void teo_cpu_set_util_threshold(int cpu, unsigned long util) {}
 #endif
 
+#ifdef CONFIG_SMP
+void cpuidle_set_idle_cpu(unsigned int cpu);
+void cpuidle_clear_idle_cpu(unsigned int cpu);
+void wake_idle_cpus_in_mask(const struct cpumask *mask);
+#else
+static inline void cpuidle_set_idle_cpu(unsigned int cpu) { }
+static inline void cpuidle_clear_idle_cpu(unsigned int cpu) { }
+static inline void wake_idle_cpus_in_mask(const struct cpumask *mask) { }
+#endif
+
 #endif /* _LINUX_CPUIDLE_H */
