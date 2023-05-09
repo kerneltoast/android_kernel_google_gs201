@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
+#include <linux/cpuidle.h>
 
 #include <linux/uaccess.h>
 #include <linux/export.h>
@@ -87,6 +88,7 @@ static void pm_qos_set_value(struct pm_qos_constraints *c, s32 value)
 static bool pm_qos_is_cpu_latency(struct pm_qos_constraints *c);
 static inline void pm_qos_set_value_for_cpus(struct pm_qos_request *new_req,
 					     struct pm_qos_constraints *c,
+					     unsigned long *cpus,
 					     unsigned long new_cpus,
 					     enum pm_qos_req_action new_action)
 {
@@ -128,8 +130,11 @@ static inline void pm_qos_set_value_for_cpus(struct pm_qos_request *new_req,
 			continue;
 
 		for_each_cpu(cpu, to_cpumask(&affected_cpus)) {
-			if (c->target_per_cpu[cpu] != req->node.prio)
+			if (c->target_per_cpu[cpu] != req->node.prio) {
 				c->target_per_cpu[cpu] = req->node.prio;
+				if (cpus)
+					*cpus |= BIT(cpu);
+			}
 		}
 
 		if (!(new_req_cpus &= ~affected_cpus))
@@ -137,14 +142,18 @@ static inline void pm_qos_set_value_for_cpus(struct pm_qos_request *new_req,
 	}
 
 	for_each_cpu(cpu, to_cpumask(&new_req_cpus)) {
-		if (c->target_per_cpu[cpu] != PM_QOS_CPU_LATENCY_DEFAULT_VALUE)
+		if (c->target_per_cpu[cpu] != PM_QOS_CPU_LATENCY_DEFAULT_VALUE) {
 			c->target_per_cpu[cpu] = PM_QOS_CPU_LATENCY_DEFAULT_VALUE;
+			if (cpus)
+				*cpus |= BIT(cpu);
+		}
 	}
 }
 
 static int pm_qos_update_target_cpus(struct pm_qos_constraints *c,
 				     struct plist_node *node,
 				     enum pm_qos_req_action action, int value,
+				     unsigned long *cpus,
 				     unsigned long new_cpus)
 {
 	struct pm_qos_request *req = container_of(node, typeof(*req), node);
@@ -180,7 +189,7 @@ static int pm_qos_update_target_cpus(struct pm_qos_constraints *c,
 
 	curr_value = pm_qos_get_value(c);
 	pm_qos_set_value(c, curr_value);
-	pm_qos_set_value_for_cpus(req, c, new_cpus, action);
+	pm_qos_set_value_for_cpus(req, c, cpus, new_cpus, action);
 
 	spin_unlock(&pm_qos_lock);
 
@@ -215,7 +224,7 @@ static int pm_qos_update_target_cpus(struct pm_qos_constraints *c,
 int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 			 enum pm_qos_req_action action, int value)
 {
-	return pm_qos_update_target_cpus(c, node, action, value, 0);
+	return pm_qos_update_target_cpus(c, node, action, value, NULL, 0);
 }
 
 /**
@@ -318,9 +327,13 @@ EXPORT_SYMBOL_GPL(cpu_latency_qos_request_active);
 static void cpu_latency_qos_apply(struct pm_qos_request *req,
 				  enum pm_qos_req_action action, s32 value)
 {
-	int ret = pm_qos_update_target(req->qos, &req->node, action, value);
+	unsigned long cpus = 0;
+	int ret;
+
+	ret = pm_qos_update_target_cpus(req->qos, &req->node, action, value,
+					&cpus, 0);
 	if (ret > 0)
-		wake_up_all_idle_cpus();
+		wake_idle_cpus_in_mask(to_cpumask(&cpus));
 }
 
 #ifdef CONFIG_SMP
@@ -333,7 +346,7 @@ static void cpu_pm_qos_irq_release(struct kref *ref)
 	struct pm_qos_constraints *c = &cpu_latency_constraints;
 
 	pm_qos_update_target_cpus(c, &req->node, PM_QOS_UPDATE_REQ,
-				  c->default_value, CPUMASK_ALL);
+				  c->default_value, NULL, CPUMASK_ALL);
 }
 
 static void cpu_pm_qos_irq_notify(struct irq_affinity_notify *notify,
@@ -344,7 +357,7 @@ static void cpu_pm_qos_irq_notify(struct irq_affinity_notify *notify,
 	struct pm_qos_constraints *c = &cpu_latency_constraints;
 
 	pm_qos_update_target_cpus(c, &req->node, PM_QOS_UPDATE_REQ,
-				  req->node.prio, *cpumask_bits(mask));
+				  req->node.prio, NULL, *cpumask_bits(mask));
 }
 #endif
 
