@@ -51,7 +51,11 @@ static inline u32 psci_get_domain_state(void)
 
 static inline int psci_enter_state(int idx, u32 state)
 {
-	return CPU_PM_CPU_IDLE_ENTER_PARAM(psci_cpu_suspend_enter, idx, state);
+	int ret;
+
+	ret = CPU_PM_CPU_IDLE_ENTER_PARAM(psci_cpu_suspend_enter, idx, state);
+	cpuidle_clear_idle_cpu(raw_smp_processor_id());
+	return ret;
 }
 
 static int __psci_enter_domain_idle_state(struct cpuidle_device *dev,
@@ -85,6 +89,7 @@ static int __psci_enter_domain_idle_state(struct cpuidle_device *dev,
 		state = states[idx];
 
 	ret = psci_cpu_suspend_enter(state) ? -1 : idx;
+	cpuidle_clear_idle_cpu(dev->cpu);
 
 	rcu_irq_enter_irqson();
 	if (s2idle)
