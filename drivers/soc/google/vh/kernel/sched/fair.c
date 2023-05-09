@@ -26,37 +26,11 @@ extern int ___update_load_sum(u64 now, struct sched_avg *sa,
 			  unsigned long load, unsigned long runnable, int running);
 extern void ___update_load_avg(struct sched_avg *sa, unsigned long load);
 
-static struct vendor_util_group_property vug[VUG_MAX];
-static struct vendor_cfs_util vendor_cfs_util[VUG_MAX - 1][CPU_NUM];
-
-static int vug_mapping[VG_MAX] = {
-	//VG_SYSTEM,
-	VUG_FG,
-	//VG_TOPAPP,
-	VUG_FG,
-	//VG_FOREGROUND,
-	VUG_FG,
-	//VG_CAMERA,
-	VUG_FG,
-	//VG_CAMERA_POWER,
-	VUG_FG,
-	//VG_BACKGROUND,
-	VUG_BG,
-	//VG_SYSTEM_BACKGROUND,
-	VUG_BG,
-	//VG_NNAPI_HAL,
-	VUG_FG,
-	//VG_RT,
-	VUG_FG,
-	//VG_DEX2OAT,
-	VUG_FG,
-	//VG_OTA,
-	VUG_BG,
-	//VG_SF,
-	VUG_FG
-};
+static struct vendor_util_group_property ug[UG_MAX];
+static struct vendor_cfs_util vendor_cfs_util[UG_MAX - 1][CPU_NUM];
 #endif
 
+extern int vendor_sched_ug_bg_auto_prio;
 extern unsigned int vendor_sched_util_post_init_scale;
 extern bool vendor_sched_npi_packing;
 
@@ -305,14 +279,17 @@ prio_changed_fair(struct rq *rq, struct task_struct *p, int oldprio)
 // This part of code is new for this kernel, which are mostly helper functions.
 
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
-static inline int get_vendor_util_group(struct task_struct *p)
+static inline enum utilization_group get_utilization_group(struct task_struct *p, int group)
 {
-	int group = get_vendor_group(p);
-	// Always consider task prio >= 130 as background loading except VG_DEX2OAT group
-	if (group != VG_DEX2OAT && p->prio >= THREAD_PRIORITY_BACKGROUND)
-		return VUG_BG;
+	if (vg[group].ug == UG_AUTO) {
+		// Always consider task prio >= vendor_sched_ug_bg_auto_prio as background util
+		if (p->prio >= vendor_sched_ug_bg_auto_prio)
+			return UG_BG;
 
-	return vug_mapping[group];
+		return UG_FG;
+	}
+
+	return vg[group].ug;
 }
 #endif
 
@@ -330,7 +307,7 @@ static inline bool get_task_spreading(struct task_struct *p)
 static inline unsigned int get_task_group_throttle(struct task_struct *p)
 {
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
-	return vug[get_vendor_util_group(p)].group_throttle;
+	return ug[get_utilization_group(p, get_vendor_group(p))].group_throttle;
 #else
 	return vg[get_vendor_group(p)].group_throttle;
 #endif
@@ -404,7 +381,7 @@ void init_vendor_group_data(void)
 	for (j = 0; j < CPU_NUM; j++) {
 		rq = cpu_rq(j);
 
-		for (i = 0; i < VUG_MAX - 1; i++) {
+		for (i = 0; i < UG_MAX - 1; i++) {
 			raw_spin_lock_init(&vendor_cfs_util[i][j].lock);
 			vendor_cfs_util[i][j].avg.util_avg = 0;
 			vendor_cfs_util[i][j].avg.util_sum = 0;
@@ -413,12 +390,12 @@ void init_vendor_group_data(void)
 		}
 
 		rq_lock_irqsave(rq, &rf);
-		for (i = 0; i < VUG_MAX - 1; i++)
+		for (i = 0; i < UG_MAX - 1; i++)
 			vendor_cfs_util[i][j].avg.last_update_time = rq_clock_pelt(rq);
 
 		list_for_each_entry(p, &rq->cfs_tasks, se.group_node) {
-			group = get_vendor_util_group(p);
-			if (group == VUG_FG)
+			group = get_utilization_group(p, get_vendor_group(p));
+			if (group == UG_FG)
 				continue;
 			vendor_cfs_util[group][j].avg.util_avg += READ_ONCE(p->se.avg.util_avg);
 			vendor_cfs_util[group][j].avg.util_sum += READ_ONCE(p->se.avg.util_sum);
@@ -439,13 +416,13 @@ void migrate_vendor_group_util(struct task_struct *p, unsigned int old, unsigned
 	unsigned long util_est;
 	int old_mapping, new_mapping;
 
-	old_mapping = (p->prio >= THREAD_PRIORITY_BACKGROUND) ? VUG_BG : vug_mapping[old];
-	new_mapping = (p->prio >= THREAD_PRIORITY_BACKGROUND) ? VUG_BG : vug_mapping[new];
+	old_mapping = get_utilization_group(p, old);
+	new_mapping = get_utilization_group(p, new);
 
 	if (old_mapping == new_mapping)
 		return;
 
-	if (old_mapping == VUG_BG) {
+	if (old_mapping == UG_BG) {
 		util_avg = min(vendor_cfs_util[old_mapping][cpu].avg.util_avg, p->se.avg.util_avg);
 		util_sum = min(vendor_cfs_util[old_mapping][cpu].avg.util_sum, p->se.avg.util_sum);
 		if (likely(sched_feat(UTIL_EST)))
@@ -459,7 +436,7 @@ void migrate_vendor_group_util(struct task_struct *p, unsigned int old, unsigned
 	}
 
 	//remove util from old group
-	if (old_mapping == VUG_BG) {
+	if (old_mapping == UG_BG) {
 		raw_spin_lock_irqsave(&vendor_cfs_util[old_mapping][cpu].lock, flags);
 		vendor_cfs_util[old_mapping][cpu].avg.util_avg -= util_avg;
 		vendor_cfs_util[old_mapping][cpu].avg.util_sum -= util_sum;
@@ -471,7 +448,7 @@ void migrate_vendor_group_util(struct task_struct *p, unsigned int old, unsigned
 	}
 
 	//move util to new group
-	if (new_mapping == VUG_BG) {
+	if (new_mapping == UG_BG) {
 		raw_spin_lock_irqsave(&vendor_cfs_util[new_mapping][cpu].lock, flags);
 		vendor_cfs_util[new_mapping][cpu].avg.util_avg += util_avg;
 		vendor_cfs_util[new_mapping][cpu].avg.util_sum += util_sum;
@@ -487,31 +464,33 @@ void migrate_vendor_group_util(struct task_struct *p, unsigned int old, unsigned
 static inline void update_vendor_group_util(u64 now, struct cfs_rq *cfs_rq,
 					    struct sched_entity *se)
 {
-	int curr_group = -1, se_group = get_vendor_util_group(task_of(se));
+	int curr_group = -1, se_group = get_utilization_group(task_of(se),
+							      get_vendor_group(task_of(se)));
 	struct sched_avg *sa;
 	unsigned long removed_util;
 	u32 divider;
 
 	if (cfs_rq->curr && entity_is_task(cfs_rq->curr))
-		curr_group = get_vendor_util_group(task_of(cfs_rq->curr));
+		curr_group = get_utilization_group(task_of(cfs_rq->curr),
+						   get_vendor_group(task_of(cfs_rq->curr)));
 
-	sa = &vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].avg;
-	if (vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].util_removed) {
+	sa = &vendor_cfs_util[UG_BG][cfs_rq->rq->cpu].avg;
+	if (vendor_cfs_util[UG_BG][cfs_rq->rq->cpu].util_removed) {
 		removed_util = 0;
 		divider = get_pelt_divider(sa);
-		raw_spin_lock(&vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].lock);
-		swap(vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].util_removed, removed_util);
+		raw_spin_lock(&vendor_cfs_util[UG_BG][cfs_rq->rq->cpu].lock);
+		swap(vendor_cfs_util[UG_BG][cfs_rq->rq->cpu].util_removed, removed_util);
 		lsub_positive(&sa->util_avg, removed_util);
 		lsub_positive(&sa->util_sum, removed_util * divider);
 		sa->util_sum = max_t(unsigned long, sa->util_sum, sa->util_avg * PELT_MIN_DIVIDER);
-		raw_spin_unlock(&vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].lock);
+		raw_spin_unlock(&vendor_cfs_util[UG_BG][cfs_rq->rq->cpu].lock);
 	}
 
-	if (curr_group == VUG_BG || se_group == VUG_BG || sa->util_avg != 0 || sa->util_sum != 0) {
-		raw_spin_lock(&vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].lock);
-		if (___update_load_sum(now, sa, curr_group == VUG_BG, 0, curr_group == VUG_BG))
+	if (curr_group == UG_BG || se_group == UG_BG || sa->util_avg != 0 || sa->util_sum != 0) {
+		raw_spin_lock(&vendor_cfs_util[UG_BG][cfs_rq->rq->cpu].lock);
+		if (___update_load_sum(now, sa, curr_group == UG_BG, 0, curr_group == UG_BG))
 			___update_load_avg(sa, 1);
-		raw_spin_unlock(&vendor_cfs_util[VUG_BG][cfs_rq->rq->cpu].lock);
+		raw_spin_unlock(&vendor_cfs_util[UG_BG][cfs_rq->rq->cpu].lock);
 	}
 }
 
@@ -520,22 +499,22 @@ static inline void update_vendor_group_util_blocked(u64 now, struct rq *rq)
 {
 	struct sched_avg *sa;
 
-	sa = &vendor_cfs_util[VUG_BG][rq->cpu].avg;
+	sa = &vendor_cfs_util[UG_BG][rq->cpu].avg;
 	if ((available_idle_cpu(rq->cpu) || task_is_realtime(rq->curr)) &&
 	    (sa->util_avg != 0 || sa->util_sum != 0)) {
-		raw_spin_lock(&vendor_cfs_util[VUG_BG][rq->cpu].lock);
+		raw_spin_lock(&vendor_cfs_util[UG_BG][rq->cpu].lock);
 		if (___update_load_sum(now, sa, 0, 0, 0))
 			___update_load_avg(sa, 1);
-		raw_spin_unlock(&vendor_cfs_util[VUG_BG][rq->cpu].lock);
+		raw_spin_unlock(&vendor_cfs_util[UG_BG][rq->cpu].lock);
 	}
 }
 
 /* This function hooks to attach_entity_load_avg */
 static inline void attach_vendor_group_util(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	int group = get_vendor_util_group(task_of(se));
+	int group = get_utilization_group(task_of(se), get_vendor_group(task_of(se)));
 
-	if (group == VUG_BG) {
+	if (group == UG_BG) {
 		raw_spin_lock(&vendor_cfs_util[group][cfs_rq->rq->cpu].lock);
 		vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_avg += se->avg.util_avg;
 		vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_sum += se->avg.util_sum;
@@ -546,9 +525,9 @@ static inline void attach_vendor_group_util(struct cfs_rq *cfs_rq, struct sched_
 /* This function hooks to detach_entity_load_avg */
 static inline void detach_vendor_group_util(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	int group = get_vendor_util_group(task_of(se));
+	int group = get_utilization_group(task_of(se), get_vendor_group(task_of(se)));
 
-	if (group == VUG_BG) {
+	if (group == UG_BG) {
 		raw_spin_lock(&vendor_cfs_util[group][cfs_rq->rq->cpu].lock);
 		lsub_positive(&vendor_cfs_util[group][cfs_rq->rq->cpu].avg.util_avg,
 			      se->avg.util_avg);
@@ -568,10 +547,10 @@ static inline void detach_vendor_group_util(struct cfs_rq *cfs_rq, struct sched_
  */
 static inline void remove_vendor_group_util(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	int group = get_vendor_util_group(task_of(se));
+	int group = get_utilization_group(task_of(se), get_vendor_group(task_of(se)));
 	unsigned long flags;
 
-	if (group == VUG_BG) {
+	if (group == UG_BG) {
 		raw_spin_lock_irqsave(&vendor_cfs_util[group][cfs_rq->rq->cpu].lock, flags);
 		vendor_cfs_util[group][cfs_rq->rq->cpu].util_removed += se->avg.util_avg;
 		raw_spin_unlock_irqrestore(&vendor_cfs_util[group][cfs_rq->rq->cpu].lock, flags);
@@ -587,12 +566,12 @@ static inline unsigned long cpu_vendor_group_util(int cpu, bool with, struct tas
 #endif
 
 	if (p)
-		group = get_vendor_util_group(p);
+		group = get_utilization_group(p, get_vendor_group(p));
 
 	// Calculate bg group util first.
-	util = vendor_cfs_util[VUG_BG][cpu].avg.util_avg;
+	util = vendor_cfs_util[UG_BG][cpu].avg.util_avg;
 
-	if (group == VUG_BG) {
+	if (group == UG_BG) {
 		if (with) {
 			util += task_util(p);
 		} else {
@@ -601,15 +580,15 @@ static inline unsigned long cpu_vendor_group_util(int cpu, bool with, struct tas
 	}
 
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-	util = min_t(unsigned long, util, cap_scale(vug[VUG_BG].group_throttle, scale_cpu));
+	util = min_t(unsigned long, util, cap_scale(ug[UG_BG].group_throttle, scale_cpu));
 #endif
-	util = min_t(unsigned long, util, vug[VUG_BG].uc_req[UCLAMP_MAX].value);
+	util = min_t(unsigned long, util, ug[UG_BG].uc_req[UCLAMP_MAX].value);
 
 	// For fg group, we use root util - bg group util.
 	fg_group_util = cpu_rq(cpu)->cfs.avg.util_avg;
-	lsub_positive(&fg_group_util, vendor_cfs_util[VUG_BG][cpu].avg.util_avg);
+	lsub_positive(&fg_group_util, vendor_cfs_util[UG_BG][cpu].avg.util_avg);
 
-	if (group == VUG_FG) {
+	if (group == UG_FG) {
 		if (with) {
 			fg_group_util += task_util(p);
 		} else {
@@ -619,10 +598,10 @@ static inline unsigned long cpu_vendor_group_util(int cpu, bool with, struct tas
 
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
 		fg_group_util = min_t(unsigned long, fg_group_util,
-				      cap_scale(vug[VUG_FG].group_throttle, scale_cpu));
+				      cap_scale(ug[UG_FG].group_throttle, scale_cpu));
 #endif
 		fg_group_util = min_t(unsigned long, fg_group_util,
-				      vug[VUG_FG].uc_req[UCLAMP_MAX].value);
+				      ug[UG_FG].uc_req[UCLAMP_MAX].value);
 
 		util += fg_group_util;
 
@@ -638,12 +617,12 @@ static inline unsigned long cpu_vendor_group_util_est(int cpu, bool with, struct
 #endif
 
 	if (p)
-		group = get_vendor_util_group(p);
+		group = get_utilization_group(p, get_vendor_group(p));
 
 	// Get bg group util_est first.
-	util_est = vendor_cfs_util[VUG_BG][cpu].util_est;
+	util_est = vendor_cfs_util[UG_BG][cpu].util_est;
 
-	if (group == VUG_BG) {
+	if (group == UG_BG) {
 		if (with) {
 			util_est += _task_util_est(p);
 		} else {
@@ -652,15 +631,15 @@ static inline unsigned long cpu_vendor_group_util_est(int cpu, bool with, struct
 	}
 
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-	util_est = min_t(unsigned long, util_est, cap_scale(vug[VUG_BG].group_throttle, scale_cpu));
+	util_est = min_t(unsigned long, util_est, cap_scale(ug[UG_BG].group_throttle, scale_cpu));
 #endif
-	util_est = min_t(unsigned long, util_est, vug[VUG_BG].uc_req[UCLAMP_MAX].value);
+	util_est = min_t(unsigned long, util_est, ug[UG_BG].uc_req[UCLAMP_MAX].value);
 
 	// For fg group, we use root util_est - bg group util_est.
 	fg_group_util_est = cpu_rq(cpu)->cfs.avg.util_est.enqueued;
-	lsub_positive(&fg_group_util_est, vendor_cfs_util[VUG_BG][cpu].util_est);
+	lsub_positive(&fg_group_util_est, vendor_cfs_util[UG_BG][cpu].util_est);
 
-	if (group == VUG_FG) {
+	if (group == UG_FG) {
 		if (with) {
 			fg_group_util_est += _task_util_est(p);
 		} else {
@@ -670,10 +649,10 @@ static inline unsigned long cpu_vendor_group_util_est(int cpu, bool with, struct
 
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
 		fg_group_util_est = min_t(unsigned long, fg_group_util_est,
-					  cap_scale(vug[VUG_FG].group_throttle, scale_cpu));
+					  cap_scale(ug[UG_FG].group_throttle, scale_cpu));
 #endif
 		fg_group_util_est = min_t(unsigned long, fg_group_util_est,
-					  vug[VUG_FG].uc_req[UCLAMP_MAX].value);
+					  ug[UG_FG].uc_req[UCLAMP_MAX].value);
 
 		util_est += fg_group_util_est;
 
@@ -750,17 +729,17 @@ unsigned long cpu_util(int cpu)
 static inline unsigned long get_group_util(int cpu, struct task_struct *p, unsigned long max,
 					   bool subtract)
 {
-	int group = get_vendor_util_group(p);
+	int group = get_utilization_group(p, get_vendor_group(p));
 	unsigned long util = cpu_rq(cpu)->cfs.avg.util_avg;
 
-	if (group == VUG_BG) {
-		util = vendor_cfs_util[VUG_BG][cpu].avg.util_avg;
+	if (group == UG_BG) {
+		util = vendor_cfs_util[UG_BG][cpu].avg.util_avg;
 
 		if (subtract && (cpu == task_cpu(p) && READ_ONCE(p->se.avg.last_update_time)))
 			lsub_positive(&util, task_util(p));
 
 		if (likely(sched_feat(UTIL_EST))) {
-			unsigned long util_est = vendor_cfs_util[VUG_BG][cpu].util_est;
+			unsigned long util_est = vendor_cfs_util[UG_BG][cpu].util_est;
 
 			if (subtract && unlikely(task_on_rq_queued(p) || current == p))
 				lsub_positive(&util_est, _task_util_est(p));
@@ -768,16 +747,16 @@ static inline unsigned long get_group_util(int cpu, struct task_struct *p, unsig
 			util = max(util, util_est);
 		}
 	// For fg group, we use root util - bg group util
-	} else if (group == VUG_FG) {
+	} else if (group == UG_FG) {
 		util = cpu_rq(cpu)->cfs.avg.util_avg;
-		lsub_positive(&util, vendor_cfs_util[VUG_BG][cpu].avg.util_avg);
+		lsub_positive(&util, vendor_cfs_util[UG_BG][cpu].avg.util_avg);
 
 		if (subtract && (cpu == task_cpu(p) && READ_ONCE(p->se.avg.last_update_time)))
 			lsub_positive(&util, task_util(p));
 
 		if (likely(sched_feat(UTIL_EST))) {
 			unsigned long util_est = cpu_rq(cpu)->cfs.avg.util_est.enqueued -
-						 vendor_cfs_util[VUG_BG][cpu].util_est;
+						 vendor_cfs_util[UG_BG][cpu].util_est;
 
 			if (subtract && unlikely(task_on_rq_queued(p) || current == p))
 				lsub_positive(&util_est, _task_util_est(p));
@@ -915,11 +894,11 @@ struct vendor_group_property *get_vendor_group_property(enum vendor_group group)
 }
 
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
-struct vendor_util_group_property *get_vendor_util_group_property(enum vendor_util_group group)
+struct vendor_util_group_property *get_vendor_util_group_property(enum utilization_group group)
 {
-	SCHED_WARN_ON(group < VUG_BG || group >= VUG_MAX);
+	SCHED_WARN_ON(group < UG_BG || group >= UG_MAX);
 
-	return &(vug[group]);
+	return &(ug[group]);
 }
 #endif
 
@@ -2194,15 +2173,16 @@ void initialize_vendor_group_property(void)
 		vg[i].uc_req[UCLAMP_MAX].value = max_val;
 		vg[i].uc_req[UCLAMP_MAX].bucket_id = get_bucket_id(max_val);
 		vg[i].uc_req[UCLAMP_MAX].user_defined = false;
+		vg[i].ug = UG_AUTO;
 	}
 
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
-	for (i = 0; i < VUG_MAX; i++) {
+	for (i = 0; i < UG_MAX; i++) {
 #if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-		vug[i].group_throttle = max_val;
+		ug[i].group_throttle = max_val;
 #endif
-		vug[i].uc_req[UCLAMP_MIN].value = min_val;
-		vug[i].uc_req[UCLAMP_MAX].value = max_val;
+		ug[i].uc_req[UCLAMP_MIN].value = min_val;
+		ug[i].uc_req[UCLAMP_MAX].value = max_val;
 	}
 #endif
 }
@@ -2777,9 +2757,9 @@ void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 {
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	if (likely(sched_feat(UTIL_EST))) {
-		int group = get_vendor_util_group(p);
+		int group = get_utilization_group(p, get_vendor_group(p));
 
-		if (group == VUG_BG) {
+		if (group == UG_BG) {
 			raw_spin_lock(&vendor_cfs_util[group][rq->cpu].lock);
 			vendor_cfs_util[group][rq->cpu].util_est += _task_util_est(p);
 			raw_spin_unlock(&vendor_cfs_util[group][rq->cpu].lock);
@@ -2817,9 +2797,9 @@ void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 {
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	if (likely(sched_feat(UTIL_EST))) {
-		int group = get_vendor_util_group(p);
+		int group = get_utilization_group(p, get_vendor_group(p));
 
-		if (group == VUG_BG) {
+		if (group == UG_BG) {
 			raw_spin_lock(&vendor_cfs_util[group][rq->cpu].lock);
 			if (!rq->cfs.h_nr_running)
 				vendor_cfs_util[group][rq->cpu].util_est = 0;

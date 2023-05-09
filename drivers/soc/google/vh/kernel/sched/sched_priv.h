@@ -97,6 +97,7 @@ struct vendor_group_property {
 	unsigned int uclamp_max_on_nice_high_prio;
 	bool uclamp_min_on_nice_enable;
 	bool uclamp_max_on_nice_enable;
+	enum utilization_group ug;
 	struct uclamp_se uc_req[UCLAMP_CNT];
 };
 
