@@ -22,6 +22,12 @@ static const int default_thresholds[MAX_SUPPORTED_THRESHOLDS] = {
 
 struct temperature_sample {
 	int temp;
+	// real timestamp in seconds
+	time64_t timestamp;
+};
+
+struct temperature_bucket_sample {
+	int temp;
 	ktime_t update_time;
 	int bucket;
 };
@@ -30,9 +36,11 @@ struct temperature_residency_stats {
 	spinlock_t lock;
 	int threshold[MAX_SUPPORTED_THRESHOLDS];
 	atomic64_t time_in_state_ms[MAX_SUPPORTED_THRESHOLDS + 1];
+	struct temperature_sample max_sample;
+	struct temperature_sample min_sample;
 	bool started;
 	char name[THERMAL_NAME_LENGTH + 1];
-	struct temperature_sample prev;
+	struct temperature_bucket_sample prev;
 	int num_thresholds;
 	struct kobject *thermal_group_kobj;
 };
@@ -53,6 +61,12 @@ static struct attribute_group temp_residency_all_attr_group;
  *                          HELPER FUNCTIONS                         *
  *********************************************************************/
 
+static void set_temperature_sample(struct temperature_sample *sample, int temp)
+{
+	sample->temp = temp;
+	sample->timestamp = ktime_get_real_seconds();
+}
+
 static void reset_residency_stats(tr_handle instance)
 {
 	int index;
@@ -60,6 +74,8 @@ static void reset_residency_stats(tr_handle instance)
 	for (index = 0; index < stats->num_thresholds + 1; index++) {
 		atomic64_set(&(stats->time_in_state_ms[index]), 0);
 	}
+	set_temperature_sample(&stats->max_sample, INT_MIN);
+	set_temperature_sample(&stats->min_sample, INT_MAX);
 	return;
 }
 
@@ -215,7 +231,7 @@ int temp_residency_stats_update(tr_handle instance, int temp)
 	ktime_t curr_time = ktime_get();
 	s64 latency_ms;
 	struct temperature_residency_stats *stats;
-	struct temperature_sample *prev_sample;
+	struct temperature_bucket_sample *prev_sample;
 	if (instance < 0 || instance > MAX_NUM_SUPPORTED_THERMAL_ZONES)
 		return -EINVAL;
 	stats = &residency_stat_array[instance];
@@ -223,6 +239,8 @@ int temp_residency_stats_update(tr_handle instance, int temp)
 	curr_bucket = get_curr_bucket(instance, temp);
 	if (!stats->started) {
 		stats->started = true;
+		set_temperature_sample(&stats->max_sample, temp);
+		set_temperature_sample(&stats->min_sample, temp);
 		goto end;
 	}
 	latency_ms = ktime_to_ms(ktime_sub(curr_time, prev_sample->update_time));
@@ -246,6 +264,10 @@ end:
 	prev_sample->update_time = curr_time;
 	prev_sample->temp = temp;
 	prev_sample->bucket = curr_bucket;
+	if (temp > stats->max_sample.temp)
+		set_temperature_sample(&stats->max_sample, temp);
+	if (temp < stats->min_sample.temp)
+		set_temperature_sample(&stats->min_sample, temp);
 	return 0;
 
 }
@@ -270,6 +292,12 @@ static ssize_t temp_residency_all_stats_show(struct kobject *kobj,
 		if (residency_stat_array[instance].name[0] != '\0' &&
 							kobj == stats->thermal_group_kobj) {
 			len += sysfs_emit_at(buf, len, "THERMAL ZONE: %s\n", stats->name);
+		len += sysfs_emit_at(buf, len, "MAX_TEMP: %d\n", stats->max_sample.temp);
+		len += sysfs_emit_at(buf, len, "MAX_TEMP_TIMESTAMP: %llds\n",
+			stats->max_sample.timestamp);
+		len += sysfs_emit_at(buf, len, "MIN_TEMP: %d\n", stats->min_sample.temp);
+		len += sysfs_emit_at(buf, len, "MIN_TEMP_TIMESTAMP: %llds\n",
+			stats->min_sample.timestamp);
 			len += sysfs_emit_at(buf, len,
 				"NUM_TEMP_RESIDENCY_BUCKETS: %d\n", stats->num_thresholds + 1);
 			len += sysfs_emit_at(buf, len, "-inf - %d ====> %lldms\n",
@@ -315,6 +343,12 @@ static ssize_t temp_residency_name_stats_show(struct kobject *kobj,
 	}
 	designated_stats = &residency_stat_array[designated_handle];
 	len += sysfs_emit_at(buf, len, "THERMAL ZONE: %s\n", designated_stats->name);
+	len += sysfs_emit_at(buf, len, "MAX_TEMP: %d\n", designated_stats->max_sample.temp);
+	len += sysfs_emit_at(buf, len, "MAX_TEMP_TIMESTAMP: %llds\n",
+			designated_stats->max_sample.timestamp);
+	len += sysfs_emit_at(buf, len, "MIN_TEMP: %d\n", designated_stats->min_sample.temp);
+	len += sysfs_emit_at(buf, len, "MIN_TEMP_TIMESTAMP: %llds\n",
+			designated_stats->min_sample.timestamp);
 	len += sysfs_emit_at(buf, len, "-inf - %d ====> %lldms\n",
 			designated_stats->threshold[0],
 			atomic64_read(&(designated_stats->time_in_state_ms[0])));
@@ -487,6 +521,7 @@ static ssize_t all_tz_name_show(struct kobject *kobj,
 		if (stats->name[0] != '\0')
 			len += sysfs_emit_at(buf, len, "%s,", stats->name);
 	}
+	len += sysfs_emit_at(buf, len, "\n");
 	return len;
 }
 
