@@ -382,11 +382,13 @@
 		reg = <0x0 0x180D0000 0x1000>,
 			<0x0 0x180E0000 0x1000>,
 			<0x0 0x10540204 0x100>,
-			<0x0 0x18300000 0x100>;  /* GS_MAILBOX_AP_AOCA3_HOST */
+			<0x0 0x18300000 0x100>,  /* GS_MAILBOX_AP_AOCA3_HOST */
+			<0x0 0x18320000 0x100>;  /* GS_MAILBOX_AP_AOCF1_HOST */
 		reg-names = "gpio_alive_base",
 			"gpio_far_alive_base",
 			"gicd_ispendrn_base",
-			"mailbox_ap_aoc_host";
+			"mailbox_ap_aoca3_host",
+			"mailbox_ap_aocf1_host";
 		num-eint = <64>;	/* EINT_0 ~ 44 */
 		num-eint-far = <32>;	/* EINT_45 ~ 66 */
 		gpa-use = <8>, <7>, <5>, <4>, <4>, <7>, <8>, <2>, <8>, <4>, <8>, <2>;
