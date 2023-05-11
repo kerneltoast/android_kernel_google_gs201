@@ -10,5 +10,4 @@ blocklist syna_touch
 blocklist uwb_desense.ko
 blocklist uwb-hal.ko
 blocklist uwbcore.ko
-blocklist cl_dsp
-blocklist input-cs40l26-i2c
+blocklist cs40l26_i2c
