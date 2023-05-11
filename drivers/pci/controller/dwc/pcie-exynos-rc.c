@@ -5100,8 +5100,10 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 		exynos_pcie->log = logbuffer_register("pcie1");
 	else
 		dev_err(&pdev->dev, "invalid ch_num=%d for logbuffer registry\n", ch_num);
-	if (IS_ERR_OR_NULL(exynos_pcie->log))
+	if (IS_ERR_OR_NULL(exynos_pcie->log)) {
 		dev_err(&pdev->dev, "logbuffer register failed\n");
+		exynos_pcie->log = NULL;
+	}
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
