@@ -157,6 +157,7 @@ struct samsung_pin_bank_data {
  * @irq_chip: link to irq chip for external gpio and wakeup interrupts.
  * @slock: spinlock protecting bank registers
  * @pm_save: saved register values during suspend
+ * @weint_data: wakeup interrupt data
  */
 struct samsung_pin_bank {
 	const struct samsung_pin_bank_type *type;
@@ -185,6 +186,8 @@ struct samsung_pin_bank {
 	spinlock_t slock;
 
 	u32 pm_save[PINCFG_TYPE_NUM + 1]; /* +1 to handle double CON registers*/
+
+	struct exynos_weint_data *weint_data;
 };
 
 /**
