@@ -22,7 +22,11 @@ obj-$(CONFIG_VH_CGROUP)	+= cgroup/
 obj-$(CONFIG_VH_I2C)     += i2c/
 
 # vh/kernel/pixel_em
+ifneq ($(CONFIG_PIXEL_EM),)
 obj-$(CONFIG_PIXEL_EM)   += pixel_em/
+else
+obj-y			 += no_pixel_em.o
+endif
 
 # pixel metrics
 obj-$(CONFIG_PIXEL_METRICS)	+= metrics/
