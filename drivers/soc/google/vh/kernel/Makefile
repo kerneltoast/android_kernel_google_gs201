@@ -23,6 +23,7 @@ obj-$(CONFIG_VH_I2C)     += i2c/
 
 # vh/kernel/pixel_em
 obj-$(CONFIG_PIXEL_EM)   += pixel_em/
+obj-y			 += no_pixel_em.o
 
 # pixel metrics
 obj-$(CONFIG_PIXEL_METRICS)	+= metrics/
