@@ -359,8 +359,6 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	struct cpumask backup_mask;
 	int i;
 
-	*new_cpu = prev_cpu;
-
 	if (sd_flag != SD_BALANCE_WAKE && sd_flag != SD_BALANCE_FORK)
 		goto out;
 
@@ -412,6 +410,13 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 out_unlock:
 	rcu_read_unlock();
 out:
+	if (*new_cpu == -1) {
+		/* No other good options, try to use the previous CPU */
+		if (likely(cpumask_test_cpu(prev_cpu, p->cpus_ptr)))
+			*new_cpu = prev_cpu;
+		else
+			*new_cpu = cpumask_first(p->cpus_ptr);
+	}
 	trace_sched_select_task_rq_rt(p, task_util(p), prev_cpu, target, *new_cpu, sync_wakeup);
 
 	return;
