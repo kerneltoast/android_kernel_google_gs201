@@ -1430,8 +1430,8 @@ void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int pr
 	sync_boost = sync && cpu >= HIGH_CAPACITY_CPU;
 
 	/* prefer prev cpu */
-	if (cpu_active(prev_cpu) && cpu_is_idle(prev_cpu) && task_fits_capacity(p, prev_cpu,
-	     sync_boost)) {
+	if (cpumask_test_cpu(prev_cpu, p->cpus_ptr) && cpu_active(prev_cpu) &&
+	    cpu_is_idle(prev_cpu) && task_fits_capacity(p, prev_cpu, sync_boost)) {
 
 		struct cpuidle_state *idle_state;
 		unsigned int exit_lat = UINT_MAX;
