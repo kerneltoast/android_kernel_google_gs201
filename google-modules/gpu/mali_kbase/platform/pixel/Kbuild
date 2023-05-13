@@ -38,7 +38,7 @@ mali_kbase-$(CONFIG_MALI_PIXEL_GPU_THERMAL) += \
 ifneq ($(filter -DCONFIG_MALI_PIXEL_GPU_SSCD, $(ccflags-y)),)
 mali_kbase-y += \
 	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_sscd.o
-endif
 
 mali_kbase-$(CONFIG_MALI_CSF_SUPPORT) += \
 	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_debug.o
+endif
