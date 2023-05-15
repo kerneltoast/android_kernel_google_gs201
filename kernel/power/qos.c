@@ -83,11 +83,16 @@ static void pm_qos_set_value(struct pm_qos_constraints *c, s32 value)
 	WRITE_ONCE(c->target_value, value);
 }
 
+static bool pm_qos_is_cpu_latency(struct pm_qos_constraints *c);
 static inline void pm_qos_set_value_for_cpus(struct pm_qos_constraints *c)
 {
 	struct pm_qos_request *req = NULL;
 	int cpu;
 	s32 qos_val[NR_CPUS] = { [0 ... (NR_CPUS - 1)] = c->default_value };
+
+	/* This request might not be for CPU latency */
+	if (!pm_qos_is_cpu_latency(c))
+		return;
 
 	plist_for_each_entry(req, &c->list, node) {
 		for_each_cpu(cpu, &req->cpus_affine) {
@@ -560,6 +565,15 @@ static int __init cpu_latency_qos_init(void)
 }
 late_initcall(cpu_latency_qos_init);
 #endif /* CONFIG_CPU_IDLE */
+
+static bool pm_qos_is_cpu_latency(struct pm_qos_constraints *c)
+{
+#ifdef CONFIG_CPU_IDLE
+	return c == &cpu_latency_constraints;
+#else
+	return false;
+#endif
+}
 
 /* Definitions related to the frequency QoS below. */
 
