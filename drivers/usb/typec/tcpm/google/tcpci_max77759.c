@@ -2120,8 +2120,11 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 	 * during the charging session. AICL active is system/battery load dependent and
 	 * hence can change status during a charge session.
 	 */
-	if (!attached)
+	if (!attached) {
 		update_compliance_warnings(chip, COMPLIANCE_WARNING_OTHER, false);
+		/* Clear BC12 as fallback when hardware does not clear it on disconnect. */
+		update_compliance_warnings(chip, COMPLIANCE_WARNING_BC12, false);
+	}
 
 	return 0;
 }
