@@ -21,7 +21,7 @@ void kvm_hyp_cpu_resume(unsigned long r0);
 void __noreturn __host_enter(struct kvm_cpu_context *host_ctxt);
 
 /* Config options set by the host. */
-struct kvm_host_psci_config __ro_after_init kvm_host_psci_config;
+__visible struct kvm_host_psci_config __ro_after_init kvm_host_psci_config;
 
 #define INVALID_CPU_ID	UINT_MAX
 
