@@ -90,7 +90,7 @@ void aoc_trigger_watchdog(const char *reason);
 /* Rings should have the ring flag set, slots = 1, size = ring size
  * tx/rx stats for rings are measured in bytes, otherwise msg sends
  */
-#define AOC_MAX_ENDPOINTS 80
+#define AOC_MAX_ENDPOINTS 96
 #define AOC_ENDPOINT_NONE 0xffffffff
 
 /* Offset from the beginning of the DRAM region for the firmware to be stored */
