@@ -82,7 +82,7 @@ vmlinux_link()
 		ldlibs="-lutil -lrt -lpthread"
 	else
 		wl=
-		ld="${LD}"
+		ld="${LDFINAL}"
 		ldflags="${KBUILD_LDFLAGS} ${LDFLAGS_vmlinux}"
 		ldlibs=
 	fi
