@@ -98,7 +98,7 @@ modpost_link()
 		info LD ${1}
 	fi
 
-	${LD} ${KBUILD_LDFLAGS} -r -o ${1} ${lds} ${objects}
+	${LDFINAL} ${KBUILD_LDFLAGS} -r -o ${1} ${lds} ${objects}
 }
 
 objtool_link()
@@ -190,7 +190,7 @@ vmlinux_link()
 				${@}"
 		fi
 
-		${LD} ${KBUILD_LDFLAGS} ${LDFLAGS_vmlinux}	\
+		${LDFINAL} ${KBUILD_LDFLAGS} ${LDFLAGS_vmlinux}	\
 			${strip_debug#-Wl,}			\
 			-o ${output}				\
 			-T ${lds} ${objects}
