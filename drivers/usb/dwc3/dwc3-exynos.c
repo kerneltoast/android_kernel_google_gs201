@@ -114,36 +114,13 @@ err:
 	return -EINVAL;
 }
 
-static int dwc3_exynos_clk_prepare(struct dwc3_exynos *exynos)
+static int dwc3_exynos_clk_prepare_enable(struct dwc3_exynos *exynos)
 {
 	int i;
 	int ret;
 
 	for (i = 0; exynos->clocks[i]; i++) {
-		ret = clk_prepare(exynos->clocks[i]);
-		if (ret)
-			goto err;
-	}
-
-	return 0;
-
-err:
-	dev_err(exynos->dev, "couldn't prepare clock[%d]\n", i);
-
-	/* roll back */
-	for (i = i - 1; i >= 0; i--)
-		clk_unprepare(exynos->clocks[i]);
-
-	return ret;
-}
-
-static int dwc3_exynos_clk_enable(struct dwc3_exynos *exynos)
-{
-	int i;
-	int ret;
-
-	for (i = 0; exynos->clocks[i]; i++) {
-		ret = clk_enable(exynos->clocks[i]);
+		ret = clk_prepare_enable(exynos->clocks[i]);
 		if (ret)
 			goto err;
 	}
@@ -155,25 +132,18 @@ err:
 
 	/* roll back */
 	for (i = i - 1; i >= 0; i--)
-		clk_disable(exynos->clocks[i]);
+		clk_disable_unprepare(exynos->clocks[i]);
 
 	return ret;
 }
 
-static void dwc3_exynos_clk_unprepare(struct dwc3_exynos *exynos)
+static void dwc3_exynos_clk_disable_unprepare(struct dwc3_exynos *exynos)
 {
 	int i;
 
-	for (i = 0; exynos->clocks[i]; i++)
-		clk_unprepare(exynos->clocks[i]);
-}
-
-static void dwc3_exynos_clk_disable(struct dwc3_exynos *exynos)
-{
-	int i;
-
-	for (i = 0; exynos->clocks[i]; i++)
-		clk_disable(exynos->clocks[i]);
+	for (i = 0; exynos->clocks[i]; i++){
+		clk_disable_unprepare(exynos->clocks[i]);
+	}
 }
 
 static void dwc3_core_config(struct dwc3 *dwc, struct dwc3_exynos *exynos)
@@ -1113,16 +1083,6 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = dwc3_exynos_clk_prepare(exynos);
-	if (ret)
-		return ret;
-
-	ret = dwc3_exynos_clk_enable(exynos);
-	if (ret) {
-		dwc3_exynos_clk_unprepare(exynos);
-		return ret;
-	}
-
 	ret = dwc3_exynos_extcon_register(exynos);
 	if (ret < 0) {
 		dev_err(dev, "failed to register extcon\n");
@@ -1221,8 +1181,7 @@ populate_err:
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
 vdd33_err:
-	dwc3_exynos_clk_disable(exynos);
-	dwc3_exynos_clk_unprepare(exynos);
+	dwc3_exynos_clk_disable_unprepare(exynos);
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 1);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
@@ -1251,11 +1210,9 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev)) {
-		dwc3_exynos_clk_disable(exynos);
+		dwc3_exynos_clk_disable_unprepare(exynos);
 		pm_runtime_set_suspended(&pdev->dev);
 	}
-
-	dwc3_exynos_clk_unprepare(exynos);
 
 	return 0;
 }
@@ -1361,7 +1318,7 @@ static int dwc3_exynos_runtime_suspend(struct device *dev)
 		return 0;
 	}
 
-	dwc3_exynos_clk_disable(exynos);
+	dwc3_exynos_clk_disable_unprepare(exynos);
 
 	/* inform what USB state is idle to IDLE_IP */
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 1);
@@ -1389,9 +1346,9 @@ static int dwc3_exynos_runtime_resume(struct device *dev)
 	/* inform what USB state is not idle to IDLE_IP */
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 0);
 
-	ret = dwc3_exynos_clk_enable(exynos);
+	ret = dwc3_exynos_clk_prepare_enable(exynos);
 	if (ret) {
-		dev_err(dev, "%s: clk_enable failed\n", __func__);
+		dev_err(dev, "%s: clk_prepare_enable failed\n", __func__);
 		return ret;
 	}
 
@@ -1408,7 +1365,7 @@ static int dwc3_exynos_suspend(struct device *dev)
 	if (pm_runtime_suspended(dev))
 		return 0;
 
-	dwc3_exynos_clk_disable(exynos);
+	dwc3_exynos_clk_disable_unprepare(exynos);
 
 	return 0;
 }
@@ -1418,9 +1375,9 @@ static int dwc3_exynos_resume(struct device *dev)
 	struct dwc3_exynos *exynos = dev_get_drvdata(dev);
 	int		ret;
 
-	ret = dwc3_exynos_clk_enable(exynos);
+	ret = dwc3_exynos_clk_prepare_enable(exynos);
 	if (ret) {
-		dev_err(dev, "%s: clk_enable failed\n", __func__);
+		dev_err(dev, "%s: clk_prepare_enable failed\n", __func__);
 		return ret;
 	}
 
