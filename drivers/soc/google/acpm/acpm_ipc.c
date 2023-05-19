@@ -421,7 +421,7 @@ static void check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 	const void *src;
 	unsigned long flags;
 
-	spin_lock_irqsave(&channel->rx_lock, flags);
+	raw_spin_lock_irqsave(&channel->rx_lock, flags);
 
 	rx_front = __raw_readl(channel->rx_ch.front);
 	i = __raw_readl(channel->rx_ch.rear);
@@ -472,7 +472,7 @@ static void check_response(struct acpm_ipc_ch *channel, struct ipc_config *cfg)
 		}
 	}
 
-	spin_unlock_irqrestore(&channel->rx_lock, flags);
+	raw_spin_unlock_irqrestore(&channel->rx_lock, flags);
 }
 
 static void dequeue_policy(struct acpm_ipc_ch *channel)
@@ -483,14 +483,14 @@ static void dequeue_policy(struct acpm_ipc_ch *channel)
 	struct callback_info *cb;
 	unsigned long flags;
 
-	spin_lock_irqsave(&channel->rx_lock, flags);
+	raw_spin_lock_irqsave(&channel->rx_lock, flags);
 
 	pr_debug("[ACPM]%s, ipc_ch=%d, rx_ch.size=0x%X, type=0x%X\n",
 			__func__, channel->id, channel->rx_ch.size, channel->type);
 
 	if (channel->type == TYPE_BUFFER) {
 		memcpy_align_4(channel->cmd, channel->rx_ch.base, channel->rx_ch.size);
-		spin_unlock_irqrestore(&channel->rx_lock, flags);
+		raw_spin_unlock_irqrestore(&channel->rx_lock, flags);
 		list_for_each_entry(cb, cb_list, list)
 			if (cb && cb->ipc_callback)
 				cb->ipc_callback(channel->cmd, channel->rx_ch.size);
@@ -523,7 +523,7 @@ static void dequeue_policy(struct acpm_ipc_ch *channel)
 		front = __raw_readl(channel->rx_ch.front);
 	}
 
-	spin_unlock_irqrestore(&channel->rx_lock, flags);
+	raw_spin_unlock_irqrestore(&channel->rx_lock, flags);
 }
 
 static irqreturn_t acpm_ipc_irq_handler(int irq, void *data)
@@ -698,7 +698,7 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	if (channel->tx_ch.len < 3)
 		return -EIO;
 
-	spin_lock_irqsave(&channel->tx_lock, flags);
+	raw_spin_lock_irqsave(&channel->tx_lock, flags);
 
 	/*
 	 * Reserve at least 2 elements in the queue to prevent buffer full and qfull.
@@ -736,7 +736,7 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 		 * We can't move it before taking the mutex,
 		 * because cfg->cmd could be used as a barrier.
 		 */
-		spin_unlock_irqrestore(&channel->tx_lock, flags);
+		raw_spin_unlock_irqrestore(&channel->tx_lock, flags);
 		return -EIO;
 	}
 
@@ -770,7 +770,7 @@ int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w
 	writel(tmp_index, channel->tx_ch.front);
 
 	apm_interrupt_gen(channel->id);
-	spin_unlock_irqrestore(&channel->tx_lock, flags);
+	raw_spin_unlock_irqrestore(&channel->tx_lock, flags);
 
 	if (channel->polling && cfg->response) {
 		unsigned int saved_debug_log_level = acpm_debug->debug_log_level;
@@ -992,8 +992,8 @@ static int channel_init(void)
 		}
 
 		init_completion(&acpm_ipc->channel[i].wait);
-		spin_lock_init(&acpm_ipc->channel[i].rx_lock);
-		spin_lock_init(&acpm_ipc->channel[i].tx_lock);
+		raw_spin_lock_init(&acpm_ipc->channel[i].rx_lock);
+		raw_spin_lock_init(&acpm_ipc->channel[i].tx_lock);
 		spin_lock_init(&acpm_ipc->channel[i].ch_lock);
 		INIT_LIST_HEAD(&acpm_ipc->channel[i].list);
 	}
