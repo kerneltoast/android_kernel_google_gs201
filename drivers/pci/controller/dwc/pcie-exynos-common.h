@@ -283,7 +283,7 @@ struct exynos_pcie {
 	bool			sudden_linkdown;
 	bool			pma_regs_valid;
 	spinlock_t		conf_lock;		/* pcie config - link status change */
-	spinlock_t		reg_lock;		/* pcie config - reg_lock(reserved) */
+	raw_spinlock_t		reg_lock;		/* pcie config - reg_lock(reserved) */
 	spinlock_t		pcie_l1_exit_lock;	/* pcie l1.2 exit - ctrl_id_state */
 	spinlock_t		power_stats_lock;	/* pcie config - power state change */
 	spinlock_t		s2mpu_refcnt_lock;
