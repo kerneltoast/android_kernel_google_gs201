@@ -2167,7 +2167,7 @@ exynos_serial_ports[CONFIG_SERIAL_EXYNOS_UARTS] = {
 static struct exynos_uart_port *exynos_serial_default_port(int port_index)
 {
 	exynos_serial_ports[port_index].port.lock =
-		__PORT_LOCK_UNLOCKED(port_index);
+		(spinlock_t)__PORT_LOCK_UNLOCKED(port_index);
 	exynos_serial_ports[port_index].port.iotype = UPIO_MEM;
 	exynos_serial_ports[port_index].port.uartclk = 0;
 	exynos_serial_ports[port_index].port.fifosize = 0;
