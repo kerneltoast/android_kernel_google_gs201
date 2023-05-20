@@ -284,11 +284,11 @@ static int gsa_gsc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_request_irq(dev,
-			       gpio_to_irq(s->ctdl_ap_irq),
-			       gsc_irq_handler,
-			       IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-			       dev_name(dev), s);
+	ret = devm_request_threaded_irq(dev,
+					gpio_to_irq(s->ctdl_ap_irq),
+					NULL, gsc_irq_handler,
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					dev_name(dev), s);
 	if (ret) {
 		dev_err(s->dev, "devm_request_irq failed (%d)\n", ret);
 		return ret;
