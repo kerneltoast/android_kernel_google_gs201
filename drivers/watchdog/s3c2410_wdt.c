@@ -1716,7 +1716,8 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 			dev_info(dev, "default timer value is out of range, cannot start\n");
 	}
 
-	ret = devm_request_irq(dev, wdt_irq->start, s3c2410wdt_irq, 0, pdev->name, pdev);
+	ret = devm_request_irq(dev, wdt_irq->start, s3c2410wdt_irq,
+			       IRQF_NO_THREAD, pdev->name, pdev);
 	if (ret != 0) {
 		dev_err(dev, "failed to install irq (%d)\n", ret);
 		goto err_cpufreq;
