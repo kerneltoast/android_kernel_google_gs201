@@ -608,14 +608,14 @@ void wake_up_q(struct wake_q_head *head)
 		/* Task can safely be re-inserted now: */
 		node = node->next;
 		task->wake_q.next = NULL;
-		task->wake_q_count = head->count;
+		task->wake_q_head = head;
 
 		/*
 		 * wake_up_process() executes a full barrier, which pairs with
 		 * the queueing in wake_q_add() so as not to miss wakeups.
 		 */
 		wake_up_process(task);
-		task->wake_q_count = 0;
+		task->wake_q_head = NULL;
 		put_task_struct(task);
 	}
 }
