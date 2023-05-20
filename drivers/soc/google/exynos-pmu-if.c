@@ -12,6 +12,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <soc/google/exynos-pmu-if.h>
 #include <linux/mod_devicetable.h>
 #include <soc/google/exynos-el3_mon.h>
@@ -22,6 +23,11 @@
 static struct regmap *pmureg;
 static phys_addr_t pmu_alive_pa;
 static spinlock_t update_lock;
+
+struct pmu_lock_data {
+	raw_spinlock_t lock;
+	unsigned long irqflags;
+};
 
 /* Atomic operation for PMU_ALIVE registers. (offset 0~0x3FFF)
  *  When the targer register can be accessed by multiple masters,
@@ -291,15 +297,42 @@ static const struct attribute_group *cs_sysfs_groups[] = {
 	NULL,
 };
 
+static void exynos_regmap_lock(void *data)
+__acquires(&regmap_lock)
+{
+	struct pmu_lock_data *plock = data;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&plock->lock, flags);
+	plock->irqflags = flags;
+}
+
+static void exynos_regmap_unlock(void *data)
+__releases(&regmap_lock)
+{
+	struct pmu_lock_data *plock = data;
+
+	raw_spin_unlock_irqrestore(&plock->lock, plock->irqflags);
+}
+
 static int exynos_pmu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *syscon_np;
+	struct pmu_lock_data *plock;
 	struct resource *res;
 
-	pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
-						"samsung,syscon-phandle");
+	plock = kmalloc(sizeof(*plock), GFP_KERNEL);
+	if (!plock)
+		return -ENOMEM;
+
+	raw_spin_lock_init(&plock->lock);
+	syscon_np = of_parse_phandle(dev->of_node, "samsung,syscon-phandle", 0);
+	pmureg = __syscon_node_to_regmap(syscon_np, exynos_regmap_lock,
+					 exynos_regmap_unlock, plock);
 	if (IS_ERR(pmureg)) {
 		pr_err("Fail to get regmap of PMU\n");
+		kfree(plock);
 		return PTR_ERR(pmureg);
 	}
 

@@ -13,10 +13,15 @@
 
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/regmap.h>
 
 struct device_node;
 
 #ifdef CONFIG_MFD_SYSCON
+extern struct regmap *__syscon_node_to_regmap(struct device_node *np,
+					      regmap_lock lock,
+					      regmap_unlock unlock,
+					      void *lock_arg);
 extern struct regmap *device_node_to_regmap(struct device_node *np);
 extern struct regmap *syscon_node_to_regmap(struct device_node *np);
 extern struct regmap *syscon_regmap_lookup_by_compatible(const char *s);
@@ -29,6 +34,14 @@ extern struct regmap *syscon_regmap_lookup_by_phandle_args(
 					int arg_count,
 					unsigned int *out_args);
 #else
+static inline struct regmap *__syscon_node_to_regmap(struct device_node *np,
+						     regmap_lock lock,
+						     regmap_unlock unlock,
+						     void *lock_arg)
+{
+	return ERR_PTR(-ENOTSUPP);
+}
+
 static inline struct regmap *device_node_to_regmap(struct device_node *np)
 {
 	return ERR_PTR(-ENOTSUPP);
