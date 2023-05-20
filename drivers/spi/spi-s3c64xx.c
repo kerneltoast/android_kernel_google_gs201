@@ -1795,7 +1795,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	spin_lock_init(&sdd->lock);
 	init_completion(&sdd->xfer_completion);
 
-	ret = devm_request_irq(&pdev->dev, irq, s3c64xx_spi_irq, 0,
+	ret = devm_request_irq(&pdev->dev, irq, s3c64xx_spi_irq, IRQF_NO_THREAD,
 			       "spi-s3c64xx", sdd);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to request IRQ %d: %d\n",
