@@ -534,6 +534,7 @@ enum zone_watermarks {
 #define wmark_pages(z, i) (z->_watermark[i] + z->watermark_boost)
 
 struct per_cpu_pages {
+	spinlock_t lock;	/* Protects lists field */
 	int count;		/* number of pages in the list */
 	int high;		/* high watermark, emptying needed */
 	int batch;		/* chunk size for buddy add/remove */
@@ -552,11 +553,6 @@ struct per_cpu_pageset {
 	s8 stat_threshold;
 	s8 vm_stat_diff[NR_VM_ZONE_STAT_ITEMS];
 #endif
-};
-
-struct per_cpu_pageset_ext {
-	spinlock_t lock;	/* Protects pageset.pcp.lists field */
-	struct per_cpu_pageset pageset;
 };
 
 struct per_cpu_nodestat {
