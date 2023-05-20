@@ -38,7 +38,6 @@
 struct wake_q_head {
 	struct wake_q_node *first;
 	struct wake_q_node **lastp;
-	int count;
 };
 
 #define WAKE_Q_TAIL ((struct wake_q_node *) 0x01)
@@ -50,7 +49,6 @@ static inline void wake_q_init(struct wake_q_head *head)
 {
 	head->first = WAKE_Q_TAIL;
 	head->lastp = &head->first;
-	head->count = 0;
 }
 
 static inline bool wake_q_empty(struct wake_q_head *head)
