@@ -1535,19 +1535,6 @@ static irqreturn_t max77759_irq(int irq, void *dev_id)
 	return irq_return;
 }
 
-static irqreturn_t max77759_isr(int irq, void *dev_id)
-{
-	struct max77759_plat *chip = dev_id;
-
-	logbuffer_log(chip->log, "TCPC_ALERT triggered ");
-	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
-
-	if (!chip->tcpci)
-		return IRQ_HANDLED;
-
-	return IRQ_WAKE_THREAD;
-}
-
 static void max77759_io_error_work(struct kthread_work *work)
 {
 	struct max77759_plat *chip =
@@ -1570,7 +1557,7 @@ static int max77759_init_alert(struct max77759_plat *chip,
 	if (!client->irq)
 		return -ENODEV;
 
-	ret = devm_request_threaded_irq(chip->dev, client->irq, max77759_isr,
+	ret = devm_request_threaded_irq(chip->dev, client->irq, NULL,
 					max77759_irq,
 					(IRQF_TRIGGER_LOW | IRQF_ONESHOT),
 					dev_name(chip->dev), chip);
