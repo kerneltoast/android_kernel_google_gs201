@@ -134,7 +134,7 @@ static bool port_src_pdo_updated;
 static bool limit_src_cap_enable;
 static u32 orig_src_current;
 static unsigned int nr_orig_src_pdo;
-spinlock_t g_caps_lock;
+static DEFINE_RAW_SPINLOCK(g_caps_lock);
 
 static unsigned int sink_discovery_delay_ms;
 
@@ -392,10 +392,10 @@ static ssize_t usb_limit_source_enable_store(struct device *dev, struct device_a
 	if (kstrtobool(buf, &enable) < 0)
 		return -EINVAL;
 
-	spin_lock(&g_caps_lock);
+	raw_spin_lock(&g_caps_lock);
 	port_src_pdo_updated = false;
 	limit_src_cap_enable = enable;
-	spin_unlock(&g_caps_lock);
+	raw_spin_unlock(&g_caps_lock);
 
 	tcpm_cc_change(chip->tcpci->port);
 
@@ -1917,10 +1917,10 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 static void max77759_modify_src_caps(void *unused, unsigned int *nr_src_pdo,
 				     u32 (*src_pdo)[PDO_MAX_OBJECTS], bool *modified)
 {
-	spin_lock(&g_caps_lock);
+	raw_spin_lock(&g_caps_lock);
 
 	if (port_src_pdo_updated) {
-		spin_unlock(&g_caps_lock);
+		raw_spin_unlock(&g_caps_lock);
 		return;
 	}
 
@@ -1936,7 +1936,7 @@ static void max77759_modify_src_caps(void *unused, unsigned int *nr_src_pdo,
 	port_src_pdo_updated = true;
 	*modified = true;
 
-	spin_unlock(&g_caps_lock);
+	raw_spin_unlock(&g_caps_lock);
 }
 
 static void max77759_store_partner_src_caps(void *unused, struct tcpm_port *port,
@@ -1945,7 +1945,7 @@ static void max77759_store_partner_src_caps(void *unused, struct tcpm_port *port
 {
 	int i;
 
-	spin_lock(&g_caps_lock);
+	raw_spin_lock(&g_caps_lock);
 
 	nr_partner_src_caps = *nr_source_caps > PDO_MAX_OBJECTS ?
 			      PDO_MAX_OBJECTS : *nr_source_caps;
@@ -1953,7 +1953,7 @@ static void max77759_store_partner_src_caps(void *unused, struct tcpm_port *port
 	for (i = 0; i < nr_partner_src_caps; i++)
 		partner_src_caps[i] = (*source_caps)[i];
 
-	spin_unlock(&g_caps_lock);
+	raw_spin_unlock(&g_caps_lock);
 }
 
 /*
@@ -1968,23 +1968,23 @@ int tcpm_get_partner_src_caps(struct tcpm_port *port, u32 **src_pdo)
 	if (!src_pdo)
 		return -ENOMEM;
 
-	spin_lock(&g_caps_lock);
+	raw_spin_lock(&g_caps_lock);
 
 	if (!nr_partner_src_caps) {
 		ret = -ENODATA;
-		goto cleanup;
+		goto unlock;
 	}
 
-	for (i = 0, ret = nr_partner_src_caps; i < nr_partner_src_caps; i++)
+	ret = nr_partner_src_caps;
+	for (i = 0; i < nr_partner_src_caps; i++)
 		(*src_pdo)[i] = partner_src_caps[i];
 
-	goto unlock;
-
-cleanup:
-	kfree(*src_pdo);
-	*src_pdo = NULL;
 unlock:
-	spin_unlock(&g_caps_lock);
+	raw_spin_unlock(&g_caps_lock);
+	if (ret < 0) {
+		kfree(*src_pdo);
+		*src_pdo = NULL;
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tcpm_get_partner_src_caps);
@@ -2442,7 +2442,6 @@ static int max77759_probe(struct i2c_client *client,
 	mutex_init(&chip->data_path_lock);
 	mutex_init(&chip->rc_lock);
 	mutex_init(&chip->irq_status_lock);
-	spin_lock_init(&g_caps_lock);
 	chip->first_toggle = true;
 
 	ret = max77759_read8(chip->data.regmap, TCPC_POWER_STATUS,
