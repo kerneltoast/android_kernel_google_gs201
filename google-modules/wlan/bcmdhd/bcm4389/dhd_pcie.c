@@ -12304,7 +12304,7 @@ dhd_bus_inb_set_device_wake(struct dhd_bus *bus, bool val)
 		 *
 		 */
 
-		if (!CAN_SLEEP()) {
+		if (1) {
 			dhdpcie_bus_set_pcie_inband_dw_state(bus,
 				DW_DEVICE_DS_DEV_WAKE);
 			DHD_BUS_INB_DW_UNLOCK(bus->inb_lock, flags);
