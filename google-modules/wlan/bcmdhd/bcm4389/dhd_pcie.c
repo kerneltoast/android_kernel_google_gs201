@@ -1366,6 +1366,99 @@ dhd_bus_dump_imp_cfg_registers(struct dhd_bus *bus)
 		PCIECFGGEN_DEV_STATUS_CTRL2, devctl2));
 }
 
+/* Returns true if the IRQ thread needs to be woken for error handling */
+bool
+dhdpcie_bus_irq(dhd_bus_t *bus)
+{
+	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
+	/* verify argument */
+	if (!bus) {
+		DHD_LOG_MEM(("%s : bus is null pointer, exit \n", __FUNCTION__));
+		return FALSE;
+	}
+
+	if (bus->dhd->dongle_reset) {
+		DHD_LOG_MEM(("%s : dongle is reset\n", __FUNCTION__));
+		return FALSE;
+	}
+
+	if (bus->dhd->busstate == DHD_BUS_DOWN) {
+		DHD_LOG_MEM(("%s : bus is down \n", __FUNCTION__));
+		return FALSE;
+	}
+
+	/* avoid processing of interrupts until msgbuf prot is inited */
+	if (!bus->intr_enabled) {
+		DHD_INFO(("%s, not ready to receive interrupts\n", __FUNCTION__));
+		return FALSE;
+	}
+
+	/* Do not process any ISR after receiving D3_ACK */
+	if (__DHD_CHK_BUS_LPS_D3_ACKED(bus)) {
+		DHD_LOG_MEM(("%s: D3 Ack Received, skip\n", __FUNCTION__));
+		return FALSE;
+	}
+
+	if (PCIECTO_ENAB(bus)) {
+		bus->intstatus = dhdpcie_bus_cfg_read_dword(bus, PCI_INT_STATUS, 4);
+		if (bus->intstatus == (uint32)-1 ||
+		    (bus->intstatus & PCI_CTO_INT_MASK) ||
+		    bus->dhd->dhd_induce_error == DHD_INDUCE_PCIE_LINK_DOWN_IN_ISR)
+			return TRUE;
+	}
+
+	if (bus->d2h_intr_method != PCIE_MSI) {
+		bus->intstatus = dhdpcie_bus_intstatus(bus);
+
+		/* Check if the interrupt is ours or not */
+		if (bus->intstatus == 0) {
+			bus->non_ours_irq_count++;
+			bus->last_non_ours_irq_time = OSL_LOCALTIME_NS();
+			return FALSE;
+		}
+
+		/* return error for 0xFFFFFFFF */
+		if (bus->intstatus == (uint32)-1) {
+			DHD_LOG_MEM(("%s : wrong interrupt status val : 0x%x\n",
+				__FUNCTION__, bus->intstatus));
+			bus->is_linkdown = 1;
+			dhdpcie_disable_irq_nosync(bus);
+			return FALSE;
+		}
+	}
+
+	/*  Overall operation:
+	 *    - Mask further interrupts
+	 *    - Read/ack intstatus
+	 *    - Take action based on bits and state
+	 *    - Reenable interrupts (as per state)
+	 */
+
+	/* Count the interrupt call */
+	bus->intrcount++;
+
+	bus->ipend = TRUE;
+
+	/* Due to irq mismatch WARNING in linux, currently keeping it disabled and
+	 * using dongle intmask to control INTR enable/disable
+	 */
+	if (bus->d2h_intr_control == PCIE_HOST_IRQ_CTRL) {
+		if (!dhdpcie_irq_disabled(bus)) {
+			bus->host_irq_disable_count++;
+			dhdpcie_disable_irq_nosync(bus); /* Disable interrupt!! */
+		}
+	} else {
+		dhdpcie_bus_intr_disable(bus); /* Disable interrupt using IntMask!! */
+		bus->dngl_intmask_disable_count++;
+	}
+
+	bus->intdis = TRUE;
+	bus->dpc_sched = TRUE;
+	bus->isr_sched_dpc_time = OSL_LOCALTIME_NS();
+	dhd_sched_dpc(bus->dhd);     /* queue DPC now!! */
+	return FALSE;
+}
+
 /**
  * Name:  dhdpcie_bus_isr
  * Parameters:
@@ -1384,38 +1477,9 @@ dhdpcie_bus_isr(dhd_bus_t *bus)
 	uint32 intstatus = 0;
 
 	do {
-		DHD_TRACE(("%s: Enter\n", __FUNCTION__));
-		/* verify argument */
-		if (!bus) {
-			DHD_LOG_MEM(("%s : bus is null pointer, exit \n", __FUNCTION__));
-			break;
-		}
-
-		if (bus->dhd->dongle_reset) {
-			DHD_LOG_MEM(("%s : dongle is reset\n", __FUNCTION__));
-			break;
-		}
-
-		if (bus->dhd->busstate == DHD_BUS_DOWN) {
-			DHD_LOG_MEM(("%s : bus is down \n", __FUNCTION__));
-			break;
-		}
-
-		/* avoid processing of interrupts until msgbuf prot is inited */
-		if (!bus->intr_enabled) {
-			DHD_INFO(("%s, not ready to receive interrupts\n", __FUNCTION__));
-			break;
-		}
-
-		/* Do not process any ISR after receiving D3_ACK */
-		if (__DHD_CHK_BUS_LPS_D3_ACKED(bus)) {
-			DHD_LOG_MEM(("%s: D3 Ack Received, skip\n", __FUNCTION__));
-			break;
-		}
-
 		if (PCIECTO_ENAB(bus)) {
 			/* read pci_intstatus */
-			intstatus = dhdpcie_bus_cfg_read_dword(bus, PCI_INT_STATUS, 4);
+			intstatus = bus->intstatus;
 
 			if (intstatus == (uint32)-1 ||
 				bus->dhd->dhd_induce_error == DHD_INDUCE_PCIE_LINK_DOWN_IN_ISR) {
@@ -1461,82 +1525,6 @@ dhdpcie_bus_isr(dhd_bus_t *bus)
 				return TRUE;
 			}
 		}
-
-		if (bus->d2h_intr_method == PCIE_MSI) {
-			/* For MSI, as intstatus is cleared by firmware, no need to read */
-			goto skip_intstatus_read;
-		}
-
-		intstatus = dhdpcie_bus_intstatus(bus);
-
-		/* Check if the interrupt is ours or not */
-		if (intstatus == 0) {
-			bus->non_ours_irq_count++;
-			bus->last_non_ours_irq_time = OSL_LOCALTIME_NS();
-			break;
-		}
-
-		/* save the intstatus */
-		/* read interrupt status register!! Status bits will be cleared in DPC !! */
-		bus->intstatus = intstatus;
-
-		/* return error for 0xFFFFFFFF */
-		if (intstatus == (uint32)-1) {
-			DHD_LOG_MEM(("%s : wrong interrupt status val : 0x%x\n",
-				__FUNCTION__, intstatus));
-			bus->is_linkdown = 1;
-			dhdpcie_disable_irq_nosync(bus);
-			break;
-		}
-
-skip_intstatus_read:
-		/*  Overall operation:
-		 *    - Mask further interrupts
-		 *    - Read/ack intstatus
-		 *    - Take action based on bits and state
-		 *    - Reenable interrupts (as per state)
-		 */
-
-		/* Count the interrupt call */
-		bus->intrcount++;
-
-		bus->ipend = TRUE;
-
-		/* Due to irq mismatch WARNING in linux, currently keeping it disabled and
-		 * using dongle intmask to control INTR enable/disable
-		 */
-		if (bus->d2h_intr_control == PCIE_HOST_IRQ_CTRL) {
-			if (!dhdpcie_irq_disabled(bus)) {
-				bus->host_irq_disable_count++;
-				dhdpcie_disable_irq_nosync(bus); /* Disable interrupt!! */
-			}
-		} else {
-			dhdpcie_bus_intr_disable(bus); /* Disable interrupt using IntMask!! */
-			bus->dngl_intmask_disable_count++;
-		}
-
-		bus->intdis = TRUE;
-#ifdef DHD_FLOW_RING_STATUS_TRACE
-		if (bus->dhd->dma_h2d_ring_upd_support && bus->dhd->dma_d2h_ring_upd_support &&
-			(bus->dhd->ring_attached == TRUE)) {
-			dhd_bus_flow_ring_status_isr_trace(bus->dhd);
-		}
-#endif /* DHD_FLOW_RING_STATUS_TRACE */
-#if defined(PCIE_ISR_THREAD)
-
-		DHD_TRACE(("Calling dhd_bus_dpc() from %s\n", __FUNCTION__));
-		DHD_OS_WAKE_LOCK(bus->dhd);
-		while (dhd_bus_dpc(bus));
-		DHD_OS_WAKE_UNLOCK(bus->dhd);
-#else
-		bus->dpc_sched = TRUE;
-		bus->isr_sched_dpc_time = OSL_LOCALTIME_NS();
-#ifndef NDIS
-		dhd_sched_dpc(bus->dhd);     /* queue DPC now!! */
-#endif /* !NDIS */
-#endif /* defined(SDIO_ISR_THREAD) */
-
-		DHD_TRACE(("%s: Exit Success DPC Queued\n", __FUNCTION__));
 		return TRUE;
 
 	} while (0);
@@ -9161,6 +9149,9 @@ dhd_bus_dump_dar_registers(struct dhd_bus *bus)
 		dar_errlog_val, dar_erraddr_val, dar_pcie_mbint_val;
 	uint32 dar_clk_ctrl_reg, dar_pwr_ctrl_reg, dar_intstat_reg,
 		dar_errlog_reg, dar_erraddr_reg, dar_pcie_mbint_reg;
+
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		return;
 
 	if (bus->is_linkdown) {
 		DHD_ERROR(("%s: link is down\n", __FUNCTION__));
@@ -17688,6 +17679,9 @@ int
 dhd_pcie_debug_info_dump(dhd_pub_t *dhd)
 {
 	int host_irq_disabled;
+
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		return 0;
 
 	DHD_ERROR(("bus->bus_low_power_state = %d\n", dhd->bus->bus_low_power_state));
 	host_irq_disabled = dhdpcie_irq_disabled(dhd->bus);

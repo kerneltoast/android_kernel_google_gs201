@@ -183,6 +183,7 @@ static void __devexit dhdpcie_pci_shutdown(struct pci_dev *pdev);
 static void __devexit dhdpcie_pci_stop(struct pci_dev *pdev);
 static int dhdpcie_init(struct pci_dev *pdev);
 static irqreturn_t dhdpcie_isr(int irq, void *arg);
+static irqreturn_t dhdpcie_irq(int irq, void *arg);
 /* OS Routine functions for PCI suspend/resume */
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
@@ -1844,7 +1845,8 @@ dhdpcie_request_irq(dhdpcie_info_t *dhdpcie_info)
 			}
 		}
 
-		if (request_irq(pdev->irq, dhdpcie_isr, IRQF_SHARED,
+		if (request_threaded_irq(pdev->irq, dhdpcie_irq, dhdpcie_isr,
+			IRQF_SHARED | IRQF_NO_THREAD,
 			dhdpcie_info->pciname, bus) < 0) {
 			DHD_ERROR(("%s: request_irq() failed\n", __FUNCTION__));
 			if (bus->d2h_intr_method == PCIE_MSI) {
@@ -2423,13 +2425,15 @@ irqreturn_t
 dhdpcie_isr(int irq, void *arg)
 {
 	dhd_bus_t *bus = (dhd_bus_t*)arg;
-	bus->prev_isr_entry_time = bus->isr_entry_time;
-	bus->isr_entry_time = OSL_LOCALTIME_NS();
-	if (!dhdpcie_bus_isr(bus)) {
-		DHD_LOG_MEM(("%s: dhdpcie_bus_isr returns with FALSE\n", __FUNCTION__));
-	}
-	bus->isr_exit_time = OSL_LOCALTIME_NS();
+	dhdpcie_bus_isr(bus);
 	return IRQ_HANDLED;
+}
+
+irqreturn_t
+dhdpcie_irq(int irq, void *arg)
+{
+	dhd_bus_t *bus = (dhd_bus_t*)arg;
+	return dhdpcie_bus_irq(bus) ? IRQ_WAKE_THREAD : IRQ_HANDLED;
 }
 
 int

@@ -276,8 +276,13 @@ typedef struct {
 	log_dump_section_type_t sec_type;
 } dld_hdr_t;
 
+#ifdef CONFIG_PREEMPT_RT
+static inline void dhd_log_dump_write(int type, char *binary_data,
+		int binary_len, const char *fmt, ...) { }
+#else
 extern void dhd_log_dump_write(int type, char *binary_data,
 		int binary_len, const char *fmt, ...);
+#endif
 void dhd_schedule_log_dump(dhd_pub_t *dhdp, void *type);
 void dhd_log_dump_trigger(dhd_pub_t *dhdp, int subcmd);
 void dhd_log_dump_vendor_trigger(dhd_pub_t *dhd_pub);

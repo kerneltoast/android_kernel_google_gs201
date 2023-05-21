@@ -726,6 +726,7 @@ extern void dhdpcie_bus_intr_enable(struct dhd_bus *bus);
 extern void dhdpcie_bus_intr_disable(struct dhd_bus *bus);
 extern int dhpcie_bus_mask_interrupt(dhd_bus_t *bus);
 extern void dhdpcie_bus_release(struct dhd_bus *bus);
+extern bool dhdpcie_bus_irq(struct dhd_bus *bus);
 extern int32 dhdpcie_bus_isr(struct dhd_bus *bus);
 extern void dhdpcie_free_irq(dhd_bus_t *bus);
 extern void dhdpcie_bus_ringbell_fast(struct dhd_bus *bus, uint32 value);

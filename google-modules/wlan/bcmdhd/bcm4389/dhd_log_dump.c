@@ -1801,6 +1801,7 @@ dhd_log_dump_deinit(dhd_pub_t *dhd)
 	mutex_destroy(&dhd_info->logdump_lock);
 }
 
+#ifndef CONFIG_PREEMPT_RT
 void
 dhd_log_dump_write(int type, char *binary_data,
 		int binary_len, const char *fmt, ...)
@@ -1870,6 +1871,7 @@ dhd_log_dump_write(int type, char *binary_data,
 		}
 	}
 }
+#endif
 
 char*
 dhd_log_dump_get_timestamp(void)
