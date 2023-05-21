@@ -3859,7 +3859,7 @@ static int __init max77759_i2c_driver_init(void)
 {
 	tcpm_log = logbuffer_register("tcpm");
 	if (IS_ERR_OR_NULL(tcpm_log))
-		return -EAGAIN;
+		pr_err("%s: logbuffer get failed, not fatal", __func__);
 
 	return i2c_add_driver(&max77759_i2c_driver);
 }
