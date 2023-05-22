@@ -64,6 +64,7 @@ static int vh_mm_init(void)
 	if (ret)
 		return ret;
 
+#ifndef CONFIG_PREEMPT_RT
 	/*
 	 * Do not reorder pte_range_tlb_end and pte_range_tlb_start
 	 * Otherwise, depending on module load timing, the pair can
@@ -81,6 +82,7 @@ static int vh_mm_init(void)
 			vh_zap_pte_range_tlb_start, NULL);
 	if (ret)
 		return ret;
+#endif
 
 	ret = register_trace_android_vh_skip_lru_disable(
 			vh_skip_lru_disable, NULL);
