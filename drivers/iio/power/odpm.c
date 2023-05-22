@@ -713,17 +713,19 @@ static u32 odpm_get_resolution_milli_iq30(struct odpm_info *info, int rail_i,
 			/* Losing a fraction of resolution performing u64 divisions,
 			 * as there is no support for 128 bit divisions
 			 */
-			if (mode == S2MPG1X_METER_CURRENT)
-				raw_unit_iq60 = ((u64)EXTERNAL_RESOLUTION_VSHUNT) /
+			if (mode == S2MPG1X_METER_CURRENT) {
+				raw_unit_iq60 = 10000 * ((u64)EXTERNAL_RESOLUTION_VSHUNT) /
 						info->chip.rails[rail_i].shunt_uohms;
-			else
+				ret = raw_unit_iq60;
+			} else {
 				raw_unit_iq60 = ((u64)EXTERNAL_RESOLUTION_VRAIL *
 						(u64)EXTERNAL_RESOLUTION_VSHUNT *
 						(u64)EXTERNAL_RESOLUTION_TRIM) /
 						info->chip.rails[rail_i].shunt_uohms;
 
-			/* Scale back to iq30 (with conversion to milli) */
-			ret = _IQ30_to_int(raw_unit_iq60 * 1000);
+				/* Scale back to iq30 */
+				ret = _IQ30_to_int(raw_unit_iq60 * 10);
+			}
 		}
 		break;
 	}
