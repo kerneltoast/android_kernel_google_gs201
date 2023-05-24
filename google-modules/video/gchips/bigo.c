@@ -667,7 +667,7 @@ static int bigo_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&core->lock);
-	mutex_init(&core->prioq.lock);
+	raw_spin_lock_init(&core->prioq.lock);
 	INIT_LIST_HEAD(&core->instances);
 	INIT_LIST_HEAD(&core->pm.opps);
 	INIT_LIST_HEAD(&core->pm.bw);
