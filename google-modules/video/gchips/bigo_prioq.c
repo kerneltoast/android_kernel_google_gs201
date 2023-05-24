@@ -19,10 +19,10 @@ int enqueue_prioq(struct bigo_core *core, struct bigo_inst *inst)
 	if(!core || !inst)
 		return -EINVAL;
 
-	mutex_lock(&core->prioq.lock);
+	raw_spin_lock(&core->prioq.lock);
 	list_add_tail(&job->list, &core->prioq.queue[inst->priority]);
 	set_bit(inst->priority, &core->prioq.bitmap);
-	mutex_unlock(&core->prioq.lock);
+	raw_spin_unlock(&core->prioq.lock);
 
 	wake_up(&core->worker);
 	return 0;
@@ -43,7 +43,7 @@ bool dequeue_prioq(struct bigo_core *core, struct bigo_job **job,
 		return true;
 	}
 
-	mutex_lock(&core->prioq.lock);
+	raw_spin_lock(&core->prioq.lock);
 	high_prio = ffs(core->prioq.bitmap) - 1;
 	if (high_prio < 0)
 		goto exit;
@@ -57,7 +57,7 @@ bool dequeue_prioq(struct bigo_core *core, struct bigo_job **job,
 	}
 
 exit:
-	mutex_unlock(&core->prioq.lock);
+	raw_spin_unlock(&core->prioq.lock);
 	*job = j;
 	return *job != NULL;
 }
@@ -67,7 +67,7 @@ void clear_job_from_prioq(struct bigo_core *core, struct bigo_inst *inst)
 	int i;
 	struct bigo_job *curr, *next;
 	struct bigo_inst *curr_inst;
-	mutex_lock(&core->prioq.lock);
+	raw_spin_lock(&core->prioq.lock);
 	for (i = 0; i < BO_MAX_PRIO; i++) {
 		list_for_each_entry_safe(curr, next, &core->prioq.queue[i], list) {
 			curr_inst = container_of(curr, struct bigo_inst, job);
@@ -75,7 +75,7 @@ void clear_job_from_prioq(struct bigo_core *core, struct bigo_inst *inst)
 				list_del(&curr->list);
 		}
 	}
-	mutex_unlock(&core->prioq.lock);
+	raw_spin_unlock(&core->prioq.lock);
 }
 
 MODULE_LICENSE("GPL");
