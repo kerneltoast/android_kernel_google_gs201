@@ -324,11 +324,10 @@ static int xhci_udev_notify(struct notifier_block *self, unsigned long action,
 	struct xhci_vendor_data *vendor_data;
 	struct xhci_hcd *xhci;
 
-	xhci = get_xhci_hcd_by_udev(udev);
-	vendor_data = xhci_to_priv(xhci)->vendor_data;
-
 	switch (action) {
 	case USB_DEVICE_ADD:
+		xhci = get_xhci_hcd_by_udev(udev);
+		vendor_data = xhci_to_priv(xhci)->vendor_data;
 		if (is_compatible_with_usb_audio_offload(udev)) {
 			dev_dbg(&udev->dev,
 				 "Compatible with usb audio offload\n");
@@ -344,6 +343,8 @@ static int xhci_udev_notify(struct notifier_block *self, unsigned long action,
 		vendor_data->usb_accessory_enabled = false;
 		break;
 	case USB_DEVICE_REMOVE:
+		xhci = get_xhci_hcd_by_udev(udev);
+		vendor_data = xhci_to_priv(xhci)->vendor_data;
 		if (is_compatible_with_usb_audio_offload(udev) &&
 		    (vendor_data->op_mode ==
 		     USB_OFFLOAD_SIMPLE_AUDIO_ACCESSORY ||
