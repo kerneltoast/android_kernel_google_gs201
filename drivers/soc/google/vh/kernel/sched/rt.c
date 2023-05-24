@@ -22,8 +22,6 @@ extern ___update_load_sum(u64 now, struct sched_avg *sa,
 			  unsigned long load, unsigned long runnable, int running);
 extern ___update_load_avg(struct sched_avg *sa, unsigned long load);
 
-static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu);
-
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
 /*****************************************************************************/
@@ -60,25 +58,22 @@ static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,
 /*
  * This part of code is new for this kernel, which are mostly helper functions.
  */
-static inline unsigned long capacity_cap(int cpu)
+static inline void rt_task_fits_capacity(struct task_struct *p, int cpu,
+					 bool *fits, bool *fits_original)
 {
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long max = arch_scale_cpu_capacity(cpu);
-	unsigned long used, irq;
+	unsigned long uclamp_min = uclamp_eff_value(p, UCLAMP_MIN);
+	unsigned long uclamp_max = uclamp_eff_value(p, UCLAMP_MAX);
+	unsigned long util = task_util(p);
 
-	max -= thermal_load_avg(rq);
+	if (get_prefer_high_cap(p) && cpu < MID_CAPACITY_CPU) {
+		*fits = false;
+		*fits_original = false;
+		return;
+	}
 
-	irq = cpu_util_irq(rq);
-
-	if (unlikely(irq >= max))
-		return 1;
-
-	used = irq + scale_irq_capacity(READ_ONCE(rq->avg_dl.util_avg), irq, max);
-
-	if (unlikely(used >= max))
-		return 1;
-
-	return max - used;
+	*fits = util_fits_cpu(util, uclamp_min, uclamp_max, cpu);
+	*fits_original = capacity_orig_of(cpu) >= clamp(util, uclamp_min, uclamp_max) ||
+			 cpu >= MAX_CAPACITY_CPU;
 }
 
 static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_mask,
@@ -89,6 +84,7 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 	unsigned int cpu_importance[CPU_NUM] = { 0 };
 	unsigned int exit_lat[CPU_NUM] = { 0 };
 	bool task_fits[CPU_NUM] = { 0 };
+	bool task_fits_original[CPU_NUM] = { 0 };
 	bool overutilize[CPU_NUM] = { 0 };
 	int cpu, best_cpu = -1, best_busy_cpu, least_used_best_cpu;
 	unsigned long min_cpu_util, min_unimportant_cpu_util;
@@ -98,8 +94,8 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 	struct cpuidle_state *idle;
 	int prev_cpu = task_cpu(p);
 	bool is_idle;
-	bool check_fit = false;
 	bool fit_and_non_overutilized_found = false, fit_and_overutilized_found = false;
+	bool fit_orig_and_non_overutilized_found = false, fit_orig_and_overutilized_found = false;
 	unsigned long rq_util_min, rq_util_max;
 
 	if (cpumask_weight(lowest_mask) == 1)
@@ -120,7 +116,7 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 	for_each_cpu(cpu, lowest_mask) {
 		is_idle = cpu_is_idle(cpu);
 		exit_lat[cpu] = 0;
-		capacity[cpu] = capacity_cap(cpu);
+		capacity[cpu] = capacity_orig_of(cpu);
 		cpu_importance[cpu] = READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MIN].value) +
 				 READ_ONCE(cpu_rq(cpu)->uclamp[UCLAMP_MAX].value);
 		rq_util_min = uclamp_rq_get(cpu_rq(cpu), UCLAMP_MIN);
@@ -142,12 +138,13 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 		if (cpu != prev_cpu)
 			util[cpu] += task_util(p);
 
-		task_fits[cpu] = rt_task_fits_capacity(p, cpu);
+		rt_task_fits_capacity(p, cpu, &task_fits[cpu], &task_fits_original[cpu]);
 		overutilize[cpu] = !util_fits_cpu(util[cpu],
 						  rq_util_min, rq_util_max, cpu);
 
-		trace_sched_cpu_util_rt(cpu, capacity[cpu], util[cpu], exit_lat[cpu],
-					cpu_importance[cpu], task_fits[cpu], overutilize[cpu]);
+		trace_sched_cpu_util_rt(cpu, capacity[cpu], capacity_of(cpu), util[cpu],
+					exit_lat[cpu], cpu_importance[cpu], task_fits[cpu],
+					task_fits_original[cpu], overutilize[cpu], is_idle);
 
 		// To prefer idle cpu than non-idle cpu
 		if (is_idle)
@@ -156,8 +153,18 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 		if (task_fits[cpu]) {
 			fit_and_non_overutilized_found |= !overutilize[cpu];
 			fit_and_overutilized_found |= overutilize[cpu];
+		} else if (task_fits_original[cpu]) {
+			fit_orig_and_non_overutilized_found |= !overutilize[cpu];
+			fit_orig_and_overutilized_found |= overutilize[cpu];
 		}
+	}
 
+	// no CPU fits, select the biggest capacity CPU instead
+	if (!fit_and_non_overutilized_found && !fit_and_overutilized_found &&
+		!fit_orig_and_non_overutilized_found && !fit_orig_and_overutilized_found) {
+		best_cpu = cpumask_last(lowest_mask);
+		rcu_read_unlock();
+		goto out;
 	}
 
 	for_each_cpu(cpu, lowest_mask) {
@@ -165,8 +172,13 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 			continue;
 		else if (fit_and_overutilized_found && (!task_fits[cpu]))
 			continue;
+		else if (fit_orig_and_non_overutilized_found &&
+			(overutilize[cpu] || !task_fits_original[cpu]))
+			continue;
+		else if (fit_orig_and_overutilized_found && (!task_fits_original[cpu]))
+			continue;
 
-		/* select non-idle cpus without important tasks first */
+		/* select non-idle cpus with throttled(unimportant) tasks first */
 		if (exit_lat[cpu] == 0 && cpu_importance[cpu] < DEFAULT_IMPRATANCE_THRESHOLD) {
 			cpumask_set_cpu(cpu, backup_mask);
 
@@ -175,9 +187,9 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 				continue;
 
 			/* If importance is the same, choose the least loaded cpu. */
-			if (best_busy_importance == cpu_importance[cpu])
-				if (min_unimportant_cpu_util < util[cpu])
-					continue;
+			if (best_busy_importance == cpu_importance[cpu] &&
+					min_unimportant_cpu_util < util[cpu])
+				continue;
 
 			best_busy_importance = cpu_importance[cpu];
 			best_busy_cpu = cpu;
@@ -234,11 +246,11 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
 		best_cpu = least_used_best_cpu;
 	}
 
+out:
 	trace_sched_find_least_loaded_cpu(p, get_vendor_group(p), uclamp_eff_value(p, UCLAMP_MIN),
-					  uclamp_eff_value(p, UCLAMP_MAX), check_fit,
-					  min_cpu_util, min_cpu_capacity, min_exit_lat,
-					  prev_cpu, best_cpu, *lowest_mask->bits,
-					  *backup_mask->bits);
+					  uclamp_eff_value(p, UCLAMP_MAX), get_prefer_high_cap(p),
+					  best_busy_cpu, least_used_best_cpu, prev_cpu, best_cpu,
+					  *lowest_mask->bits, *backup_mask->bits);
 
 	return best_cpu;
 }
@@ -250,26 +262,6 @@ static int find_least_loaded_cpu(struct task_struct *p, struct cpumask *lowest_m
  * This part of code is vendor hook functions, which modify or extend the original
  * functions.
  */
-
-static inline bool rt_task_fits_uclamp_min(struct task_struct *p, int cpu)
-{
-	return capacity_cap(cpu) >= uclamp_eff_value(p, UCLAMP_MIN);
-}
-
-static inline bool rt_task_fits_capacity(struct task_struct *p, int cpu)
-{
-	unsigned long uclamp_min = uclamp_eff_value(p, UCLAMP_MIN);
-	unsigned long uclamp_max = uclamp_eff_value(p, UCLAMP_MAX);
-	unsigned long util = task_util(p);
-
-	if (cpu >= MAX_CAPACITY_CPU)
-		return true;
-
-	if (get_prefer_high_cap(p) && cpu < MID_CAPACITY_CPU)
-		return false;
-
-	return util_fits_cpu(util, uclamp_min, uclamp_max, cpu);
-}
 
 static int find_lowest_rq(struct task_struct *p, struct cpumask *backup_mask)
 {
@@ -283,8 +275,7 @@ static int find_lowest_rq(struct task_struct *p, struct cpumask *backup_mask)
 		return cpumask_first(p->cpus_ptr);
 	}
 
-	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, &lowest_mask,
-				rt_task_fits_uclamp_min);
+	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, &lowest_mask, NULL);
 	if (!ret) {
 		return -1;
 	}
@@ -347,6 +338,8 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	bool sync_wakeup = false;
 	struct cpumask backup_mask;
 	int i;
+	bool fits;
+	bool fits_original;
 
 	*new_cpu = prev_cpu;
 
@@ -360,12 +353,12 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	this_cpu = smp_processor_id();
 	this_cpu_rq = cpu_rq(this_cpu);
 
+	rt_task_fits_capacity(p, this_cpu, &fits, &fits_original);
 	/*
 	 * Respect the sync flag as long as the task can run on this CPU.
 	 */
 	if (should_honor_rt_sync(this_cpu_rq, p, sync) &&
-	    cpumask_test_cpu(this_cpu, p->cpus_ptr) &&
-	    rt_task_fits_capacity(p, this_cpu)) {
+	    cpumask_test_cpu(this_cpu, p->cpus_ptr) && fits_original) {
 		*new_cpu = this_cpu;
 		sync_wakeup = true;
 		goto out_unlock;
