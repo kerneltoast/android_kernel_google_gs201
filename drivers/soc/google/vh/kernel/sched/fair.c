@@ -2081,7 +2081,17 @@ uclamp_tg_restrict_pixel_mod(struct task_struct *p, enum uclamp_id clamp_id)
 	get_uclamp_on_nice(p, UCLAMP_MAX, &nice_max);
 
 	// Task group restriction
-	tg_min = task_group(p)->uclamp[UCLAMP_MIN].value;
+	/*
+	 * Tasks in autogroups or root task group should have uclamp_min is 0.
+	 * uclamp_min is defined as a LIMIT rather than a PROTECTION at that
+	 * level.
+	 */
+	if (task_group_is_autogroup(task_group(p)))
+		tg_min = 0;
+	else if (task_group(p) == &root_task_group)
+		tg_min = 0;
+	else
+		tg_min = task_group(p)->uclamp[UCLAMP_MIN].value;
 	tg_max = task_group(p)->uclamp[UCLAMP_MAX].value;
 	// Vendor group restriction
 	vnd_min = vg[vp->group].uc_req[UCLAMP_MIN].value;
