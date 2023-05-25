@@ -24,6 +24,7 @@ DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 
 unsigned int __read_mostly vendor_sched_util_post_init_scale = DEF_UTIL_POST_INIT_SCALE;
 bool __read_mostly vendor_sched_npi_packing = true; //non prefer idle packing
+bool __read_mostly vendor_sched_idle_balancer = true; //prefer vendor idle balancer
 bool __read_mostly vendor_sched_reduce_prefer_idle = true;
 bool __read_mostly vendor_sched_boost_adpf_prio = true;
 struct proc_dir_entry *vendor_sched;
@@ -1381,6 +1382,38 @@ static ssize_t npi_packing_store(struct file *filp,
 
 PROC_OPS_RW(npi_packing);
 
+static int idle_balancer_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%s\n", vendor_sched_idle_balancer ? "true" : "false");
+
+	return 0;
+}
+
+static ssize_t idle_balancer_store(struct file *filp,
+							const char __user *ubuf,
+							size_t count, loff_t *pos)
+{
+	bool enable;
+	char buf[MAX_PROC_SIZE];
+
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, count))
+		return -EFAULT;
+
+	buf[count] = '\0';
+
+	if (kstrtobool(buf, &enable))
+		return -EINVAL;
+
+	vendor_sched_idle_balancer = enable;
+
+	return count;
+}
+
+PROC_OPS_RW(idle_balancer);
+
 static int reduce_prefer_idle_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "%s\n", vendor_sched_reduce_prefer_idle ? "true" : "false");
@@ -2355,6 +2388,7 @@ static struct pentry entries[] = {
 	PROC_ENTRY(util_threshold),
 	PROC_ENTRY(util_post_init_scale),
 	PROC_ENTRY(npi_packing),
+	PROC_ENTRY(idle_balancer),
 	PROC_ENTRY(reduce_prefer_idle),
 	PROC_ENTRY(boost_adpf_prio),
 	PROC_ENTRY(dump_task),

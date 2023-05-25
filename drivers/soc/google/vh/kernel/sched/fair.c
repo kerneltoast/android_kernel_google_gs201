@@ -33,6 +33,7 @@ static struct vendor_cfs_util vendor_cfs_util[UG_MAX - 1][CPU_NUM];
 extern int vendor_sched_ug_bg_auto_prio;
 extern unsigned int vendor_sched_util_post_init_scale;
 extern bool vendor_sched_npi_packing;
+extern bool vendor_sched_idle_balancer;
 
 unsigned int sched_capacity_margin[CPU_NUM] = { [0 ... CPU_NUM - 1] = DEF_UTIL_THRESHOLD };
 unsigned int sched_dvfs_headroom[CPU_NUM] = { [0 ... CPU_NUM - 1] = DEF_UTIL_THRESHOLD };
@@ -2626,6 +2627,8 @@ void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_f
 		atomic_set(&vrq->num_adpf_tasks, 0);
 
 
+	if (!vendor_sched_idle_balancer)
+		return;
 	/*
 	 * We must set idle_stamp _before_ calling idle_balance(), such that we
 	 * measure the duration of idle_balance() as idle time.
