@@ -1482,7 +1482,7 @@ bool
 task_may_not_preempt(struct task_struct *task, int cpu)
 {
 	__u32 softirqs = per_cpu(active_softirqs, cpu) |
-			 __IRQ_STAT(cpu, __softirq_pending);
+			 per_cpu(irq_stat.__softirq_pending, cpu);
 
 	struct task_struct *cpu_ksoftirqd = per_cpu(ksoftirqd, cpu);
 	return ((softirqs & LONG_SOFTIRQ_MASK) &&
