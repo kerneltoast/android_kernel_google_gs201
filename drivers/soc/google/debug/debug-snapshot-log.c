@@ -311,6 +311,7 @@ static void dbg_snapshot_task(int cpu, struct task_struct *v_task)
 	dss_log->task[cpu][i].time = cpu_clock(cpu);
 	dss_log->task[cpu][i].task = v_task;
 	dss_log->task[cpu][i].pid = v_task->pid;
+	dss_log->task[cpu][i].se_exec_start = v_task->se.exec_start;
 	strncpy(dss_log->task[cpu][i].task_comm, v_task->comm, TASK_COMM_LEN - 1);
 }
 

@@ -35,6 +35,7 @@ struct task_log {
 	unsigned long long time;
 	struct task_struct *task;
 	char task_comm[TASK_COMM_LEN];
+	unsigned long se_exec_start;
 	int pid;
 };
 
