@@ -1892,11 +1892,12 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool s
 		if (!cpumask_empty(&idle_fit)) {
 			cpumask_copy(&candidates, &idle_fit);
 		} else if (!cpumask_empty(&idle_unfit)) {
-			cpumask_copy(&candidates, &idle_unfit);
+			/* Assign biggest cpu core found for unfit case. */
+			cpumask_set_cpu(cpumask_last(&idle_unfit), &candidates);
 		} else if (!cpumask_empty(&unimportant_fit)) {
 			cpumask_copy(&candidates, &unimportant_fit);
 		} else if (!cpumask_empty(&unimportant_unfit)) {
-			cpumask_copy(&candidates, &unimportant_unfit);
+			cpumask_set_cpu(cpumask_last(&unimportant_unfit), &candidates);
 		} else if (!cpumask_empty(&idle_unpreferred)) {
 			cpumask_copy(&candidates, &idle_unpreferred);
 		} else if (!cpumask_empty(&packing)) {
