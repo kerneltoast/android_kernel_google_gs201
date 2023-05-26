@@ -595,7 +595,7 @@ static void exynos_serial_rx_enable(struct uart_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 
 	while (--count && !exynos_serial_txempty_nofifo(port))
-		usleep_range(100, 200);
+		udelay(100);
 
 	ufcon = rd_regl(port, S3C2410_UFCON);
 	ufcon |= S3C2410_UFCON_RESETRX;
