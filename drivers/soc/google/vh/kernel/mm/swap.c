@@ -10,6 +10,6 @@
 
 void vh_pagevec_drain(void *data, struct page *page, bool *ret)
 {
-	if (is_migrate_cma_page(page))
+	if (!*ret && is_migrate_cma_page(page))
 		*ret = true;
 }
