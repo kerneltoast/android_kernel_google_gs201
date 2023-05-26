@@ -1861,7 +1861,7 @@ void migrate_disable(void)
 	this_rq()->nr_pinned++;
 	p->migration_disabled = 1;
 	preempt_lazy_disable();
-	preempt_enable();
+	preempt_enable_no_resched();
 }
 EXPORT_SYMBOL_GPL(migrate_disable);
 
