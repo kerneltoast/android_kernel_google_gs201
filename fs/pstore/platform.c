@@ -503,8 +503,9 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 }
 
 static struct console pstore_console = {
-	.write	= pstore_console_write,
-	.index	= -1,
+	.write		= pstore_console_write,
+	.write_atomic	= pstore_console_write,
+	.index		= -1,
 };
 
 static void pstore_register_console(void)
