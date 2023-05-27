@@ -219,6 +219,7 @@ error_rbuf_alloc:
 static int i2c_write(struct lwis_i2c_device *i2c, uint64_t offset, uint64_t value)
 {
 	int ret;
+	u8 buf_onstack[SZ_8] __aligned(sizeof(long));
 	u8 *buf;
 	struct i2c_client *client;
 	struct i2c_msg msg;
@@ -254,10 +255,14 @@ static int i2c_write(struct lwis_i2c_device *i2c, uint64_t offset, uint64_t valu
 	}
 
 	msg_bytes = offset_bytes + value_bytes;
-	buf = kmalloc(msg_bytes, GFP_KERNEL);
-	if (!buf) {
-		dev_err(i2c->base_dev.dev, "Failed to allocate memory for i2c buffer\n");
-		return -ENOMEM;
+	if (msg_bytes <= sizeof(buf_onstack)) {
+		buf = buf_onstack;
+	} else {
+		buf = kmalloc(msg_bytes, GFP_KERNEL);
+		if (!buf) {
+			dev_err(i2c->base_dev.dev, "Failed to allocate memory for i2c buffer\n");
+			return -ENOMEM;
+		}
 	}
 
 	msg.addr = client->addr;
@@ -273,7 +278,8 @@ static int i2c_write(struct lwis_i2c_device *i2c, uint64_t offset, uint64_t valu
 			offset, value, ret);
 	}
 
-	kfree(buf);
+	if (buf != buf_onstack)
+		kfree(buf);
 
 	return ret;
 }
