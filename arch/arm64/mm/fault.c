@@ -914,16 +914,20 @@ void __init hook_debug_fault_code(int nr,
  */
 static void debug_exception_enter(struct pt_regs *regs)
 {
+#if defined(CONFIG_KPROBES) || defined(CONFIG_KRETPROBES)
 	preempt_disable();
 
 	/* This code is a bit fragile.  Test it. */
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "exception_enter didn't work");
+#endif
 }
 NOKPROBE_SYMBOL(debug_exception_enter);
 
 static void debug_exception_exit(struct pt_regs *regs)
 {
+#if defined(CONFIG_KPROBES) || defined(CONFIG_KRETPROBES)
 	preempt_enable_no_resched();
+#endif
 }
 NOKPROBE_SYMBOL(debug_exception_exit);
 
