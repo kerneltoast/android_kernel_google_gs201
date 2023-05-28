@@ -1989,14 +1989,19 @@ static struct aoc_service_dev *create_service_device(struct aoc_prvdata *prvdata
 	if (!s)
 		return NULL;
 
-	dev = kzalloc(sizeof(struct aoc_service_dev), GFP_KERNEL);
-	prvdata->services[index] = dev;
-
 	name = aoc_service_name(s);
 	if (!name)
 		return NULL;
 
 	memcpy_fromio(service_name, name, sizeof(service_name));
+	if (!strcmp(service_name, "logging"))
+		return NULL;
+
+	dev = kzalloc(sizeof(struct aoc_service_dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	prvdata->services[index] = dev;
 
 	dev_set_name(&dev->dev, "%s", service_name);
 	dev->dev.parent = parent;
@@ -2276,8 +2281,10 @@ static void aoc_did_become_online(struct work_struct *work)
 
 	aoc_state = AOC_STATE_ONLINE;
 
-	for (i = 0; i < s; i++)
-		device_register(&prvdata->services[i]->dev);
+	for (i = 0; i < s; i++) {
+		if (prvdata->services[i])
+			device_register(&prvdata->services[i]->dev);
+	}
 
 err:
 	mutex_unlock(&aoc_service_lock);
@@ -2429,7 +2436,7 @@ static void aoc_process_services(struct aoc_prvdata *prvdata, int offset)
 	for (i = 0; i < services; i++) {
 		service_dev = service_dev_at_index(prvdata, i);
 		if (!service_dev)
-			goto exit;
+			continue;
 
 		service = service_dev->service;
 		if (service_dev->mbox_index != offset)
