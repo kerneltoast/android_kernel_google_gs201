@@ -809,6 +809,7 @@ static int fts_read_touchdata(struct fts_ts_data *data)
     u8 *buf = data->point_buf;
     u8 cmd[1] = { 0 };
 
+#ifdef CONFIG_TOUCHSCREEN_HEATMAP
 #if IS_ENABLED(GOOGLE_REPORT_MODE)
     u8 regB2_data[FTS_CUSTOMER_STATUS_LEN] = { 0 };
     u8 check_regB2_status[2] = { 0 };
@@ -828,6 +829,7 @@ static int fts_read_touchdata(struct fts_ts_data *data)
 #endif
         }
     }
+#endif
 #endif
 
     cmd[0] = FTS_CMD_READ_TOUCH_DATA;
@@ -853,7 +855,7 @@ static int fts_read_touchdata(struct fts_ts_data *data)
         }
     }
 
-#if IS_ENABLED(GOOGLE_REPORT_MODE)
+#if IS_ENABLED(GOOGLE_REPORT_MODE) && IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
     if (data->work_mode == FTS_REG_WORKMODE_WORK_VALUE) {
         /* If fw_heatmap_mode is disabled heatmap or enableed uncompressed
          * heatmap, to read register 0xB2 after fts_get_heatamp().
@@ -3370,6 +3372,7 @@ static void fts_update_host_feature_setting(struct fts_ts_data *ts_data,
         ts_data->current_host_status[1] &= ~(1 << fw_mode_setting);
 }
 
+#ifdef CONFIG_TOUCHSCREEN_HEATMAP
 int fts_get_default_heatmap_mode(struct fts_ts_data *ts_data)
 {
     int ret = 0;
@@ -3457,6 +3460,7 @@ exit:
 
     return ret;
 }
+#endif
 
 int fts_set_grip_mode(struct fts_ts_data *ts_data, u8 grip_mode)
 {
