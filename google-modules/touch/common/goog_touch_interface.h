@@ -38,7 +38,7 @@
  * enums.
  */
 
-enum gti_cmd_type : u32 {
+enum gti_cmd_type {
 	/* GTI_CMD operations. */
 	GTI_CMD_OPS_START = 0x100,
 	GTI_CMD_PING,
@@ -79,33 +79,33 @@ enum gti_cmd_type : u32 {
 	GTI_CMD_SET_SENSING_MODE,
 };
 
-enum gti_continuous_report_setting : u32 {
+enum gti_continuous_report_setting {
 	GTI_CONTINUOUS_REPORT_DISABLE = 0,
 	GTI_CONTINUOUS_REPORT_ENABLE,
 	GTI_CONTINUOUS_REPORT_DRIVER_DEFAULT,
 };
 
-enum gti_coord_filter_setting : u32 {
+enum gti_coord_filter_setting {
 	GTI_COORD_FILTER_DISABLE = 0,
 	GTI_COORD_FILTER_ENABLE,
 };
 
-enum gti_display_state_setting : u32 {
+enum gti_display_state_setting {
 	GTI_DISPLAY_STATE_OFF = 0,
 	GTI_DISPLAY_STATE_ON,
 };
 
-enum gti_grip_setting : u32 {
+enum gti_grip_setting {
 	GTI_GRIP_DISABLE = 0,
 	GTI_GRIP_ENABLE,
 };
 
-enum gti_heatmap_setting : u32 {
+enum gti_heatmap_setting {
 	GTI_HEATMAP_DISABLE = 0,
 	GTI_HEATMAP_ENABLE,
 };
 
-enum gti_irq_mode : u32 {
+enum gti_irq_mode {
 	GTI_IRQ_MODE_DISABLE = 0,
 	GTI_IRQ_MODE_ENABLE,
 	GTI_IRQ_MODE_NA = 0xFFFFFFFF,
@@ -118,7 +118,7 @@ enum gti_irq_mode : u32 {
  *   GTI_MF_MODE_FILTER: only report touch if coord report changed.
  *   GTI_MF_MODE_AUTO: for development case.
  */
-enum gti_mf_mode : u32 {
+enum gti_mf_mode {
 	GTI_MF_MODE_UNFILTER = 0,
 	GTI_MF_MODE_DEFAULT,
 	GTI_MF_MODE_DYNAMIC = GTI_MF_MODE_DEFAULT,
@@ -133,24 +133,24 @@ enum gti_mf_mode : u32 {
  *   GTI_MF_STATE_FILTERED_LOCKED: filtered coordinates. Locked until
  *                                 touch is lifted or timeout.
  */
-enum gti_mf_state : u32 {
+enum gti_mf_state {
 	GTI_MF_STATE_FILTERED = 0,
 	GTI_MF_STATE_UNFILTERED,
 	GTI_MF_STATE_FILTERED_LOCKED,
 };
 
-enum gti_palm_setting : u32 {
+enum gti_palm_setting {
 	GTI_PALM_DISABLE = 0,
 	GTI_PALM_ENABLE,
 };
 
-enum gti_ping_mode : u32 {
+enum gti_ping_mode {
 	GTI_PING_NOP = 0,
 	GTI_PING_ENABLE,
 	GTI_PING_NA = 0xFFFFFFFF,
 };
 
-enum gti_pm_state : u32 {
+enum gti_pm_state {
 	GTI_PM_SUSPEND = 0,
 	GTI_PM_RESUME,
 };
@@ -159,7 +159,7 @@ enum gti_pm_state : u32 {
 /**
  * @brief: wakelock type.
  */
-enum gti_pm_wakelock_type : u32 {
+enum gti_pm_wakelock_type {
 	GTI_PM_WAKELOCK_TYPE_SCREEN_ON = (1 << 0),
 	GTI_PM_WAKELOCK_TYPE_IRQ = (1 << 1),
 	GTI_PM_WAKELOCK_TYPE_FW_UPDATE = (1 << 2),
@@ -171,7 +171,7 @@ enum gti_pm_wakelock_type : u32 {
 	GTI_PM_WAKELOCK_TYPE_FW_SETTINGS = (1 << 8),
 };
 
-enum gti_proc_type : u32 {
+enum gti_proc_type {
 	GTI_PROC_MS_BASE,
 	GTI_PROC_MS_DIFF,
 	GTI_PROC_MS_RAW,
@@ -181,7 +181,7 @@ enum gti_proc_type : u32 {
 	GTI_PROC_NUM,
 };
 
-enum gti_reset_mode : u32 {
+enum gti_reset_mode {
 	GTI_RESET_MODE_NOP = 0,
 	GTI_RESET_MODE_SW = (1 << 0),
 	GTI_RESET_MODE_HW = (1 << 1),
@@ -189,7 +189,7 @@ enum gti_reset_mode : u32 {
 	GTI_RESET_MODE_NA = 0xFFFFFFFF,
 };
 
-enum gti_scan_mode : u32 {
+enum gti_scan_mode {
 	GTI_SCAN_MODE_AUTO = 0,
 	GTI_SCAN_MODE_NORMAL_ACTIVE,
 	GTI_SCAN_MODE_NORMAL_IDLE,
@@ -198,19 +198,19 @@ enum gti_scan_mode : u32 {
 	GTI_SCAN_MODE_NA = 0xFFFFFFFF,
 };
 
-enum gti_screen_protector_mode : u32 {
+enum gti_screen_protector_mode {
 	GTI_SCREEN_PROTECTOR_MODE_DISABLE = 0,
 	GTI_SCREEN_PROTECTOR_MODE_ENABLE,
 	GTI_SCREEN_PROTECTOR_MODE_NA = 0xFFFFFFFF,
 };
 
-enum gti_selftest_result : u32 {
+enum gti_selftest_result {
 	GTI_SELFTEST_RESULT_DONE = 0,
 	GTI_SELFTEST_RESULT_SHELL_CMDS_REDIRECT,
 	GTI_SELFTEST_RESULT_NA = 0xFFFFFFFF,
 };
 
-enum gti_sensing_mode : u32 {
+enum gti_sensing_mode {
 	GTI_SENSING_MODE_DISABLE = 0,
 	GTI_SENSING_MODE_ENABLE,
 	GTI_SENSING_MODE_NA = 0xFFFFFFFF,
@@ -221,7 +221,7 @@ enum gti_sensing_mode : u32 {
 /* Touch read method for manually reading data from command */
 #define TOUCH_SENSOR_DATA_READ_METHOD_COMMAND 0x20000
 
-enum gti_sensor_data_type : u32 {
+enum gti_sensor_data_type {
 	GTI_SENSOR_DATA_TYPE_COORD = TOUCH_DATA_TYPE_COORD,
 	GTI_SENSOR_DATA_TYPE_MS = TOUCH_SENSOR_DATA_READ_METHOD_INT |
 			TOUCH_SCAN_TYPE_MUTUAL | TOUCH_DATA_TYPE_STRENGTH,
@@ -241,7 +241,7 @@ enum gti_sensor_data_type : u32 {
 			TOUCH_SCAN_TYPE_SELF | TOUCH_DATA_TYPE_BASELINE,
 };
 
-enum gti_fw_status : u32 {
+enum gti_fw_status {
 	GTI_FW_STATUS_RESET = 0,
 	GTI_FW_STATUS_PALM_ENTER,
 	GTI_FW_STATUS_PALM_EXIT,
@@ -252,7 +252,7 @@ enum gti_fw_status : u32 {
 	GTI_FW_STATUS_NOISE_MODE,
 };
 
-enum gti_noise_mode_level : u8 {
+enum gti_noise_mode_level {
 	GTI_NOISE_MODE_EXIT = 0,
 	GTI_NOISE_MODE_LEVEL1,
 	GTI_NOISE_MODE_LEVEL2,
