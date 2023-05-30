@@ -111,6 +111,11 @@ extern void cal_cp_disable_dump_pc_no_pg(void);
 
 extern int cal_init(void);
 
+#ifdef CONFIG_DEBUG_FS
 extern void cal_register_pd_lookup_cmu_id(void *(*func)(u32 cmu_id));
+#else
+static inline
+void cal_register_pd_lookup_cmu_id(void *(*func)(u32 cmu_id)) { }
+#endif
 #endif
 #endif
