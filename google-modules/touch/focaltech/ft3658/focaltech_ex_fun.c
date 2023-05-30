@@ -2127,6 +2127,7 @@ static ssize_t proc_heatmap_onoff_read(struct file *filp,
 static ssize_t proc_heatmap_onoff_write(struct file *filp,
     const char __user *buff, size_t count, loff_t *ppos)
 {
+#ifdef CONFIG_TOUCHSCREEN_HEATMAP
     int ret = 0;
     struct fts_ts_data *ts_data = fts_data;
     char tmpbuf[PROC_BUF_SIZE] = { 0 };
@@ -2158,6 +2159,7 @@ static ssize_t proc_heatmap_onoff_write(struct file *filp,
     }
     FTS_INFO("switch heatmap on/off to %d", mode);
     fts_set_heatmap_mode(ts_data, mode);
+#endif
     return count;
 }
 
