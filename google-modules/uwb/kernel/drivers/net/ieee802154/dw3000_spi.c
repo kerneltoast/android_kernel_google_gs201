@@ -188,9 +188,7 @@ static int dw3000_spi_probe(struct spi_device *spi)
 		goto err_state_start;
 
 	/* Debugfs interface */
-	rc = dw3000_debugsfs_init(dw);
-	if (rc != 0)
-		goto err_debugfs;
+	dw3000_debugsfs_init(dw);
 
 	/* Register MCPS 802.15.4 device */
 	rc = dw3000_mcps_register(dw);
@@ -204,7 +202,6 @@ static int dw3000_spi_probe(struct spi_device *spi)
 
 err_register_hw:
 	dw3000_debugfs_remove(dw);
-err_debugfs:
 err_state_start:
 	dw3000_pm_qos_remove_request(dw);
 err_setup_irq:
