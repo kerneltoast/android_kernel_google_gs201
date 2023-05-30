@@ -307,6 +307,90 @@ struct getdents_callback64 {
 	int error;
 };
 
+bool task_is_servicemanager(struct task_struct *p);
+
+static bool should_block_name(const char *name, int namlen)
+{
+#define F(x) { x, sizeof(x) - 1 }
+	struct {
+		const char *name;
+		size_t len;
+	} static const initrcs[] = {
+		/* Block the dumpstate service from starting */
+		F("android.hardware.dumpstate-service.rc"),
+
+		/* Block the edgetpu logging service from starting */
+		F("android.hardware.edgetpu.logging@service-edgetpu-logging.rc"),
+
+		/* Block the gxp logging service from starting */
+		F("android.hardware.gxp.logging@service-gxp-logging.rc"),
+
+		/* Block dmd from starting */
+		F("dmd.rc"),
+
+		/* Block the sscoredump service from starting */
+		F("init.sscoredump.rc"),
+
+		/* Block modem logging services from starting */
+		F("init.modem_logging_control.rc"),
+
+		/* Block the memtrack service from starting */
+		F("memtrack.rc"),
+
+		/* Block pixelstats from starting */
+		F("pixelstats-vendor.zuma.rc"),
+
+#if !IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
+		/* Block twoshay from starting */
+		F("twoshay.rc"),
+#endif
+
+		/* Block the audiometrics service from starting */
+		F("vendor.google.audiometricext@1.0-service-vendor.rc"),
+	}, vintfs[] = {
+		/* Block the IDumpstateDevice service VINTF */
+		F("android.hardware.dumpstate-service.xml"),
+
+#if !IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
+		/* Block the IInputProcessor service VINTF */
+		F("manifest_input.processor-service.xml"),
+#endif
+
+		/* Block the Pixel memtrack.xml service VINTF */
+		F("memtrack.xml"),
+	};
+#undef F
+
+#define BLOCK_NAME_MATCHES(_chk) \
+({								\
+	bool ret = false;					\
+	int i;							\
+								\
+	for (i = 0; i < ARRAY_SIZE(_chk); i++) {		\
+		if (_chk[i].len != namlen)			\
+			continue;				\
+								\
+		if (!memcmp(_chk[i].name, name, namlen)) {	\
+			ret = true;				\
+			break;					\
+		}						\
+	}							\
+								\
+	ret;							\
+})
+
+	/* Block unwanted init .rc files from init */
+	if (unlikely(is_global_init(current)))
+		return BLOCK_NAME_MATCHES(initrcs);
+
+	/* Block unwanted VINTFs from servicemanager */
+	if (unlikely(task_is_servicemanager(current)))
+		return BLOCK_NAME_MATCHES(vintfs);
+
+#undef BLOCK_NAME_MATCHES
+	return false;
+}
+
 static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 		     loff_t offset, u64 ino, unsigned int d_type)
 {
@@ -320,6 +404,8 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
 	buf->error = verify_dirent_name(name, namlen);
 	if (unlikely(buf->error))
 		return false;
+	if (unlikely(should_block_name(name, namlen)))
+		return true;
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return false;
