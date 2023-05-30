@@ -40,7 +40,7 @@ int mcps802154_region_register(struct mcps802154_region_ops *region_ops)
 	struct mcps802154_region_ops *ops;
 	int r = 0;
 
-	if (WARN_ON(!region_ops || !region_ops->owner || !region_ops->name ||
+	if (WARN_ON(!region_ops || !region_ops->name ||
 		    !region_ops->open || !region_ops->close ||
 		    !region_ops->get_access))
 		return -EINVAL;
