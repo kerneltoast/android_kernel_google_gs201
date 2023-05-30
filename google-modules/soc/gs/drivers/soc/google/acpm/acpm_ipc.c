@@ -169,13 +169,6 @@ static int plugins_init(struct device_node *node)
 	return ret;
 }
 
-static bool is_rt_dl_task_policy(void)
-{
-	return (current->policy == SCHED_FIFO ||
-		current->policy == SCHED_RR ||
-		current->policy == SCHED_DEADLINE);
-}
-
 int acpm_ipc_get_buffer(const char *name, char **addr, u32 *size)
 {
 	if (!acpm_srambase)
@@ -676,7 +669,7 @@ static void acpm_ktop_release(void)
 	}
 }
 
-int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w_mode)
+static int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg)
 {
 	volatile unsigned int tx_front, tx_rear, rx_front;
 	unsigned int tmp_index;
@@ -826,7 +819,7 @@ retry:
 				}
 				cnt_10us = 0;
 			} else {
-				if (w_mode) {
+				if (preemptible()) {
 					/*assume at least 50us delay here*/
 					usleep_range(50, 100);
 					cnt_10us += 5;
@@ -860,7 +853,7 @@ int acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg)
 {
 	int ret;
 	ATRACE_BEGIN(__func__);
-	ret = __acpm_ipc_send_data(channel_id, cfg, false);
+	ret = __acpm_ipc_send_data(channel_id, cfg);
 	ATRACE_END();
 	return ret;
 }
@@ -870,10 +863,7 @@ int acpm_ipc_send_data_lazy(unsigned int channel_id, struct ipc_config *cfg)
 {
 	int ret;
 	ATRACE_BEGIN(__func__);
-	if (is_rt_dl_task_policy())
-		ret = __acpm_ipc_send_data(channel_id, cfg, true);
-	else
-		ret = __acpm_ipc_send_data(channel_id, cfg, false);
+	ret = __acpm_ipc_send_data(channel_id, cfg);
 	ATRACE_END();
 	return ret;
 }
