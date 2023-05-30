@@ -2104,7 +2104,7 @@ void gti_debug_input_dump(struct goog_touch_interface *gti)
 /*-----------------------------------------------------------------------------
  * DRM: functions and structures.
  */
-struct drm_connector *get_bridge_connector(struct drm_bridge *bridge)
+static struct drm_connector *get_bridge_connector(struct drm_bridge *bridge)
 {
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
