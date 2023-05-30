@@ -1360,7 +1360,7 @@ static void panel_bridge_disable(struct drm_bridge *bridge)
 	goog_set_display_state(gti, GTI_DISPLAY_STATE_OFF);
 }
 
-struct drm_connector *get_bridge_connector(struct drm_bridge *bridge)
+static struct drm_connector *get_bridge_connector(struct drm_bridge *bridge)
 {
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
