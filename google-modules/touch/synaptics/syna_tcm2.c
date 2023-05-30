@@ -2087,6 +2087,7 @@ static void syna_dev_reflash_startup_work(struct work_struct *work)
 exit:
 	syna_set_bus_ref(tcm, SYNA_BUS_REF_FW_UPDATE, false);
 	pm_relax(&tcm->pdev->dev);
+	release_firmware(fw_entry);
 }
 #endif
 #if defined(POWER_ALIVE_AT_SUSPEND) && !defined(RESET_ON_RESUME)
