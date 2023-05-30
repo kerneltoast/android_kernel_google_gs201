@@ -34,9 +34,9 @@ int dqe_reg_wait_cgc_dma_done_internal(u32 id, unsigned long timeout_us)
 	u32 val;
 	int ret;
 
-	ret = readl_poll_timeout_atomic(dqe_regs_desc(id)->regs +
+	ret = readl_poll_timeout(dqe_regs_desc(id)->regs +
 			cgc_offset(regs_dqe[id].version) + DQE_CGC_CON, val,
-			!(val & CGC_COEF_DMA_REQ), 2, timeout_us);
+			!(val & CGC_COEF_DMA_REQ), 4, timeout_us);
 	if (ret) {
 		cal_log_err(id, "timeout of CGC COEF DMA request (0x%x)\n",
 				!(val & CGC_COEF_DMA_REQ));
