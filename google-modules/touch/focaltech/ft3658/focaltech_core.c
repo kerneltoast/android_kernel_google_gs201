@@ -1110,7 +1110,7 @@ int fts_ts_set_bus_ref(struct fts_ts_data *ts, u16 ref, bool enable)
     return result;
 }
 
-struct drm_connector *get_bridge_connector(struct drm_bridge *bridge)
+static struct drm_connector *get_bridge_connector(struct drm_bridge *bridge)
 {
     struct drm_connector *connector;
     struct drm_connector_list_iter conn_iter;
