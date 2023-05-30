@@ -761,7 +761,7 @@ int aoc_sidetone_eq_set(struct aoc_chip *chip, int biquad_idx, long *val)
 	cmd.stage_num = biquad_idx;
 	for (i = 0; i < n_params; i++) {
 		tmp = (uint32_t)val[i];
-		cmd.coeffs[i] = *(float *)(&tmp);
+		memcpy(&cmd.coeffs[i], &tmp, sizeof(tmp));
 	}
 	err = aoc_audio_control(CMD_OUTPUT_CHANNEL, (uint8_t *)&cmd, sizeof(cmd), (uint8_t *)&cmd,
 				chip);
