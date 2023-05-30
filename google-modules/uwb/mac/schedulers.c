@@ -38,7 +38,7 @@ int mcps802154_scheduler_register(struct mcps802154_scheduler_ops *scheduler_ops
 	struct mcps802154_scheduler_ops *ops;
 	int r = 0;
 
-	if (WARN_ON(!scheduler_ops || !scheduler_ops->owner ||
+	if (WARN_ON(!scheduler_ops ||
 		    !scheduler_ops->name || !scheduler_ops->open ||
 		    !scheduler_ops->close || !scheduler_ops->update_schedule))
 		return -EINVAL;
