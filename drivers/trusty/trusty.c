@@ -289,8 +289,8 @@ int trusty_transfer_memory(struct device *dev, u64 *id,
 	struct ffa_cons_mrd *cons_mrd = comp_mrd->address_range_array;
 	size_t cons_mrd_offset = (void *)cons_mrd - s->ffa_tx;
 	struct smc_ret8 smc_ret;
-	u32 cookie_low;
-	u32 cookie_high;
+	u32 cookie_low = 0;
+	u32 cookie_high = 0;
 
 	if (WARN_ON(dev->driver != &trusty_driver.driver))
 		return -EINVAL;
