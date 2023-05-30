@@ -1918,6 +1918,7 @@ int goog_process_vendor_cmd(struct goog_touch_interface *gti, enum gti_cmd_type 
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 void goog_update_motion_filter(struct goog_touch_interface *gti, unsigned long slot_bit)
 {
 	int ret = 0;
@@ -2004,6 +2005,7 @@ void goog_v4l2_read(struct goog_touch_interface *gti, ktime_t timestamp)
 	if (gti->v4l2_enabled)
 		heatmap_read(&gti->v4l2, ktime_to_ns(timestamp));
 }
+#endif
 
 void goog_offload_populate_coordinate_channel(struct goog_touch_interface *gti,
 		struct touch_offload_frame *frame, int channel)
@@ -2190,9 +2192,11 @@ void goog_offload_populate_frame(struct goog_touch_interface *gti,
 				cmd->size == TOUCH_OFFLOAD_DATA_SIZE_2D(rx, tx)) {
 				goog_offload_populate_mutual_channel(gti, frame, i,
 					cmd->buffer, cmd->size);
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 				/* Backup strength data for v4l2. */
 				if (channel_type & TOUCH_DATA_TYPE_STRENGTH)
 					memcpy(gti->heatmap_buf, cmd->buffer, cmd->size);
+#endif
 			}
 			ATRACE_END();
 		} else if (channel_type & TOUCH_SCAN_TYPE_SELF) {
@@ -2255,10 +2259,12 @@ void goog_update_fw_settings(struct goog_touch_interface *gti)
 			gti->screen_protector_mode_setting == GTI_SCREEN_PROTECTOR_MODE_ENABLE ?
 			"enable" : "disable");
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	gti->cmd.heatmap_cmd.setting = GTI_HEATMAP_ENABLE;
 	ret = goog_process_vendor_cmd(gti, GTI_CMD_SET_HEATMAP_ENABLED);
 	if (ret != 0)
 		GOOG_ERR(gti, "Failed to enable heatmap!\n");
+#endif
 }
 
 static void goog_offload_set_running(struct goog_touch_interface *gti, bool running)
@@ -2277,7 +2283,9 @@ void goog_offload_input_report(void *handle,
 	bool touch_down = 0;
 	unsigned int tool_type = MT_TOOL_FINGER;
 	int i;
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	int error;
+#endif
 	unsigned long slot_bit_active = 0;
 	char trace_tag[128];
 	ktime_t ktime = ktime_get();
@@ -2335,6 +2343,7 @@ void goog_offload_input_report(void *handle,
 	input_sync(gti->vendor_input_dev);
 	goog_input_unlock(gti);
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	if (touch_down)
 		goog_v4l2_read(gti, report->timestamp);
 
@@ -2348,9 +2357,11 @@ void goog_offload_input_report(void *handle,
 	error = goog_pm_wake_unlock(gti, GTI_PM_WAKELOCK_TYPE_OFFLOAD_REPORT);
 	if (error < 0)
 		GOOG_WARN(gti, "Error while releasing OFFLOAD_REPORT wakelock: %d!\n", error);
+#endif
 	ATRACE_END();
 }
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
 int goog_offload_probe(struct goog_touch_interface *gti)
 {
 	int ret;
@@ -2459,6 +2470,7 @@ int goog_offload_probe(struct goog_touch_interface *gti)
 	gti->default_palm_enabled = of_property_read_bool(np,
 			"goog,default-palm-disabled") ? GTI_PALM_DISABLE : GTI_PALM_ENABLE;
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	gti->heatmap_buf_size = gti->offload.caps.tx_size * gti->offload.caps.rx_size * sizeof(u16);
 	gti->heatmap_buf = devm_kzalloc(gti->vendor_dev, gti->heatmap_buf_size, GFP_KERNEL);
 	if (!gti->heatmap_buf) {
@@ -2493,6 +2505,7 @@ int goog_offload_probe(struct goog_touch_interface *gti)
 	gti->v4l2_enabled = of_property_read_bool(np, "goog,v4l2-enabled");
 	GOOG_INFO(gti, "v4l2 W/H=(%lu, %lu), v4l2_enabled=%d.\n",
 		gti->v4l2.width, gti->v4l2.height, gti->v4l2_enabled);
+#endif
 
 err_offload_probe:
 	return ret;
@@ -2502,6 +2515,7 @@ void goog_offload_remove(struct goog_touch_interface *gti)
 {
 	touch_offload_cleanup(&gti->offload);
 }
+#endif
 
 bool goog_input_legacy_report(struct goog_touch_interface *gti)
 {
@@ -2514,7 +2528,9 @@ bool goog_input_legacy_report(struct goog_touch_interface *gti)
 int goog_input_process(struct goog_touch_interface *gti, bool report_from_irq)
 {
 	int ret = 0;
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
 	struct touch_offload_frame **frame = &gti->offload_frame;
+#endif
 
 	/*
 	 * Only do the input process if active slot(s) update
@@ -2531,6 +2547,7 @@ int goog_input_process(struct goog_touch_interface *gti, bool report_from_irq)
 	if (gti->slot_bit_changed)
 		gti->input_index++;
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
 	if (gti->offload_enabled) {
 		ret = touch_offload_reserve_frame(&gti->offload, frame);
 		if (ret != 0 || frame == NULL) {
@@ -2553,7 +2570,9 @@ int goog_input_process(struct goog_touch_interface *gti, bool report_from_irq)
 				gti->offload_frame = NULL;
 		}
 	}
+#endif
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	/*
 	 * If offload is NOT running, read heatmap directly by callback.
 	 * Otherwise, heatmap will be handled for both offload and v4l2
@@ -2573,6 +2592,7 @@ int goog_input_process(struct goog_touch_interface *gti, bool report_from_irq)
 		goog_v4l2_read(gti, gti->input_timestamp);
 		goog_update_motion_filter(gti, gti->slot_bit_active);
 	}
+#endif
 
 	gti_debug_input_update(gti);
 	gti->input_timestamp_changed = false;
@@ -3501,7 +3521,9 @@ struct goog_touch_interface *goog_touch_interface_probe(
 	if (gti && gti->dev) {
 		goog_init_proc(gti);
 		goog_init_options(gti, options);
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
 		goog_offload_probe(gti);
+#endif
 		/*
 		 * goog_init_input() needs the offload.cap initialization by goog_offload_probe().
 		 */
@@ -3552,11 +3574,15 @@ int goog_touch_interface_remove(struct goog_touch_interface *gti)
 	if (gti->tbn_enabled && gti->tbn_register_mask)
 		unregister_tbn(&gti->tbn_register_mask);
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
 	gti->offload_enabled = false;
-	gti->v4l2_enabled = false;
 	goog_offload_remove(gti);
+#endif
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
+	gti->v4l2_enabled = false;
 	heatmap_remove(&gti->v4l2);
 	devm_kfree(gti->vendor_dev, gti->heatmap_buf);
+#endif
 	devm_kfree(gti->vendor_dev, gti);
 
 	return 0;
