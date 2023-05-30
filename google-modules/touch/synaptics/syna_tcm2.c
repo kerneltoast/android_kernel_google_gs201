@@ -2716,7 +2716,7 @@ int syna_set_bus_ref(struct syna_tcm *tcm, u32 ref, bool enable)
 }
 
 #if defined(USE_DRM_BRIDGE)
-struct drm_connector *syna_get_bridge_connector(struct drm_bridge *bridge)
+static struct drm_connector *syna_get_bridge_connector(struct drm_bridge *bridge)
 {
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
