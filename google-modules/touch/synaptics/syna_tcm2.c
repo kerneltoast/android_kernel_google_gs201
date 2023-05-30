@@ -363,7 +363,7 @@ static void syna_dev_set_heatmap_mode(struct syna_tcm *tcm, bool en)
  */
 static void syna_dev_restore_feature_setting(struct syna_tcm *tcm, unsigned int delay_ms_resp)
 {
-	syna_dev_set_heatmap_mode(tcm, true);
+	syna_dev_set_heatmap_mode(tcm, IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP));
 
 	syna_tcm_set_dynamic_config(tcm->tcm_dev,
 			DC_ENABLE_PALM_REJECTION,
