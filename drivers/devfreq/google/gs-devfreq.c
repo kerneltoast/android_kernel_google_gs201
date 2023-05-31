@@ -99,14 +99,26 @@ static int exynos_devfreq_dm_call(struct device *parent,
 				  unsigned long *target_freq, u32 flags)
 {
 	int err = 0;
-	struct platform_device *pdev = container_of(parent, struct platform_device, dev);
-	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
-	unsigned long str_freq = data->suspend_freq;
+	struct platform_device *pdev;
+	struct exynos_devfreq_data *data;
+	unsigned long str_freq;
 	int dm_type;
 	unsigned long exynos_pm_qos_max;
-	struct devfreq *devfreq = data->devfreq;
-	struct devfreq_simple_interactive_data *gov_data = devfreq->data;
+	struct devfreq *devfreq;
+	struct devfreq_simple_interactive_data *gov_data;
 	struct dev_pm_opp *max_opp;
+
+	pdev = container_of(parent, struct platform_device, dev);
+	if (!pdev)
+		return -ENODEV;
+
+	data = platform_get_drvdata(pdev);
+	if  (!data || data->devfreq_disabled)
+		return -EPROBE_DEFER;
+
+	str_freq = data->suspend_freq;
+	devfreq = data->devfreq;
+	gov_data = devfreq->data;
 
 	err = find_exynos_devfreq_dm_type(devfreq->dev.parent, &dm_type);
 	if (err)
