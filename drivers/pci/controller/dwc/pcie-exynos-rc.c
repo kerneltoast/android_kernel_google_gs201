@@ -3318,15 +3318,15 @@ int exynos_pcie_rc_poweron(int ch_num)
 		exynos_pcie->state = STATE_LINK_UP_TRY;
 		spin_unlock_irqrestore(&exynos_pcie->reg_lock, flags);
 
-		exynos_pcie->sudden_linkdown = 0;
-		exynos_pcie->cpl_timeout_recovery = 0;
-
 		enable_irq(pp->irq);
 
 		if (exynos_pcie_rc_establish_link(pp)) {
 			logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR, "pcie link up fail");
 			goto poweron_fail;
 		}
+
+		exynos_pcie->sudden_linkdown = 0;
+		exynos_pcie->cpl_timeout_recovery = 0;
 
 		val = exynos_elbi_read(exynos_pcie, PCIE_STATE_HISTORY_CHECK);
 		val &= ~(HISTORY_BUFFER_CONDITION_SEL);
