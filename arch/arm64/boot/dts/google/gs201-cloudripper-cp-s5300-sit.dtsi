@@ -38,6 +38,7 @@
 				gpio_ap2cp_pda_active =	<&gph1 1 0x1>;
 				gpio_ap2cp_nreset_n =	<&gph1 3 0x1>;
 				gpio_ap2cp_cp_wrst_n =	<&gph1 6 0x1>;
+				gpio_cp2ap_cp_wrst_n =  <&gpa0 2 0x1>;
 				gpio_ap2cp_pm_wrst_n =	<&gpa0 3 0x1>;
 
 				gpio_cp2ap_phone_active = <&gpa8 4 0x1>;

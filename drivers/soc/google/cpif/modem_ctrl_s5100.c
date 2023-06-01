@@ -785,9 +785,30 @@ static void gpio_power_offon_cp(struct modem_ctl *mc)
 static void gpio_power_wreset_cp(struct modem_ctl *mc)
 {
 #if !IS_ENABLED(CONFIG_CP_WRESET_WA)
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 0, 50);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 0, 50);
-	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 1, 50);
+	int i = 0, val;
+
+	mif_info("warm reset sequence start\n");
+	val = mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_CP_WRST_N],
+		false);
+	if (!val)
+		mif_err("cp2ap_cp_wrst level is low before warm reset\n");
+
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 1, 5);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 0,
+		val ? 0 : 1);
+
+	while (i++ < 20) {
+		if (!mif_gpio_get_value(&mc->cp_gpio[CP_GPIO_CP2AP_CP_WRST_N],
+				false))
+			break;
+		mif_info("Wait for cp2ap_cp_wrst pulled to low\n");
+		usleep_range(1000, 1100);
+	}
+
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N], 0, 5);
+	mif_gpio_set_value(&mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N], 1, 45);
+
+	mif_info("warm reset sequence end\n");
 #endif
 }
 
@@ -1791,6 +1812,7 @@ static int s5100_get_pdata(struct modem_ctl *mc, struct modem_data *pdata)
 	mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE].label = "AP2CP_AP_ACTIVE";
 #if !IS_ENABLED(CONFIG_CP_WRESET_WA)
 	mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N].label = "AP2CP_CP_WRST_N";
+	mc->cp_gpio[CP_GPIO_CP2AP_CP_WRST_N].label = "CP2AP_CP_WRST_N";
 	mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N].label = "AP2CP_PM_WRST_N";
 #endif
 	mc->cp_gpio[CP_GPIO_CP2AP_PS_HOLD].label = "CP2AP_PS_HOLD";
@@ -1805,6 +1827,7 @@ static int s5100_get_pdata(struct modem_ctl *mc, struct modem_data *pdata)
 	mc->cp_gpio[CP_GPIO_AP2CP_AP_ACTIVE].node_name = "gpio_ap2cp_pda_active";
 #if !IS_ENABLED(CONFIG_CP_WRESET_WA)
 	mc->cp_gpio[CP_GPIO_AP2CP_CP_WRST_N].node_name = "gpio_ap2cp_cp_wrst_n";
+	mc->cp_gpio[CP_GPIO_CP2AP_CP_WRST_N].node_name = "gpio_cp2ap_cp_wrst_n";
 	mc->cp_gpio[CP_GPIO_AP2CP_PM_WRST_N].node_name = "gpio_ap2cp_pm_wrst_n";
 #endif
 	mc->cp_gpio[CP_GPIO_CP2AP_PS_HOLD].node_name = "gpio_cp2ap_cp_ps_hold";
