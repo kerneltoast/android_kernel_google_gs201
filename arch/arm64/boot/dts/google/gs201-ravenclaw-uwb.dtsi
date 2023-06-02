@@ -52,6 +52,8 @@
 		decawave,eui64 = /bits/ 64 <0>;
 		decawave,panid = /bits/ 16 <0>;
 
+		min_clamp = <650>;
+
 		status = "okay";
 
 		controller-data {
