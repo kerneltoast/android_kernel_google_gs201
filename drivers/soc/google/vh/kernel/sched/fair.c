@@ -369,6 +369,7 @@ void init_vendor_group_data(void)
 	int group;
 	struct rq_flags rf;
 	struct task_struct *p;
+	u64 last_update_time;
 #endif
 
 	for (i = 0; i < VG_MAX; i++) {
@@ -390,8 +391,10 @@ void init_vendor_group_data(void)
 		}
 
 		rq_lock_irqsave(rq, &rf);
+		update_rq_clock(rq);
+		last_update_time = rq_clock_pelt(rq);
 		for (i = 0; i < UG_MAX - 1; i++)
-			vendor_cfs_util[i][j].avg.last_update_time = rq_clock_pelt(rq);
+			vendor_cfs_util[i][j].avg.last_update_time = last_update_time;
 
 		list_for_each_entry(p, &rq->cfs_tasks, se.group_node) {
 			group = get_utilization_group(p, get_vendor_group(p));
