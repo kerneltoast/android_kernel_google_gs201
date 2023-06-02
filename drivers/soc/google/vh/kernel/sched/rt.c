@@ -358,7 +358,8 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	 * Respect the sync flag as long as the task can run on this CPU.
 	 */
 	if (should_honor_rt_sync(this_cpu_rq, p, sync) &&
-	    cpumask_test_cpu(this_cpu, p->cpus_ptr) && fits_original) {
+	    cpumask_test_cpu(this_cpu, p->cpus_ptr) && fits_original &&
+	    atomic_read(&get_vendor_rq_struct(this_cpu_rq)->num_adpf_tasks) == 0) {
 		*new_cpu = this_cpu;
 		sync_wakeup = true;
 		goto out_unlock;
