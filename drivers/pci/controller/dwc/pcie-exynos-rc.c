@@ -3263,6 +3263,8 @@ int exynos_pcie_rc_poweron(int ch_num)
 		return -ENODEV;
 	}
 
+	mutex_lock(&exynos_pcie->power_onoff_lock);
+
 	pci = exynos_pcie->pci;
 	pp = &pci->pp;
 	dev = pci->dev;
@@ -3368,7 +3370,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 				if (ret) {
 					dev_err(dev, "%s: Failed MSI initialization(%d)\n",
 						__func__, ret);
-
+					mutex_unlock(&exynos_pcie->power_onoff_lock);
 					return ret;
 				}
 			}
@@ -3402,7 +3404,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 					logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
 						      "%s: Failed MSI initialization(%d)",
 						      __func__, ret);
-
+					mutex_unlock(&exynos_pcie->power_onoff_lock);
 					return ret;
 				}
 			}
@@ -3420,11 +3422,13 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 	dev_dbg(dev, "end poweron, state: %d\n", exynos_pcie->state);
 	logbuffer_log(exynos_pcie->log, "end poweron, state: %d\n", exynos_pcie->state);
+	mutex_unlock(&exynos_pcie->power_onoff_lock);
 
 	return 0;
 
 poweron_fail:
 	exynos_pcie->state = STATE_LINK_UP;
+	mutex_unlock(&exynos_pcie->power_onoff_lock);
 	exynos_pcie_rc_poweroff(exynos_pcie->ch_num);
 
 	return -EPIPE;
@@ -3443,6 +3447,8 @@ void exynos_pcie_rc_poweroff(int ch_num)
 		pr_err("%s: ch#%d PCIe device is not loaded\n", __func__, ch_num);
 		return;
 	}
+
+	mutex_lock(&exynos_pcie->power_onoff_lock);
 
 	pci = exynos_pcie->pci;
 	pp = &pci->pp;
@@ -3543,6 +3549,8 @@ void exynos_pcie_rc_poweroff(int ch_num)
 
 	dev_dbg(dev, "end poweroff, state: %d\n", exynos_pcie->state);
 	logbuffer_log(exynos_pcie->log, "end poweroff, state: %d\n", exynos_pcie->state);
+
+	mutex_unlock(&exynos_pcie->power_onoff_lock);
 }
 
 void exynos_pcie_pm_suspend(int ch_num)
@@ -5079,6 +5087,8 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	spin_lock_init(&exynos_pcie->reg_lock);
 	spin_lock_init(&exynos_pcie->s2mpu_refcnt_lock);
 
+	mutex_init(&exynos_pcie->power_onoff_lock);
+
 	exynos_pcie->ch_num = ch_num;
 	exynos_pcie->l1ss_enable = 1;
 	exynos_pcie->state = STATE_LINK_DOWN;
@@ -5238,7 +5248,13 @@ probe_fail:
 
 static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct dw_pcie *pci = container_of(&dev, struct dw_pcie, dev);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+
 	dev_info(&pdev->dev, "%s\n", __func__);
+
+	mutex_destroy(&exynos_pcie->power_onoff_lock);
 
 	return 0;
 }

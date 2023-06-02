@@ -338,6 +338,8 @@ struct exynos_pcie {
 
 	bool pcie_must_resume;
 	int pcieon_sleep_enable_cnt;
+
+	struct mutex power_onoff_lock;
 };
 
 #define PCIE_MAX_MSI_NUM	(8)
