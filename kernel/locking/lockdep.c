@@ -5139,10 +5139,9 @@ __lock_set_class(struct lockdep_map *lock, const char *name,
 		return 0;
 	}
 
-	lockdep_init_map_type(lock, name, key, 0,
-			      lock->wait_type_inner,
-			      lock->wait_type_outer,
-			      lock->lock_type);
+	lockdep_init_map_waits(lock, name, key, 0,
+			       lock->wait_type_inner,
+			       lock->wait_type_outer);
 	class = register_lock_class(lock, subclass, 0);
 	hlock->class_idx = class - lock_classes;
 
