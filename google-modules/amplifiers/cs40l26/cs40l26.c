@@ -4390,14 +4390,14 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	else
 		ret = request_firmware(&fw, CS40L26_FW_FILE_NAME, dev);
 
+	if (ret)
+		return ret;
+
+	ret = cs40l26_dsp_pre_config(cs40l26);
 	if (ret) {
 		release_firmware(fw);
 		return ret;
 	}
-
-	ret = cs40l26_dsp_pre_config(cs40l26);
-	if (ret)
-		return ret;
 
 	ret = cl_dsp_firmware_parse(cs40l26->dsp, fw, true);
 	release_firmware(fw);
