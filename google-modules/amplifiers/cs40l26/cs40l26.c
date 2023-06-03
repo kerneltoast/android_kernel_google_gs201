@@ -4664,15 +4664,15 @@ static int cs40l26_fw_upload(struct cs40l26_private *cs40l26)
 	else
 		error = request_firmware(&fw, CS40L26_FW_FILE_NAME, dev);
 
-	if (error) {
-		release_firmware(fw);
+	if (error)
 		return error;
-	}
 
 	if (!cs40l26->fw_rom_only) {
 		error = cs40l26_dsp_pre_config(cs40l26);
-		if (error)
+		if (error) {
+			release_firmware(fw);
 			return error;
+		}
 	}
 
 	error = cl_dsp_firmware_parse(cs40l26->dsp, fw, !cs40l26->fw_rom_only);
