@@ -18,7 +18,6 @@ typedef struct {
 	.dep_map = {					\
 		.name = #lockname,			\
 		.wait_type_inner = LD_WAIT_CONFIG,	\
-		.lock_type = LD_LOCK_PERCPU,			\
 	}
 #else
 # define LL_DEP_MAP_INIT(lockname)
@@ -31,9 +30,7 @@ do {								\
 	static struct lock_class_key __key;			\
 								\
 	debug_check_no_locks_freed((void *)lock, sizeof(*lock));\
-	lockdep_init_map_type(&(lock)->dep_map, #lock, &__key, 0, \
-			      LD_WAIT_CONFIG, LD_WAIT_INV,	\
-			      LD_LOCK_PERCPU);			\
+	lockdep_init_map_wait(&(lock)->dep_map, #lock, &__key, 0, LD_WAIT_CONFIG);\
 } while (0)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
