@@ -2623,9 +2623,14 @@ static bool is_aicl_limited(struct max77759_plat *chip)
 	/*
 	 * AICL_ACTIVE + Charging over USB + USB input current less than 500mA and charging from
 	 * default power sources.
+	 *
+	 * USB input current could be reported as 0 in scenarios such as charge full.
+	 * Exclude these cases as input current should not be 0 esp. when input current is limited.
 	 */
-	if (chip->aicl_active && vbus_present && snk_vbus && current_now.intval < 500000 &&
-	    default_power && is_dcp)
+	if (!current_now.intval)
+		return false;
+	else if (chip->aicl_active && vbus_present && snk_vbus && current_now.intval < 500000 &&
+		 default_power && is_dcp)
 		return true;
 
 	return false;
