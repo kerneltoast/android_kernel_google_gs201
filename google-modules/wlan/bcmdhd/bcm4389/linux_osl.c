@@ -2311,7 +2311,7 @@ void
 osl_mutex_lock_deinit(osl_t *osh, void *mtx)
 {
 	if (mtx) {
-		mutex_destroy(mtx);
+		mutex_destroy((struct mutex *)mtx);
 		MFREE(osh, mtx, sizeof(struct mutex));
 	}
 }
