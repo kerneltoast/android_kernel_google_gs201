@@ -1545,10 +1545,8 @@ static int exynos_pcie_rc_rd_own_conf(struct dw_pcie_rp *pp, int where, int size
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct device *dev = pci->dev;
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
-	int is_linked = 0;
-	int ret = 0;
-	u32 __maybe_unused reg_val;
 	unsigned long flags;
+	int ret;
 
 	if (exynos_pcie_check_skip_config(exynos_pcie)) {
 		*val = 0xffffffff;
@@ -1562,31 +1560,7 @@ static int exynos_pcie_rc_rd_own_conf(struct dw_pcie_rp *pp, int where, int size
 	}
 
 	spin_lock_irqsave(&exynos_pcie->reg_lock, flags);
-
-	if (exynos_pcie->state == STATE_LINK_UP)
-		is_linked = 1;
-
-	if (is_linked == 0) {
-		exynos_pcie_rc_clock_enable(pp, PCIE_ENABLE_CLOCK);
-		exynos_pcie_rc_phy_clock_enable(pp, PCIE_ENABLE_CLOCK);
-
-		if (exynos_pcie->phy_ops.phy_check_rx_elecidle)
-			exynos_pcie->phy_ops.phy_check_rx_elecidle(exynos_pcie->phy_pcs_base,
-								   IGNORE_ELECIDLE,
-								   exynos_pcie->ch_num);
-	}
-
 	ret = dw_pcie_read(exynos_pcie->rc_dbi_base + (where), size, val);
-
-	if (is_linked == 0) {
-		if (exynos_pcie->phy_ops.phy_check_rx_elecidle)
-			exynos_pcie->phy_ops.phy_check_rx_elecidle(exynos_pcie->phy_pcs_base,
-								   ENABLE_ELECIDLE,
-								   exynos_pcie->ch_num);
-
-		exynos_pcie_rc_phy_clock_enable(pp, PCIE_DISABLE_CLOCK);
-		exynos_pcie_rc_clock_enable(pp, PCIE_DISABLE_CLOCK);
-	}
 	spin_unlock_irqrestore(&exynos_pcie->reg_lock, flags);
 
 	return ret;
@@ -1597,10 +1571,8 @@ static int exynos_pcie_rc_wr_own_conf(struct dw_pcie_rp *pp, int where, int size
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct device *dev = pci->dev;
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
-	int is_linked = 0;
-	int ret = 0;
-	u32 __maybe_unused reg_val;
 	unsigned long flags;
+	int ret;
 
 	if (exynos_pcie_check_skip_config(exynos_pcie)) {
 		dev_err(dev,"skip wr_own_conf where=%#04x val=%#02x\n", where, val);
@@ -1611,33 +1583,9 @@ static int exynos_pcie_rc_wr_own_conf(struct dw_pcie_rp *pp, int where, int size
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	spin_lock_irqsave(&exynos_pcie->reg_lock, flags);
-
-	if (exynos_pcie->state == STATE_LINK_UP)
-		is_linked = 1;
-
-	if (is_linked == 0) {
-		exynos_pcie_rc_clock_enable(pp, PCIE_ENABLE_CLOCK);
-		exynos_pcie_rc_phy_clock_enable(pp, PCIE_ENABLE_CLOCK);
-
-		if (exynos_pcie->phy_ops.phy_check_rx_elecidle)
-			exynos_pcie->phy_ops.phy_check_rx_elecidle(exynos_pcie->phy_pcs_base,
-								   IGNORE_ELECIDLE,
-								   exynos_pcie->ch_num);
-	}
-
 	ret = dw_pcie_write(exynos_pcie->rc_dbi_base + (where), size, val);
-
-	if (is_linked == 0) {
-		if (exynos_pcie->phy_ops.phy_check_rx_elecidle)
-			exynos_pcie->phy_ops.phy_check_rx_elecidle(exynos_pcie->phy_pcs_base,
-								   ENABLE_ELECIDLE,
-								   exynos_pcie->ch_num);
-
-		exynos_pcie_rc_phy_clock_enable(pp, PCIE_DISABLE_CLOCK);
-		exynos_pcie_rc_clock_enable(pp, PCIE_DISABLE_CLOCK);
-	}
-
 	spin_unlock_irqrestore(&exynos_pcie->reg_lock, flags);
+
 	return ret;
 }
 
