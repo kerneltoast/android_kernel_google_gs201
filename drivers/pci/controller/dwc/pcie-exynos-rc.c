@@ -4556,7 +4556,6 @@ static irqreturn_t exynos_pcie_msi0_handler(int irq, void *arg)
 		}
 		msi_vec->flags = 1;
 	}
-	exynos_pcie_msi_post_process(pp);
 
 	return IRQ_HANDLED;
 }
@@ -4753,7 +4752,7 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct pcie_por
 				sep_msi_vec[ch_num][0].is_used = true;
 				ret = devm_request_irq(pci->dev, sep_msi_vec[ch_num][0].irq,
 						msi_handler[0],
-						IRQF_SHARED | IRQF_TRIGGER_HIGH,
+						IRQF_SHARED | IRQF_TRIGGER_HIGH | IRQF_NO_THREAD,
 						sep_irq_name[0], pp);
 				if (ret) {
 					dev_err(&pdev->dev, "failed to request MSI%d irq\n", i);
