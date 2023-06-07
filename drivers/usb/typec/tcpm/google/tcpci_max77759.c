@@ -1115,7 +1115,8 @@ static void check_missing_rp_work(struct kthread_work *work)
 		update_compliance_warnings(chip, COMPLIANCE_WARNING_MISSING_RP, true);
 		usb_psy_set_sink_state(chip->usb_psy_data, true);
 	} else if (chip->compliance_warnings->missing_rp) {
-		disconnect_missing_rp_partner(chip);
+		if (!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES))
+			disconnect_missing_rp_partner(chip);
 	}
 }
 
@@ -1140,7 +1141,8 @@ static void check_missing_rp(struct max77759_plat *chip, bool vbus_present,
 		chip->first_rp_missing_timeout = false;
 	} else if (chip->compliance_warnings->missing_rp) {
 		kthread_cancel_delayed_work_sync(&chip->check_missing_rp_work);
-		disconnect_missing_rp_partner(chip);
+		if (!(pwr_status & TCPC_POWER_STATUS_VBUS_PRES))
+			disconnect_missing_rp_partner(chip);
 	}
 }
 
