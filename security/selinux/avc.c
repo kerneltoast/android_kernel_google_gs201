@@ -506,6 +506,10 @@ static struct avc_node *avc_alloc_node(struct selinux_avc *avc)
 {
 	struct avc_node *node;
 
+	/* Page allocations may sleep in PREEMPT_RT kernels */
+	if (IS_ENABLED(CONFIG_PREEMPT_RT) && !preemptible())
+		return NULL;
+
 	node = kmem_cache_zalloc(avc_node_cachep, GFP_NOWAIT | __GFP_NOWARN);
 	if (!node)
 		goto out;
@@ -583,22 +587,24 @@ static int avc_latest_notif_update(struct selinux_avc *avc,
 				   int seqno, int is_insert)
 {
 	int ret = 0;
-	static DEFINE_SPINLOCK(notif_lock);
+	static DEFINE_RAW_SPINLOCK(notif_lock);
 	unsigned long flag;
+	u32 latest_notif;
 
-	spin_lock_irqsave(&notif_lock, flag);
+	raw_spin_lock_irqsave(&notif_lock, flag);
 	if (is_insert) {
-		if (seqno < avc->avc_cache.latest_notif) {
-			pr_warn("SELinux: avc:  seqno %d < latest_notif %d\n",
-			       seqno, avc->avc_cache.latest_notif);
+		latest_notif = avc->avc_cache.latest_notif;
+		if (seqno < latest_notif)
 			ret = -EAGAIN;
-		}
 	} else {
 		if (seqno > avc->avc_cache.latest_notif)
 			avc->avc_cache.latest_notif = seqno;
 	}
-	spin_unlock_irqrestore(&notif_lock, flag);
+	raw_spin_unlock_irqrestore(&notif_lock, flag);
 
+	if (ret)
+		pr_warn("SELinux: avc:  seqno %d < latest_notif %d\n",
+		        seqno, latest_notif);
 	return ret;
 }
 
