@@ -1989,26 +1989,7 @@ EXPORT_SYMBOL_GPL(vh_arch_set_freq_scale_pixel_mod);
 
 void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost)
 {
-	unsigned int flags = SCHED_PIXEL_BLOCK_UPDATES;
-
 	*should_iowait_boost = p->in_iowait && uclamp_boosted(p);
-
-	if (*should_iowait_boost)
-		flags |= SCHED_CPUFREQ_IOWAIT;
-
-	/*
-	 * Tell sched pixel to ignore cpufreq updates. this happens at
-	 * enqueue_task_fair() entry.
-	 *
-	 * We want to defer all request to defer frequency updates until uclamp
-	 * filter is applied.
-	 *
-	 * Note that enqueue_task_fair() could request cpufreq updates when
-	 * calling update_load_avg(). Since this vh is called before those
-	 * - this strategic block will ensure all subsequent requests are
-	 *   ignored.
-	 */
-	cpufreq_update_util(task_rq(p), flags);
 }
 
 void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized)
@@ -2783,6 +2764,7 @@ void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 {
 	struct vendor_task_struct *vp = get_vendor_task_struct(p);
 	struct vendor_rq_struct *vrq = get_vendor_rq_struct(rq);
+	bool force_cpufreq_update = false;
 
 	if (vp->uclamp_fork_reset)
 		atomic_inc(&vrq->num_adpf_tasks);
@@ -2802,12 +2784,14 @@ void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 	/* Can only process uclamp after sched_slice() was updated */
 	if (uclamp_is_used()) {
 		if (uclamp_can_ignore_uclamp_max(rq, p)) {
+			force_cpufreq_update = true;
 			uclamp_set_ignore_uclamp_max(p);
 			/* GKI has incremented it already, undo that */
 			uclamp_rq_dec_id(rq, p, UCLAMP_MAX);
 		}
 
 		if (uclamp_can_ignore_uclamp_min(rq, p)) {
+			force_cpufreq_update = true;
 			uclamp_set_ignore_uclamp_min(p);
 			/* GKI has incremented it already, undo that */
 			uclamp_rq_dec_id(rq, p, UCLAMP_MIN);
@@ -2815,14 +2799,11 @@ void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 	}
 
 	/*
-	 * We strategically tell schedutil to ignore requests to update
-	 * frequencies when we call rvh_set_iowait_pixel_mod().
-	 *
-	 * Now we have applied the uclamp filter, we'll unconditionally request
-	 * a frequency update which should take all changes into account in one
-	 * go.
+	 * If we have applied the uclamp filter, we'll unconditionally request
+	 * a frequency update which should take new changes into account.
 	 */
-	cpufreq_update_util(rq, SCHED_PIXEL_RESUME_UPDATES);
+	if (uclamp_is_used() && force_cpufreq_update)
+		cpufreq_update_util(rq, SCHED_PIXEL_FORCE_UPDATE);
 }
 
 void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)

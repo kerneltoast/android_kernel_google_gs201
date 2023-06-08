@@ -67,9 +67,6 @@ struct sugov_policy {
 	cpumask_t		pmu_ignored_mask;
 	bool			under_pmu_throttle;
 	bool			relax_pmu_throttle;
-
-	int			block_updates;
-	bool			update_iowait;
 };
 
 struct sugov_cpu {
@@ -835,31 +832,7 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 
 	raw_spin_lock(&sg_policy->update_lock);
 
-	if (flags & SCHED_PIXEL_BLOCK_UPDATES) {
-		if (flags & SCHED_CPUFREQ_IOWAIT)
-			sg_policy->update_iowait = true;
-
-		sg_policy->block_updates++;
-		raw_spin_unlock(&sg_policy->update_lock);
-		return;
-	}
-
-	if (flags & SCHED_PIXEL_RESUME_UPDATES) {
-		sg_policy->block_updates--;
-
-		if (WARN_ON(sg_policy->block_updates < 0))
-			sg_policy->block_updates = 0;
-
-		if (sg_policy->update_iowait) {
-			flags |= SCHED_CPUFREQ_IOWAIT;
-			sg_policy->update_iowait = false;
-		}
-	}
-
-	if (sg_policy->block_updates) {
-		raw_spin_unlock(&sg_policy->update_lock);
-		return;
-	}
+	sg_policy->limits_changed |= flags & SCHED_PIXEL_FORCE_UPDATE;
 
 	util = sugov_get_util(sg_cpu);
 
