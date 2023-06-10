@@ -301,7 +301,7 @@ static inline void invoke_softirq(void)
  */
 void do_softirq_post_smp_call_flush(unsigned int was_pending)
 {
-	if (WARN_ON_ONCE(was_pending != local_softirq_pending()))
+	if (was_pending != local_softirq_pending())
 		invoke_softirq();
 }
 
