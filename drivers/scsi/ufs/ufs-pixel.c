@@ -719,9 +719,11 @@ static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
 	u8 *asc, *sense_buffer;
 	int ocs;
 
-	pixel_ufs_update_io_stats(hba, lrbp, false);
-	pixel_ufs_update_req_stats(hba, lrbp);
-	pixel_ufs_trace_upiu_cmd(hba, lrbp, false);
+	if (IS_ENABLED(ENABLE_UFS_STATS)) {
+		pixel_ufs_update_io_stats(hba, lrbp, false);
+		pixel_ufs_update_req_stats(hba, lrbp);
+		pixel_ufs_trace_upiu_cmd(hba, lrbp, false);
+	}
 
 	if (!lrbp->cmd)
 		return;
@@ -1825,7 +1827,7 @@ void pixel_print_cmd_log(struct ufs_hba *hba)
 	struct pixel_cmd_log_entry *entry = NULL;
 	int i;
 
-	if (!ufs->enable_cmd_log)
+	if (!IS_ENABLED(ENABLE_UFS_STATS) || !ufs->enable_cmd_log)
 		return;
 
 	for (i = 1; i <= MAX_CMD_ENTRY_NUM; i++) {
@@ -1851,6 +1853,7 @@ int pixel_init(struct ufs_hba *hba)
 	memset(&ufs->power_stats, 0, sizeof(struct pixel_power_stats));
 	ufs->ufs_stats.hibern8_flag = false;
 	ufs->always_use_wb = false;
+	INIT_WORK(&ufs->update_sysfs_work, pixel_ufs_update_sysfs_work);
 
 	ret = register_trace_android_vh_ufs_prepare_command(
 				pixel_ufs_prepare_command, NULL);
@@ -1862,39 +1865,43 @@ int pixel_init(struct ufs_hba *hba)
 	if (ret)
 		return ret;
 
-	ret = register_trace_android_vh_ufs_send_command(
-				pixel_ufs_send_command, NULL);
-	if (ret)
-		return ret;
+	if (IS_ENABLED(ENABLE_UFS_STATS)) {
+		ret = register_trace_android_vh_ufs_send_command(
+					pixel_ufs_send_command, NULL);
+		if (ret)
+			return ret;
+	}
 
 	ret = register_trace_android_vh_ufs_compl_command(
 				pixel_ufs_compl_command, NULL);
 	if (ret)
 		return ret;
 
-	ret = register_trace_android_vh_ufs_send_uic_command(
-				pixel_ufs_send_uic_command, NULL);
-	if (ret)
-		return ret;
+	if (IS_ENABLED(ENABLE_UFS_STATS)) {
+		ret = register_trace_android_vh_ufs_send_uic_command(
+					pixel_ufs_send_uic_command, NULL);
+		if (ret)
+			return ret;
 
-	ret = register_trace_android_vh_ufs_send_tm_command(
-				pixel_ufs_send_tm_command, NULL);
-	if (ret)
-		return ret;
+		ret = register_trace_android_vh_ufs_send_tm_command(
+					pixel_ufs_send_tm_command, NULL);
+		if (ret)
+			return ret;
 
-	ret = register_trace_android_vh_ufs_check_int_errors(
-				pixel_ufs_check_int_errors, NULL);
-	if (ret)
-		return ret;
+		ret = register_trace_android_vh_ufs_check_int_errors(
+					pixel_ufs_check_int_errors, NULL);
+		if (ret)
+			return ret;
+	}
 
 	ret = register_trace_android_vh_ufs_update_sdev(
 				pixel_ufs_update_sdev, NULL);
 	if (ret)
 		return ret;
 
-	pixel_ufs_init_cmd_log(hba);
+	if (IS_ENABLED(ENABLE_UFS_STATS))
+		pixel_ufs_init_cmd_log(hba);
 
-	INIT_WORK(&ufs->update_sysfs_work, pixel_ufs_update_sysfs_work);
 	return 0;
 }
 
