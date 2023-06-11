@@ -1889,7 +1889,7 @@ void migrate_enable(void)
 	barrier();
 	p->migration_disabled = 0;
 	this_rq()->nr_pinned--;
-	preempt_lazy_enable();
+	dec_preempt_lazy_count();
 	preempt_enable();
 
 	trace_sched_migrate_enable_tp(p);
