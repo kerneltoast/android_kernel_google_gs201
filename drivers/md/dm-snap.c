@@ -43,6 +43,7 @@ struct dm_exception_table {
 	uint32_t hash_mask;
 	unsigned hash_shift;
 	struct hlist_bl_head *table;
+	spinlock_t *lock;
 };
 
 struct dm_snapshot {
@@ -630,8 +631,8 @@ static uint32_t exception_hash(struct dm_exception_table *et, chunk_t chunk);
 
 /* Lock to protect access to the completed and pending exception hash tables. */
 struct dm_exception_table_lock {
-	struct hlist_bl_head *complete_slot;
-	struct hlist_bl_head *pending_slot;
+	spinlock_t *complete_slot;
+	spinlock_t *pending_slot;
 };
 
 static void dm_exception_table_lock_init(struct dm_snapshot *s, chunk_t chunk,
@@ -640,20 +641,20 @@ static void dm_exception_table_lock_init(struct dm_snapshot *s, chunk_t chunk,
 	struct dm_exception_table *complete = &s->complete;
 	struct dm_exception_table *pending = &s->pending;
 
-	lock->complete_slot = &complete->table[exception_hash(complete, chunk)];
-	lock->pending_slot = &pending->table[exception_hash(pending, chunk)];
+	lock->complete_slot = &complete->lock[exception_hash(complete, chunk)];
+	lock->pending_slot = &pending->lock[exception_hash(pending, chunk)];
 }
 
 static void dm_exception_table_lock(struct dm_exception_table_lock *lock)
 {
-	hlist_bl_lock(lock->complete_slot);
-	hlist_bl_lock(lock->pending_slot);
+	spin_lock(lock->complete_slot);
+	spin_lock(lock->pending_slot);
 }
 
 static void dm_exception_table_unlock(struct dm_exception_table_lock *lock)
 {
-	hlist_bl_unlock(lock->pending_slot);
-	hlist_bl_unlock(lock->complete_slot);
+	spin_unlock(lock->pending_slot);
+	spin_unlock(lock->complete_slot);
 }
 
 static int dm_exception_table_init(struct dm_exception_table *et,
@@ -667,8 +668,16 @@ static int dm_exception_table_init(struct dm_exception_table *et,
 	if (!et->table)
 		return -ENOMEM;
 
-	for (i = 0; i < size; i++)
+	et->lock = vmalloc(size * sizeof(*et->lock));
+	if (!et->lock) {
+		vfree(et->table);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < size; i++) {
 		INIT_HLIST_BL_HEAD(et->table + i);
+		spin_lock_init(et->lock + i);
+	}
 
 	return 0;
 }
@@ -689,6 +698,7 @@ static void dm_exception_table_exit(struct dm_exception_table *et,
 			kmem_cache_free(mem, ex);
 	}
 
+	vfree(et->lock);
 	vfree(et->table);
 }
 
