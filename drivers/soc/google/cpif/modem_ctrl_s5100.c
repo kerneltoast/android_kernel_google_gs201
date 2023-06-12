@@ -319,11 +319,9 @@ static irqreturn_t cp_active_handler(int irq, void *data)
 	mif_err("[PHONE_ACTIVE Handler] state:%s cp_active:%d\n",
 			cp_state_str(mc->phone_state), cp_active);
 
-	if (cp_active == 1) {
+	if (cp_active == 1)
 		mif_err("ERROR - cp_active is not low, state:%s cp_active:%d\n",
 				cp_state_str(mc->phone_state), cp_active);
-		return IRQ_HANDLED;
-	}
 
 	if (timer_pending(&mld->crash_ack_timer))
 		del_timer(&mld->crash_ack_timer);
