@@ -4372,8 +4372,8 @@ EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_affinity);
 
 int exynos_pcie_rc_set_enable_wake(struct irq_data *data, unsigned int enable)
 {
-	int ret = 0;
 	struct pcie_port *pp = data->parent_data->domain->host_data;
+	struct irq_data *parent;
 
 	pr_debug("%s: enable = %d\n", __func__, enable);
 
@@ -4382,12 +4382,11 @@ int exynos_pcie_rc_set_enable_wake(struct irq_data *data, unsigned int enable)
 		return -EINVAL;
 	}
 
-	if (enable)
-		ret = enable_irq_wake(pp->irq);
-	else
-		ret = disable_irq_wake(pp->irq);
+	parent = irq_get_irq_data(pp->irq);
+	if (parent && parent->chip->irq_set_wake)
+		return parent->chip->irq_set_wake(parent, enable);
 
-	return ret;
+	return -EINVAL;
 }
 
 #if IS_ENABLED(CONFIG_CPU_IDLE)
