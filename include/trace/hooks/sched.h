@@ -410,6 +410,15 @@ DECLARE_HOOK(android_vh_rebuild_root_domains_bypass,
 	TP_ARGS(tasks_frozen, bypass));
 /* macro versions of hooks are no longer required */
 
+#if IS_ENABLED(CONFIG_VH_SCHED)
+void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
+				  struct task_struct *orig);
+#else
+static inline
+void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
+				  struct task_struct *orig) { }
+#endif
+
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

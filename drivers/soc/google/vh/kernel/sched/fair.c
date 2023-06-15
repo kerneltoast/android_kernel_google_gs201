@@ -1404,9 +1404,13 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 	struct vendor_binder_task_struct *vbinder;
 
 	v_tsk = get_vendor_task_struct(tsk);
-	v_orig = get_vendor_task_struct(orig);
 	vbinder = get_vendor_binder_task_struct(tsk);
-	v_tsk->group = v_orig->group;
+	if (likely(orig)) {
+		v_orig = get_vendor_task_struct(orig);
+		v_tsk->group = v_orig->group;
+	} else {
+		v_tsk->group = VG_SYSTEM;
+	}
 	v_tsk->prefer_idle = false;
 	INIT_LIST_HEAD(&v_tsk->node);
 	raw_spin_lock_init(&v_tsk->lock);

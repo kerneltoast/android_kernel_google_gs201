@@ -8080,6 +8080,9 @@ void __init sched_init(void)
 	BUG_ON(&dl_sched_class > &stop_sched_class);
 #endif
 
+	/* Initialize the vendor task struct for init_task */
+	vh_dup_task_struct_pixel_mod(NULL, &init_task, NULL);
+
 	wait_bit_init();
 
 #ifdef CONFIG_FAIR_GROUP_SCHED

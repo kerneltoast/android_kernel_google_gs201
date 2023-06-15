@@ -182,10 +182,6 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 
-	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
-	if (ret)
-		return ret;
-
 	ret = register_trace_android_vh_dump_throttled_rt_tasks(vh_dump_throttled_rt_tasks_mod,
 								NULL);
 	if (ret)

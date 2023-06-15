@@ -1018,6 +1018,13 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	memset(&tsk->android_vendor_data1, 0, sizeof(tsk->android_vendor_data1));
 	memset(&tsk->android_oem_data1, 0, sizeof(tsk->android_oem_data1));
 #endif
+	/*
+	 * This is awful but there's no other race-free way to guarantee that
+	 * the vendor task struct is initialized for *all* threads, because
+	 * there's no way to register the vh_dup_task_struct tracepoint without
+	 * potentially missing some threads which have already been dup'd.
+	 */
+	vh_dup_task_struct_pixel_mod(NULL, tsk, orig);
 	trace_android_vh_dup_task_struct(tsk, orig);
 	return tsk;
 
