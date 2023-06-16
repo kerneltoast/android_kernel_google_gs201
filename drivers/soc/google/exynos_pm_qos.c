@@ -820,21 +820,6 @@ static void __exynos_pm_qos_update_request(struct exynos_pm_qos_request *req,
 }
 
 /**
- * exynos_pm_qos_work_fn - the timeout handler of exynos_pm_qos_update_request_timeout
- * @work: work struct for the delayed work (timeout)
- *
- * This cancels the timeout request by falling back to the default at timeout.
- */
-static void exynos_pm_qos_work_fn(struct work_struct *work)
-{
-	struct exynos_pm_qos_request *req = container_of(to_delayed_work(work),
-						  struct exynos_pm_qos_request,
-						  work);
-
-	__exynos_pm_qos_update_request(req, EXYNOS_PM_QOS_DEFAULT_VALUE);
-}
-
-/**
  * exynos_pm_qos_add_request_trace - inserts new qos request into the list
  * @req: pointer to a preallocated handle
  * @exynos_pm_qos_class: identifies which list of qos request to use
@@ -861,7 +846,6 @@ void exynos_pm_qos_add_request_trace(const char *func, unsigned int line,
 	req->exynos_pm_qos_class = exynos_pm_qos_class;
 	req->func = func;
 	req->line = line;
-	INIT_DELAYED_WORK(&req->work, exynos_pm_qos_work_fn);
 	exynos_pm_qos_update_target(exynos_pm_qos_array[exynos_pm_qos_class]->constraints,
 				    &req->node, EXYNOS_PM_QOS_ADD_REQ, value);
 	trace_clock_set_rate(exynos_pm_qos_array[exynos_pm_qos_class]->name,
@@ -890,42 +874,9 @@ void exynos_pm_qos_update_request(struct exynos_pm_qos_request *req,
 		return;
 	}
 
-	cancel_delayed_work_sync(&req->work);
 	__exynos_pm_qos_update_request(req, new_value);
 }
 EXPORT_SYMBOL_GPL(exynos_pm_qos_update_request);
-
-/**
- * exynos_pm_qos_update_request_timeout - modifies an existing qos request temporarily.
- * @req : handle to list element holding a exynos_pm_qos request to use
- * @new_value: defines the temporal qos request
- * @timeout_us: the effective duration of this qos request in usecs.
- *
- * After timeout_us, this qos request is cancelled automatically.
- */
-void exynos_pm_qos_update_request_timeout(struct exynos_pm_qos_request *req, s32 new_value,
-					  unsigned long timeout_us)
-{
-	int class;
-
-	if (!req)
-		return;
-	if (WARN(!exynos_pm_qos_request_active(req),
-		 "%s called for unknown object.", __func__))
-		return;
-
-	cancel_delayed_work_sync(&req->work);
-
-	class = req->exynos_pm_qos_class;
-	if (new_value != req->node.prio)
-		exynos_pm_qos_update_target(exynos_pm_qos_array[class]->constraints,
-					    &req->node, EXYNOS_PM_QOS_UPDATE_REQ, new_value);
-
-	schedule_delayed_work(&req->work, usecs_to_jiffies(timeout_us));
-	trace_clock_set_rate(exynos_pm_qos_array[class]->name,
-			exynos_pm_qos_request(class), raw_smp_processor_id());
-}
-EXPORT_SYMBOL_GPL(exynos_pm_qos_update_request_timeout);
 
 /**
  * exynos_pm_qos_remove_request - modifies an existing qos request
@@ -947,8 +898,6 @@ void exynos_pm_qos_remove_request(struct exynos_pm_qos_request *req)
 		WARN(1, "%s called for unknown object\n", __func__);
 		return;
 	}
-
-	cancel_delayed_work_sync(&req->work);
 
 	class = req->exynos_pm_qos_class;
 	exynos_pm_qos_update_target(exynos_pm_qos_array[class]->constraints,
