@@ -810,11 +810,8 @@ static ssize_t cancel_boot_freq_store(struct device *dev,
 		return ret;
 	}
 
-	if (cancel_flag) {
-		exynos_pm_qos_update_request_timeout(&data->boot_pm_qos,
-						     data->boot_freq,
-						     0);
-	}
+	if (cancel_flag)
+		exynos_pm_qos_update_request(&data->boot_pm_qos, data->default_qos);
 	return count;
 }
 
@@ -2414,9 +2411,7 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 
 	if (!data->pm_domain) {
 		/* set booting frequency during booting time */
-		exynos_pm_qos_update_request_timeout(&data->boot_pm_qos,
-						     data->boot_freq,
-						     data->boot_qos_timeout * USEC_PER_SEC);
+		exynos_pm_qos_update_request(&data->boot_pm_qos, data->boot_freq);
 	} else {
 		pm_runtime_enable(&pdev->dev);
 		pm_runtime_get_sync(&pdev->dev);
