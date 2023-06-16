@@ -719,11 +719,9 @@ int gvotable_set_default(struct gvotable_election *el, void *default_val)
 	changed = el->has_default_vote == 1 && el->default_vote != default_val;
 	el->default_vote = default_val;
 
-	if (changed) {
-		if (gvotable_internal_run_election(el)) {
-			gvotable_unlock_result(el);
-			ret = gvotable_run_callback(el);
-		}
+	if (changed && gvotable_internal_run_election(el)) {
+		gvotable_unlock_result(el);
+		ret = gvotable_run_callback(el);
 	} else {
 		gvotable_unlock_result(el);
 	}
