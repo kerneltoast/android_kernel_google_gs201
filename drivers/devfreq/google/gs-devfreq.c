@@ -882,8 +882,10 @@ static ssize_t time_in_state_show(struct device *dev,
 
 	mutex_lock(&data->lock);
 	err = exynos_devfreq_update_status(data);
-	if (err)
+	if (err) {
+		mutex_unlock(&data->lock);
 		return 0;
+	}
 
 	for (i = 0; i < max_state; i++) {
 		len += sprintf(buf + len, "%8lu",
