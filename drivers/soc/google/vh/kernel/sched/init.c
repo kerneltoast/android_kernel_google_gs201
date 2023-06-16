@@ -81,17 +81,9 @@ void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_f
 
 extern struct cpufreq_governor sched_pixel_gov;
 
-extern int pmu_poll_init(void);
-
 static int vh_sched_init(void)
 {
 	int ret;
-
-	ret = pmu_poll_init();
-	if (ret) {
-		pr_err("pmu poll init failed\n");
-		return ret;
-	}
 
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	init_uclamp_stats();

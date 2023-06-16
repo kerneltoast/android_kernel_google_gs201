@@ -39,10 +39,8 @@ extern struct vendor_group_property *get_vendor_group_property(enum vendor_group
 static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id);
 
 static struct uclamp_se uclamp_default[UCLAMP_CNT];
-unsigned int pmu_poll_time_ms = 10;
-bool pmu_poll_enabled;
-extern int pmu_poll_enable(void);
-extern void pmu_poll_disable(void);
+static unsigned int pmu_poll_time_ms = 10;
+static bool pmu_poll_enabled;
 
 #define MAX_PROC_SIZE 128
 
@@ -1217,6 +1215,8 @@ static ssize_t util_post_init_scale_store(struct file *filp,
 
 PROC_OPS_RW(util_post_init_scale);
 
+extern unsigned int sched_lib_cpu_freq_cached_val;
+
 static int pmu_poll_time_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "%u\n", pmu_poll_time_ms);
@@ -1263,7 +1263,6 @@ static ssize_t pmu_poll_enable_store(struct file *filp,
 {
 	bool enable;
 	char buf[MAX_PROC_SIZE];
-	int ret = 0;
 
 	if (count >= sizeof(buf))
 		return -EINVAL;
@@ -1276,21 +1275,13 @@ static ssize_t pmu_poll_enable_store(struct file *filp,
 	if (kstrtobool(buf, &enable))
 		return -EINVAL;
 
-	if (enable)
-		ret = pmu_poll_enable();
-	else
-		pmu_poll_disable();
-
-	if (ret)
-		return ret;
+	pmu_poll_enabled = enable;
 
 	return count;
 }
 
 PROC_OPS_RW(pmu_poll_enable);
 
-
-extern unsigned int sched_lib_cpu_freq_cached_val;
 
 static int sched_lib_cpu_freq_cached_show(struct seq_file *m, void *v)
 {
