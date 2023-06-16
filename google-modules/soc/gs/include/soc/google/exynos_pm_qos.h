@@ -8,7 +8,6 @@
 #include <linux/plist.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
-#include <linux/workqueue.h>
 
 enum {
 	EXYNOS_PM_QOS_RESERVED = 0,
@@ -91,7 +90,6 @@ struct exynos_pm_asynchronous_vote {
 struct exynos_pm_qos_request {
 	struct plist_node node;
 	int exynos_pm_qos_class;
-	struct delayed_work work; /* for exynos_pm_qos_update_request_timeout */
 	const char *func;
 	unsigned int line;
 	struct exynos_pm_asynchronous_vote async_vote;
@@ -153,8 +151,6 @@ void exynos_pm_qos_update_request(struct exynos_pm_qos_request *req,
 				  s32 new_value);
 void exynos_pm_qos_update_request_async(struct exynos_pm_qos_request *req,
 					s32 new_value);
-void exynos_pm_qos_update_request_timeout(struct exynos_pm_qos_request *req,
-					  s32 new_value, unsigned long timeout_us);
 void exynos_pm_qos_remove_request(struct exynos_pm_qos_request *req);
 
 int exynos_pm_qos_request(int exynos_pm_qos_class);
