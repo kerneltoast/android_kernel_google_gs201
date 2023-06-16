@@ -59,7 +59,6 @@ struct gvotable_election {
 
 	struct mutex cb_lock;	/* see lock_result(), lock_election() */
 	struct mutex re_lock;	/* see lock_result(), lock_election() */
-	void	*owner;
 
 	void	*result;	/* current result and reason */
 	char	reason[GVOTABLE_MAX_REASON_LEN];
@@ -98,30 +97,11 @@ struct gvotable_election {
 #define gvotable_lock_result(el) mutex_lock(&(el)->re_lock)
 #define gvotable_unlock_result(el) mutex_unlock(&(el)->re_lock)
 
-#define CONFIG_DEBUG_GVOTABLE_LOCKS
-#ifdef CONFIG_DEBUG_GVOTABLE_LOCKS
-static void gvotable_lock_election(struct gvotable_election *el)
-{
-	int ret;
-
-	ret = mutex_trylock(&el->cb_lock);
-	if (!ret) {
-		WARN(el->owner == get_current(),
-		     "%s cannot call this function from the callback\n",
-		     el->has_name ? el->name : "<>");
-		mutex_lock(&el->cb_lock);
-	}
-
-	el->owner = get_current();
-	gvotable_lock_result(el);
-}
-#else
 static inline void gvotable_lock_election(struct gvotable_election *el)
 {
 	mutex_lock(&(el)->cb_lock);
 	mutex_lock(&(el)->re_lock);
 }
-#endif
 
 #define gvotable_unlock_callback(el) mutex_unlock(&(el)->cb_lock)
 
