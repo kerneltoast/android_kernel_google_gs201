@@ -635,8 +635,8 @@ static void __dpp_disable(struct dpp_device *dpp)
 	}
 
 	if (test_bit(DPP_ATTR_DPP, &dpp->attr))
-		disable_irq(dpp->dpp_irq);
-	disable_irq(dpp->dma_irq);
+		disable_irq_nosync(dpp->dpp_irq);
+	disable_irq_nosync(dpp->dma_irq);
 
 	dpp_reg_deinit(dpp->id, false, dpp->attr);
 
