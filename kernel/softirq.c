@@ -162,13 +162,9 @@ void __local_bh_disable_ip(unsigned long ip, unsigned int cnt)
 
 	/* First entry of a task into a BH disabled section? */
 	if (!current->softirq_disable_cnt) {
-		if (preemptible()) {
-			local_lock(&softirq_ctrl.lock);
-			/* Required to meet the RCU bottomhalf requirements. */
-			rcu_read_lock();
-		} else {
-			DEBUG_LOCKS_WARN_ON(this_cpu_read(softirq_ctrl.cnt));
-		}
+		local_lock(&softirq_ctrl.lock);
+		/* Required to meet the RCU bottomhalf requirements. */
+		rcu_read_lock();
 	}
 
 	/*
@@ -190,7 +186,7 @@ void __local_bh_disable_ip(unsigned long ip, unsigned int cnt)
 }
 EXPORT_SYMBOL(__local_bh_disable_ip);
 
-static void __local_bh_enable(unsigned int cnt, bool unlock)
+static void __local_bh_enable(unsigned int cnt)
 {
 	unsigned long flags;
 	int newcnt;
@@ -207,7 +203,7 @@ static void __local_bh_enable(unsigned int cnt, bool unlock)
 	newcnt = __this_cpu_sub_return(softirq_ctrl.cnt, cnt);
 	current->softirq_disable_cnt = newcnt;
 
-	if (!newcnt && unlock) {
+	if (!newcnt) {
 		rcu_read_unlock();
 		local_unlock(&softirq_ctrl.lock);
 	}
@@ -251,11 +247,11 @@ void __local_bh_enable_ip(unsigned long ip, unsigned int cnt)
 	 * in_serving_softirq() become true.
 	 */
 	cnt = SOFTIRQ_OFFSET;
-	__local_bh_enable(cnt, false);
+	__local_bh_enable(cnt);
 	__do_softirq();
 
 out:
-	__local_bh_enable(cnt, preempt_on);
+	__local_bh_enable(cnt);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(__local_bh_enable_ip);
@@ -268,7 +264,7 @@ void softirq_preempt(void)
 	if (WARN_ON_ONCE(__this_cpu_read(softirq_ctrl.cnt) != SOFTIRQ_OFFSET))
 		return;
 
-	__local_bh_enable(SOFTIRQ_OFFSET, true);
+	__local_bh_enable(SOFTIRQ_OFFSET);
 	/* preemption point */
 	__local_bh_disable_ip(_RET_IP_, SOFTIRQ_OFFSET);
 }
@@ -286,7 +282,7 @@ static inline void ksoftirqd_run_begin(void)
 /* Counterpart to ksoftirqd_run_begin() */
 static inline void ksoftirqd_run_end(void)
 {
-	__local_bh_enable(SOFTIRQ_OFFSET, true);
+	__local_bh_enable(SOFTIRQ_OFFSET);
 	WARN_ON_ONCE(in_interrupt());
 	local_irq_enable();
 }
