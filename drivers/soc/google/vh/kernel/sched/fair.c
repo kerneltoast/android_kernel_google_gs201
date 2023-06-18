@@ -1503,8 +1503,8 @@ out:
 
 static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
 {
-	struct task_struct *p = NULL, *best_task = NULL, *backup = NULL,
-		*backup_ui = NULL, *backup_unfit = NULL;
+	struct task_struct *p = NULL, *best_task = NULL, *backup = NULL;
+	unsigned int task_util;
 
 	lockdep_assert_held(&src_rq->lock);
 
@@ -1512,7 +1512,7 @@ static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
 
 	list_for_each_entry_reverse(p, &src_rq->cfs_tasks, se.group_node) {
 		struct vendor_task_struct *vp = get_vendor_task_struct(p);
-		bool is_ui = false, is_boost = false;
+		bool important = false;
 
 		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
 			continue;
@@ -1523,62 +1523,31 @@ static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
 		if (!get_prefer_idle(p))
 			continue;
 
-		if (vp && vp->uclamp_fork_reset)
-			is_ui = true;
+		task_util = uclamp_task_util(p);
+
+		if (vp && vp->uclamp_fork_reset && get_prefer_idle(p))
+			important = true;
 		else if (uclamp_eff_value(p, UCLAMP_MIN) > 0)
-			is_boost = true;
+			important = true;
 
-		if (!is_ui && !is_boost)
-			continue;
-
-		if (task_fits_capacity(p, dst_cpu, false)) {
-			if (!task_fits_capacity(p, src_rq->cpu, false)) {
-				// if task is fit for new cpu but not old cpu
-				// stop if we found an ADPF UI task
-				// use it as backup if we found a boost task
-				if (is_ui) {
-					best_task = p;
-					break;
-				}
-
-				backup = p;
-			} else {
-				if (is_ui) {
-					backup_ui = p;
-					continue;
-				}
-
-				if (!backup)
-					backup = p;
-			}
-		} else {
-			// if new idle is not capable, use it as backup but not for UI task.
-			if (!is_ui)
-				backup_unfit = p;
+		/* TODO:  pull the most important task running on the unfit CPU
+		 * if not pull the most important task running on the fit CPU
+		 * with highest load
+		 */
+		if (important && task_fits_capacity(p, dst_cpu, false)) {
+			best_task = p;
+			break;
+		} else if (important && !backup) {
+			backup = p;
 		}
-
 	}
 
-	if (best_task)
-		p = best_task;
-	else if (backup_ui)
-		p = backup_ui;
-	else if (backup)
-		p = backup;
-	else if (backup_unfit)
-		p = backup_unfit;
-	else
-		p = NULL;
+	p = best_task ? best_task : backup;
 
 	if (p) {
 		/* detach_task */
 		deactivate_task(src_rq, p, DEQUEUE_NOCLOCK);
 		set_task_cpu(p, dst_cpu);
-
-		if (backup_unfit)
-			cpu_rq(dst_cpu)->misfit_task_load = p->se.avg.load_avg;
-		else
-			cpu_rq(dst_cpu)->misfit_task_load = 0;
 	}
 
 	rcu_read_unlock();
@@ -1673,12 +1642,15 @@ void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_f
 	if (*pulled_task)
 		this_rq->idle_stamp = 0;
 
-	if (*pulled_task != 0) {
+	if (*pulled_task != 0)
 		*done = 1;
-		/* TODO: need implement update_blocked_averages */
-	}
 
 	rq_repin_lock(this_rq, rf);
+
+	if (*done == 1) {
+		this_rq->misfit_task_load = 0;
+		/* TODO: need implement update_blocked_averages */
+	}
 
 	return;
 }
