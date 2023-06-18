@@ -2026,6 +2026,9 @@ static int goodix_ts_irq_setup(struct goodix_ts_core *core_data)
 		return -EINVAL;
 	}
 
+	if (!IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP))
+		core_data->hw_ops->set_heatmap_enabled(core_data, false);
+
 	ts_info("IRQ:%u,flags:%d", core_data->irq, (int)ts_bdata->irq_flags);
 #if IS_ENABLED(CONFIG_GOOG_TOUCH_INTERFACE)
 	ret = goog_devm_request_threaded_irq(core_data->gti,
