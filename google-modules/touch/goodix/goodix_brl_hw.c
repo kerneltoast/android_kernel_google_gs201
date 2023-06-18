@@ -338,6 +338,8 @@ static int brl_reset(struct goodix_ts_core *cd, int delay)
 static int brl_irq_enable(struct goodix_ts_core *cd, bool enable)
 {
 	if (enable && !atomic_cmpxchg(&cd->irq_enabled, 0, 1)) {
+		if (!IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP))
+			cd->hw_ops->set_heatmap_enabled(cd, false);
 		enable_irq(cd->irq);
 		ts_debug("Irq enabled");
 		return 0;
@@ -1086,6 +1088,7 @@ static void goodix_parse_pen(
 	}
 }
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 static int goodix_update_heatmap(struct goodix_ts_core *cd, uint8_t *event_data)
 {
 	struct goodix_ic_info_misc *misc = &cd->ic_info.misc;
@@ -1107,6 +1110,7 @@ static int goodix_update_heatmap(struct goodix_ts_core *cd, uint8_t *event_data)
 
 	return 0;
 }
+#endif
 
 static int goodix_touch_handler(struct goodix_ts_core *cd,
 	struct goodix_ts_event *ts_event,
@@ -1151,7 +1155,9 @@ static int goodix_touch_handler(struct goodix_ts_core *cd,
 		}
 	}
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 	goodix_update_heatmap(cd, (u8 *)event_data);
+#endif
 
 	ts_event->fp_flag = event_data->fp_flag;
 
