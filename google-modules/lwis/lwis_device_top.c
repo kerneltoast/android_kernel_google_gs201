@@ -354,11 +354,12 @@ static void lwis_top_event_subscribe_clear(struct lwis_top_device *lwis_top_dev)
 						    struct lwis_event_subscribe_info, list_node);
 			/* Delete the node from the hash table */
 			list_del(&subscribe_info->list_node);
-			if (list_empty(&subscribe_info->event_subscriber_list->list)) {
-				hash_del(&subscribe_info->event_subscriber_list->node);
-				kfree(subscribe_info->event_subscriber_list);
-			}
 			kfree(subscribe_info);
+			if (list_empty(&event_subscriber_list->list)) {
+				hash_del(&event_subscriber_list->node);
+				kfree(event_subscriber_list);
+				break;
+			}
 		}
 	}
 
