@@ -4651,7 +4651,7 @@ int register_separated_msi_vector(int ch_num, irq_handler_t handler, void *conte
 
 	ret = devm_request_irq(pci->dev, sep_msi_vec[ch_num][i].irq,
 			msi_handler[i],
-			IRQF_SHARED | IRQF_TRIGGER_HIGH,
+			IRQF_SHARED | IRQF_TRIGGER_HIGH | IRQF_NO_THREAD,
 			sep_irq_name[i], pp);
 	if (ret) {
 		pr_err("failed to request MSI%d irq\n", i);

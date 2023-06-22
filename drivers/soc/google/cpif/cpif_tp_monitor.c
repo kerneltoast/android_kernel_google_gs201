@@ -70,10 +70,10 @@ static int tpmon_calc_rx_speed_internal(
 
 	rx_data->prev_time = curr_time;
 
-	spin_lock_irqsave(&tpmon->lock, flags);
+	raw_spin_lock_irqsave(&tpmon->lock, flags);
 	rx_bytes = rx_data->rx_bytes;
 	rx_data->rx_bytes = 0;
-	spin_unlock_irqrestore(&tpmon->lock, flags);
+	raw_spin_unlock_irqrestore(&tpmon->lock, flags);
 
 	if (!check_stat && (delta_msec > tpmon->trigger_msec_max)) {
 		rx_data->rx_mbps = 0;
@@ -909,7 +909,7 @@ void tpmon_add_rx_bytes(struct sk_buff *skb)
 		break;
 	}
 
-	spin_lock_irqsave(&tpmon->lock, flags);
+	raw_spin_lock_irqsave(&tpmon->lock, flags);
 	tpmon->rx_total.rx_bytes += skb->len;
 	tpmon->rx_total_stat.rx_bytes += skb->len;
 	switch (proto) {
@@ -926,7 +926,7 @@ void tpmon_add_rx_bytes(struct sk_buff *skb)
 		tpmon->rx_others_stat.rx_bytes += skb->len;
 		break;
 	}
-	spin_unlock_irqrestore(&tpmon->lock, flags);
+	raw_spin_unlock_irqrestore(&tpmon->lock, flags);
 }
 EXPORT_SYMBOL(tpmon_add_rx_bytes);
 
@@ -943,11 +943,11 @@ void tpmon_add_net_node(struct list_head *node)
 	struct cpif_tpmon *tpmon = &_tpmon;
 	unsigned long flags;
 
-	spin_lock_irqsave(&tpmon->lock, flags);
+	raw_spin_lock_irqsave(&tpmon->lock, flags);
 
 	list_add_tail(node, &tpmon->net_node_list);
 
-	spin_unlock_irqrestore(&tpmon->lock, flags);
+	raw_spin_unlock_irqrestore(&tpmon->lock, flags);
 }
 EXPORT_SYMBOL(tpmon_add_net_node);
 
@@ -1606,7 +1606,7 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			/* measure */
 			mif_dt_read_u32(boost_np, "proto", data->proto);
 			mif_dt_read_u32(boost_np, "measure", data->measure);
-			spin_lock_irqsave(&tpmon->lock, flags);
+			raw_spin_lock_irqsave(&tpmon->lock, flags);
 			switch (data->measure) {
 			case TPMON_MEASURE_TP:
 				data->get_data = tpmon_get_rx_speed_mbps;
@@ -1621,11 +1621,11 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 			default:
 				mif_err("%s measure error:%d %d\n",
 					data->name, count, data->measure);
-				spin_unlock_irqrestore(&tpmon->lock, flags);
+				raw_spin_unlock_irqrestore(&tpmon->lock, flags);
 				return -EINVAL;
 			}
 			list_add_tail(&data->data_node, &tpmon->all_data_list);
-			spin_unlock_irqrestore(&tpmon->lock, flags);
+			raw_spin_unlock_irqrestore(&tpmon->lock, flags);
 
 			mif_info("name:%s measure:%d target:%d extra_idx:%d level:%d/%d proto:%d\n",
 				 data->name, data->measure, data->target, data->extra_idx,
@@ -1664,7 +1664,7 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 	tpmon->debug_print = 0;
 	mld->tpmon = &_tpmon;
 
-	spin_lock_init(&tpmon->lock);
+	raw_spin_lock_init(&tpmon->lock);
 	atomic_set(&tpmon->active, 0);
 
 	INIT_LIST_HEAD(&tpmon->all_data_list);

@@ -76,7 +76,7 @@ struct cpif_tpmon {
 
 	atomic_t need_init;
 	atomic_t active;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 
 	u32 trigger_msec_min;
 	u32 trigger_msec_max;
