@@ -158,7 +158,7 @@ typedef struct dhdpcie_os_info {
 	bool			oob_irq_registered;
 	bool			oob_irq_enabled;
 	bool			oob_irq_wake_enabled;
-	spinlock_t		oob_irq_spinlock;
+	raw_spinlock_t		oob_irq_spinlock;
 	void			*dev;		/* handle to the underlying device */
 } dhdpcie_os_info_t;
 static irqreturn_t wlan_oob_irq(int irq, void *data);
@@ -2159,7 +2159,7 @@ int dhdpcie_init(struct pci_dev *pdev)
 		dhdpcie_info->os_cxt = (void *)dhdpcie_osinfo;
 
 		/* Initialize host wake IRQ */
-		spin_lock_init(&dhdpcie_osinfo->oob_irq_spinlock);
+		raw_spin_lock_init(&dhdpcie_osinfo->oob_irq_spinlock);
 		/* Get customer specific host wake IRQ parametres: IRQ number as IRQ type */
 		dhdpcie_osinfo->oob_irq_num = wifi_platform_get_irq_number(adapter,
 			&dhdpcie_osinfo->oob_irq_flags);
@@ -3056,8 +3056,8 @@ int dhdpcie_oob_intr_register(dhd_bus_t *bus)
 #ifdef DHD_USE_PCIE_OOB_THREADED_IRQ
 		err = request_threaded_irq(dhdpcie_osinfo->oob_irq_num,
 			wlan_oob_irq_isr, wlan_oob_irq,
-			dhdpcie_osinfo->oob_irq_flags, "dhdpcie_host_wake",
-			bus);
+			dhdpcie_osinfo->oob_irq_flags | IRQF_NO_THREAD,
+			"dhdpcie_host_wake", bus);
 #else
 		err = request_irq(dhdpcie_osinfo->oob_irq_num, wlan_oob_irq,
 			dhdpcie_osinfo->oob_irq_flags, "dhdpcie_host_wake",
