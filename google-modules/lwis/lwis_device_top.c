@@ -115,7 +115,7 @@ static struct lwis_event_subscriber_list *event_subscriber_list_create(struct lw
 	struct lwis_top_device *lwis_top_dev =
 		container_of(lwis_dev, struct lwis_top_device, base_dev);
 	struct lwis_event_subscriber_list *event_subscriber_list =
-		kmalloc(sizeof(struct lwis_event_subscriber_list), GFP_KERNEL);
+		kmalloc(sizeof(struct lwis_event_subscriber_list), GFP_ATOMIC);
 	if (!event_subscriber_list) {
 		dev_err(lwis_dev->dev, "Can't allocate event subscriber list\n");
 		return NULL;
