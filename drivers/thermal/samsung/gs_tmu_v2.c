@@ -3328,7 +3328,8 @@ static int gs_tmu_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(&pdev->dev, data->irq, gs_tmu_irq,
-			       IRQF_SHARED, dev_name(&pdev->dev), data);
+			       IRQF_SHARED | IRQF_NO_THREAD,
+			       dev_name(&pdev->dev), data);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
 		goto err_thermal;
