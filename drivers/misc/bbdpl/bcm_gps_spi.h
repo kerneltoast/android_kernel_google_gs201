@@ -156,6 +156,7 @@ struct bcm_spi_priv {
 	wait_queue_head_t poll_wait;		/* for poll */
 
 	/* GPIO pins */
+	struct gpio_desc *host_req_desc;
 	int host_req;
 	int mcu_req;
 	int mcu_resp;
@@ -163,7 +164,7 @@ struct bcm_spi_priv {
 
 	/* IRQ and its control */
 	atomic_t irq_enabled;
-	spinlock_t irq_lock;
+	raw_spinlock_t irq_lock;
 
 	/* Work */
 	struct work_struct rxtx_work;
