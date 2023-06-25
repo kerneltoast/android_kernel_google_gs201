@@ -230,7 +230,6 @@ static int bcm_spi_open(struct inode *inode, struct file *filp)
 	struct bcm_spi_priv *priv = container_of(filp->private_data,
 			struct bcm_spi_priv, misc);
 	struct bcm_spi_strm_protocol *strm;
-	unsigned long flags;
 	unsigned char fc_mask, len_mask, duplex_mask;
 
 #ifdef CONFIG_REG_IO
@@ -250,11 +249,8 @@ static int bcm_spi_open(struct inode *inode, struct file *filp)
 	priv->packet_received = 0;
 
 	/* Enable irq */
-	spin_lock_irqsave(&priv->irq_lock, flags);
 	if (!atomic_xchg(&priv->irq_enabled, 1))
 		enable_irq(priv->spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
 
 	priv->irq_wakeup_enabled = (enable_irq_wake(priv->spi->irq) == 0);
 
@@ -350,7 +346,6 @@ static int bcm_spi_open(struct inode *inode, struct file *filp)
 static int bcm_spi_release(struct inode *inode, struct file *filp)
 {
 	struct bcm_spi_priv *priv = filp->private_data;
-	unsigned long flags;
 
 	priv->busy = false;
 
@@ -363,11 +358,8 @@ static int bcm_spi_release(struct inode *inode, struct file *filp)
 	bbd_disable_stat(priv->bbd);
 #endif
 	/* Disable irq */
-	spin_lock_irqsave(&priv->irq_lock, flags);
 	if (atomic_xchg(&priv->irq_enabled, 0))
 		disable_irq_nosync(priv->spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
 
 	if (priv->irq_wakeup_enabled)
 		disable_irq_wake(priv->spi->irq);
@@ -905,7 +897,6 @@ static void bcm_rxtx_work_func(struct work_struct *work)
 	struct bcm_spi_strm_protocol *strm = &priv->tx_strm;
 	unsigned short rx_pckt_len = priv->rx_strm.pckt_len;
 	int wait_for_pzc = 0;
-	unsigned long flags;
 
 #ifdef DEBUG_1HZ_STAT
 	u64 ts_rx_start = 0;
@@ -1085,15 +1076,10 @@ static void bcm_rxtx_work_func(struct work_struct *work)
 
 	wake_up(&priv->poll_wait);
 
-	/* Enable irq */
-	spin_lock_irqsave(&priv->irq_lock, flags);
-
 	/* we dont' want to enable irq when going to suspending */
 	if (!atomic_read(&priv->suspending))
 		if (!atomic_xchg(&priv->irq_enabled, 1))
 			enable_irq(priv->spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
 
 #ifdef DEBUG_1HZ_STAT
 	if (bbd->stat1hz.ts_irq && ts_rx_start && ts_rx_end) {
@@ -1119,7 +1105,7 @@ static irqreturn_t bcm_irq_handler(int irq, void *pdata)
 {
 	struct bcm_spi_priv *priv = (struct bcm_spi_priv *) pdata;
 
-	if (!gpio_get_value(priv->host_req))
+	if (!gpiod_get_raw_value(priv->host_req_desc))
 		return IRQ_HANDLED;
 #ifdef DEBUG_1HZ_STAT
 	{
@@ -1132,11 +1118,8 @@ static irqreturn_t bcm_irq_handler(int irq, void *pdata)
 	}
 #endif
 	/* Disable irq */
-	spin_lock(&priv->irq_lock);
 	if (atomic_xchg(&priv->irq_enabled, 0))
 		disable_irq_nosync(priv->spi->irq);
-
-	spin_unlock(&priv->irq_lock);
 
 	/* we don't want to queue work in suspending and shutdown */
 	if (!atomic_read(&priv->suspending))
@@ -1210,16 +1193,12 @@ static int bcm_spi_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct bcm_spi_priv *priv = spi_get_drvdata(spi);
-	unsigned long flags;
 
 	atomic_set(&priv->suspending, 1);
 
 	/* Disable irq */
-	spin_lock_irqsave(&priv->irq_lock, flags);
 	if (atomic_xchg(&priv->irq_enabled, 0))
 		disable_irq_nosync(spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
 
 	if (priv->serial_wq)
 		flush_workqueue(priv->serial_wq);
@@ -1232,16 +1211,12 @@ static int bcm_spi_resume(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct bcm_spi_priv *priv = spi_get_drvdata(spi);
-	unsigned long flags;
 
 	atomic_set(&priv->suspending, 0);
 
 	/* Enable irq */
-	spin_lock_irqsave(&priv->irq_lock, flags);
 	if (!atomic_xchg(&priv->irq_enabled, 1))
 		enable_irq(spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
 
 	priv->ssi_pm_semaphore--;
 	return 0;
@@ -1250,7 +1225,6 @@ static int bcm_spi_resume(struct device *dev)
 static void bcm_spi_shutdown(struct spi_device *spi)
 {
 	struct bcm_spi_priv *priv = spi_get_drvdata(spi);
-	unsigned long flags;
 
 #ifdef CONFIG_TRANSFER_STAT
 	bcm_ssi_print_trans_stat(priv);
@@ -1259,11 +1233,8 @@ static void bcm_spi_shutdown(struct spi_device *spi)
 	atomic_set(&priv->suspending, 1);
 
 	/* Disable irq */
-	spin_lock_irqsave(&priv->irq_lock, flags);
 	if (atomic_xchg(&priv->irq_enabled, 0))
 		disable_irq_nosync(spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
 
 	flush_workqueue(priv->serial_wq);
 	destroy_workqueue(priv->serial_wq);
@@ -1422,11 +1393,11 @@ static int bcm_spi_probe(struct spi_device *spi)
 	INIT_WORK((struct work_struct *)&priv->rxtx_work, bcm_rxtx_work_func);
 
 	/* Init - irq stuff */
-	spin_lock_init(&priv->irq_lock);
 	atomic_set(&priv->irq_enabled, 0);
 	atomic_set(&priv->suspending, 0);
 
 	/* Init - gpios */
+	priv->host_req_desc = gpio_to_desc(host_req);
 	priv->host_req = host_req;
 	priv->mcu_req  = mcu_req;
 	priv->mcu_resp = mcu_resp;
@@ -1445,7 +1416,8 @@ static int bcm_spi_probe(struct spi_device *spi)
 
 	/* Request IRQ */
 	ret = devm_request_irq(&spi->dev, spi->irq, bcm_irq_handler,
-			IRQF_TRIGGER_HIGH | IRQF_NO_AUTOEN, "ttyBCM", priv);
+			IRQF_TRIGGER_HIGH | IRQF_NO_AUTOEN | IRQF_NO_THREAD,
+			"ttyBCM", priv);
 
 	if (ret) {
 		dev_err(&spi->dev, "Failed to register BCM477x SPI TTY IRQ %d.\n",
@@ -1469,16 +1441,12 @@ err_exit:
 static int bcm_spi_remove(struct spi_device *spi)
 {
 	struct bcm_spi_priv *priv = spi_get_drvdata(spi);
-	unsigned long flags;
 
 	atomic_set(&priv->suspending, 1);
 
 	/* Disable irq */
-	spin_lock_irqsave(&priv->irq_lock, flags);
 	if (atomic_xchg(&priv->irq_enabled, 0))
 		disable_irq_nosync(spi->irq);
-
-	spin_unlock_irqrestore(&priv->irq_lock, flags);
 
 	/* Flush work */
 	flush_workqueue(priv->serial_wq);
