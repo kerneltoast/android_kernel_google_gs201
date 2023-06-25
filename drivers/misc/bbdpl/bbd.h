@@ -59,8 +59,6 @@ enum {
 #define GPSD_CORE_ON		"GPSD:CORE_ON"
 #define GPSD_CORE_OFF		"GPSD:CORE_OFF"
 
-#define DEBUG_1HZ_STAT
-
 #define HSI_ERROR_STATUS                  0x2C
 #define HSI_ERROR_STATUS_LPBK_ERROR       0x01
 #define HSI_ERROR_STATUS_STRM_FIFO_OVFL   0x02
