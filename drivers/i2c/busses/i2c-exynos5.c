@@ -761,9 +761,9 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 
 	/* (length * (bits + ack) * (s/ms) * / freq) * (tolerance) */
 	timeout_max = (i2c->msg->len * 9 * 1000 / i2c->clock_frequency) * 2;
-	/* Minimum timeout is 100ms */
-	if (timeout_max < 100)
-		timeout_max = 100;
+	/* Minimum timeout is 5000ms */
+	if (timeout_max < 5000)
+		timeout_max = 5000;
 
 	reinit_completion(&i2c->msg_complete);
 
