@@ -3368,6 +3368,10 @@ int exynos_pcie_rc_poweron(int ch_num)
 		}
 	}
 
+	if (exynos_pcie->ep_l1ss_cap_off == U32_MAX)
+		WRITE_ONCE(exynos_pcie->ep_l1ss_cap_off,
+			   pci_find_ext_capability(exynos_pcie->ep_pci_dev, PCI_EXT_CAP_ID_L1SS));
+
 	dev_dbg(dev, "end poweron, state: %d\n", exynos_pcie->state);
 	logbuffer_log(exynos_pcie->log, "end poweron, state: %d\n", exynos_pcie->state);
 	mutex_unlock(&exynos_pcie->power_onoff_lock);
@@ -3684,9 +3688,9 @@ static int exynos_pcie_rc_set_l1ss(int enable, struct pcie_port *pp, int id)
 			__func__, exynos_pcie->l1ss_ctrl_id_state, id);
 
 		return -1;
+	} else if (READ_ONCE(exynos_pcie->ep_l1ss_cap_off) == U32_MAX) {
+		return -1;
 	} else {
-		exynos_pcie->ep_l1ss_cap_off =
-			pci_find_ext_capability(exynos_pcie->ep_pci_dev, PCI_EXT_CAP_ID_L1SS);
 		exynos_pcie->ep_link_ctrl_off = exynos_pcie->ep_pci_dev->pcie_cap + PCI_EXP_LNKCTL;
 		exynos_pcie->ep_l1ss_ctrl1_off = exynos_pcie->ep_l1ss_cap_off + PCI_L1SS_CTL1;
 		exynos_pcie->ep_l1ss_ctrl2_off = exynos_pcie->ep_l1ss_cap_off + PCI_L1SS_CTL2;
@@ -5028,6 +5032,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	if (!exynos_pcie->pma_regs)
 		return -ENOMEM;
 
+	exynos_pcie->ep_l1ss_cap_off = U32_MAX;
 	spin_lock_init(&exynos_pcie->pcie_l1_exit_lock);
 	spin_lock_init(&exynos_pcie->conf_lock);
 	spin_lock_init(&exynos_pcie->power_stats_lock);
