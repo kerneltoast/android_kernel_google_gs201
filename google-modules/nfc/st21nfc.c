@@ -967,7 +967,7 @@ static int st21nfc_probe(struct i2c_client *client,
 		/* This next call requests an interrupt line */
 		ret = devm_request_irq(dev, st21nfc_dev->irq_pw_stats_idle,
 				(irq_handler_t)st21nfc_dev_power_stats_handler,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_NO_THREAD,
 				/* Interrupt on both edges */
 				"st21nfc_pw_stats_idle_handle",
 				st21nfc_dev);
