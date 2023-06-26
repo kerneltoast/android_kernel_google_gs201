@@ -613,7 +613,8 @@ static int request_pcie_int(struct link_device *ld, struct platform_device *pdev
 	mif_info("MSI base_irq(%d)\n", base_irq);
 
 	ret = devm_request_irq(dev, base_irq + irq_offset, shmem_irq_handler,
-			       IRQF_SHARED, "mif_cp2ap_msg", mld);
+			       IRQF_SHARED | IRQF_NO_THREAD, "mif_cp2ap_msg",
+			       mld);
 	if (ret) {
 		mif_err("Can't request cp2ap_msg interrupt!!!\n");
 		return -EIO;
