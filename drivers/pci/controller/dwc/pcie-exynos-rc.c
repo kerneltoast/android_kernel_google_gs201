@@ -1450,20 +1450,7 @@ EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_outbound_atu);
 static int exynos_pcie_rc_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus, u32 devfn,
 					int where, int size, u32 *val)
 {
-	u32 busdev, cfg_size;
-	u64 cpu_addr;
-	void __iomem *va_cfg_base;
-
-	busdev = EXYNOS_PCIE_ATU_BUS(bus->number) | EXYNOS_PCIE_ATU_DEV(PCI_SLOT(devfn)) |
-		 EXYNOS_PCIE_ATU_FUNC(PCI_FUNC(devfn));
-
-	cpu_addr = pp->cfg0_base;
-	cfg_size = pp->cfg0_size;
-	va_cfg_base = pp->va_cfg0_base;
-	/* setup ATU for cfg/mem outbound */
-	exynos_pcie_rc_prog_viewport_cfg0(pp, busdev);
-
-	return dw_pcie_read(va_cfg_base + where, size, val);
+	return dw_pcie_read(pp->va_cfg0_base + where, size, val);
 }
 
 static int exynos_pcie_rc_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus, u32 devfn,
