@@ -3190,7 +3190,8 @@ static int aoc_platform_probe(struct platform_device *pdev)
 
 	irq_set_status_flags(prvdata->watchdog_irq, IRQ_NOAUTOEN);
 	ret = devm_request_irq(dev, prvdata->watchdog_irq, watchdog_int_handler,
-			       IRQF_TRIGGER_HIGH, dev_name(dev), dev);
+			       IRQF_TRIGGER_HIGH | IRQF_NO_THREAD,
+			       dev_name(dev), dev);
 	if (ret != 0) {
 		dev_err(dev, "failed to register watchdog irq handler: %d\n",
 			ret);
