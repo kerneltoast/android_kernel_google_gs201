@@ -1732,6 +1732,7 @@ mismatch:
 	if (!(new->flags & IRQF_PROBE_SHARED)) {
 		pr_err("Flags mismatch irq %d. %08x (%s) vs. %08x (%s)\n",
 		       irq, new->flags, new->name, old->flags, old->name);
+		panic("Mismatched flags for shared IRQ handler");
 #ifdef CONFIG_DEBUG_SHIRQ
 		dump_stack();
 #endif
