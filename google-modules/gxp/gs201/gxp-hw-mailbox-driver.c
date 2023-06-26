@@ -88,7 +88,7 @@ static void register_irq(struct gxp_mailbox *mailbox)
 		return;
 	}
 
-	err = request_irq(virq, mailbox_irq_handler, /*flags=*/ 0,
+	err = request_irq(virq, mailbox_irq_handler, /*flags=*/ IRQF_NO_THREAD,
 			  "aurora_mbx_irq", (void *) mailbox);
 	if (err) {
 		pr_err("Unable to register IRQ num=%d; error=%d\n", virq, err);
