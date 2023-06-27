@@ -956,7 +956,7 @@ static int exynos_update_status(struct backlight_device *bl)
 	if (brightness && brightness < min_brightness)
 		brightness = min_brightness;
 
-	dev_info(ctx->dev, "req: %d, br: %d\n", bl->props.brightness,
+	dev_dbg(ctx->dev, "req: %d, br: %d\n", bl->props.brightness,
 		brightness);
 
 	mutex_lock(&ctx->mode_lock);
