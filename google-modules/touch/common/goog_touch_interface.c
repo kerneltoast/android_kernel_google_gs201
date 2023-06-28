@@ -3305,8 +3305,6 @@ static int goog_pm_probe(struct goog_touch_interface *gti)
 	mutex_init(&pm->lock_mutex);
 	INIT_WORK(&pm->state_update_work, goog_pm_state_update_work);
 
-	/* init pm_qos. */
-	cpu_latency_qos_add_request(&gti->pm_qos_req, PM_QOS_DEFAULT_VALUE);
 	pm->enabled = true;
 
 err_alloc_workqueue:
@@ -3539,6 +3537,13 @@ static irqreturn_t gti_irq_thread_fn(int irq, void *data)
 	return ret;
 }
 
+static void gti_pm_qos_init(struct goog_touch_interface *gti, unsigned int irq)
+{
+	gti->pm_qos_req.type = PM_QOS_REQ_AFFINE_IRQ;
+	gti->pm_qos_req.irq = irq;
+	cpu_latency_qos_add_request(&gti->pm_qos_req, PM_QOS_DEFAULT_VALUE);
+}
+
 int goog_devm_request_threaded_irq(struct goog_touch_interface *gti,
 		struct device *dev, unsigned int irq,
 		irq_handler_t handler, irq_handler_t thread_fn,
@@ -3548,6 +3553,7 @@ int goog_devm_request_threaded_irq(struct goog_touch_interface *gti,
 	int ret;
 
 	if (gti) {
+		gti_pm_qos_init(gti, irq);
 		ret = devm_request_threaded_irq(dev, irq, gti_irq_handler, gti_irq_thread_fn,
 				irqflags, devname, gti);
 		if (dev_id)
@@ -3572,6 +3578,7 @@ int goog_request_threaded_irq(struct goog_touch_interface *gti,
 	int ret;
 
 	if (gti) {
+		gti_pm_qos_init(gti, irq);
 		ret = request_threaded_irq(irq, gti_irq_handler, gti_irq_thread_fn,
 				irqflags, devname, gti);
 		if (dev_id)
