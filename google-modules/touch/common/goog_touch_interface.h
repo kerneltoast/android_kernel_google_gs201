@@ -31,8 +31,6 @@
 					__func__, ##args)
 #define MAX_SLOTS 10
 
-#define GTI_DEBUG_KFIFO_LEN 4 /* must be power of 2. */
-
 #define GTI_SENSOR_2D_OUT_FORMAT_WIDTH(size) ((size > (PAGE_SIZE * sizeof(s16) / 6)) ? 1 : 5)
 /*-----------------------------------------------------------------------------
  * enums.
@@ -696,12 +694,14 @@ struct goog_touch_interface {
 	int (*vendor_default_handler)(void *private_data,
 		enum gti_cmd_type cmd_type, struct gti_union_cmd_data *cmd);
 
+#ifdef GTI_DEBUG_KFIFO_LEN
 	/* Debug used. */
 	u64 released_index;
 	struct gti_debug_input debug_input[MAX_SLOTS];
 	DECLARE_KFIFO(debug_fifo_input, struct gti_debug_input, GTI_DEBUG_KFIFO_LEN);
 	struct gti_debug_health_check debug_hc;
 	DECLARE_KFIFO(debug_fifo_hc, struct gti_debug_health_check, GTI_DEBUG_KFIFO_LEN);
+#endif
 };
 
 /*-----------------------------------------------------------------------------
@@ -764,8 +764,15 @@ int goog_pm_unregister_notification(struct goog_touch_interface *gti);
 
 void goog_notify_fw_status_changed(struct goog_touch_interface *gti,
 		enum gti_fw_status status, struct gti_fw_status_data* data);
+#ifdef GTI_DEBUG_KFIFO_LEN
 void gti_debug_hc_dump(struct goog_touch_interface *gti);
 void gti_debug_input_dump(struct goog_touch_interface *gti);
+#else
+static inline
+void gti_debug_hc_dump(struct goog_touch_interface *gti) { }
+static inline
+void gti_debug_input_dump(struct goog_touch_interface *gti) { }
+#endif
 
 int goog_get_lptw_triggered(struct goog_touch_interface *gti);
 
