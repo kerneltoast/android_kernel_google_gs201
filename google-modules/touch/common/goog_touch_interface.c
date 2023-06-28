@@ -2754,9 +2754,13 @@ void goog_input_release_all_fingers(struct goog_touch_interface *gti)
 
 	goog_input_unlock(gti);
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD) || \
+    IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP) || \
+    defined(GTI_DEBUG_KFIFO_LEN)
 	mutex_lock(&gti->input_process_lock);
 	goog_input_process(gti, false);
 	mutex_unlock(&gti->input_process_lock);
+#endif
 }
 
 void goog_register_tbn(struct goog_touch_interface *gti)
@@ -3404,9 +3408,13 @@ static irqreturn_t gti_irq_thread_fn(int irq, void *data)
 	else
 		ret = IRQ_HANDLED;
 
+#if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD) || \
+    IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP) || \
+    defined(GTI_DEBUG_KFIFO_LEN)
 	mutex_lock(&gti->input_process_lock);
 	goog_input_process(gti, true);
 	mutex_unlock(&gti->input_process_lock);
+#endif
 
 	gti_debug_hc_update(gti, false);
 	cpu_latency_qos_update_request(&gti->pm_qos_req, PM_QOS_DEFAULT_VALUE);
