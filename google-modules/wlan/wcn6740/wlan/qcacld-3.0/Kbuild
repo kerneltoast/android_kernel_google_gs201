@@ -912,7 +912,6 @@ QDF_OBJS := \
 	$(QDF_LINUX_OBJ_DIR)/qdf_periodic_work.o \
 	$(QDF_LINUX_OBJ_DIR)/qdf_status.o \
 	$(QDF_LINUX_OBJ_DIR)/qdf_threads.o \
-	$(QDF_LINUX_OBJ_DIR)/qdf_trace.o \
 	$(QDF_LINUX_OBJ_DIR)/qdf_nbuf_frag.o \
 	$(QDF_OBJ_DIR)/qdf_flex_mem.o \
 	$(QDF_OBJ_DIR)/qdf_parse.o \
@@ -920,6 +919,10 @@ QDF_OBJS := \
 	$(QDF_OBJ_DIR)/qdf_str.o \
 	$(QDF_OBJ_DIR)/qdf_talloc.o \
 	$(QDF_OBJ_DIR)/qdf_types.o \
+
+ifeq ($(BUILD_DEBUG_VERSION), y)
+QDF_OBJS += $(QDF_LINUX_OBJ_DIR)/qdf_trace.o
+endif
 
 ifeq ($(CONFIG_WLAN_DEBUGFS), y)
 QDF_OBJS += $(QDF_LINUX_OBJ_DIR)/qdf_debugfs.o
