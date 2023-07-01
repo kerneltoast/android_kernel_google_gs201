@@ -4179,9 +4179,11 @@ static void wl_scan_timeout(unsigned long data)
 		return;
 	}
 
+#ifdef DHD_FW_COREDUMP
 	if (dhdp->memdump_enabled) {
 		dhdp->hang_reason = HANG_REASON_SCAN_TIMEOUT;
 	}
+#endif /* DHD_FW_COREDUMP */
 #if defined(DHD_KERNEL_SCHED_DEBUG) && defined(DHD_FW_COREDUMP)
 	/* DHD triggers Kernel panic if the SCAN timeout occurrs
 	 * due to tasklet or workqueue scheduling problems in the Linux Kernel.
