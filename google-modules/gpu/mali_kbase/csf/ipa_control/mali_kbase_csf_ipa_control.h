@@ -137,6 +137,7 @@ int kbase_ipa_control_unregister(struct kbase_device *kbdev, const void *client)
  * @protected_time: Time spent in protected mode since last query,
  *                  expressed in nanoseconds. This pointer may be NULL if the
  *                  client doesn't want to know about this.
+ * @now:            The current monotonic time (ktime_get_raw()).
  *
  * A client that has already opened a session by registering itself to read
  * some performance counters may use this function to query the values of
@@ -153,7 +154,7 @@ int kbase_ipa_control_unregister(struct kbase_device *kbdev, const void *client)
  * Return: 0 on success, negative -errno on error
  */
 int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client, u64 *values,
-			    size_t num_values, u64 *protected_time);
+			    size_t num_values, u64 *protected_time, ktime_t *now);
 
 /**
  * kbase_ipa_control_handle_gpu_power_on - Handle the GPU power on event
