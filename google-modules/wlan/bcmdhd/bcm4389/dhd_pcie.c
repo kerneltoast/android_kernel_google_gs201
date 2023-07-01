@@ -12276,7 +12276,7 @@ dhd_bus_inb_set_device_wake(struct dhd_bus *bus, bool val)
 			bus->inband_dw_assert_cnt++;
 		} else if (dhdpcie_bus_get_pcie_inband_dw_state(bus) ==
 			DW_DEVICE_DS_DISABLED_WAIT) {
-			DHD_ERROR(("Inband device wake is already asserted, "
+			DHD_INFO(("Inband device wake is already asserted, "
 				"waiting for DS-Exit\n"));
 		}
 		else {
