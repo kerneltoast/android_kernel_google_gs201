@@ -776,7 +776,8 @@ exit:
 KBASE_EXPORT_TEST_API(kbase_ipa_control_unregister);
 
 int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client,
-			    u64 *values, size_t num_values, u64 *protected_time)
+			    u64 *values, size_t num_values, u64 *protected_time,
+			    ktime_t *now)
 {
 	struct kbase_ipa_control *ipa_ctrl;
 	struct kbase_ipa_control_session *session;
@@ -811,6 +812,9 @@ int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client,
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 	gpu_ready = kbdev->pm.backend.gpu_ready;
 
+	/* Really disable IRQs on RT to ensure precise timing info */
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		local_irq_save(flags);
 	for (i = 0; i < session->num_prfcnts; i++) {
 		struct kbase_ipa_control_prfcnt *prfcnt = &session->prfcnts[i];
 
@@ -820,8 +824,10 @@ int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client,
 		prfcnt->accumulated_diff = 0;
 	}
 
+	if (now)
+		*now = ktime_get_raw();
 	if (protected_time) {
-		u64 time_now = ktime_get_raw_ns();
+		u64 time_now = now ? ktime_to_ns(*now) : ktime_get_raw_ns();
 
 		/* This is the amount of protected-mode time spent prior to
 		 * the current protm period.
@@ -837,6 +843,8 @@ int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client,
 		session->protm_time = 0;
 	}
 
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		local_irq_restore(flags);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	for (i = session->num_prfcnts; i < num_values; i++)
