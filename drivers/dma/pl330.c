@@ -1816,6 +1816,8 @@ xfer_exit:
 }
 
 static void pl330_tasklet(unsigned long data);
+static void pl330_process(struct dma_pl330_chan *pch,
+			  struct dma_pl330_desc *desc);
 
 static void dma_pl330_rqcb(struct dma_pl330_desc *desc, enum pl330_op_err err)
 {
@@ -2026,7 +2028,7 @@ static irqreturn_t pl330_irq_thread(int irq, void *data)
 					    struct dma_pl330_desc, rqd);
 		list_del(&descdone->rqd);
 		raw_spin_unlock_irq(&pl330->lock);
-		dma_pl330_rqcb(descdone, PL330_ERR_NONE);
+		pl330_process(descdone->pchan, descdone);
 		raw_spin_lock_irq(&pl330->lock);
 	}
 	raw_spin_unlock_irq(&pl330->lock);
@@ -2391,14 +2393,24 @@ static inline void fill_queue(struct dma_pl330_chan *pch)
 	}
 }
 
-static void pl330_tasklet(unsigned long data)
+static void pl330_process(struct dma_pl330_chan *pch,
+			  struct dma_pl330_desc *desc)
 {
-	struct dma_pl330_chan *pch = (struct dma_pl330_chan *)data;
-	struct dma_pl330_desc *desc, *_dt;
+	struct dma_pl330_desc *_dt;
 	unsigned long flags;
 	bool power_down = false;
 
 	spin_lock(&pch->lock);
+
+	/* Ensure that the channel is still alive */
+	if (!pch->thread) {
+		spin_unlock(&pch->lock);
+		return;
+	}
+
+	/* Mark the desc as done if this is coming from the IRQ thread */
+	if (desc)
+		desc->status = DONE;
 
 	/* Pick up ripe tomatoes */
 	list_for_each_entry_safe(desc, _dt, &pch->work_list, node)
@@ -2466,6 +2478,11 @@ static void pl330_tasklet(unsigned long data)
 		pm_runtime_mark_last_busy(pch->dmac->ddma.dev);
 		pm_runtime_put_autosuspend(pch->dmac->ddma.dev);
 	}
+}
+
+static void pl330_tasklet(unsigned long data)
+{
+	pl330_process((struct dma_pl330_chan *)data, NULL);
 }
 
 static struct dma_chan *of_dma_pl330_xlate(struct of_phandle_args *dma_spec,
@@ -2681,6 +2698,7 @@ static void pl330_free_chan_resources(struct dma_chan *chan)
 	tasklet_kill(&pch->task);
 
 	pm_runtime_get_sync(pch->dmac->ddma.dev);
+	spin_lock(&pch->lock);
 	raw_spin_lock_irqsave(&pl330->lock, flags);
 
 	pl330_release_channel(pch->thread, &flags);
@@ -2690,6 +2708,7 @@ static void pl330_free_chan_resources(struct dma_chan *chan)
 		list_splice_tail_init(&pch->work_list, &pch->dmac->desc_pool);
 
 	raw_spin_unlock_irqrestore(&pl330->lock, flags);
+	spin_unlock(&pch->lock);
 	pm_runtime_mark_last_busy(pch->dmac->ddma.dev);
 	pm_runtime_put_autosuspend(pch->dmac->ddma.dev);
 	pl330_unprep_slave_fifo(pch);
