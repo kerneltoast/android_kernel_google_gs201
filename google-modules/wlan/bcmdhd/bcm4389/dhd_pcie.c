@@ -99,8 +99,8 @@
 
 #ifdef DNGL_AXI_ERROR_LOGGING
 #include <dhd_linux_wq.h>
-#include <dhd_linux.h>
 #endif /* DNGL_AXI_ERROR_LOGGING */
+#include <dhd_linux.h>
 
 #if defined(DHD_CONTROL_PCIE_CPUCORE_WIFI_TURNON)
 #include <dhd_linux_priv.h>
