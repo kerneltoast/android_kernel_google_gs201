@@ -1257,6 +1257,7 @@ config RT_SOFTINT_OPTIMIZATION
        bool "Improve RT scheduling during long softint execution"
        depends on ARM64
        depends on SMP
+       depends on !PREEMPT_RT
        default n
        help
          Enable an optimization which tries to avoid placing RT tasks on CPUs
