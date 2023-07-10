@@ -1242,6 +1242,11 @@ void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int pr
 	bool sync_wakeup = false, prefer_prev = false, sync_boost = false;
 	int cpu;
 
+	if (sd_flag == SD_BALANCE_EXEC) {
+		*target_cpu = prev_cpu;
+		goto out;
+	}
+
 	/* sync wake up */
 	cpu = smp_processor_id();
 	if (sync && cpu_rq(cpu)->nr_running == 1 && cpumask_test_cpu(cpu, p->cpus_ptr) &&
