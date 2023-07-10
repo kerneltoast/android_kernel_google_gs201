@@ -359,8 +359,10 @@ void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev
 	struct cpumask backup_mask;
 	int i;
 
-	if (sd_flag != SD_BALANCE_WAKE && sd_flag != SD_BALANCE_FORK)
+	if (sd_flag == SD_BALANCE_EXEC) {
+		*new_cpu = prev_cpu;
 		goto out;
+	}
 
 	rq = cpu_rq(prev_cpu);
 
