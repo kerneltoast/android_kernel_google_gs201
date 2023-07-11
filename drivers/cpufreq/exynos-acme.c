@@ -219,7 +219,7 @@ static void update_thermal_pressure(struct exynos_cpufreq_domain *domain, int df
 
 	max_capacity = arch_scale_cpu_capacity(cpumask_first(maskp));
 	min_capacity = (policy->cpuinfo.min_freq * max_capacity) / (policy->cpuinfo.max_freq);
-	capacity     = (policy->max * max_capacity) / (policy->cpuinfo.max_freq);
+	capacity     = (domain->max_freq_qos * max_capacity) / (policy->cpuinfo.max_freq);
 
 	spin_lock(&domain->thermal_update_lock);
 	domain->dfs_throttle_count += dfs_count_change;
@@ -236,7 +236,7 @@ static void update_thermal_pressure(struct exynos_cpufreq_domain *domain, int df
 	if (profile) {
 		em_cluster = profile->cpu_to_cluster[cpumask_first(maskp)];
 		for (i = 0; i < em_cluster->num_opps - 1; i++) {
-			if (em_cluster->opps[i].freq >= policy->max)
+			if (em_cluster->opps[i].freq >= domain->max_freq_qos)
 				break;
 		}
 		capacity = (domain->dfs_throttle_count > 0) ?
