@@ -2495,31 +2495,6 @@ void resume_console(void)
 }
 
 /**
- * console_cpu_notify - print deferred console messages after CPU hotplug
- * @cpu: unused
- *
- * If printk() is called from a CPU that is not online yet, the messages
- * will be printed on the console only if there are CON_ANYTIME consoles.
- * This function is called when a new CPU comes online (or fails to come
- * up) or goes offline.
- */
-static int console_cpu_notify(unsigned int cpu)
-{
-	int flag = 0;
-
-	trace_android_vh_printk_hotplug(&flag);
-	if (flag)
-		return 0;
-
-	if (!cpuhp_tasks_frozen) {
-		/* If trylock fails, someone else is doing the printing */
-		if (console_trylock())
-			console_unlock();
-	}
-	return 0;
-}
-
-/**
  * console_lock - lock the console system for exclusive use.
  *
  * Acquires a lock which guarantees that the caller has
@@ -3021,7 +2996,6 @@ void __init console_init(void)
 static int __init printk_late_init(void)
 {
 	struct console *con;
-	int ret;
 
 	for_each_console(con) {
 		if (!(con->flags & CON_BOOT))
@@ -3051,13 +3025,6 @@ static int __init printk_late_init(void)
 	kthreads_started = true;
 	console_unlock();
 #endif
-
-	ret = cpuhp_setup_state_nocalls(CPUHP_PRINTK_DEAD, "printk:dead", NULL,
-					console_cpu_notify);
-	WARN_ON(ret < 0);
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "printk:online",
-					console_cpu_notify, NULL);
-	WARN_ON(ret < 0);
 	return 0;
 }
 late_initcall(printk_late_init);
