@@ -1054,16 +1054,18 @@ static int timersd_should_run(unsigned int cpu)
 
 static void run_timersd(unsigned int cpu)
 {
-	unsigned int timer_si;
+	unsigned int prev_si, timer_si;
 
 	ksoftirqd_run_begin();
 
 	timer_si = local_pending_timers();
 	__this_cpu_write(pending_timer_softirq, 0);
-	or_softirq_pending(timer_si);
+	prev_si = local_softirq_pending();
+	set_softirq_pending(timer_si);
 
 	__do_softirq();
 
+	or_softirq_pending(prev_si);
 	ksoftirqd_run_end();
 }
 
