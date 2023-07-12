@@ -520,6 +520,9 @@ static inline bool lockdep_softirq_start(void) { return false; }
 static inline void lockdep_softirq_end(bool in_hardirq) { }
 #endif
 
+#ifdef CONFIG_PREEMPT_RT
+#define softirq_deferred_for_rt(pending) 0
+#else
 #define softirq_deferred_for_rt(pending)		\
 ({							\
 	__u32 deferred = 0;				\
@@ -529,6 +532,7 @@ static inline void lockdep_softirq_end(bool in_hardirq) { }
 	}						\
 	deferred;					\
 })
+#endif
 
 asmlinkage __visible void __softirq_entry __do_softirq(void)
 {
