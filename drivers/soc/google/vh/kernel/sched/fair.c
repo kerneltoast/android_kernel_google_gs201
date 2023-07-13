@@ -7,7 +7,6 @@
  */
 #include <kernel/sched/sched.h>
 #include <kernel/sched/pelt.h>
-#include <trace/events/power.h>
 
 #include "sched_priv.h"
 #include "sched_events.h"
@@ -1359,18 +1358,6 @@ void rvh_cpu_cgroup_online_pixel_mod(void *data, struct cgroup_subsys_state *css
 		vtg->group = VG_DEX2OAT;
 	} else {
 		vtg->group = VG_SYSTEM;
-	}
-}
-
-void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk, int clamp_id,
-					    unsigned int value)
-{
-	trace_sched_setscheduler_uclamp(tsk, clamp_id, value);
-	if (trace_clock_set_rate_enabled()) {
-		char trace_name[32] = {0};
-		scnprintf(trace_name, sizeof(trace_name), "%s_%d",
-			clamp_id  == UCLAMP_MIN ? "UCLAMP_MIN" : "UCLAMP_MAX", tsk->pid);
-		trace_clock_set_rate(trace_name, value, raw_smp_processor_id());
 	}
 }
 
