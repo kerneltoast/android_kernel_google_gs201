@@ -1192,7 +1192,7 @@ inline int avc_has_perm_noaudit(struct selinux_state *state,
 int avc_has_perm(struct selinux_state *state, u32 ssid, u32 tsid, u16 tclass,
 		 u32 requested, struct common_audit_data *auditdata)
 {
-	struct av_decision avd;
+	struct av_decision avd = { .auditdeny = 0xffffffff };
 	int rc, rc2;
 
 	rc = avc_has_perm_noaudit(state, ssid, tsid, tclass, requested, 0,
@@ -1210,7 +1210,7 @@ int avc_has_perm_flags(struct selinux_state *state,
 		       struct common_audit_data *auditdata,
 		       int flags)
 {
-	struct av_decision avd;
+	struct av_decision avd = { .auditdeny = 0xffffffff };
 	int rc, rc2;
 
 	rc = avc_has_perm_noaudit(state, ssid, tsid, tclass, requested,
