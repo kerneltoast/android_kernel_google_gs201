@@ -165,7 +165,9 @@ static void watchdog_check_hardlockup_other_cpu(void)
 
 		if (hardlockup_watchdog.panic) {
 			atomic_notifier_call_chain(&hardlockup_notifier_list, 0, (void *)&next_cpu);
-			panic("Watchdog detected hard LOCKUP on cpu %u", next_cpu);
+			printk("Watchdog detected hard LOCKUP on cpu %u", next_cpu);
+			dump_cpu_task(next_cpu);
+			panic("Watchdog hard lockup on cpu %u", next_cpu);
 		} else {
 			WARN(1, "Watchdog detected hard LOCKUP on cpu %u", next_cpu);
 		}
