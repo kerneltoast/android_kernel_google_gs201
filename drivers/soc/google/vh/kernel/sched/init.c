@@ -42,8 +42,6 @@ extern void rvh_check_preempt_wakeup_pixel_mod(void *data, struct rq *rq, struct
 			bool *preempt, bool *nopreempt, int wake_flags, struct sched_entity *se,
 			struct sched_entity *pse, int next_buddy_marked, unsigned int granularity);
 extern void rvh_cpu_cgroup_online_pixel_mod(void *data, struct cgroup_subsys_state *css);
-extern void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk,
-						   int clamp_id, unsigned int value);
 extern void init_uclamp_stats(void);
 extern void rvh_sched_fork_pixel_mod(void *data, struct task_struct *tsk);
 extern void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
@@ -160,11 +158,6 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 #endif
-
-	ret = register_trace_android_vh_setscheduler_uclamp(
-		vh_sched_setscheduler_uclamp_pixel_mod, NULL);
-	if (ret)
-		return ret;
 
 	ret = cpufreq_register_governor(&sched_pixel_gov);
 	if (ret)
