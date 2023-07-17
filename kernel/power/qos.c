@@ -604,6 +604,26 @@ static int __init cpu_latency_qos_init(void)
 	return ret;
 }
 late_initcall(cpu_latency_qos_init);
+
+static atomic_t boot_cpu_latency_set = ATOMIC_INIT(0);
+static struct pm_qos_request boot_cpu_latency_pm_qos = {
+	.type = PM_QOS_REQ_ALL_CORES
+};
+
+void cancel_boot_cpu_latency(void)
+{
+	if (atomic_cmpxchg(&boot_cpu_latency_set, 1, 0))
+		cpu_latency_qos_remove_request(&boot_cpu_latency_pm_qos);
+}
+
+static int __init boot_cpu_latency_init(void)
+{
+	/* Improve boot by disabling deep CPU idle states until boot finishes */
+	cpu_latency_qos_add_request(&boot_cpu_latency_pm_qos, 1);
+	atomic_set(&boot_cpu_latency_set, 1);
+	return 0;
+}
+core_initcall(boot_cpu_latency_init);
 #endif /* CONFIG_CPU_IDLE */
 
 static bool pm_qos_is_cpu_latency(struct pm_qos_constraints *c)
