@@ -814,6 +814,7 @@ static ssize_t cancel_boot_freq_store(struct device *dev,
 	if (cancel_flag) {
 		exynos_pm_qos_update_request(&data->boot_pm_qos, data->default_qos);
 		exynos5_i2c_set_timeout();
+		cancel_boot_cpu_latency();
 	}
 	return count;
 }
