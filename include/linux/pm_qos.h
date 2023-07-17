@@ -168,6 +168,7 @@ bool cpu_latency_qos_request_active(struct pm_qos_request *req);
 void cpu_latency_qos_add_request(struct pm_qos_request *req, s32 value);
 void cpu_latency_qos_update_request(struct pm_qos_request *req, s32 new_value);
 void cpu_latency_qos_remove_request(struct pm_qos_request *req);
+void cancel_boot_cpu_latency(void);
 #else
 static inline s32 cpu_latency_qos_limit(int cpu) { return INT_MAX; }
 static inline bool cpu_latency_qos_request_active(struct pm_qos_request *req)
@@ -179,6 +180,7 @@ static inline void cpu_latency_qos_add_request(struct pm_qos_request *req,
 static inline void cpu_latency_qos_update_request(struct pm_qos_request *req,
 						  s32 new_value) {}
 static inline void cpu_latency_qos_remove_request(struct pm_qos_request *req) {}
+static inline void cancel_boot_cpu_latency(void) {}
 #endif
 
 #ifdef CONFIG_PM
