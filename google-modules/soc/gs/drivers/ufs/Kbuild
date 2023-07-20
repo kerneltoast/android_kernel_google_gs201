@@ -2,7 +2,7 @@
 # Pixel UFSHCD Makefile
 
 obj-$(CONFIG_SCSI_UFS_EXYNOS_GS) += ufs-exynos-gs.o
-ufs-exynos-gs-y += ufs-exynos.o ufs-exynos-crypto.o ufs-exynos-dbg.o ufs-pixel.o
+ufs-exynos-gs-y += ufs-exynos.o ufs-exynos-crypto.o ufs-pixel.o
 ufs-exynos-gs-$(CONFIG_SCSI_UFS_CRYPTO_SW_KEYS_MODE) += ufs-exynos-swkeys.o
 ufs-exynos-gs-$(CONFIG_SOC_GS101) += gs101/ufs-cal-if.o
 ufs-exynos-gs-$(CONFIG_SOC_GS201) += gs201/ufs-cal-if.o
