@@ -1931,6 +1931,7 @@ static int syna_tcm_do_reflash_generic(struct tcm_dev *tcm_dev,
 			LOGE("Fail to update application firmware\n");
 			goto exit;
 		}
+		fallthrough;
 	case UPDATE_CONFIG_ONLY:
 		block = &reflash_data->image_info.data[AREA_APP_CONFIG];
 

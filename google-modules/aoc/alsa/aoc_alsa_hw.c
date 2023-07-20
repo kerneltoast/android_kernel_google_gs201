@@ -154,6 +154,7 @@ static int hw_id_to_phone_mic_source(int hw_id)
 	default:
 		pr_err("ERR in mic input source for voice call, mic source=%d\n",
 			hw_id);
+		fallthrough;
 	case PORT_INTERNAL_MIC:
 		mic_input_source = MODEM_MIC_INPUT_INDEX;
 		break;

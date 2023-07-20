@@ -6515,13 +6515,11 @@ static void wma_print_populate_soc_caps(struct target_psoc_info *tgt_hdl)
 	wma_debug("<====== HW mode cap printing starts ======>");
 	/* print cap of each hw mode */
 	for (i = 0; i < total_mac_phy_cnt; i++) {
-		if (&mac_phy_cap[i]) {
-			wma_nofl_debug("====>: hw mode id[%d], phy id[%d]",
-				 mac_phy_cap[i].hw_mode_id,
-				 mac_phy_cap[i].phy_id);
-			tmp = &mac_phy_cap[i];
-			wma_print_mac_phy_capabilities(tmp, i);
-		}
+		wma_nofl_debug("====>: hw mode id[%d], phy id[%d]",
+			 mac_phy_cap[i].hw_mode_id,
+			 mac_phy_cap[i].phy_id);
+		tmp = &mac_phy_cap[i];
+		wma_print_mac_phy_capabilities(tmp, i);
 	}
 	wma_debug("<====== HW mode cap printing ends ======>\n");
 }

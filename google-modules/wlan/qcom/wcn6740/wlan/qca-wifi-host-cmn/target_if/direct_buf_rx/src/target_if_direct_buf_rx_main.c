@@ -1389,7 +1389,7 @@ static QDF_STATUS target_if_dbr_fill_ring(struct wlan_objmgr_pdev *pdev,
 	struct direct_buf_rx_buf_info *dbr_buf_pool;
 	void *buf_vaddr_unaligned, *buf_vaddr_aligned;
 	QDF_STATUS status;
-	uint8_t offset;
+	uint8_t offset = 0;
 
 	direct_buf_rx_enter();
 

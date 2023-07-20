@@ -2789,7 +2789,7 @@ static int max77759_probe(struct i2c_client *client,
 	chip->compliance_warnings = init_compliance_warnings(chip);
 	if (IS_ERR_OR_NULL(chip->compliance_warnings)) {
 		ret = PTR_ERR(chip->compliance_warnings);
-		dev_err(&client->dev, "init_compliance_warnings failed, ptr: %ld", ret);
+		dev_err(&client->dev, "init_compliance_warnings failed, ptr: %d", ret);
 		return ret;
 	}
 

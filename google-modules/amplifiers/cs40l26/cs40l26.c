@@ -682,7 +682,7 @@ static int cs40l26_handle_mbox_buffer(struct cs40l26_private *cs40l26)
 {
 	struct device *dev = cs40l26->dev;
 	u32 val = 0;
-	int ret;
+	int __maybe_unused ret;
 
 	while (!cs40l26_mbox_buffer_read(cs40l26, &val)) {
 		if ((val & CS40L26_DSP_MBOX_CMD_INDEX_MASK)

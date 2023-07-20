@@ -49,7 +49,7 @@ static bool is_sched_lib_based_task_name(char const *sched_lib_name_list, char c
 	int length_name;
 	int length_sched_lib_name_list;
 
-	length_name = strnlen(name, LIB_PATH_LENGTH);
+	length_name = strlen(name);
 	if (!length_name)
 		return false;
 

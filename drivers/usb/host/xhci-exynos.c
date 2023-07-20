@@ -572,7 +572,7 @@ static int xhci_exynos_check_port(struct xhci_hcd_exynos *xhci_exynos,
 		xhci_exynos_scan_roothub(xhci_exynos, roothub_shared, action_udev, action,
 					 &suspend);
 
-	dev_info(&action_udev->dev, "%s action=%d state pre=%d now=%d suspend=%u\n", __func__,
+	dev_info(&action_udev->dev, "%s action=%ld state pre=%d now=%d suspend=%u\n", __func__,
 		 action, pre_state, xhci_exynos->port_state, suspend);
 
 	/* When @action_udev is added, enable autosuspend of @action_udev if it supports */

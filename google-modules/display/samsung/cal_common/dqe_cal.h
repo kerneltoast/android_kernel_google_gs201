@@ -63,11 +63,7 @@ struct cal_regs_offset {
 	u32 hist_offset;
 };
 
-static struct cal_regs_offset regs_dqe_offset[DQE_VERSION_MAX] = {
-	{0x0,   0x0,   0x0,   0x0,   0x0,   0x0},       /* GS101(9845) EVT0/A0 */
-	{0x400, 0x800, 0x800, 0x800, 0x400, 0x400},     /* GS101(9845) EVT1/B0 */
-	{0x400, 0x800, 0x800, 0x800, 0x400, 0x400},	/* GS201(9855) */
-};
+extern struct cal_regs_offset regs_dqe_offset[DQE_VERSION_MAX];
 
 
 #define dqe_regs_desc(dqe_id)				(&regs_dqe[dqe_id].desc)

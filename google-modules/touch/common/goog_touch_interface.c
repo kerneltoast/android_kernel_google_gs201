@@ -2135,7 +2135,7 @@ void goog_update_fw_settings(struct goog_touch_interface *gti)
 static void goog_offload_set_running(struct goog_touch_interface *gti, bool running)
 {
 	if (gti->offload.offload_running != running) {
-		GOOG_INFO(gti, "Set offload_running=%d, irq_index=%d, input_index=%d\n",
+		GOOG_INFO(gti, "Set offload_running=%d, irq_index=%llu, input_index=%llu\n",
 			running, gti->irq_index, gti->input_index);
 
 		gti->offload.offload_running = running;
@@ -3600,7 +3600,7 @@ struct goog_touch_interface *goog_touch_interface_probe(
 		struct device *dev,
 		struct input_dev *input_dev,
 		int (*default_handler)(void *private_data,
-			u32 cmd_type, struct gti_union_cmd_data *cmd),
+			enum gti_cmd_type cmd_type, struct gti_union_cmd_data *cmd),
 		struct gti_optional_configuration *options)
 {
 	int ret;

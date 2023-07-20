@@ -1257,7 +1257,7 @@ dp_rx_mon_restitch_mpdu_from_msdus(struct dp_soc *soc,
 	 * payload
 	 */
 	if (!head_msdu)
-		goto mpdu_stitch_fail;
+		return NULL;
 
 	msdu_orig = head_msdu;
 

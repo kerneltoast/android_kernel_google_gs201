@@ -8243,7 +8243,7 @@ static bool gbatt_check_critical_level(const struct batt_drv *batt_drv,
 		if (vbatt == -EAGAIN)
 			return false;
 
-		return (vbatt < 0) ? : vbatt < batt_drv->batt_critical_voltage;
+		return vbatt < batt_drv->batt_critical_voltage;
 	}
 
 	return false;

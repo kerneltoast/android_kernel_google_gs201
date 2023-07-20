@@ -61,7 +61,7 @@ static void csr_set_cfg_valid_channel_list(struct mac_context *mac,
 
 static void csr_save_tx_power_to_cfg(struct mac_context *mac,
 				     tDblLinkList *pList,
-				     uint32_t cfgId);
+				     enum band_info cfgId);
 
 static void csr_purge_channel_power(struct mac_context *mac,
 				    tDblLinkList *pChannelList);
