@@ -225,6 +225,7 @@ static bool have_cpu_fpsimd_context(void)
 	return !preemptible() && __this_cpu_read(fpsimd_context_busy);
 }
 
+#ifdef CONFIG_ARM64_SVE
 /*
  * Call __sve_free() directly only if you know task can't be scheduled
  * or preempted.
@@ -241,6 +242,7 @@ static void sve_free(struct task_struct *task)
 
 	__sve_free(task);
 }
+#endif
 
 static void *sve_free_atomic(struct task_struct *task)
 {

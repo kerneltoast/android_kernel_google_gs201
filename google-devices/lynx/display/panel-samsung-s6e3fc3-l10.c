@@ -665,6 +665,7 @@ static void s6e3fc3_l10_get_panel_rev(struct exynos_panel *ctx, u32 id)
 		break;
 	case 6:
 		ctx->panel_rev = PANEL_REV_PROTO1_2;
+		break;
 	case 8:
 		ctx->panel_rev = PANEL_REV_EVT1;
 		break;

@@ -373,8 +373,8 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 			desc[fore].control |= (1 << 3);	/* RINGEND */
 
 		if (unlikely(desc[fore].reserved0 != 0)) { /* W/A to detect mem poison */
-			mif_err("mem poison:0x%llX r0:%d c:%d s:%d l%d cl%d r1:%d\n",
-					desc[fore].cp_data_paddr, desc[fore].reserved0,
+			mif_err("mem poison:0x%lX r0:%d c:%d s:%d l%d cl%d r1:%d\n",
+					(unsigned long)desc[fore].cp_data_paddr, desc[fore].reserved0,
 					desc[fore].control, desc[fore].status,
 					desc[fore].lro, desc[fore].clat, desc[fore].reserved1);
 			panic("memory poison\n");
@@ -1200,7 +1200,7 @@ static ssize_t perftest_store(struct device *dev,
 	switch (perf->mode) {
 	case PERFTEST_MODE_CLAT:
 		ret = sscanf(buf, "%d %d %hu %d %d %hx:%hx:%hx:%hx:%hx:%hx:%hx:%hx %d %d %d %d",
-			     &perf->mode, &perf->session, &perf->ch, &perf->cpu, &perf->udelay,
+			     (int *)&perf->mode, &perf->session, &perf->ch, &perf->cpu, &perf->udelay,
 			     &perf->clat_ipv6[0], &perf->clat_ipv6[1], &perf->clat_ipv6[2],
 			     &perf->clat_ipv6[3], &perf->clat_ipv6[4], &perf->clat_ipv6[5],
 			     &perf->clat_ipv6[6], &perf->clat_ipv6[7],
@@ -1209,7 +1209,7 @@ static ssize_t perftest_store(struct device *dev,
 		break;
 	default:
 		ret = sscanf(buf, "%d %d %hu %d %d %d %d %d %d",
-			     &perf->mode, &perf->session, &perf->ch, &perf->cpu, &perf->udelay,
+			     (int *)&perf->mode, &perf->session, &perf->ch, &perf->cpu, &perf->udelay,
 			     &perf->ipi_cpu[0], &perf->ipi_cpu[1], &perf->ipi_cpu[2],
 			     &perf->ipi_cpu[3]);
 		break;

@@ -3037,7 +3037,10 @@ QDF_STATUS policy_mgr_decr_active_session(struct wlan_objmgr_psoc *psoc,
 	default:
 		break;
 	}
-	policy_mgr_get_chan_by_session_id(psoc, session_id, &cur_freq);
+	qdf_status = policy_mgr_get_chan_by_session_id(psoc, session_id,
+						       &cur_freq);
+	if (QDF_IS_STATUS_ERROR(qdf_status))
+		return qdf_status;
 
 	policy_mgr_decr_connection_count(psoc, session_id);
 	session_count = pm_ctx->no_of_active_sessions[mode];
@@ -6946,6 +6949,7 @@ policy_mgr_update_indoor_concurrency(struct wlan_objmgr_psoc *psoc,
 	struct policy_mgr_psoc_priv_obj *pm_ctx;
 	enum phy_ch_width ch_width = CH_WIDTH_INVALID;
 	bool indoor_support = false;
+	QDF_STATUS status;
 
 	pm_ctx = policy_mgr_get_context(psoc);
 	if (!pm_ctx) {
@@ -6976,7 +6980,10 @@ policy_mgr_update_indoor_concurrency(struct wlan_objmgr_psoc *psoc,
 	case CONNECT:
 	case SWITCH_WITHOUT_CONCURRENCY:
 	case SWITCH_WITH_CONCURRENCY:
-		policy_mgr_get_chan_by_session_id(psoc, vdev_id, &ch_freq);
+		status = policy_mgr_get_chan_by_session_id(psoc, vdev_id,
+							   &ch_freq);
+		if (QDF_IS_STATUS_ERROR(status))
+			return;
 		ch_width = policy_mgr_get_bw_by_session_id(psoc, vdev_id);
 		break;
 	case DISCONNECT_WITHOUT_CONCURRENCY:

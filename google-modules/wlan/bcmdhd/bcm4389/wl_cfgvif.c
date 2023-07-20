@@ -1367,6 +1367,7 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 			break;
 		}
 #endif /* WL_CFG80211_MONITOR */
+		fallthrough;
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_MESH_POINT:
 		/* Intentional fall through */

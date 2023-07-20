@@ -2645,7 +2645,7 @@ void wlan_mlme_clear_sae_single_pmk_info(struct wlan_objmgr_vdev *vdev,
  *
  * Return: Meaningful string from enum
  */
-char *mlme_get_roam_fail_reason_str(uint32_t result);
+char *mlme_get_roam_fail_reason_str(enum wlan_roam_failure_reason_code result);
 
 /**
  * mlme_get_sub_reason_str() - Get roam trigger sub reason from enum
@@ -2654,7 +2654,7 @@ char *mlme_get_roam_fail_reason_str(uint32_t result);
  *
  * Return: Meaningful string from enum WMI_ROAM_TRIGGER_SUB_REASON_ID
  */
-char *mlme_get_sub_reason_str(uint32_t sub_reason);
+char *mlme_get_sub_reason_str(enum roam_trigger_sub_reason sub_reason);
 
 /**
  * wlan_mlme_get_mgmt_max_retry() - Get the

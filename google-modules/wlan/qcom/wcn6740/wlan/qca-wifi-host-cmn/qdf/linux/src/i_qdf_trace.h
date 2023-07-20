@@ -115,8 +115,10 @@
 		} \
 	} while (0)
 #else
-#define __QDF_TRACE_RATE_LIMITED(arg ...)
-#define __QDF_TRACE_HEX_DUMP_RATE_LIMITED(arg ...)
+#define __QDF_TRACE_RATE_LIMITED(arg ...) \
+	__qdf_trace_dummy(arg)
+#define __QDF_TRACE_HEX_DUMP_RATE_LIMITED(arg ...) \
+	__qdf_trace_dummy(arg)
 #endif
 
 #define __QDF_TRACE_NO_FL(log_level, module_id, format, args...) \
