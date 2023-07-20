@@ -1540,7 +1540,7 @@ static int gcpm_pps_wlc_dc_restart_default(struct gcpm_drv *gcpm)
 	ret = gcpm_enable_default(gcpm);
 	if (ret < 0) {
 		pr_err("%s: fail 2 restart default, dc_state=%d pps_done=%d (%d)\n",
-		       __func__, gcpm->dc_state, pps_done >= 0 ? : pps_done, ret);
+		       __func__, gcpm->dc_state, pps_done, ret);
 		return -EAGAIN;
 	}
 
@@ -2006,7 +2006,7 @@ static int gcpm_psy_set_property(struct power_supply *psy,
 
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		psp = POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX;
-		/* compat, fall through */
+		fallthrough;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
 		ta_check = gcpm->fv_uv != pval->intval;
 		gcpm->fv_uv = pval->intval;

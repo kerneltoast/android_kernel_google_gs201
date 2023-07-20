@@ -677,7 +677,7 @@ void wma_set_vdev_intrabss_fwd(tp_wma_handle wma_handle,
  */
 void wma_delete_bss_ho_fail(tp_wma_handle wma, uint8_t vdev_id);
 
-uint32_t wma_get_bcn_rate_code(uint16_t rate);
+enum mlme_bcn_tx_rate_code wma_get_bcn_rate_code(uint16_t rate);
 
 /*
  * wma_mgmt.c functions declarations
@@ -1113,7 +1113,7 @@ int wma_link_status_event_handler(void *handle, uint8_t *cmd_param_info,
  *
  * Return: 0 for success
  */
-int wma_rso_cmd_status_event_handler(uint8_t vdev_id, uint32_t notif);
+int wma_rso_cmd_status_event_handler(uint8_t vdev_id, enum cm_roam_notif notif);
 
 int wma_stats_event_handler(void *handle, uint8_t *cmd_param_info,
 			    uint32_t len);
