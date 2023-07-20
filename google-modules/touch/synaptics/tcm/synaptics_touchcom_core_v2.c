@@ -252,6 +252,7 @@ static void syna_tcm_v2_dispatch_report(struct tcm_dev *tcm_dev)
 			switch (tcm_msg->command) {
 			case CMD_RESET:
 				LOGD("Reset by CMD_RESET\n");
+				fallthrough;
 			case CMD_REBOOT_TO_ROM_BOOTLOADER:
 			case CMD_RUN_BOOTLOADER_FIRMWARE:
 			case CMD_RUN_APPLICATION_FIRMWARE:

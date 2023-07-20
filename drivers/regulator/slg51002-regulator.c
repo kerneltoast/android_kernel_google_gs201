@@ -300,7 +300,7 @@ static void slg51002_work_func(struct work_struct *work)
 		dev_info(chip->dev,
 			 "OTP has been read or OTP crc is not zero\n");
 
-	for (i = 0; i < SLG51002_MAX_REGULATORS; i++) {
+	for (i = 0; i < SLG51002_MAX_EVT_REGISTER; i++) {
 		if (!(evt[i][R2] & SLG51002_IRQ_ILIM_FLAG_MASK) &&
 		    (evt[i][R0] & SLG51002_EVT_ILIM_FLAG_MASK)) {
 			regulator_notifier_call_chain(chip->rdev[i],
@@ -314,7 +314,7 @@ static void slg51002_work_func(struct work_struct *work)
 
 	if (!(evt[SLG51002_SCTL_EVT][R2] & SLG51002_IRQ_HIGH_TEMP_WARN_MASK) &&
 	    (evt[SLG51002_SCTL_EVT][R0] & SLG51002_EVT_HIGH_TEMP_WARN_MASK)) {
-		for (i = 0; i < SLG51002_MAX_REGULATORS; i++) {
+		for (i = 0; i < SLG51002_MAX_EVT_REGISTER; i++) {
 			if (!(evt[i][R1] & SLG51002_STA_ILIM_FLAG_MASK) &&
 			    (evt[i][R1] & SLG51002_STA_VOUT_OK_FLAG_MASK)) {
 				regulator_notifier_call_chain(chip->rdev[i],

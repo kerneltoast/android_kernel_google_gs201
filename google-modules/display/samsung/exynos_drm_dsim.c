@@ -2247,6 +2247,7 @@ dsim_read_data(struct dsim_device *dsim, const struct mipi_dsi_msg *msg)
 	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_2BYTE:
 		WARN_ON(msg->rx_len > 2);
 		rx_buf[1] = (rx_fifo >> 16) & 0xff;
+		fallthrough;
 	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
 	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE:
 		rx_buf[0] = (rx_fifo >> 8) & 0xff;

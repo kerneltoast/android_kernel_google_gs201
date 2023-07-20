@@ -28,9 +28,6 @@ ifeq ($(KERNEL_SRC),)
  else
   BCMDHD_ROOT=$(srctree)/$(src)
  endif
- $(warning : ** Regular in-tree build BCMDHD_ROOT=$(BCMDHD_ROOT)**)
-else
- $(warning : ** out-of-tree Kbuild BCMDHD_ROOT=$(BCMDHD_ROOT)**)
 endif
 
 #####################
@@ -89,7 +86,7 @@ DHDCFLAGS += -DCONFIG_BCMDHD_GET_OOB_STATE=$(CONFIG_BCMDHD_GET_OOB_STATE)
 endif
 
 DHDCFLAGS += -DBCMUTILS_ERR_CODES -DUSE_NEW_RSPEC_DEFS
-DHDCFLAGS += -Wall -Wstrict-prototypes -Wno-parentheses-equality -Dlinux -DLINUX -DBCMDRIVER \
+DHDCFLAGS += -Wall -Wstrict-prototypes -Dlinux -DLINUX -DBCMDRIVER \
 	-DBCMDONGLEHOST -DBCMDMA32 -DBCMFILEIMAGE \
 	-DDHDTHREAD -DWLP2P \
 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT \

@@ -386,7 +386,7 @@ static void wl_cfg80211_bt_handler(struct work_struct *work)
 				WL_TRACE(("DHCP wait interval T2:%d msec expired\n",
 					BT_DHCP_FLAG_FORCE_TIME));
 			}
-			/* Pass through */
+			fallthrough;
 		default:
 			if (btcx_inf->bt_state != BT_DHCP_FLAG_FORCE_TIMEOUT) {
 				WL_ERR(("Error BT DHCP status=%d!!!\n", btcx_inf->bt_state));

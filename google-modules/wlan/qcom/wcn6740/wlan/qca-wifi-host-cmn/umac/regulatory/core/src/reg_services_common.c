@@ -6163,7 +6163,9 @@ QDF_STATUS reg_get_client_power_for_connecting_ap(struct wlan_objmgr_pdev *pdev,
 		return QDF_STATUS_E_FAILURE;
 	}
 
-	reg_get_cur_6g_client_type(pdev, &client_type);
+	status = reg_get_cur_6g_client_type(pdev, &client_type);
+	if (QDF_IS_STATUS_ERROR(status))
+		return status;
 
 	master_chan_list =
 		pdev_priv_obj->mas_chan_list_6g_client[ap_type][client_type];

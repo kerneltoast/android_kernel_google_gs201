@@ -20,7 +20,7 @@
 
 #define MMU_TLB_ENTRY_VALID(reg)	((reg) >> 28)
 #define MMU_SBB_ENTRY_VALID(reg)	((reg) >> 28)
-#define MMU_VADDR_FROM_TLB(reg, idx)	(((reg) & 0xFFFFC | (idx) & 0x3) << 12)
+#define MMU_VADDR_FROM_TLB(reg, idx)	((((reg) & 0xFFFFC) | ((idx) & 0x3)) << 12)
 #define MMU_VID_FROM_TLB(reg)		(((reg) >> 20) & 0x7U)
 #define MMU_PADDR_FROM_TLB(reg)		((phys_addr_t)((reg) & 0xFFFFFF) << 12)
 #define MMU_VADDR_FROM_SBB(reg)		(((reg) & 0xFFFFF) << 12)

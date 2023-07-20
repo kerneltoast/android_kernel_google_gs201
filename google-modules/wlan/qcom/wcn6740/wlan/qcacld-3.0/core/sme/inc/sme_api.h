@@ -2193,7 +2193,7 @@ sme_apf_read_work_memory(mac_handle_t mac_handle,
 #endif /* FEATURE_WLAN_APF */
 
 uint32_t sme_get_wni_dot11_mode(mac_handle_t mac_handle);
-QDF_STATUS sme_create_mon_session(mac_handle_t mac_handle, uint8_t *bssid,
+QDF_STATUS sme_create_mon_session(mac_handle_t mac_handle, tSirMacAddr bssid,
 				  uint8_t vdev_id);
 
 /**

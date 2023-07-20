@@ -87,6 +87,7 @@ static int fts_ts_suspend(struct device *dev);
 static int fts_ts_resume(struct device *dev);
 static void fts_update_motion_filter(struct fts_ts_data *ts, u8 touches);
 
+#if IS_ENABLED(GOOGLE_REPORT_MODE) && IS_ENABLED(CONFIG_TOUCHSCREEN_HEATMAP)
 static char *status_list_str[STATUS_CNT_END] = {
     "Baseline refreshed",
     "Baseline refreshed",
@@ -112,6 +113,7 @@ static char *status_baseline_refresh_str[4] = {
     "Baseline refreshed: removing water",
     "Baseline refreshed: removing shell iron",
 };
+#endif
 
 int fts_check_cid(struct fts_ts_data *ts_data, u8 id_h)
 {
