@@ -3484,7 +3484,7 @@ struct goog_touch_interface *goog_touch_interface_probe(
 		struct device *dev,
 		struct input_dev *input_dev,
 		int (*default_handler)(void *private_data,
-			u32 cmd_type, struct gti_union_cmd_data *cmd),
+			enum gti_cmd_type cmd_type, struct gti_union_cmd_data *cmd),
 		struct gti_optional_configuration *options)
 {
 	int ret;
