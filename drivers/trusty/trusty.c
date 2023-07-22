@@ -52,6 +52,13 @@ struct trusty_state {
 	struct mutex share_memory_msg_lock; /* protects share_memory_msg */
 };
 
+struct trusty_smc_llock {
+	local_lock_t l;
+};
+static DEFINE_PER_CPU(struct trusty_smc_llock, smc_llock) = {
+	.l = INIT_LOCAL_LOCK(l)
+};
+
 static inline unsigned long smc(unsigned long r0, unsigned long r1,
 				unsigned long r2, unsigned long r3)
 {
@@ -125,7 +132,7 @@ static unsigned long trusty_std_call_helper(struct device *dev,
 	struct trusty_state *s = platform_get_drvdata(to_platform_device(dev));
 
 	while (true) {
-		local_irq_disable();
+		local_lock(&smc_llock.l);
 		atomic_notifier_call_chain(&s->notifier, TRUSTY_CALL_PREPARE,
 					   NULL);
 		ret = trusty_std_call_inner(dev, smcnr, a0, a1, a2);
@@ -146,7 +153,7 @@ static unsigned long trusty_std_call_helper(struct device *dev,
 			 */
 			trusty_enqueue_nop(dev, NULL);
 		}
-		local_irq_enable();
+		local_unlock(&smc_llock.l);
 
 		if ((int)ret != SM_ERR_BUSY)
 			break;
