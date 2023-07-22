@@ -589,7 +589,7 @@ do {	\
 #define DHD_ARPOE(args)
 #define DHD_REORDER(args)
 #define DHD_PNO(args)
-#define DHD_RTT(args)
+#define DHD_RTT(args)		do { if (0) printf args; } while (0)
 #define DHD_PKT_MON(args)
 
 #if defined(DHD_EFI) && defined(DHD_LOG_DUMP)

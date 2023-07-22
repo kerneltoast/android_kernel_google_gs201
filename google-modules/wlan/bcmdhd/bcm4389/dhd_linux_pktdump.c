@@ -162,7 +162,7 @@ typedef struct pkt_cnt_log {
 #define PKT_CNT_RSN_VALID(rsn)	\
 	(((rsn) > (PKT_CNT_RSN_INVALID)) && ((rsn) < (PKT_CNT_RSN_MAX)))
 
-static const char pkt_cnt_msg[][20] = {
+static const char __maybe_unused pkt_cnt_msg[][20] = {
 	"INVALID",
 	"ROAM_SUCCESS",
 	"GROUP_KEY_UPDATE",
