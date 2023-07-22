@@ -127,18 +127,16 @@ static int trusty_irq_call_notify(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct trusty_irq_state *is;
-
-	if (WARN_ON(!irqs_disabled()))
-		return NOTIFY_DONE;
+	unsigned long flags;
 
 	if (action != TRUSTY_CALL_PREPARE)
 		return NOTIFY_DONE;
 
 	is = container_of(nb, struct trusty_irq_state, trusty_call_notifier);
 
-	raw_spin_lock(&is->normal_irqs_lock);
+	raw_spin_lock_irqsave(&is->normal_irqs_lock, flags);
 	trusty_irq_enable_pending_irqs(is, &is->normal_irqs, false);
-	raw_spin_unlock(&is->normal_irqs_lock);
+	raw_spin_unlock_irqrestore(&is->normal_irqs_lock, flags);
 	trusty_irq_enable_pending_irqs(is, this_cpu_ptr(is->percpu_irqs), true);
 
 	return NOTIFY_OK;
