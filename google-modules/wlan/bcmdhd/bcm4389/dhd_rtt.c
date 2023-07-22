@@ -2138,11 +2138,8 @@ exit:
 void
 dhd_rtt_set_geofence_cur_target_idx(dhd_pub_t *dhd, int8 idx)
 {
-	int8 target_cnt = 0;
 	rtt_status_info_t *rtt_status = GET_RTTSTATE(dhd);
 
-	target_cnt = rtt_status->geofence_cfg.geofence_target_cnt;
-	ASSERT(idx < target_cnt);
 	rtt_status->geofence_cfg.cur_target_idx = idx;
 	return;
 }

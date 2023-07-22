@@ -1038,7 +1038,7 @@ out:
 
 #else
 
-static void dsim_of_get_pll_diags(struct dsim_device * /* dsim */)
+static void dsim_of_get_pll_diags(struct dsim_device *dsim)
 {
 }
 
@@ -1251,12 +1251,12 @@ static void dsim_encoder_early_unregister(struct drm_encoder *encoder)
 
 #else
 
-static int dsim_encoder_late_register(struct drm_encoder * /* encoder */)
+static int dsim_encoder_late_register(struct drm_encoder *encoder)
 {
         return 0;
 }
 
-static void dsim_encoder_early_unregister(struct drm_encoder * /*encoder */)
+static void dsim_encoder_early_unregister(struct drm_encoder *encoder)
 {
 }
 
