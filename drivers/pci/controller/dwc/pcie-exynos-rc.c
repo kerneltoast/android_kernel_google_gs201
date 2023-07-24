@@ -4457,10 +4457,6 @@ static int exynos_pcie_msi_set_affinity(struct irq_data *irq_data, const struct 
 	if (!exynos_pcie)
 		return -ENODEV;
 
-	/* modem driver sets msi irq affinity */
-	if (exynos_pcie->ch_num == 0)
-		return 0;
-
 	idata = irq_get_irq_data(pp->irq);
 	if (!idata || !idata->chip)
 		return -ENODEV;
