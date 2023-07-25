@@ -1906,7 +1906,7 @@ static int gs_tmu_irq_work_init(struct platform_device *pdev)
 {
 	struct gs_tmu_data *data = platform_get_drvdata(pdev);
 	struct cpumask mask;
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO / 4 - 1 };
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	struct task_struct *thread;
 	int ret = 0;
 	char kworker_name[CPUHP_USER_NAME_LEN + 1];
