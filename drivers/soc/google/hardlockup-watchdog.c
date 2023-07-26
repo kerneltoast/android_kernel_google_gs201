@@ -237,18 +237,10 @@ static void hardlockup_watchdog_disable(unsigned int cpu)
 
 	hrtimer = &pcpu_val->hrtimer;
 
-	WARN_ON_ONCE(cpu != smp_processor_id());
-
 	pr_info("%s: cpu%x: disabled\n", __func__, cpu);
 
 	cpumask_clear_cpu(cpu, &hardlockup_watchdog.allowed_mask);
 	hrtimer_cancel(hrtimer);
-}
-
-static int hardlockup_stop_fn(void *data)
-{
-	hardlockup_watchdog_disable(smp_processor_id());
-	return 0;
 }
 
 static void hardlockup_stop_all(void)
@@ -256,7 +248,7 @@ static void hardlockup_stop_all(void)
 	int cpu;
 
 	for_each_cpu(cpu, &hardlockup_watchdog.allowed_mask)
-		smp_call_on_cpu(cpu, hardlockup_stop_fn, NULL, false);
+		hardlockup_watchdog_disable(cpu);
 
 	cpumask_clear(&hardlockup_watchdog.allowed_mask);
 }
@@ -289,7 +281,7 @@ static int hardlockup_watchdog_offline_cpu(unsigned int cpu)
 	if (!cpumask_test_cpu(cpu, &hardlockup_watchdog.allowed_mask))
 		return 0;
 
-	smp_call_on_cpu(cpu, hardlockup_stop_fn, NULL, false);
+	hardlockup_watchdog_disable(cpu);
 	return 0;
 }
 
