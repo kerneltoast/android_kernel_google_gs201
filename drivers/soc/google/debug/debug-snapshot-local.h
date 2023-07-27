@@ -73,7 +73,6 @@ struct dbg_snapshot_dpm {
 	unsigned int p_el1_serror;
 };
 
-void dbg_snapshot_register_vh_log(void);
 extern void dbg_snapshot_init_log(void);
 extern void dbg_snapshot_init_dpm(void);
 extern void dbg_snapshot_init_utils(void);

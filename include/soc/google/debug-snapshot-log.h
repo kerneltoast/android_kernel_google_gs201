@@ -41,7 +41,9 @@ struct task_log {
 
 struct work_log {
 	unsigned long long time;
+	struct worker *worker;
 	work_func_t fn;
+	char task_comm[TASK_COMM_LEN];
 	int en;
 };
 
@@ -74,6 +76,7 @@ struct irq_log {
 	int irq;
 	void *fn;
 	struct irq_desc *desc;
+	unsigned long long latency;
 	int en;
 };
 
@@ -113,7 +116,7 @@ struct dm_log {
 
 struct hrtimer_log {
 	unsigned long long time;
-	s64 now;
+	unsigned long long now;
 	struct hrtimer *timer;
 	void *fn;
 	int en;
