@@ -33,6 +33,12 @@ ldflags-y  :=
 subdir-asflags-y :=
 subdir-ccflags-y :=
 
+# If KBUILD_OPTIONS is set via the make command by the parent Makefile, then
+# this assignment won't override it since it lacks the `override` directive.
+KBUILD_OPTIONS :=
+old-kbuild-options := $(KBUILD_OPTIONS)
+subdir-kbuild-options :=
+
 # Read auto.conf if it exists, otherwise ignore
 -include include/config/auto.conf
 
@@ -41,8 +47,41 @@ include $(srctree)/scripts/Makefile.compiler
 
 # The filename Kbuild has precedence over Makefile
 kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
-include $(or $(wildcard $(kbuild-dir)/Kbuild),$(kbuild-dir)/Makefile)
+kbuild-file := $(or $(wildcard $(kbuild-dir)/Kbuild),$(kbuild-dir)/Makefile)
 
+# Sets has-kbuild-options to y if there's a Makefile that defines KBUILD_OPTIONS
+has-kbuild-options := $(if $(wildcard $(kbuild-dir)/Makefile),$(if $(shell grep -E '^KBUILD_OPTIONS\s*[+:]?=' $(kbuild-dir)/Makefile),y,),)
+ifeq ($(has-kbuild-options),y)
+ifeq ($(kbuild-file),$(kbuild-dir)/Kbuild)
+ifeq ($(KBUILD_OPTIONS),)
+# Makefile takes precedence over Kbuild if it's going to define KBUILD_OPTIONS
+kbuild-file := $(kbuild-dir)/Makefile
+else
+# The Makefile still needs to be included *in addition to* the Kbuild after
+# expansion of KBUILD_OPTIONS. It must be included *before* the Kbuild.
+include $(kbuild-dir)/Makefile
+endif
+endif
+endif
+
+include $(kbuild-file)
+
+# Check if this Makefile is the first in the subdir to define KBUILD_OPTIONS
+ifneq ($(old-kbuild-options),$(KBUILD_OPTIONS))
+# Reprocess the current directory with KBUILD_OPTIONS passed to make. This
+# Makefile is thus processed twice. Make sure to preserve the original values of
+# need-builtin and need-modorder for the next make invocation.
+subdir-ym := $(src)
+ifeq ($(need-builtin),1)
+subdir-builtin := $(subdir-ym)/built-in.a
+endif
+ifeq ($(need-modorder),1)
+subdir-modorder := $(subdir-ym)/modules.order
+endif
+
+# Pass along the KBUILD_OPTIONS to each subdirectory
+subdir-kbuild-options := KBUILD_OPTIONS="$(KBUILD_OPTIONS)"
+else # KBUILD_OPTIONS
 include $(srctree)/scripts/Makefile.lib
 
 # Do not include hostprogs rules unless needed.
@@ -477,6 +516,7 @@ targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h) \
 	   $(call intermediate_targets, .dtb.o, .dtb.S .dtb) \
 	   $(call intermediate_targets, .lex.o, .lex.c) \
 	   $(call intermediate_targets, .tab.o, .tab.c .tab.h)
+endif # KBUILD_OPTIONS
 
 # Build
 # ---------------------------------------------------------------------------
@@ -501,6 +541,7 @@ $(single-subdir-goals): $(single-subdirs)
 PHONY += $(subdir-ym)
 $(subdir-ym):
 	$(Q)$(MAKE) $(build)=$@ \
+	$(KBUILD_OPTIONS) $(subdir-kbuild-options) \
 	need-builtin=$(if $(filter $@/built-in.a, $(subdir-builtin)),1) \
 	need-modorder=$(if $(filter $@/modules.order, $(subdir-modorder)),1) \
 	$(filter $@/%, $(single-subdir-goals))
