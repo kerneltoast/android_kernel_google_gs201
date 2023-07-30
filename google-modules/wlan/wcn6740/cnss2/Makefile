@@ -3,7 +3,7 @@ M ?= $(shell pwd)
 
 # $(WLAN_PLATFORM_ROOT) has to be a absolute path
 ifeq ($(WLAN_PLATFORM_ROOT),)
-WLAN_PLATFORM_ROOT = $(shell pwd)
+WLAN_PLATFORM_ROOT = $(srctree)/$(src)
 
 # If it reaches here, compilation is probably without Android.mk,
 # so enable all flags (including debug flag CONFIG_CNSS2_DEBUG) by
