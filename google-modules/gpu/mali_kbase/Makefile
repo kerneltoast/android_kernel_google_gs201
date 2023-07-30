@@ -254,6 +254,7 @@ EXTRA_CFLAGS += -DCONFIG_MALI_PLATFORM_NAME=$(CONFIG_MALI_PLATFORM_NAME)
 
 # The following were added to align with W=1 in scripts/Makefile.extrawarn
 # from the Linux source tree
+ifdef MALI_ENABLE_EXTRAWARN
 KBUILD_CFLAGS += -Wall -Werror
 KBUILD_CFLAGS += -Wextra -Wunused -Wno-unused-parameter
 KBUILD_CFLAGS += -Wmissing-declarations
@@ -269,8 +270,10 @@ KBUILD_CFLAGS += $(call cc-option, -Wstringop-truncation)
 KBUILD_CFLAGS += -Wno-missing-field-initializers
 KBUILD_CFLAGS += -Wno-sign-compare
 KBUILD_CFLAGS += -Wno-type-limits
+endif
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
+KBUILD_OPTIONS += $(MAKE_ARGS)
 
 all:
 	$(MAKE) -C $(KDIR) M=$(M) W=1 $(MAKE_ARGS) EXTRA_CFLAGS="$(EXTRA_CFLAGS)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" modules
