@@ -13,7 +13,9 @@
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 
-#define DECLARE_HOOK DECLARE_TRACE
+#define DECLARE_HOOK(name, proto, args)					\
+	DECLARE_RESTRICTED_HOOK(name, TP_PROTO(proto), TP_ARGS(args),	\
+				cpu_online(raw_smp_processor_id()))
 
 int android_rvh_probe_register(struct tracepoint *tp, void *probe, void *data);
 
