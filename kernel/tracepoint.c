@@ -815,6 +815,8 @@ static int rvh_func_add(struct tracepoint *tp, struct tracepoint_func *func)
 		}
 	}
 
+	WARN(1, "Cannot register more than %d probes per vendor hook",
+	     ANDROID_RVH_NR_PROBES_MAX);
 	return -EBUSY;
 }
 
