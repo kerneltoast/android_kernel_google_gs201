@@ -23,9 +23,7 @@
 # Path to the module source
 M ?= $(shell pwd)
 
-ifneq ($(KERNEL_SRC),)
- KBUILD_OPTIONS += BCMDHD_ROOT=$(shell cd $(KERNEL_SRC); readlink -e $(M))
-endif
+KBUILD_OPTIONS += BCMDHD_ROOT=$(srctree)/$(src)
 
 ifneq ($(CONFIG_WLAN_TRACKER),)
 KBUILD_EXTRA_SYMBOLS=$(OUT_DIR)/../google-modules/wlan/wlan_ptracker/Module.symvers
