@@ -13,7 +13,7 @@ M ?= $(shell pwd)
 
 ifeq ($(WLAN_ROOT),)
 # WLAN_ROOT must contain an absolute path (i.e. not a relative path)
-KBUILD_OPTIONS := WLAN_ROOT=$(shell cd $(KERNEL_SRC); readlink -e $(M))
+KBUILD_OPTIONS := WLAN_ROOT=$(srctree)/$(src)
 KBUILD_OPTIONS += MODNAME?=wlan
 
 #By default build for CLD
@@ -34,6 +34,7 @@ KBUILD_OPTIONS += CONFIG_WCNSS_MEM_PRE_ALLOC=m
 KBUILD_OPTIONS += CONFIG_CNSS_UTILS=m
 KBUILD_OPTIONS += $(WLAN_SELECT)
 KBUILD_OPTIONS += $(KBUILD_EXTRA) # Extra config if any
+KBUILD_OPTIONS += WLAN_COMMON_ROOT=../qca-wifi-host-cmn
 endif
 
 all:
