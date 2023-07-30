@@ -163,10 +163,6 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 
-	ret = register_trace_android_rvh_sched_fork(rvh_sched_fork_pixel_mod, NULL);
-	if (ret)
-		return ret;
-
 	ret = register_trace_android_vh_dump_throttled_rt_tasks(vh_dump_throttled_rt_tasks_mod,
 								NULL);
 	if (ret)
