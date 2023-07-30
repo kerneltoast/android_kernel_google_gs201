@@ -60,12 +60,26 @@ config ANDROID_DEBUG_SYMBOLS
 
 config ANDROID_VENDOR_HOOKS
 	bool "Android Vendor Hooks"
-	depends on TRACEPOINTS
+	select TRACEPOINTS
+	select ANDROID_ONLY_VH_TRACING if !FTRACE
 	help
 	  Enable vendor hooks implemented as tracepoints
 
 	  Allow vendor modules to attach to tracepoint "hooks" defined via
 	  DECLARE_HOOK or DECLARE_RESTRICTED_HOOK.
+
+config ANDROID_ONLY_VH_TRACING
+	bool "Only enable vendor hook tracepoints"
+	depends on ANDROID_VENDOR_HOOKS
+	help
+	  Only enable vendor hook tracepoints in the kernel. This disables all
+	  tracing except for vendor hooks.
+
+	  Since vendor hooks require enabling tracepoints globally, this causes
+	  unrelated tracepoints to be enabled as well. Tracing infrastructure
+	  cannot be disabled without also disabling vendor hooks (which are
+	  absolutely required in GKI kernels), so this option exists to make it
+	  possible to disable all tracepoints except for vendor hooks.
 
 config ANDROID_DEBUG_KINFO
 	bool "Android Debug Kernel Information Support"
