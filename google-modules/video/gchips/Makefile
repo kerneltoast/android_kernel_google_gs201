@@ -11,8 +11,7 @@ bigocean-$(CONFIG_DEBUG_FS) += bigo_debug.o
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 M ?= $(shell pwd)
 
-KBUILD_OPTIONS += CONFIG_BIGOCEAN=m CONFIG_SLC_PARTITION_MANAGER=m \
-		  CONFIG_DEBUG_FS=m
+KBUILD_OPTIONS += CONFIG_BIGOCEAN=m CONFIG_SLC_PARTITION_MANAGER=m
 
 ccflags-y := -I$(KERNEL_SRC)/../google-modules/video/gchips
 
