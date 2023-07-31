@@ -11,7 +11,7 @@ obj-$(CONFIG_SND_SOC_WM_ADSP)		+= snd-soc-wm-adsp.o
 
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 M ?= $(shell pwd)
-CUSTOM_INCLUDE ?= -I$(shell pwd)/include/
+CUSTOM_INCLUDE ?= -I$(srctree)/$(src)/include/
 
 KBUILD_OPTIONS += CONFIG_SND_SOC_CS35L45=m \
 		  CONFIG_SND_SOC_CS35L45_SPI=m \
