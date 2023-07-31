@@ -10,7 +10,7 @@ obj-$(CONFIG_SND_SOC_CS35L41_I2C)	+= snd-soc-cs35l41-i2c.o
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 M ?= $(shell pwd)
 
-EXTRA_CFLAGS += -I$(KERNEL_SRC)/$(M)/include/
+EXTRA_CFLAGS += -I$(srctree)/$(src)/include/
 EXTRA_CFLAGS += -I$(KERNEL_SRC)/../private/google-modules/amplifiers/snd_soc_wm_adsp
 EXTRA_SYMBOLS += $(OUT_DIR)/../private/google-modules/amplifiers/snd_soc_wm_adsp/Module.symvers
 
