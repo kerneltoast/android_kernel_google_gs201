@@ -673,6 +673,7 @@ core-y		:= init/ usr/
 drivers-y	:= drivers/ sound/
 drivers-$(CONFIG_SAMPLES) += samples/
 drivers-y	+= net/ virt/
+drivers-y	+= google-devices/
 libs-y		:= lib/
 endif # KBUILD_EXTMOD
 
