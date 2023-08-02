@@ -6,6 +6,7 @@
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM systrace
+#define NOTRACE
 
 #if !defined(_TRACE_SYSTRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_SYSTRACE_H
@@ -28,6 +29,9 @@ enum {
 		{ SYSTRACE_EVENT_END,	"E" },	\
 		{ SYSTRACE_EVENT_INT64,	"C" })
 
+#ifdef NOTRACE
+#define trace_0(a, b, c, d)
+#else
 /*
  * To comply with systrace format: [BEC]|pid|name|value
  *
@@ -57,6 +61,7 @@ TRACE_EVENT(0,
 		__entry->value
 	)
 );
+#endif
 
 #define __ATRACE_INT_PID(pid, name, value) \
 	trace_0(SYSTRACE_EVENT_INT64,	\
