@@ -441,6 +441,10 @@ struct task_group {
 	ANDROID_VENDOR_DATA_ARRAY(1, 4);
 #endif
 
+#if IS_ENABLED(CONFIG_VH_SCHED)
+	struct vendor_task_group_struct vendor_tg;
+#endif
+
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
@@ -1080,6 +1084,10 @@ struct rq {
 #ifdef CONFIG_CPU_IDLE
 	/* Must be inspected within a rcu lock section */
 	struct cpuidle_state	*idle_state;
+#endif
+
+#if IS_ENABLED(CONFIG_VH_SCHED)
+	struct vendor_rq_struct vendor_rq;
 #endif
 
 	ANDROID_VENDOR_DATA_ARRAY(1, 96);

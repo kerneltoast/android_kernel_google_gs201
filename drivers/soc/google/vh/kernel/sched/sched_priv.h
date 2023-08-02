@@ -106,12 +106,6 @@ enum vendor_group_attribute {
 	VTA_PROC_GROUP,
 };
 
-struct vendor_task_group_struct {
-	enum vendor_group group;
-};
-
-ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[4], struct vendor_task_group_struct t);
-
 extern unsigned int vendor_sched_uclamp_threshold;
 extern bool vendor_sched_reduce_prefer_idle;
 extern struct vendor_group_property vg[VG_MAX];
@@ -151,19 +145,12 @@ static inline unsigned long task_util_est(struct task_struct *p)
 
 static inline struct vendor_task_group_struct *get_vendor_task_group_struct(struct task_group *tg)
 {
-	return (struct vendor_task_group_struct *)tg->android_vendor_data1;
+	return &tg->vendor_tg;
 }
-
-struct vendor_rq_struct {
-	raw_spinlock_t lock;
-	unsigned long util_removed;
-};
-
-ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[96], struct vendor_rq_struct t);
 
 static inline struct vendor_rq_struct *get_vendor_rq_struct(struct rq *rq)
 {
-	return (struct vendor_rq_struct *)rq->android_vendor_data1;
+	return &rq->vendor_rq;
 }
 
 static inline bool get_prefer_idle(struct task_struct *p)
