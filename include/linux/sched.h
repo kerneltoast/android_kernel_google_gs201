@@ -722,6 +722,52 @@ struct kmap_ctrl {
 #endif
 };
 
+#if IS_ENABLED(CONFIG_VH_SCHED)
+enum vendor_group {
+	VG_SYSTEM,
+	VG_TOPAPP,
+	VG_FOREGROUND,
+	VG_CAMERA,
+	VG_CAMERA_POWER,
+	VG_BACKGROUND,
+	VG_SYSTEM_BACKGROUND,
+	VG_NNAPI_HAL,
+	VG_RT,
+	VG_DEX2OAT,
+	VG_OTA,
+	VG_SF,
+	VG_MAX,
+};
+
+struct vendor_binder_task_struct {
+	unsigned int uclamp[UCLAMP_CNT];
+	bool prefer_idle;
+	bool active;
+};
+
+struct vendor_rq_struct {
+	raw_spinlock_t lock;
+	unsigned long util_removed;
+};
+
+struct vendor_task_group_struct {
+	enum vendor_group group;
+};
+
+struct vendor_task_struct {
+	raw_spinlock_t lock;
+	enum vendor_group group;
+	unsigned long direct_reclaim_ts;
+	struct list_head node;
+	bool queued_to_list;
+	bool uclamp_fork_reset;
+	bool prefer_idle;
+
+	/* parameters for binder inheritance */
+	struct vendor_binder_task_struct binder_task;
+};
+#endif
+
 struct task_struct {
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 	/*
@@ -1465,6 +1511,11 @@ struct task_struct {
 	struct callback_head		mce_kill_me;
 	int				mce_count;
 #endif
+
+#if IS_ENABLED(CONFIG_VH_SCHED)
+	struct vendor_task_struct vendor_ts;
+#endif
+
 	ANDROID_VENDOR_DATA_ARRAY(1, 64);
 	ANDROID_OEM_DATA_ARRAY(1, 32);
 
