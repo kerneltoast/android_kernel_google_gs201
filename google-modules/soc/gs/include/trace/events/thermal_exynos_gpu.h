@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM thermal_exynos_gpu
+#define NOTRACE
 
 #if !defined(_TRACE_EXYNOS_GPU_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_THERMAL_EXYNOS_GPU_H

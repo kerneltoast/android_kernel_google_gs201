@@ -19,6 +19,9 @@
 #include "gs_panel/gs_panel.h"
 #include "trace/panel_trace.h"
 
+#define DPU_ATRACE_BEGIN(a)
+#define DPU_ATRACE_END(a)
+
 /* drm_connector_helper_funcs */
 
 static int gs_panel_connector_modes(struct drm_connector *connector)
