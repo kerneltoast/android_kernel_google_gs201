@@ -6,6 +6,7 @@
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM dpu
+#define NOTRACE
 
 #if !defined(_DPU_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _DPU_TRACE_H_
