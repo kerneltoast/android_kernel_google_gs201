@@ -6,6 +6,7 @@
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM g2d
+#define NOTRACE
 
 #if !defined(_G2D_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _G2D_TRACE_H_
