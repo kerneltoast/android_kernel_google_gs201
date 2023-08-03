@@ -807,14 +807,5 @@ static inline u32 kbase_csf_interface_version(u32 major, u32 minor, u32 patch)
  */
 int kbase_csf_trigger_firmware_config_update(struct kbase_device *kbdev);
 
-/**
- * kbase_csf_debug_dump_registers - Print CSF debug message.
- *
- * @kbdev: Instance of a GPU platform device that implements a CSF interface.
- *
- * Prints CSF debug message cccontaining critical CSF firmware information.
- * GPU must be powered during this call.
- */
-void kbase_csf_debug_dump_registers(struct kbase_device *kbdev);
 
 #endif

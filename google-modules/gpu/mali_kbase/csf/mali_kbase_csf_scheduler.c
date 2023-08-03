@@ -5701,14 +5701,6 @@ static int wait_csg_slots_suspend(struct kbase_device *kbdev,
 		}
 	}
 
-	if (err == -ETIMEDOUT) {
-		//TODO: should introduce SSCD report if this happens.
-		kbase_gpu_timeout_debug_message(kbdev);
-		dev_warn(kbdev->dev, "[%llu] Firmware ping %d",
-				kbase_backend_get_cycle_cnt(kbdev),
-				kbase_csf_firmware_ping_wait(kbdev));
-	}
-
 	return err;
 }
 
@@ -5750,11 +5742,6 @@ static int suspend_active_queue_groups_on_reset(struct kbase_device *kbdev)
 	if (ret) {
 		dev_warn(kbdev->dev, "Timeout waiting for CSG slots to suspend before reset, slot_mask: 0x%*pb\n",
 			 kbdev->csf.global_iface.group_num, slot_mask);
-		//TODO: should introduce SSCD report if this happens.
-		kbase_gpu_timeout_debug_message(kbdev);
-		dev_warn(kbdev->dev, "[%llu] Firmware ping %d",
-				kbase_backend_get_cycle_cnt(kbdev),
-				kbase_csf_firmware_ping_wait(kbdev));
 	}
 
 	/* Need to flush the GPU cache to ensure suspend buffer
