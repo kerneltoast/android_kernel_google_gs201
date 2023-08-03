@@ -1585,10 +1585,6 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 				kbase_l2_core_state_to_string(prev_state),
 				kbase_l2_core_state_to_string(
 					backend->l2_state));
-			if (!kbdev->pm.backend.invoke_poweroff_wait_wq_when_l2_off &&
-				backend->l2_state == KBASE_L2_OFF) {
-				dev_warn(kbdev->dev, "transition to l2 off without waking waiter");
-			}
 		}
 
 	} while (backend->l2_state != prev_state);
@@ -1598,8 +1594,6 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 		kbdev->pm.backend.invoke_poweroff_wait_wq_when_l2_off = false;
 		queue_work(kbdev->pm.backend.gpu_poweroff_wait_wq,
 				&kbdev->pm.backend.gpu_poweroff_wait_work);
-	} else if (backend->l2_state == KBASE_L2_OFF) {
-		dev_warn(kbdev->dev, "l2 off - skipped queue_work for waking up potential waiters");
 	}
 
 	return 0;
@@ -2342,75 +2336,61 @@ void kbase_pm_reset_complete(struct kbase_device *kbdev)
 #define PM_TIMEOUT_MS (5000) /* 5s */
 #endif
 
-void kbase_gpu_timeout_debug_message(struct kbase_device *kbdev) {
+static void kbase_pm_timed_out(struct kbase_device *kbdev)
+{
 	unsigned long flags;
+
+	dev_err(kbdev->dev, "Power transition timed out unexpectedly\n");
 #if !MALI_USE_CSF
 	CSTD_UNUSED(flags);
 	dev_err(kbdev->dev, "Desired state :\n");
-	dev_err(kbdev->dev, "  Shader=%016llx\n",
+	dev_err(kbdev->dev, "\tShader=%016llx\n",
 			kbdev->pm.backend.shaders_desired ? kbdev->pm.backend.shaders_avail : 0);
 #else
-	dev_err(kbdev->dev, "GPU pm state :\n");
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	dev_err(kbdev->dev, "  scheduler.pm_active_count = %d", kbdev->csf.scheduler.pm_active_count);
-	dev_err(kbdev->dev, "  poweron_required %d pm.active_count %d invoke_poweroff_wait_wq_when_l2_off %d",
-		kbdev->pm.backend.poweron_required,
-		kbdev->pm.active_count,
-		kbdev->pm.backend.invoke_poweroff_wait_wq_when_l2_off);
-	dev_err(kbdev->dev, "  gpu_poweroff_wait_work pending %d",
-		work_pending(&kbdev->pm.backend.gpu_poweroff_wait_work));
-	dev_err(kbdev->dev, "  MCU desired = %d\n",
+	dev_err(kbdev->dev, "\tMCU desired = %d\n",
 		kbase_pm_is_mcu_desired(kbdev));
-	dev_err(kbdev->dev, "  MCU sw state = %d\n",
+	dev_err(kbdev->dev, "\tMCU sw state = %d\n",
 		kbdev->pm.backend.mcu_state);
-	dev_err(kbdev->dev, "  L2 desired = %d (locked_off: %d)\n",
-		kbase_pm_is_l2_desired(kbdev),
-		kbdev->pm.backend.policy_change_clamp_state_to_off);
-	dev_err(kbdev->dev, "  L2 sw state = %d\n",
-		kbdev->pm.backend.l2_state);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 #endif
 	dev_err(kbdev->dev, "Current state :\n");
-	dev_err(kbdev->dev, "  Shader=%08x%08x\n",
+	dev_err(kbdev->dev, "\tShader=%08x%08x\n",
 			kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(SHADER_READY_HI)),
 			kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(SHADER_READY_LO)));
-	dev_err(kbdev->dev, "  Tiler =%08x%08x\n",
+	dev_err(kbdev->dev, "\tTiler =%08x%08x\n",
 			kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(TILER_READY_HI)),
 			kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(TILER_READY_LO)));
-	dev_err(kbdev->dev, "  L2    =%08x%08x\n",
+	dev_err(kbdev->dev, "\tL2    =%08x%08x\n",
 			kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(L2_READY_HI)),
 			kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(L2_READY_LO)));
 #if MALI_USE_CSF
-	kbase_csf_debug_dump_registers(kbdev);
+	dev_err(kbdev->dev, "\tMCU status = %d\n",
+		kbase_reg_read(kbdev, GPU_CONTROL_REG(MCU_STATUS)));
 #endif
 	dev_err(kbdev->dev, "Cores transitioning :\n");
-	dev_err(kbdev->dev, "  Shader=%08x%08x\n",
+	dev_err(kbdev->dev, "\tShader=%08x%08x\n",
 			kbase_reg_read(kbdev, GPU_CONTROL_REG(
 					SHADER_PWRTRANS_HI)),
 			kbase_reg_read(kbdev, GPU_CONTROL_REG(
 					SHADER_PWRTRANS_LO)));
-	dev_err(kbdev->dev, "  Tiler =%08x%08x\n",
+	dev_err(kbdev->dev, "\tTiler =%08x%08x\n",
 			kbase_reg_read(kbdev, GPU_CONTROL_REG(
 					TILER_PWRTRANS_HI)),
 			kbase_reg_read(kbdev, GPU_CONTROL_REG(
 					TILER_PWRTRANS_LO)));
-	dev_err(kbdev->dev, "  L2    =%08x%08x\n",
+	dev_err(kbdev->dev, "\tL2    =%08x%08x\n",
 			kbase_reg_read(kbdev, GPU_CONTROL_REG(
 					L2_PWRTRANS_HI)),
 			kbase_reg_read(kbdev, GPU_CONTROL_REG(
 					L2_PWRTRANS_LO)));
-}
 
-static void kbase_pm_timed_out(struct kbase_device *kbdev)
-{
-	dev_err(kbdev->dev, "Power transition timed out unexpectedly\n");
-	kbase_gpu_timeout_debug_message(kbdev);
 	dev_err(kbdev->dev, "Sending reset to GPU - all running jobs will be lost\n");
 	if (kbase_prepare_to_reset_gpu(kbdev,
 				       RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))

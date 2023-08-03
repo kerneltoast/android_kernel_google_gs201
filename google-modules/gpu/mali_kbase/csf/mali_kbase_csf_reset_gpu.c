@@ -231,14 +231,11 @@ static void kbase_csf_reset_end_hw_access(struct kbase_device *kbdev,
 		kbase_csf_scheduler_enable_tick_timer(kbdev);
 }
 
-void kbase_csf_debug_dump_registers(struct kbase_device *kbdev)
+static void kbase_csf_debug_dump_registers(struct kbase_device *kbdev)
 {
-#define DOORBELL_CFG_BASE 0x20000
-#define MCUC_DB_VALUE_0 0x80
-	struct kbase_csf_global_iface *global_iface = &kbdev->csf.global_iface;
 	kbase_io_history_dump(kbdev);
 
-	dev_err(kbdev->dev, "MCU state:");
+	dev_err(kbdev->dev, "Register state:");
 	dev_err(kbdev->dev, "  GPU_IRQ_RAWSTAT=0x%08x   GPU_STATUS=0x%08x  MCU_STATUS=0x%08x",
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_RAWSTAT)),
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_STATUS)),
@@ -258,12 +255,6 @@ void kbase_csf_debug_dump_registers(struct kbase_device *kbdev)
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(SHADER_CONFIG)),
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(L2_MMU_CONFIG)),
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(TILER_CONFIG)));
-	dev_err(kbdev->dev, "  MCU DB0: %x", kbase_reg_read(kbdev, DOORBELL_CFG_BASE + MCUC_DB_VALUE_0));
-	dev_err(kbdev->dev, "  MCU GLB_REQ %x GLB_ACK %x",
-			kbase_csf_firmware_global_input_read(global_iface, GLB_REQ),
-			kbase_csf_firmware_global_output(global_iface, GLB_ACK));
-#undef MCUC_DB_VALUE_0
-#undef DOORBELL_CFG_BASE
 }
 
 /**
