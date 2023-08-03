@@ -693,40 +693,8 @@ static bool is_poweroff_in_progress(struct kbase_device *kbdev)
 
 void kbase_pm_wait_for_poweroff_work_complete(struct kbase_device *kbdev)
 {
-#define POWEROFF_TIMEOUT_MSEC 200
-	long remaining = msecs_to_jiffies(POWEROFF_TIMEOUT_MSEC);
-	remaining = wait_event_killable_timeout(kbdev->pm.backend.poweroff_wait,
-			is_poweroff_in_progress(kbdev), remaining);
-	if (!remaining) {
-		unsigned long flags;
-		kbasep_platform_event_core_dump(kbdev, "poweroff work timeout");
-		dev_err(kbdev->dev, "failed to wait for poweroff worker after %ims",
-			POWEROFF_TIMEOUT_MSEC);
-		kbase_gpu_timeout_debug_message(kbdev);
-		dev_err(kbdev->dev, "gpu_poweroff_wait_work pending %d",
-				work_pending(&kbdev->pm.backend.gpu_poweroff_wait_work));
-#if MALI_USE_CSF
-		//csf.scheduler.state should be accessed with scheduler lock!
-		//callchains go through this function though holding that lock
-		//so just print without locking.
-		dev_err(kbdev->dev, "scheduler.state %d", kbdev->csf.scheduler.state);
-		dev_err(kbdev->dev, "Firmware ping %d", kbase_csf_firmware_ping_wait(kbdev));
-#endif
-		//Attempt another state machine transition prompt.
-		dev_err(kbdev->dev, "Attempt to prompt state machine");
-		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-		kbase_pm_update_state(kbdev);
-		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-
-		dev_err(kbdev->dev, "GPU state after re-prompt of state machine");
-		kbase_gpu_timeout_debug_message(kbdev);
-
-		dev_err(kbdev->dev, "retrying wait, this is likely to still hang. %d",
+	wait_event_killable(kbdev->pm.backend.poweroff_wait,
 			is_poweroff_in_progress(kbdev));
-		wait_event_killable(kbdev->pm.backend.poweroff_wait,
-			is_poweroff_in_progress(kbdev));
-	}
-#undef POWEROFF_TIMEOUT_MSEC
 }
 KBASE_EXPORT_TEST_API(kbase_pm_wait_for_poweroff_work_complete);
 
