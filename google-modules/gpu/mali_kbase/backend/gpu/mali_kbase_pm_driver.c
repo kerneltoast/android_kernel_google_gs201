@@ -1585,12 +1585,10 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 				kbase_l2_core_state_to_string(prev_state),
 				kbase_l2_core_state_to_string(
 					backend->l2_state));
-#if IS_ENABLED(CONFIG_SOC_GS201)
 			if (!kbdev->pm.backend.invoke_poweroff_wait_wq_when_l2_off &&
 				backend->l2_state == KBASE_L2_OFF) {
 				dev_warn(kbdev->dev, "transition to l2 off without waking waiter");
 			}
-#endif
 		}
 
 	} while (backend->l2_state != prev_state);
@@ -1600,10 +1598,8 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 		kbdev->pm.backend.invoke_poweroff_wait_wq_when_l2_off = false;
 		queue_work(kbdev->pm.backend.gpu_poweroff_wait_wq,
 				&kbdev->pm.backend.gpu_poweroff_wait_work);
-#if IS_ENABLED(CONFIG_SOC_GS201)
 	} else if (backend->l2_state == KBASE_L2_OFF) {
 		dev_warn(kbdev->dev, "l2 off - skipped queue_work for waking up potential waiters");
-#endif
 	}
 
 	return 0;
