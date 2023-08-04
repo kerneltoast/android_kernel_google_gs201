@@ -7138,6 +7138,21 @@ int __cond_resched_lock(spinlock_t *lock)
 }
 EXPORT_SYMBOL(__cond_resched_lock);
 
+/*
+ * task_is_pi_boosted - Check if task has been PI boosted.
+ * @p:	Task to check.
+ *
+ * Return true if task is subject to priority inheritance.
+ */
+bool task_is_pi_boosted(const struct task_struct *p)
+{
+	int prio = p->prio;
+
+	if (!rt_prio(prio))
+		return false;
+	return prio != p->normal_prio;
+}
+
 /**
  * yield - yield the current processor to other threads.
  *
