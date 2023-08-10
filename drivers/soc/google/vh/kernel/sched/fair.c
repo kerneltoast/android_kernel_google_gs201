@@ -7,6 +7,7 @@
  */
 #include <kernel/sched/sched.h>
 #include <kernel/sched/pelt.h>
+#include <soc/google/exynos-dm.h>
 
 #include "sched_priv.h"
 #include "sched_events.h"
@@ -28,6 +29,8 @@ unsigned int sched_capacity_margin[CPU_NUM] = {
 struct vendor_group_property vg[VG_MAX];
 
 extern struct vendor_group_list vendor_group_list[VG_MAX];
+
+static DEFINE_PER_CPU(unsigned int, cpu_cur_freq);
 
 extern inline unsigned int uclamp_none(enum uclamp_id clamp_id);
 
@@ -518,17 +521,61 @@ static unsigned long cpu_util_next(int cpu, struct task_struct *p, int dst_cpu)
 	return min(util, capacity_of(cpu));
 }
 
-static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
-				unsigned long max_util, unsigned long sum_util)
+/* These CL enum values are used as indices into {old_}floor[cl] */
+enum { CL1, CL2 };
+struct cl0_const {
+	/* These are the new cl0 floors set by cl1 and cl2 if @p migrates */
+	unsigned int floor[2][CPU_NUM];
+	unsigned int old_floor[2];
+};
+
+static unsigned int cl0_floor_map(int cl, unsigned int freq)
 {
+	int cpu;
+
+	cpu = cl == CL1 ? MID_CAPACITY_CPU : MAX_CAPACITY_CPU;
+	return exynos_dm_constraint_freq(cpu, freq);
+}
+
+static unsigned int cl0_floor(const struct cl0_const *cl0, int src, int dst)
+{
+#define cpu_is_cl1(cpu) ((cpu) >= MID_CAPACITY_CPU && (cpu) < MAX_CAPACITY_CPU)
+#define cpu_is_cl2(cpu) ((cpu) >= MAX_CAPACITY_CPU)
+	unsigned int cl1_floor, cl2_floor;
+
+	/* If @p is moving to or from cl1, then use cl1's new cl0 floor */
+	if (cpu_is_cl1(src) || cpu_is_cl1(dst))
+		cl1_floor = cl0->floor[CL1][dst];
+	else
+		cl1_floor = cl0->old_floor[CL1];
+
+	/* If @p is moving to or from cl2, then use cl2's new cl0 floor */
+	if (cpu_is_cl2(src) || cpu_is_cl2(dst))
+		cl2_floor = cl0->floor[CL2][dst];
+	else
+		cl2_floor = cl0->old_floor[CL2];
+
+	/* Return the higher of the two floors between cl1 and cl2 */
+	return max(cl1_floor, cl2_floor);
+}
+
+static unsigned long
+em_cpu_energy_pixel_mod(struct em_perf_domain *pd, unsigned long max_util,
+			unsigned long sum_util, struct cl0_const *cl0, int src,
+			int dst)
+{
+	int i, cl, cpu = cpumask_first(to_cpumask(pd->cpus));
 	unsigned long freq, scale_cpu;
 	struct em_perf_state *ps;
-	int i, cpu;
 
-	if (!sum_util)
+	if (!sum_util) {
+		if (cpu) {
+			/* No cl0 constraint if this cluster has no busy time */
+			cl = cpu < MAX_CAPACITY_CPU ? CL1 : CL2;
+			cl0->floor[cl][dst] = 0;
+		}
 		return 0;
-
-	cpu = cpumask_first(to_cpumask(pd->cpus));
+	}
 
 #if IS_ENABLED(CONFIG_PIXEL_EM)
 	{
@@ -564,6 +611,9 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 	scale_cpu = arch_scale_cpu_capacity(cpu);
 	ps = &pd->table[pd->nr_perf_states - 1];
 	freq = map_util_freq_pixel_mod(max_util, ps->frequency, scale_cpu, cpu);
+	if (!cpu)
+		/* Apply the cl0 floor when assessing cl0's energy */
+		freq = max_t(unsigned int, cl0_floor(cl0, src, dst), freq);
 	freq = map_scaling_freq(cpu, freq);
 
 	for (i = 0; i < pd->nr_perf_states; i++) {
@@ -572,6 +622,11 @@ static inline unsigned long em_cpu_energy_pixel_mod(struct em_perf_domain *pd,
 			break;
 	}
 
+	/* Update the cl0 floor if this is cl1 or cl2 (cpu != 0) */
+	if (cpu) {
+		cl = cpu < MAX_CAPACITY_CPU ? CL1 : CL2;
+		cl0->floor[cl][dst] = cl0_floor_map(cl, ps->frequency);
+	}
 	return ps->cost * sum_util / scale_cpu;
 }
 
@@ -642,10 +697,21 @@ compute_energy_change(struct task_struct *p, struct perf_domain *pd, int src,
 	static DEFINE_PER_CPU_ALIGNED(struct em_calc [2][CPU_NUM], cached_calc);
 	cpumask_t *cmask, cached_mask[2] = {};
 	struct em_calc *cache, *ec, tmp_ec;
+	struct cl0_const cl0;
 	bool from, no_cache;
 	unsigned long cap;
 	int cpu, dst;
 
+	/* Get the old cl0 floor for cl1 and cl2 */
+	cl0.old_floor[CL1] = cl0_floor_map(CL1, per_cpu(cpu_cur_freq,
+							MID_CAPACITY_CPU));
+	cl0.old_floor[CL2] = cl0_floor_map(CL2, per_cpu(cpu_cur_freq,
+							MAX_CAPACITY_CPU));
+
+	/*
+	 * The pd list is assumed to have cl0's pd as the final pd. This is
+	 * important in order to calculate cl0's floor constraint.
+	 */
 	for (; pd; pd = pd->next) {
 		const cpumask_t *pd_mask = perf_domain_span(pd);
 
@@ -702,7 +768,8 @@ compute_energy_change(struct task_struct *p, struct perf_domain *pd, int src,
 			/* Add in this cluster's energy impact for @p on @dst */
 			energy[dst] += em_cpu_energy_pixel_mod(pd->em_pd,
 							       max_util,
-							       sum_util);
+							       sum_util, &cl0,
+							       src, dst);
 		}
 	}
 }
@@ -944,11 +1011,11 @@ check_prev:
 	return best_cpu;
 }
 
-#if IS_ENABLED(CONFIG_PIXEL_EM)
 void vh_arch_set_freq_scale_pixel_mod(void *data, const struct cpumask *cpus,
 				      unsigned long freq,
 				      unsigned long max, unsigned long *scale)
 {
+#if IS_ENABLED(CONFIG_PIXEL_EM)
 	int i;
 	struct pixel_em_profile **profile_ptr_snapshot;
 	profile_ptr_snapshot = READ_ONCE(vendor_sched_pixel_em_profile);
@@ -972,9 +1039,10 @@ void vh_arch_set_freq_scale_pixel_mod(void *data, const struct cpumask *cpus,
 				  max_opp->capacity;
 		}
 	}
+#endif
+	per_cpu(cpu_cur_freq, cpumask_first(cpus)) = freq;
 }
 EXPORT_SYMBOL_GPL(vh_arch_set_freq_scale_pixel_mod);
-#endif
 
 void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, int *should_iowait_boost)
 {
