@@ -113,6 +113,9 @@ struct exynos_dm_device {
 	struct exynos_dm_data		*dm_data;
 };
 
+/* Returns @cpu's constraint freq for cl0 */
+unsigned int exynos_dm_constraint_freq(int cpu, unsigned int freq);
+
 /* External Function call */
 #if IS_ENABLED(CONFIG_EXYNOS_DVFS_MANAGER)
 extern int exynos_dm_data_init(int dm_type,
