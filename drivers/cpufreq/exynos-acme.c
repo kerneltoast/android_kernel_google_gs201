@@ -782,6 +782,28 @@ void exynos_cpufreq_ready_list_add(struct exynos_cpufreq_ready_block *rb)
 }
 EXPORT_SYMBOL_GPL(exynos_cpufreq_ready_list_add);
 
+unsigned int exynos_dm_constraint_freq(int cpu, unsigned int freq)
+{
+	struct exynos_cpufreq_domain *domain;
+	struct exynos_cpufreq_dm *dm;
+	int index;
+
+	domain = find_domain(cpu);
+	if (!domain)
+		return 0;
+
+	dm = list_first_entry_or_null(&domain->dm_list, typeof(*dm), list);
+	if (!dm)
+		return 0;
+
+	for (index = 0; index < dm->c.table_length; index++) {
+		if (dm->c.freq_table[index].driver_freq == freq)
+			return dm->c.freq_table[index].constraint_freq;
+	}
+
+	return 0;
+}
+
 /*********************************************************************
  *                      SUPPORT for DVFS MANAGER                     *
  *********************************************************************/
