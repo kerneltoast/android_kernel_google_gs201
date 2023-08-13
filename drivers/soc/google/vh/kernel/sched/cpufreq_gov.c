@@ -231,6 +231,10 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 		return true;
 	}
 
+	/* If the last frequency wasn't set yet then we can still amend it */
+	if (sg_policy->work_in_progress)
+		return true;
+
 	delta_ns = time - sg_policy->last_freq_update_time;
 
 	return delta_ns >= sg_policy->min_rate_limit_ns;
@@ -270,7 +274,12 @@ static bool sugov_up_down_rate_limit(struct sugov_policy *sg_policy, u64 time,
 static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 				   unsigned int next_freq)
 {
-	bool ignore_rate_limit = sg_policy->need_freq_update;
+	/*
+	 * If a work is in progress then it means the last frequency wasn't set
+	 * yet, so we can still change our mind and set a different frequency.
+	 */
+	bool ignore_rate_limit = sg_policy->need_freq_update ||
+				 sg_policy->work_in_progress;
 	sg_policy->need_freq_update = false;
 
 	if (sg_policy->next_freq == next_freq)
