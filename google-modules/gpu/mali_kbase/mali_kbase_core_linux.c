@@ -209,12 +209,9 @@ int kbase_create_realtime_thread(struct kbase_device *kbdev,
 	int (*threadfn)(void *data), struct kthread_worker *worker, const char namefmt[], ...)
 {
 	struct task_struct *task;
-	unsigned int i;
 	va_list args;
 	char name_buf[128];
 	int len;
-
-	cpumask_t mask = { CPU_BITS_NONE };
 
 	static const struct sched_param param = {
 		.sched_priority = KBASE_RT_THREAD_PRIO,
@@ -230,17 +227,11 @@ int kbase_create_realtime_thread(struct kbase_device *kbdev,
 		dev_warn(kbdev->dev, "RT thread name truncated to %s", name_buf);
 	}
 
-	task = kthread_create(kthread_worker_fn, worker, name_buf);
+	task = kthread_run(kthread_worker_fn, worker, name_buf);
 
 	if (!IS_ERR(task)) {
-		for (i = KBASE_RT_THREAD_CPUMASK_MIN; i <= KBASE_RT_THREAD_CPUMASK_MAX ; i++)
-			cpumask_set_cpu(i, &mask);
-
-		kthread_bind_mask(task, &mask);
-
 		/* Link the worker and the thread */
 		worker->task = task;
-		wake_up_process(task);
 
 		if (sched_setscheduler_nocheck(task, SCHED_FIFO, &param))
 			dev_warn(kbdev->dev, "%s not set to RT prio", name_buf);
