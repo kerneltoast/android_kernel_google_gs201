@@ -27,7 +27,6 @@
 
 #include <linux/tracepoint.h>
 
-#if defined(CONFIG_MALI_GATOR_SUPPORT)
 #define MALI_JOB_SLOTS_EVENT_CHANGED
 
 /*
@@ -126,7 +125,6 @@ TRACE_EVENT(mali_total_alloc_pages_change, TP_PROTO(u32 gpu_id, s64 event_id),
 	    TP_STRUCT__entry(__field(u32, gpu_id) __field(s64, event_id)),
 	    TP_fast_assign(__entry->gpu_id = gpu_id; __entry->event_id = event_id;),
 	    TP_printk("gpu=%u event=%lld", __entry->gpu_id, __entry->event_id));
-#endif /* CONFIG_MALI_GATOR_SUPPORT */
 
 /*
  * MMU subsystem tracepoints
