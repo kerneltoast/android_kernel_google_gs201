@@ -36,7 +36,7 @@ struct trusty_irq_state {
 	struct device *dev;
 	struct device *trusty_dev;
 	struct trusty_irq_irqset normal_irqs;
-	spinlock_t normal_irqs_lock;
+	raw_spinlock_t normal_irqs_lock;
 	struct trusty_irq_irqset __percpu *percpu_irqs;
 	struct notifier_block trusty_call_notifier;
 	struct hlist_node cpuhp_node;
@@ -136,9 +136,9 @@ static int trusty_irq_call_notify(struct notifier_block *nb,
 
 	is = container_of(nb, struct trusty_irq_state, trusty_call_notifier);
 
-	spin_lock(&is->normal_irqs_lock);
+	raw_spin_lock(&is->normal_irqs_lock);
 	trusty_irq_enable_pending_irqs(is, &is->normal_irqs, false);
-	spin_unlock(&is->normal_irqs_lock);
+	raw_spin_unlock(&is->normal_irqs_lock);
 	trusty_irq_enable_pending_irqs(is, this_cpu_ptr(is->percpu_irqs), true);
 
 	return NOTIFY_OK;
@@ -163,12 +163,12 @@ static irqreturn_t trusty_irq_handler(int irq, void *data)
 			irqset = &is->normal_irqs;
 		}
 
-		spin_lock(&is->normal_irqs_lock);
+		raw_spin_lock(&is->normal_irqs_lock);
 		if (trusty_irq->enable) {
 			hlist_del(&trusty_irq->node);
 			hlist_add_head(&trusty_irq->node, &irqset->pending);
 		}
-		spin_unlock(&is->normal_irqs_lock);
+		raw_spin_unlock(&is->normal_irqs_lock);
 	}
 
 	trusty_enqueue_nop(is->trusty_dev, NULL);
@@ -361,9 +361,9 @@ static int trusty_irq_init_normal_irq(struct trusty_irq_state *is, int tirq)
 	trusty_irq->irq = irq;
 	trusty_irq->enable = true;
 
-	spin_lock_irqsave(&is->normal_irqs_lock, irq_flags);
+	raw_spin_lock_irqsave(&is->normal_irqs_lock, irq_flags);
 	hlist_add_head(&trusty_irq->node, &is->normal_irqs.inactive);
-	spin_unlock_irqrestore(&is->normal_irqs_lock, irq_flags);
+	raw_spin_unlock_irqrestore(&is->normal_irqs_lock, irq_flags);
 
 	ret = request_irq(irq, trusty_irq_handler, IRQF_NO_THREAD,
 			  "trusty", trusty_irq);
@@ -374,9 +374,9 @@ static int trusty_irq_init_normal_irq(struct trusty_irq_state *is, int tirq)
 	return 0;
 
 err_request_irq:
-	spin_lock_irqsave(&is->normal_irqs_lock, irq_flags);
+	raw_spin_lock_irqsave(&is->normal_irqs_lock, irq_flags);
 	hlist_del(&trusty_irq->node);
-	spin_unlock_irqrestore(&is->normal_irqs_lock, irq_flags);
+	raw_spin_unlock_irqrestore(&is->normal_irqs_lock, irq_flags);
 	kfree(trusty_irq);
 	return ret;
 }
@@ -513,7 +513,7 @@ static int trusty_irq_probe(struct platform_device *pdev)
 
 	is->dev = &pdev->dev;
 	is->trusty_dev = is->dev->parent;
-	spin_lock_init(&is->normal_irqs_lock);
+	raw_spin_lock_init(&is->normal_irqs_lock);
 	is->percpu_irqs = alloc_percpu(struct trusty_irq_irqset);
 	if (!is->percpu_irqs) {
 		ret = -ENOMEM;
@@ -548,9 +548,9 @@ static int trusty_irq_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_cpuhp_instance:
-	spin_lock_irqsave(&is->normal_irqs_lock, irq_flags);
+	raw_spin_lock_irqsave(&is->normal_irqs_lock, irq_flags);
 	trusty_irq_disable_irqset(is, &is->normal_irqs);
-	spin_unlock_irqrestore(&is->normal_irqs_lock, irq_flags);
+	raw_spin_unlock_irqrestore(&is->normal_irqs_lock, irq_flags);
 	trusty_irq_free_irqs(is);
 	trusty_call_notifier_unregister(is->trusty_dev,
 					&is->trusty_call_notifier);
@@ -573,9 +573,9 @@ static int trusty_irq_remove(struct platform_device *pdev)
 	if (WARN_ON(ret))
 		return ret;
 
-	spin_lock_irqsave(&is->normal_irqs_lock, irq_flags);
+	raw_spin_lock_irqsave(&is->normal_irqs_lock, irq_flags);
 	trusty_irq_disable_irqset(is, &is->normal_irqs);
-	spin_unlock_irqrestore(&is->normal_irqs_lock, irq_flags);
+	raw_spin_unlock_irqrestore(&is->normal_irqs_lock, irq_flags);
 
 	trusty_irq_free_irqs(is);
 
