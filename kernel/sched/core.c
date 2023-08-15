@@ -5495,9 +5495,6 @@ static inline void sched_submit_work(struct task_struct *tsk)
 {
 	unsigned int task_flags;
 
-	if (!tsk->state)
-		return;
-
 	task_flags = tsk->flags;
 	/*
 	 * If a worker went to sleep, notify and ask workqueue whether
@@ -5554,7 +5551,8 @@ asmlinkage __visible void __sched schedule(void)
 {
 	struct task_struct *tsk = current;
 
-	sched_submit_work(tsk);
+	if (tsk->state)
+		sched_submit_work(tsk);
 	__schedule_loop(SM_NONE);
 	sched_update_worker(tsk);
 }
@@ -5801,6 +5799,21 @@ static void __setscheduler_prio(struct task_struct *p, int prio)
 }
 
 #ifdef CONFIG_RT_MUTEXES
+
+void rt_mutex_pre_schedule(void)
+{
+	sched_submit_work(current);
+}
+
+void rt_mutex_schedule(void)
+{
+	__schedule_loop(SM_NONE);
+}
+
+void rt_mutex_post_schedule(void)
+{
+	sched_update_worker(current);
+}
 
 static inline int __rt_effective_prio(struct task_struct *pi_task, int prio)
 {
