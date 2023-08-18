@@ -86,7 +86,7 @@ EXPORT_SYMBOL(strcasecmp);
  * @src: Where to copy the string from
  */
 #undef strcpy
-char *strcpy(char *dest, const char *src)
+__visible char *strcpy(char *dest, const char *src)
 {
 	char *tmp = dest;
 
