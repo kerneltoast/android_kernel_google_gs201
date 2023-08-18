@@ -3923,13 +3923,17 @@ void
 dhd_schedule_delayed_dpc_on_dpc_cpu(dhd_pub_t *dhdp, ulong delay)
 {
 	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
-	int dpc_cpu = atomic_read(&dhd->dpc_cpu);
 	DHD_INFO(("%s:\n", __FUNCTION__));
 
-	/* scheduler will take care of scheduling to appropriate cpu if dpc_cpu is not online */
-	schedule_delayed_work_on(dpc_cpu, &dhd->dhd_dpc_dispatcher_work, delay);
-
-	return;
+	if (dhd->thr_dpc_ctl.thr_pid >= 0) {
+		if (delay)
+			queue_delayed_work(system_unbound_wq, &dhd->dhd_dpc_dispatcher_work, delay);
+		else
+			dhd_dpc_tasklet_dispatcher_work(&dhd->dhd_dpc_dispatcher_work.work);
+	} else {
+		/* scheduler will take care of scheduling to appropriate cpu if dpc_cpu is not online */
+		schedule_delayed_work_on(atomic_read(&dhd->dpc_cpu), &dhd->dhd_dpc_dispatcher_work, delay);
+	}
 }
 
 #ifdef SHOW_LOGTRACE
