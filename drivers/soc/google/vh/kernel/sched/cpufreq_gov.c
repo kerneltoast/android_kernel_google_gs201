@@ -932,7 +932,7 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 
 	memset(&attr, 0, sizeof(struct sched_attr));
 	attr.sched_policy = SCHED_FIFO;
-	attr.sched_priority = MAX_USER_RT_PRIO / 2;
+	attr.sched_priority = MAX_RT_PRIO - 1;
 
 	kthread_init_work(&sg_policy->work, sugov_work);
 	kthread_init_worker(&sg_policy->worker);
