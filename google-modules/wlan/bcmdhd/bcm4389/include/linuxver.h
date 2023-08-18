@@ -618,8 +618,7 @@ typedef struct {
 	struct	completion completed;
 	int	flush_ind;
 	struct	completion flushed;
-	spinlock_t	spinlock;
-	int		up_cnt;
+	atomic_t	up_cnt;
 } tsk_ctl_t;
 
 /* ANDREY: new MACROs to start stop threads(OLD kthread API STYLE) */
@@ -650,14 +649,7 @@ extern void osl_spin_unlock(void *lock, unsigned long flags);
 static inline bool binary_sema_down(tsk_ctl_t *tsk)
 {
 	if (down_interruptible(&tsk->sema) == 0) {
-		unsigned long flags = 0;
-		TSK_LOCK(&tsk->spinlock, flags);
-		if (tsk->up_cnt == 1)
-			tsk->up_cnt--;
-		else {
-			DBG_THR(("dhd_dpc_thread: Unexpected up_cnt %d\n", tsk->up_cnt));
-		}
-		TSK_UNLOCK(&tsk->spinlock, flags);
+		atomic_cmpxchg(&tsk->up_cnt, 1, 0);
 		return false;
 	} else
 		return true;
@@ -665,24 +657,12 @@ static inline bool binary_sema_down(tsk_ctl_t *tsk)
 
 static inline bool binary_sema_up(tsk_ctl_t *tsk)
 {
-	bool sem_up = false;
-	unsigned long flags = 0;
-
-	TSK_LOCK(&tsk->spinlock, flags);
-	if (tsk->up_cnt == 0) {
-		tsk->up_cnt++;
-		sem_up = true;
-	} else if (tsk->up_cnt == 1) {
-		/* dhd_sched_dpc: dpc is alread up! */
-	} else
-		DBG_THR(("dhd_sched_dpc: unexpected up cnt %d!\n", tsk->up_cnt));
-
-	TSK_UNLOCK(&tsk->spinlock, flags);
-
-	if (sem_up)
+	if (!atomic_cmpxchg(&tsk->up_cnt, 0, 1)) {
 		up(&tsk->sema);
+		return true;
+	}
 
-	return sem_up;
+	return false;
 }
 
 #if  (LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0))
@@ -702,7 +682,7 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 	(tsk_ctl)->proc_name = name;  \
 	(tsk_ctl)->terminated = FALSE; \
 	(tsk_ctl)->flush_ind = FALSE; \
-	(tsk_ctl)->up_cnt = 0; \
+	(tsk_ctl)->up_cnt = (atomic_t)ATOMIC_INIT(0); \
 	(tsk_ctl)->p_task  = kthread_run(thread_func, tsk_ctl, (char*)name); \
 	if (IS_ERR((tsk_ctl)->p_task)) { \
 		(tsk_ctl)->thr_pid = -1; \
@@ -710,7 +690,6 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 			(tsk_ctl)->proc_name)); \
 	} else { \
 		(tsk_ctl)->thr_pid = (tsk_ctl)->p_task->pid; \
-		spin_lock_init(&((tsk_ctl)->spinlock)); \
 		DBG_THR(("%s(): thread:%s:%lx started\n", __FUNCTION__, \
 			(tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
 	}; \
@@ -736,7 +715,7 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 	(tsk_ctl)->parent = NULL; \
 	(tsk_ctl)->proc_name = NULL;  \
 	(tsk_ctl)->thr_pid = -1; \
-	(tsk_ctl)->up_cnt = 0; \
+	(tsk_ctl)->up_cnt = (atomic_t)ATOMIC_INIT(0); \
 }
 
 #define PROC_STOP_USING_BINARY_SEMA(tsk_ctl) \
