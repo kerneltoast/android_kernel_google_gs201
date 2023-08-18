@@ -4940,7 +4940,6 @@ dhd_dpc_thread(void *data)
 #endif /* ENABLE_ADAPTIVE_SCHED */
 			SMP_RD_BARRIER_DEPENDS();
 			if (tsk->terminated) {
-				DHD_OS_WAKE_UNLOCK(&dhd->pub);
 				break;
 			}
 
@@ -4965,11 +4964,9 @@ dhd_dpc_thread(void *data)
 #endif /* DEBUG_DPC_THREAD_WATCHDOG */
 				}
 				dhd_os_wd_timer_extend(&dhd->pub, FALSE);
-				DHD_OS_WAKE_UNLOCK(&dhd->pub);
 			} else {
 				if (dhd->pub.up)
 					dhd_bus_stop(dhd->pub.bus, TRUE);
-				DHD_OS_WAKE_UNLOCK(&dhd->pub);
 			}
 		} else {
 			break;
@@ -5099,13 +5096,7 @@ dhd_sched_dpc(dhd_pub_t *dhdp)
 	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
 
 	if (dhd->thr_dpc_ctl.thr_pid >= 0) {
-		DHD_OS_WAKE_LOCK(dhdp);
-		/* If the semaphore does not get up,
-		* wake unlock should be done here
-		*/
-		if (!binary_sema_up(&dhd->thr_dpc_ctl)) {
-			DHD_OS_WAKE_UNLOCK(dhdp);
-		}
+		binary_sema_up(&dhd->thr_dpc_ctl);
 		return;
 	} else {
 		tasklet_schedule(&dhd->tasklet);
