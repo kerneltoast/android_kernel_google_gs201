@@ -945,6 +945,7 @@ struct kbase_csf_sched_heap_reclaim_mgr {
  *                          operation to implement timeslice-based scheduling.
  * @tock_work:              Work item that would perform the schedule on tock
  *                          operation to implement the asynchronous scheduling.
+ * @pending_tick_work:      Indicates that kbase_csf_scheduler_kthread() should perform
  * @pending_tock_work:      Indicates that the tock work item should re-execute
  *                          once it's finished instead of going back to sleep.
  * @ping_work:              Work item that would ping the firmware at regular
@@ -985,13 +986,6 @@ struct kbase_csf_sched_heap_reclaim_mgr {
  *                          after GPU and L2 cache have been powered up. So when
  *                          this count is zero, MCU will not be powered up.
  * @csg_scheduling_period_ms: Duration of Scheduling tick in milliseconds.
- * @tick_timer_active:      Indicates whether the @tick_timer is effectively
- *                          active or not, as the callback function of
- *                          @tick_timer will enqueue @tick_work only if this
- *                          flag is true. This is mainly useful for the case
- *                          when scheduling tick needs to be advanced from
- *                          interrupt context, without actually deactivating
- *                          the @tick_timer first and then enqueing @tick_work.
  * @tick_protm_pending_seq: Scan out sequence number of the group that has
  *                          protected mode execution pending for the queue(s)
  *                          bound to it and will be considered first for the
@@ -1041,6 +1035,7 @@ struct kbase_csf_scheduler {
 	struct hrtimer tick_timer;
 	struct kthread_work tick_work;
 	struct kthread_delayed_work tock_work;
+	atomic_t pending_tick_work;
 	atomic_t pending_tock_work;
 	struct delayed_work ping_work;
 	struct kbase_context *top_ctx;
@@ -1053,7 +1048,6 @@ struct kbase_csf_scheduler {
 	u32 non_idle_scanout_grps;
 	u32 pm_active_count;
 	unsigned int csg_scheduling_period_ms;
-	bool tick_timer_active;
 	u32 tick_protm_pending_seq;
 #ifdef CONFIG_MALI_HOST_CONTROLS_SC_RAILS
 	struct work_struct sc_rails_off_work;
