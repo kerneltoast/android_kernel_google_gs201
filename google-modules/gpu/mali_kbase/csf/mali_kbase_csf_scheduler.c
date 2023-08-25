@@ -363,36 +363,8 @@ static enum hrtimer_restart tick_timer_callback(struct hrtimer *timer)
 	struct kbase_device *kbdev = container_of(timer, struct kbase_device,
 						  csf.scheduler.tick_timer);
 
-	kbase_csf_scheduler_tick_advance(kbdev);
+	kbase_csf_scheduler_invoke_tick(kbdev);
 	return HRTIMER_NORESTART;
-}
-
-/**
- * start_tick_timer() - Start the scheduling tick hrtimer.
- *
- * @kbdev: Pointer to the device
- *
- * This function will start the scheduling tick hrtimer and is supposed to
- * be called only from the tick work item function. The tick hrtimer should
- * not be active already.
- */
-static void start_tick_timer(struct kbase_device *kbdev)
-{
-	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
-	unsigned long flags;
-
-	lockdep_assert_held(&scheduler->lock);
-
-	spin_lock_irqsave(&scheduler->interrupt_lock, flags);
-	WARN_ON(scheduler->tick_timer_active);
-	if (likely(!scheduler->tick_timer_active)) {
-		scheduler->tick_timer_active = true;
-
-		hrtimer_start(&scheduler->tick_timer,
-		    HR_TIMER_DELAY_MSEC(scheduler->csg_scheduling_period_ms),
-		    HRTIMER_MODE_REL);
-	}
-	spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
 }
 
 /**
@@ -403,30 +375,9 @@ static void start_tick_timer(struct kbase_device *kbdev)
 static void cancel_tick_timer(struct kbase_device *kbdev)
 {
 	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
-	unsigned long flags;
 
-	spin_lock_irqsave(&scheduler->interrupt_lock, flags);
-	scheduler->tick_timer_active = false;
-	spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
 	hrtimer_cancel(&scheduler->tick_timer);
-}
-
-/**
- * enqueue_tick_work() - Enqueue the scheduling tick work item
- *
- * @kbdev: Pointer to the device
- *
- * This function will queue the scheduling tick work item for immediate
- * execution. This shall only be called when both the tick hrtimer and tick
- * work item are not active/pending.
- */
-static void enqueue_tick_work(struct kbase_device *kbdev)
-{
-	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
-
-	lockdep_assert_held(&scheduler->lock);
-
-	kbase_csf_scheduler_invoke_tick(kbdev);
+	atomic_set(&scheduler->pending_tick_work, false);
 }
 
 static void release_doorbell(struct kbase_device *kbdev, int doorbell_nr)
@@ -631,7 +582,7 @@ bool kbase_csf_scheduler_process_gpu_idle_event(struct kbase_device *kbdev)
 #endif
 	} else {
 		/* Advance the scheduling tick to get the non-idle suspended groups loaded soon */
-		kbase_csf_scheduler_tick_advance_nolock(kbdev);
+		kbase_csf_scheduler_invoke_tick(kbdev);
 	}
 
 	return ack_gpu_idle_event;
@@ -2228,7 +2179,7 @@ void insert_group_to_runnable(struct kbase_csf_scheduler *const scheduler,
 	     scheduler->state == SCHED_SLEEPING)) {
 		dev_dbg(kbdev->dev, "Kicking scheduler on first runnable group\n");
 		/* Fire a scheduling to start the time-slice */
-		enqueue_tick_work(kbdev);
+		kbase_csf_scheduler_invoke_tick(kbdev);
 	} else
 		schedule_in_cycle(group, false);
 
@@ -4877,7 +4828,7 @@ static bool scheduler_suspend_on_idle(struct kbase_device *kbdev)
 			atomic_read(
 				&kbdev->csf.scheduler.non_idle_offslot_grps));
 		/* Bring forward the next tick */
-		kbase_csf_scheduler_tick_advance(kbdev);
+		kbase_csf_scheduler_invoke_tick(kbdev);
 		return false;
 	}
 
@@ -5555,7 +5506,7 @@ static void schedule_on_tock(struct kthread_work *work)
 	 * early
 	 */
 	if (err)
-		return;
+		goto exit_clear_pending_work;
 
 	mutex_lock(&scheduler->lock);
 	if (can_skip_scheduling(kbdev))
@@ -5587,6 +5538,8 @@ static void schedule_on_tock(struct kthread_work *work)
 exit_no_schedule_unlock:
 	mutex_unlock(&scheduler->lock);
 	kbase_reset_gpu_allow(kbdev);
+exit_clear_pending_work:
+	atomic_set(&scheduler->pending_tock_work, false);
 }
 
 static void schedule_on_tick(struct kthread_work *work)
@@ -5600,11 +5553,10 @@ static void schedule_on_tick(struct kthread_work *work)
 	 * early
 	 */
 	if (err)
-		return;
+		goto exit_clear_pending_work;
 
 	mutex_lock(&scheduler->lock);
 
-	WARN_ON(scheduler->tick_timer_active);
 	if (can_skip_scheduling(kbdev))
 		goto exit_no_schedule_unlock;
 
@@ -5612,7 +5564,8 @@ static void schedule_on_tick(struct kthread_work *work)
 
 	/* Undertaking schedule action steps */
 	KBASE_KTRACE_ADD(kbdev, SCHEDULER_TICK_START, NULL, scheduler->total_runnable_grps);
-	schedule_actions(kbdev, true);
+	while (atomic_cmpxchg(&scheduler->pending_tick_work, true, false) == true)
+		schedule_actions(kbdev, true);
 
 	/* Record time information */
 	scheduler->last_schedule = jiffies;
@@ -5620,7 +5573,9 @@ static void schedule_on_tick(struct kthread_work *work)
 	/* Kicking next scheduling if needed */
 	if (likely(scheduler_timer_is_enabled_nolock(kbdev)) &&
 			(scheduler->total_runnable_grps > 0)) {
-		start_tick_timer(kbdev);
+		hrtimer_start(&scheduler->tick_timer,
+			      HR_TIMER_DELAY_MSEC(scheduler->csg_scheduling_period_ms),
+			      HRTIMER_MODE_REL);
 		dev_dbg(kbdev->dev,
 			"scheduling for next tick, num_runnable_groups:%u\n",
 			scheduler->total_runnable_grps);
@@ -5641,6 +5596,8 @@ static void schedule_on_tick(struct kthread_work *work)
 exit_no_schedule_unlock:
 	mutex_unlock(&scheduler->lock);
 	kbase_reset_gpu_allow(kbdev);
+exit_clear_pending_work:
+	atomic_set(&scheduler->pending_tick_work, false);
 }
 
 static int wait_csg_slots_suspend(struct kbase_device *kbdev,
@@ -5882,6 +5839,7 @@ unlock:
 
 static void cancel_tick_work(struct kbase_csf_scheduler *const scheduler)
 {
+	atomic_set(&scheduler->pending_tick_work, false);
 	kthread_cancel_work_sync(&scheduler->tick_work);
 }
 
@@ -6727,6 +6685,7 @@ int kbase_csf_scheduler_early_init(struct kbase_device *kbdev)
 
 	kthread_init_work(&scheduler->tick_work, schedule_on_tick);
 	kthread_init_delayed_work(&scheduler->tock_work, schedule_on_tock);
+	atomic_set(&scheduler->pending_tick_work, false);
 	atomic_set(&scheduler->pending_tock_work, false);
 
 	INIT_DEFERRABLE_WORK(&scheduler->ping_work, firmware_aliveness_monitor);
@@ -6765,7 +6724,6 @@ int kbase_csf_scheduler_early_init(struct kbase_device *kbdev)
 
 	hrtimer_init(&scheduler->tick_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	scheduler->tick_timer.function = tick_timer_callback;
-	scheduler->tick_timer_active = false;
 
 	scheduler_init_heap_reclaim_mgr(scheduler);
 	kbase_csf_tiler_heap_register_shrinker(kbdev);
@@ -6843,7 +6801,7 @@ static void scheduler_enable_tick_timer_nolock(struct kbase_device *kbdev)
 		(scheduler->state != SCHED_SLEEPING));
 
 	if (scheduler->total_runnable_grps > 0) {
-		enqueue_tick_work(kbdev);
+		kbase_csf_scheduler_invoke_tick(kbdev);
 		dev_dbg(kbdev->dev, "Re-enabling the scheduler timer\n");
 	} else if (scheduler->state != SCHED_SUSPENDED) {
 		enqueue_gpu_idle_work(scheduler, 0);
@@ -6909,7 +6867,7 @@ void kbase_csf_scheduler_kick(struct kbase_device *kbdev)
 		goto out;
 
 	if (scheduler->total_runnable_grps > 0) {
-		enqueue_tick_work(kbdev);
+		kbase_csf_scheduler_invoke_tick(kbdev);
 		dev_dbg(kbdev->dev, "Kicking the scheduler manually\n");
 	}
 
