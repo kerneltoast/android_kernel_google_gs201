@@ -1957,8 +1957,6 @@ void kbase_csf_ctx_term(struct kbase_context *kctx)
 	kbase_csf_kcpu_queue_context_term(kctx);
 	kbase_csf_scheduler_context_term(kctx);
 	kbase_csf_event_term(kctx);
-
-	rt_mutex_destroy(&kctx->csf.lock);
 }
 
 /**
