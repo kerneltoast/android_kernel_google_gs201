@@ -67,8 +67,8 @@ static __always_inline void spin_lock(spinlock_t *lock)
   * warns about set-but-not-used variables when building with
   * CONFIG_DEBUG_LOCK_ALLOC=n and with W=1.
   */
-# define __spin_lock_nested(lock, subclass)	spin_lock(((void)(subclass), (lock)))
-# define __spin_lock_nest_lock(lock, subclass)	spin_lock(((void)(subclass), (lock)))
+# define __spin_lock_nested(lock, subclass)	rt_spin_lock(((void)(subclass), (lock)))
+# define __spin_lock_nest_lock(lock, subclass)	rt_spin_lock(((void)(subclass), (lock)))
 # define __spin_lock_irqsave_nested(lock, flags, subclass)	\
 	spin_lock_irqsave(((void)(subclass), (lock)), flags)
 #endif
@@ -98,7 +98,7 @@ static __always_inline void spin_lock_irq(spinlock_t *lock)
 	do {						 \
 		typecheck(unsigned long, flags);	 \
 		flags = 0;				 \
-		spin_lock(lock);			 \
+		rt_spin_lock(lock);			 \
 	} while (0)
 
 static __always_inline void spin_unlock(spinlock_t *lock)
