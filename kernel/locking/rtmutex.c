@@ -1477,7 +1477,6 @@ static bool rtmutex_spin_on_owner(struct rt_mutex_base *lock,
 {
 	bool res = true;
 
-	rcu_read_lock();
 	for (;;) {
 		/* If owner changed, trylock again. */
 		if (owner != rt_mutex_owner(lock))
@@ -1486,7 +1485,7 @@ static bool rtmutex_spin_on_owner(struct rt_mutex_base *lock,
 		 * Ensure that @owner is dereferenced after checking that
 		 * the lock owner still matches @owner. If that fails,
 		 * @owner might point to freed memory. If it still matches,
-		 * the rcu_read_lock() ensures the memory stays valid.
+		 * having preempt disabled ensures the memory stays valid.
 		 */
 		barrier();
 		/*
@@ -1504,7 +1503,6 @@ static bool rtmutex_spin_on_owner(struct rt_mutex_base *lock,
 		}
 		cpu_relax();
 	}
-	rcu_read_unlock();
 	return res;
 }
 #else
@@ -1603,6 +1601,8 @@ static int __sched rt_mutex_slowlock_block(struct rt_mutex_base *lock,
 	struct task_struct *owner;
 	int ret = 0;
 
+	/* Don't schedule until the explicit scheduling point */
+	preempt_disable();
 	for (;;) {
 		/* Try to acquire the lock: */
 		if (try_to_take_rt_mutex(lock, current, waiter))
@@ -1635,6 +1635,7 @@ static int __sched rt_mutex_slowlock_block(struct rt_mutex_base *lock,
 		raw_spin_lock_irq(&lock->wait_lock);
 		set_current_state(state);
 	}
+	preempt_enable();
 
 	__set_current_state(TASK_RUNNING);
 	return ret;
@@ -1810,6 +1811,8 @@ static void __sched rtlock_slowlock_locked(struct rt_mutex_base *lock)
 
 	task_blocks_on_rt_mutex(lock, &waiter, current, NULL, RT_MUTEX_MIN_CHAINWALK);
 
+	/* Don't schedule until the explicit scheduling point */
+	preempt_disable();
 	for (;;) {
 		/* Try to acquire the lock again */
 		if (try_to_take_rt_mutex(lock, current, &waiter))
@@ -1827,6 +1830,7 @@ static void __sched rtlock_slowlock_locked(struct rt_mutex_base *lock)
 		raw_spin_lock_irq(&lock->wait_lock);
 		set_current_state(TASK_RTLOCK_WAIT);
 	}
+	preempt_enable();
 
 	/* Restore the task state */
 	current_restore_rtlock_saved_state();

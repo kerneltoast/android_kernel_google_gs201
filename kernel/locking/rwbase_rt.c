@@ -243,9 +243,13 @@ static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 		goto out_unlock;
 
 	rwbase_set_and_save_current_state(state);
+
+	/* Don't schedule until the explicit scheduling point */
+	preempt_disable();
 	for (;;) {
 		/* Optimized out for rwlocks */
 		if (rwbase_signal_pending_state(state, current)) {
+			preempt_enable();
 			rwbase_restore_current_state();
 			__rwbase_write_unlock(rwb, 0, flags);
 			rt_mutex_post_schedule();
@@ -261,6 +265,8 @@ static int __sched rwbase_write_lock(struct rwbase_rt *rwb,
 
 		set_current_state(state);
 	}
+	preempt_enable();
+
 	rwbase_restore_current_state();
 
 out_unlock:
