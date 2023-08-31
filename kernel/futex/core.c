@@ -1645,6 +1645,29 @@ double_unlock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
 		spin_unlock(&hb2->lock);
 }
 
+static inline void futex_trylock_hblock(spinlock_t *lock)
+{
+	do {
+		ktime_t chill_time;;
+
+		/*
+		 * Current is not longer pi_blocked_on if it owns the lock. It
+		 * can still have pi_blocked_on set if the lock acquiring was
+		 * interrupted by signal or timeout. The trylock operation does
+		 * not clobber pi_blocked_on so it is the only option.
+		 * Should the try-lock operation fail then it needs leave the CPU
+		 * to avoid a busy loop in case it is the task with the highest
+		 * priority.
+		 */
+		if (spin_trylock(lock))
+			return;
+
+		chill_time = ktime_set(0, NSEC_PER_MSEC);
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_hrtimeout(&chill_time, HRTIMER_MODE_REL_HARD);
+	} while (1);
+}
+
 /*
  * Wake up waiters matching bitset queued on this futex (uaddr).
  */
@@ -3125,7 +3148,10 @@ retry_private:
 	ret = rt_mutex_wait_proxy_lock(&q.pi_state->pi_mutex, to, &rt_waiter);
 
 cleanup:
-	spin_lock(q.lock_ptr);
+	rt_mutex_post_schedule();
+
+	futex_trylock_hblock(q.lock_ptr);
+
 	/*
 	 * If we failed to acquire the lock (deadlock/signal/timeout), we must
 	 * first acquire the hb->lock before removing the lock from the
@@ -3137,11 +3163,6 @@ cleanup:
 	 */
 	if (ret && !rt_mutex_cleanup_proxy_lock(&q.pi_state->pi_mutex, &rt_waiter))
 		ret = 0;
-
-	/*
-	 * Waiter is unqueued.
-	 */
-	rt_mutex_post_schedule();
 no_block:
 	/*
 	 * Fixup the pi_state owner and possibly acquire the lock if we
@@ -3495,8 +3516,8 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 		pi_mutex = &q.pi_state->pi_mutex;
 		ret = rt_mutex_wait_proxy_lock(pi_mutex, to, &rt_waiter);
 
-		/* Current is not longer pi_blocked_on */
-		spin_lock(q.lock_ptr);
+		futex_trylock_hblock(q.lock_ptr);
+
 		if (ret && !rt_mutex_cleanup_proxy_lock(pi_mutex, &rt_waiter))
 			ret = 0;
 
