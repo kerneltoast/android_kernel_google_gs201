@@ -1,0 +1,22 @@
+# NOTE: THIS FILE IS EXPERIMENTAL FOR THE BAZEL MIGRATION AND NOT USED FOR
+# YOUR BUILDS CURRENTLY.
+#
+# It is not yet the source of truth for your build. If you're looking to modify
+# the build file, modify the Android.bp file instead. Do *not* modify this file
+# unless you have coordinated with the team managing the Soong to Bazel
+# migration.
+
+load("//build/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "nfc.cloudripper",
+    outs = [
+        "ese/st33spi.ko",
+        "ese/st54spi.ko",
+        "st21nfc.ko",
+    ],
+    kernel_build = "//private/gs-google:cloudripper",
+    visibility = [
+        "//private/gs-google:__pkg__",
+    ],
+)
