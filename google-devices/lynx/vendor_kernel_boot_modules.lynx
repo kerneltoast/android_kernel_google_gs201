@@ -1,0 +1,11 @@
+#
+# lynx specific modules loaded during first stage init from vendor_kernel_boot
+# (platform common modules are from vendor_boot_modules.gs201)
+#
+panel-samsung-s6e3fc3.ko
+panel-samsung-s6e3fc3-p10.ko
+panel-samsung-s6e3fc3-l10.ko
+panel-samsung-s6e3fc5.ko
+panel-samsung-s6e3hc2.ko
+panel-samsung-s6e3hc3.ko
+panel-samsung-sofef01.ko
