@@ -1,0 +1,25 @@
+# NOTE: THIS FILE IS EXPERIMENTAL FOR THE BAZEL MIGRATION AND NOT USED FOR
+# YOUR BUILDS CURRENTLY.
+#
+# It is not yet the source of truth for your build. If you're looking to modify
+# the build file, modify the Android.bp file instead. Do *not* modify this file
+# unless you have coordinated with the team managing the Soong to Bazel
+# migration.
+
+load("//build/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "cs35l41.cloudripper",
+    outs = [
+        "snd-soc-cs35l41.ko",
+        "snd-soc-cs35l41-i2c.ko",
+        "snd-soc-cs35l41-spi.ko",
+
+        # Conflicts with cs35l45. The one in cs35l45 takes priority.
+        # "snd-soc-wm-adsp.ko",
+    ],
+    kernel_build = "//private/gs-google:cloudripper",
+    visibility = [
+        "//private/gs-google:__pkg__",
+    ],
+)
