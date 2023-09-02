@@ -1,0 +1,14 @@
+obj-m := net/mcps802154/ drivers/net/ieee802154/
+
+subdir-ccflags-y := -I$(src) -I$(src)/include \
+ -I$(srctree)/$(src) -I$(srctree)/$(src)/include -Werror -Wall $(DW3000_DEFS)
+
+ifeq ($(CONFIG_BACKPORT_LINUX),y)
+NOSTDINC_FLAGS := \
+        -I$(srctree)/backports/backport-include/ \
+        -I$(srctree)/backports/backport-include/uapi \
+        -I$(srctree)/backports/include/ \
+        -I$(srctree)/backports/include/uapi \
+        -include $(srctree)/backports/backport-include/backport/backport.h \
+        $(CFLAGS)
+endif
