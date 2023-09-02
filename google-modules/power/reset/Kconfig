@@ -1,0 +1,5 @@
+config POWER_RESET_EXYNOS
+»   tristate "Samsung Exynos power-off driver"
+»   depends on SOC_GS101 || SOC_GS201
+»   help
+»     Reboot support for Samsung Exynos boards.
