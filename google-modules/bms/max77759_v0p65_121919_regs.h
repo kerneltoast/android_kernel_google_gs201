@@ -1,0 +1,7408 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * machine generated DO NOT MODIFY
+ * source MW_regmap_ds_v0p65_121919.csv
+ * 2020-03-19
+ */
+
+#ifndef MAX77759_REG_v0p65_121919_H_
+#define MAX77759_REG_v0p65_121919_H_
+
+#ifndef BITS_PER_LONG
+#define BITS_PER_LONG 32
+#endif
+#define GENMASK(h, l) \
+	(((~0UL) - (1UL << (l)) + 1) & (~0UL >> (BITS_PER_LONG - 1 - (h))))
+#define MAX77759_BFF(name, h, l) \
+static inline uint8_t _ ## name ## _set(uint8_t r, uint8_t v) \
+{ \
+	return ((r & ~GENMASK(h, l)) | v << l); \
+} \
+\
+static inline uint8_t _ ## name ## _get(uint8_t r) \
+{ \
+	return ((r & GENMASK(h, l)) >> l); \
+}
+
+
+#define FIELD2VALUE(field,value) \
+	(((value) & field##_MASK) >> field##_SHIFT)
+#define VALUE2FIELD(field,       value) \
+	(((value) << field##_SHIFT) & field##_MASK)
+
+
+
+/* section:  PMIC  */
+
+/*
+ * PMIC_ID,0x0,0b00111011,0x3b
+ * ID[7:0],,,,,,
+ */
+#define MAX77759_PMIC_PMIC_ID	0x0
+
+/*
+ * PMIC_REVISION,0x1,0b00000001,0x01
+ * VER[4:0],,,,,REV[2:0],
+ */
+#define MAX77759_PMIC_PMIC_REVISION	0x1
+
+#define MAX77759_PMIC_PMIC_REVISION_VER_SHIFT	3
+#define MAX77759_PMIC_PMIC_REVISION_VER_MASK	(0x1f << 3)
+#define MAX77759_PMIC_PMIC_REVISION_VER_CLEAR	(~(0x1f << 3))
+#define MAX77759_PMIC_PMIC_REVISION_REV_SHIFT	0
+#define MAX77759_PMIC_PMIC_REVISION_REV_MASK	(0x7 << 0)
+#define MAX77759_PMIC_PMIC_REVISION_REV_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(pmic_pmic_revision_ver,7,3)
+MAX77759_BFF(pmic_pmic_revision_rev,2,0)
+static inline const char *
+max77759_pmic_pmic_revision_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VER=%x",
+		FIELD2VALUE(MAX77759_PMIC_PMIC_REVISION_VER, val));
+	i += SCNPRINTF(&buff[i], len - i, " REV=%x",
+		FIELD2VALUE(MAX77759_PMIC_PMIC_REVISION_REV, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * OTP_REVISION,0x2,0b00000000,0x00
+ * OTP_REV[7:0],,,,,,
+ */
+#define MAX77759_PMIC_OTP_REVISION	0x2
+
+/*
+ * INTSRC,0x22,0b00000000,0x00
+ * SPR_7_4[3:0],,,,MAXQ_INT,SPR_3,TOPSYS_INT
+ */
+#define MAX77759_PMIC_INTSRC	0x22
+#define MAX77759_PMIC_INTSRC_MAXQ_INT	(0x1 << 3)
+#define MAX77759_PMIC_INTSRC_SPR_3	(0x1 << 2)
+#define MAX77759_PMIC_INTSRC_TOPSYS_INT	(0x1 << 1)
+#define MAX77759_PMIC_INTSRC_CHGR_INT	(0x1 << 0)
+
+#define MAX77759_PMIC_INTSRC_SPR_7_4_SHIFT	4
+#define MAX77759_PMIC_INTSRC_SPR_7_4_MASK	(0xf << 4)
+#define MAX77759_PMIC_INTSRC_SPR_7_4_CLEAR	(~(0xf << 4))
+#define MAX77759_PMIC_INTSRC_MAXQ_INT_SHIFT	3
+#define MAX77759_PMIC_INTSRC_MAXQ_INT_MASK	(0x1 << 3)
+#define MAX77759_PMIC_INTSRC_MAXQ_INT_CLEAR	(~(0x1 << 3))
+#define MAX77759_PMIC_INTSRC_SPR_3_SHIFT	2
+#define MAX77759_PMIC_INTSRC_SPR_3_MASK	(0x1 << 2)
+#define MAX77759_PMIC_INTSRC_SPR_3_CLEAR	(~(0x1 << 2))
+#define MAX77759_PMIC_INTSRC_TOPSYS_INT_SHIFT	1
+#define MAX77759_PMIC_INTSRC_TOPSYS_INT_MASK	(0x1 << 1)
+#define MAX77759_PMIC_INTSRC_TOPSYS_INT_CLEAR	(~(0x1 << 1))
+#define MAX77759_PMIC_INTSRC_CHGR_INT_SHIFT	0
+#define MAX77759_PMIC_INTSRC_CHGR_INT_MASK	(0x1 << 0)
+#define MAX77759_PMIC_INTSRC_CHGR_INT_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(pmic_intsrc_spr_7_4,7,4)
+MAX77759_BFF(pmic_intsrc_maxq_int,3,3)
+MAX77759_BFF(pmic_intsrc_spr_3,2,2)
+MAX77759_BFF(pmic_intsrc_topsys_int,1,1)
+MAX77759_BFF(pmic_intsrc_chgr_int,0,0)
+static inline const char *
+max77759_pmic_intsrc_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_4=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRC_SPR_7_4, val));
+	i += SCNPRINTF(&buff[i], len - i, " MAXQ_INT=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRC_MAXQ_INT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_3=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRC_SPR_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " TOPSYS_INT=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRC_TOPSYS_INT, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGR_INT=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRC_CHGR_INT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * INTSRCMASK,0x23,0b11111111,0xff
+ * SPR_7_4[3:0],,,,MAXQ_INT_M,SPR_3,TOPSYS_INT_M
+ */
+#define MAX77759_PMIC_INTSRCMASK	0x23
+#define MAX77759_PMIC_INTSRCMASK_MAXQ_INT_M	(0x1 << 3)
+#define MAX77759_PMIC_INTSRCMASK_SPR_3	(0x1 << 2)
+#define MAX77759_PMIC_INTSRCMASK_TOPSYS_INT_M	(0x1 << 1)
+#define MAX77759_PMIC_INTSRCMASK_CHGR_INT_M	(0x1 << 0)
+
+#define MAX77759_PMIC_INTSRCMASK_SPR_7_4_SHIFT	4
+#define MAX77759_PMIC_INTSRCMASK_SPR_7_4_MASK	(0xf << 4)
+#define MAX77759_PMIC_INTSRCMASK_SPR_7_4_CLEAR	(~(0xf << 4))
+#define MAX77759_PMIC_INTSRCMASK_MAXQ_INT_M_SHIFT	3
+#define MAX77759_PMIC_INTSRCMASK_MAXQ_INT_M_MASK	(0x1 << 3)
+#define MAX77759_PMIC_INTSRCMASK_MAXQ_INT_M_CLEAR	(~(0x1 << 3))
+#define MAX77759_PMIC_INTSRCMASK_SPR_3_SHIFT	2
+#define MAX77759_PMIC_INTSRCMASK_SPR_3_MASK	(0x1 << 2)
+#define MAX77759_PMIC_INTSRCMASK_SPR_3_CLEAR	(~(0x1 << 2))
+#define MAX77759_PMIC_INTSRCMASK_TOPSYS_INT_M_SHIFT	1
+#define MAX77759_PMIC_INTSRCMASK_TOPSYS_INT_M_MASK	(0x1 << 1)
+#define MAX77759_PMIC_INTSRCMASK_TOPSYS_INT_M_CLEAR	(~(0x1 << 1))
+#define MAX77759_PMIC_INTSRCMASK_CHGR_INT_M_SHIFT	0
+#define MAX77759_PMIC_INTSRCMASK_CHGR_INT_M_MASK	(0x1 << 0)
+#define MAX77759_PMIC_INTSRCMASK_CHGR_INT_M_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(pmic_intsrcmask_spr_7_4,7,4)
+MAX77759_BFF(pmic_intsrcmask_maxq_int_m,3,3)
+MAX77759_BFF(pmic_intsrcmask_spr_3,2,2)
+MAX77759_BFF(pmic_intsrcmask_topsys_int_m,1,1)
+MAX77759_BFF(pmic_intsrcmask_chgr_int_m,0,0)
+static inline const char *
+max77759_pmic_intsrcmask_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_4=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRCMASK_SPR_7_4, val));
+	i += SCNPRINTF(&buff[i], len - i, " MAXQ_INT_M=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRCMASK_MAXQ_INT_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_3=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRCMASK_SPR_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " TOPSYS_INT_M=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRCMASK_TOPSYS_INT_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGR_INT_M=%x",
+		FIELD2VALUE(MAX77759_PMIC_INTSRCMASK_CHGR_INT_M, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TOPSYS_INT,0x24,0b00000000,0x00
+ * SPR_7,TSHDN_INT,SYSOVLO_INT,SYSUVLO_INT,SPR_3_0[3:0],,
+ */
+#define MAX77759_PMIC_TOPSYS_INT	0x24
+#define MAX77759_PMIC_TOPSYS_INT_SPR_7	(0x1 << 7)
+#define MAX77759_PMIC_TOPSYS_INT_TSHDN_INT	(0x1 << 6)
+#define MAX77759_PMIC_TOPSYS_INT_SYSOVLO_INT	(0x1 << 5)
+#define MAX77759_PMIC_TOPSYS_INT_SYSUVLO_INT	(0x1 << 4)
+
+#define MAX77759_PMIC_TOPSYS_INT_SPR_7_SHIFT	7
+#define MAX77759_PMIC_TOPSYS_INT_SPR_7_MASK	(0x1 << 7)
+#define MAX77759_PMIC_TOPSYS_INT_SPR_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_PMIC_TOPSYS_INT_TSHDN_INT_SHIFT	6
+#define MAX77759_PMIC_TOPSYS_INT_TSHDN_INT_MASK	(0x1 << 6)
+#define MAX77759_PMIC_TOPSYS_INT_TSHDN_INT_CLEAR	(~(0x1 << 6))
+#define MAX77759_PMIC_TOPSYS_INT_SYSOVLO_INT_SHIFT	5
+#define MAX77759_PMIC_TOPSYS_INT_SYSOVLO_INT_MASK	(0x1 << 5)
+#define MAX77759_PMIC_TOPSYS_INT_SYSOVLO_INT_CLEAR	(~(0x1 << 5))
+#define MAX77759_PMIC_TOPSYS_INT_SYSUVLO_INT_SHIFT	4
+#define MAX77759_PMIC_TOPSYS_INT_SYSUVLO_INT_MASK	(0x1 << 4)
+#define MAX77759_PMIC_TOPSYS_INT_SYSUVLO_INT_CLEAR	(~(0x1 << 4))
+#define MAX77759_PMIC_TOPSYS_INT_SPR_3_0_SHIFT	0
+#define MAX77759_PMIC_TOPSYS_INT_SPR_3_0_MASK	(0xf << 0)
+#define MAX77759_PMIC_TOPSYS_INT_SPR_3_0_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(pmic_topsys_int_spr_7,7,7)
+MAX77759_BFF(pmic_topsys_int_tshdn_int,6,6)
+MAX77759_BFF(pmic_topsys_int_sysovlo_int,5,5)
+MAX77759_BFF(pmic_topsys_int_sysuvlo_int,4,4)
+MAX77759_BFF(pmic_topsys_int_spr_3_0,3,0)
+static inline const char *
+max77759_pmic_topsys_int_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_SPR_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " TSHDN_INT=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_TSHDN_INT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYSOVLO_INT=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_SYSOVLO_INT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYSUVLO_INT=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_SYSUVLO_INT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_3_0=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_SPR_3_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TOPSYS_INT_MASK,0x26,0b11111111,0xff
+ * SPR_7,TSHDN_INT_M,SYSOVLO_INT_M,SYSUVLO_INT_M,SPR_3_0[3:0],,
+ */
+#define MAX77759_PMIC_TOPSYS_INT_MASK	0x26
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SPR_7	(0x1 << 7)
+#define MAX77759_PMIC_TOPSYS_INT_MASK_TSHDN_INT_M	(0x1 << 6)
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SYSOVLO_INT_M	(0x1 << 5)
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SYSUVLO_INT_M	(0x1 << 4)
+
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SPR_7_SHIFT	7
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SPR_7_MASK	(0x1 << 7)
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SPR_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_PMIC_TOPSYS_INT_MASK_TSHDN_INT_M_SHIFT	6
+#define MAX77759_PMIC_TOPSYS_INT_MASK_TSHDN_INT_M_MASK	(0x1 << 6)
+#define MAX77759_PMIC_TOPSYS_INT_MASK_TSHDN_INT_M_CLEAR	(~(0x1 << 6))
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SYSOVLO_INT_M_SHIFT	5
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SYSOVLO_INT_M_MASK	(0x1 << 5)
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SYSOVLO_INT_M_CLEAR	(~(0x1 << 5))
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SYSUVLO_INT_M_SHIFT	4
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SYSUVLO_INT_M_MASK	(0x1 << 4)
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SYSUVLO_INT_M_CLEAR	(~(0x1 << 4))
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SPR_3_0_SHIFT	0
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SPR_3_0_MASK	(0xf << 0)
+#define MAX77759_PMIC_TOPSYS_INT_MASK_SPR_3_0_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(pmic_topsys_int_mask_spr_7,7,7)
+MAX77759_BFF(pmic_topsys_int_mask_tshdn_int_m,6,6)
+MAX77759_BFF(pmic_topsys_int_mask_sysovlo_int_m,5,5)
+MAX77759_BFF(pmic_topsys_int_mask_sysuvlo_int_m,4,4)
+MAX77759_BFF(pmic_topsys_int_mask_spr_3_0,3,0)
+static inline const char *
+max77759_pmic_topsys_int_mask_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_MASK_SPR_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " TSHDN_INT_M=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_MASK_TSHDN_INT_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYSOVLO_INT_M=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_MASK_SYSOVLO_INT_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYSUVLO_INT_M=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_MASK_SYSUVLO_INT_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_3_0=%x",
+		FIELD2VALUE(MAX77759_PMIC_TOPSYS_INT_MASK_SPR_3_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * I2C_CNFG,0x40,0b00000000,0x00
+ * SPR_7,PAIR[2:0],,,SPR_3_1[2:0],,
+ */
+#define MAX77759_PMIC_I2C_CNFG	0x40
+#define MAX77759_PMIC_I2C_CNFG_SPR_7	(0x1 << 7)
+#define MAX77759_PMIC_I2C_CNFG_HS_EXT_EN	(0x1 << 0)
+
+#define MAX77759_PMIC_I2C_CNFG_SPR_7_SHIFT	7
+#define MAX77759_PMIC_I2C_CNFG_SPR_7_MASK	(0x1 << 7)
+#define MAX77759_PMIC_I2C_CNFG_SPR_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_PMIC_I2C_CNFG_PAIR_SHIFT	4
+#define MAX77759_PMIC_I2C_CNFG_PAIR_MASK	(0x7 << 4)
+#define MAX77759_PMIC_I2C_CNFG_PAIR_CLEAR	(~(0x7 << 4))
+#define MAX77759_PMIC_I2C_CNFG_SPR_3_1_SHIFT	1
+#define MAX77759_PMIC_I2C_CNFG_SPR_3_1_MASK	(0x7 << 1)
+#define MAX77759_PMIC_I2C_CNFG_SPR_3_1_CLEAR	(~(0x7 << 1))
+#define MAX77759_PMIC_I2C_CNFG_HS_EXT_EN_SHIFT	0
+#define MAX77759_PMIC_I2C_CNFG_HS_EXT_EN_MASK	(0x1 << 0)
+#define MAX77759_PMIC_I2C_CNFG_HS_EXT_EN_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(pmic_i2c_cnfg_spr_7,7,7)
+MAX77759_BFF(pmic_i2c_cnfg_pair,6,4)
+MAX77759_BFF(pmic_i2c_cnfg_spr_3_1,3,1)
+MAX77759_BFF(pmic_i2c_cnfg_hs_ext_en,0,0)
+static inline const char *
+max77759_pmic_i2c_cnfg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7=%x",
+		FIELD2VALUE(MAX77759_PMIC_I2C_CNFG_SPR_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " PAIR=%x",
+		FIELD2VALUE(MAX77759_PMIC_I2C_CNFG_PAIR, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_3_1=%x",
+		FIELD2VALUE(MAX77759_PMIC_I2C_CNFG_SPR_3_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " HS_EXT_EN=%x",
+		FIELD2VALUE(MAX77759_PMIC_I2C_CNFG_HS_EXT_EN, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * SWRESET,0x50,0b00000000,0x00
+ * VIO_OK_MASK,IC_RST_MASK,SWR_RST[5:0],,,,
+ */
+#define MAX77759_PMIC_SWRESET	0x50
+#define MAX77759_PMIC_SWRESET_VIO_OK_MASK	(0x1 << 7)
+#define MAX77759_PMIC_SWRESET_IC_RST_MASK	(0x1 << 6)
+
+#define MAX77759_PMIC_SWRESET_VIO_OK_MASK_SHIFT	7
+#define MAX77759_PMIC_SWRESET_VIO_OK_MASK_MASK	(0x1 << 7)
+#define MAX77759_PMIC_SWRESET_VIO_OK_MASK_CLEAR	(~(0x1 << 7))
+#define MAX77759_PMIC_SWRESET_IC_RST_MASK_SHIFT	6
+#define MAX77759_PMIC_SWRESET_IC_RST_MASK_MASK	(0x1 << 6)
+#define MAX77759_PMIC_SWRESET_IC_RST_MASK_CLEAR	(~(0x1 << 6))
+#define MAX77759_PMIC_SWRESET_SWR_RST_SHIFT	0
+#define MAX77759_PMIC_SWRESET_SWR_RST_MASK	(0x3f << 0)
+#define MAX77759_PMIC_SWRESET_SWR_RST_CLEAR	(~(0x3f << 0))
+
+MAX77759_BFF(pmic_swreset_vio_ok_mask,7,7)
+MAX77759_BFF(pmic_swreset_ic_rst_mask,6,6)
+MAX77759_BFF(pmic_swreset_swr_rst,5,0)
+static inline const char *
+max77759_pmic_swreset_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VIO_OK_MASK=%x",
+		FIELD2VALUE(MAX77759_PMIC_SWRESET_VIO_OK_MASK, val));
+	i += SCNPRINTF(&buff[i], len - i, " IC_RST_MASK=%x",
+		FIELD2VALUE(MAX77759_PMIC_SWRESET_IC_RST_MASK, val));
+	i += SCNPRINTF(&buff[i], len - i, " SWR_RST=%x",
+		FIELD2VALUE(MAX77759_PMIC_SWRESET_SWR_RST, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CONTROL_FG,0x51,0b00010000,0x10
+ * SPR_7_5[2:0],,,TSHDN_DIS,SPR_3_0[1:0],,THMIO_MUX[1:0]
+ */
+#define MAX77759_PMIC_CONTROL_FG	0x51
+#define MAX77759_PMIC_CONTROL_FG_TSHDN_DIS	(0x1 << 4)
+
+#define MAX77759_PMIC_CONTROL_FG_SPR_7_5_SHIFT	5
+#define MAX77759_PMIC_CONTROL_FG_SPR_7_5_MASK	(0x7 << 5)
+#define MAX77759_PMIC_CONTROL_FG_SPR_7_5_CLEAR	(~(0x7 << 5))
+#define MAX77759_PMIC_CONTROL_FG_TSHDN_DIS_SHIFT	4
+#define MAX77759_PMIC_CONTROL_FG_TSHDN_DIS_MASK	(0x1 << 4)
+#define MAX77759_PMIC_CONTROL_FG_TSHDN_DIS_CLEAR	(~(0x1 << 4))
+#define MAX77759_PMIC_CONTROL_FG_SPR_3_0_SHIFT	2
+#define MAX77759_PMIC_CONTROL_FG_SPR_3_0_MASK	(0x3 << 2)
+#define MAX77759_PMIC_CONTROL_FG_SPR_3_0_CLEAR	(~(0x3 << 2))
+#define MAX77759_PMIC_CONTROL_FG_THMIO_MUX_SHIFT	0
+#define MAX77759_PMIC_CONTROL_FG_THMIO_MUX_MASK	(0x3 << 0)
+#define MAX77759_PMIC_CONTROL_FG_THMIO_MUX_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(pmic_control_fg_spr_7_5,7,5)
+MAX77759_BFF(pmic_control_fg_tshdn_dis,4,4)
+MAX77759_BFF(pmic_control_fg_spr_3_0,3,2)
+MAX77759_BFF(pmic_control_fg_thmio_mux,1,0)
+static inline const char *
+max77759_pmic_control_fg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_5=%x",
+		FIELD2VALUE(MAX77759_PMIC_CONTROL_FG_SPR_7_5, val));
+	i += SCNPRINTF(&buff[i], len - i, " TSHDN_DIS=%x",
+		FIELD2VALUE(MAX77759_PMIC_CONTROL_FG_TSHDN_DIS, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_3_0=%x",
+		FIELD2VALUE(MAX77759_PMIC_CONTROL_FG_SPR_3_0, val));
+	i += SCNPRINTF(&buff[i], len - i, " THMIO_MUX=%x",
+		FIELD2VALUE(MAX77759_PMIC_CONTROL_FG_THMIO_MUX, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * DEVICE_ID,0x60,0b01011001,0x59
+ * DeviceID[7:0],,,,,,
+ */
+#define MAX77759_PMIC_DEVICE_ID	0x60
+
+/*
+ * DEVICE_REV,0x61,0b00000000,0x00
+ * DeviceRev[7:0],,,,,,
+ */
+#define MAX77759_PMIC_DEVICE_REV	0x61
+
+/*
+ * UIC_INT1,0x64,0b00000000,0x00
+ * APCmdResI,UIC_INT1I[6:0],,,,,
+ */
+#define MAX77759_PMIC_UIC_INT1	0x64
+#define MAX77759_PMIC_UIC_INT1_APCMDRESI	(0x1 << 7)
+
+#define MAX77759_PMIC_UIC_INT1_APCMDRESI_SHIFT	7
+#define MAX77759_PMIC_UIC_INT1_APCMDRESI_MASK	(0x1 << 7)
+#define MAX77759_PMIC_UIC_INT1_APCMDRESI_CLEAR	(~(0x1 << 7))
+#define MAX77759_PMIC_UIC_INT1_UIC_INT1I_SHIFT	0
+#define MAX77759_PMIC_UIC_INT1_UIC_INT1I_MASK	(0x7f << 0)
+#define MAX77759_PMIC_UIC_INT1_UIC_INT1I_CLEAR	(~(0x7f << 0))
+
+MAX77759_BFF(pmic_uic_int1_apcmdresi,7,7)
+MAX77759_BFF(pmic_uic_int1_uic_int1i,6,0)
+static inline const char *
+max77759_pmic_uic_int1_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " APCMDRESI=%x",
+		FIELD2VALUE(MAX77759_PMIC_UIC_INT1_APCMDRESI, val));
+	i += SCNPRINTF(&buff[i], len - i, " UIC_INT1I=%x",
+		FIELD2VALUE(MAX77759_PMIC_UIC_INT1_UIC_INT1I, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * UIC_INT2,0x65,0b00000000,0x00
+ * UIC_INT2I[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_INT2	0x65
+
+/*
+ * UIC_INT3,0x66,0b00000000,0x00
+ * UIC_INT3I[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_INT3	0x66
+
+/*
+ * UIC_INT4,0x67,0b00000000,0x00
+ * UIC_INT4I[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_INT4	0x67
+
+/*
+ * UIC_STATUS1,0x68,0b00000000,0x00
+ * UIC_STATUS1[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_STATUS1	0x68
+
+/*
+ * UIC_STATUS2,0x69,0b00000000,0x00
+ * UIC_STATUS2[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_STATUS2	0x69
+
+/*
+ * UIC_STATUS3,0x6A,0b00000000,0x00
+ * UIC_STATUS3[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_STATUS3	0x6A
+
+/*
+ * UIC_STATUS4,0x6B,0b00000000,0x00
+ * UIC_STATUS4[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_STATUS4	0x6B
+
+/*
+ * UIC_STATUS5,0x6C,0b00000000,0x00
+ * UIC_STATUS5[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_STATUS5	0x6C
+
+/*
+ * UIC_STATUS6,0x6D,0b00000000,0x00
+ * UIC_STATUS6[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_STATUS6	0x6D
+
+/*
+ * UIC_STATUS7,0x6E,0b00000000,0x00
+ * UIC_STATUS7[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_STATUS7	0x6E
+
+/*
+ * UIC_STATUS8,0x6F,0b00000000,0x00
+ * UIC_STATUS8[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_STATUS8	0x6F
+
+/*
+ * UIC_INT1_M,0x70,0b10111111,0xbf
+ * APCmdRes_M,UIC_INT1_M[6:0],,,,,
+ */
+#define MAX77759_PMIC_UIC_INT1_M	0x70
+#define MAX77759_PMIC_UIC_INT1_M_APCMDRES_M	(0x1 << 7)
+
+#define MAX77759_PMIC_UIC_INT1_M_APCMDRES_M_SHIFT	7
+#define MAX77759_PMIC_UIC_INT1_M_APCMDRES_M_MASK	(0x1 << 7)
+#define MAX77759_PMIC_UIC_INT1_M_APCMDRES_M_CLEAR	(~(0x1 << 7))
+#define MAX77759_PMIC_UIC_INT1_M_UIC_INT1_M_SHIFT	0
+#define MAX77759_PMIC_UIC_INT1_M_UIC_INT1_M_MASK	(0x7f << 0)
+#define MAX77759_PMIC_UIC_INT1_M_UIC_INT1_M_CLEAR	(~(0x7f << 0))
+
+MAX77759_BFF(pmic_uic_int1_m_apcmdres_m,7,7)
+MAX77759_BFF(pmic_uic_int1_m_uic_int1_m,6,0)
+static inline const char *
+max77759_pmic_uic_int1_m_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " APCMDRES_M=%x",
+		FIELD2VALUE(MAX77759_PMIC_UIC_INT1_M_APCMDRES_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " UIC_INT1_M=%x",
+		FIELD2VALUE(MAX77759_PMIC_UIC_INT1_M_UIC_INT1_M, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * UIC_INT2_M,0x71,0b11111111,0xff
+ * UIC_INT2_M[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_INT2_M	0x71
+
+/*
+ * UIC_INT3_M,0x72,0b11111111,0xff
+ * UIC_INT3_M[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_INT3_M	0x72
+
+/*
+ * UIC_INT4_M,0x73,0b11111111,0xff
+ * UIC_INT4_M[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_INT4_M	0x73
+
+/*
+ * AP_DATAOUT0,0x81,0b00000000,0x00
+ * AP_REQUEST_OPCODE[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT0	0x81
+
+/*
+ * AP_DATAOUT1,0x82,0b00000000,0x00
+ * OPCODE_DATAOUT_01[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT1	0x82
+
+/*
+ * AP_DATAOUT2,0x83,0b00000000,0x00
+ * OPCODE_DATAOUT_02[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT2	0x83
+
+/*
+ * AP_DATAOUT3,0x84,0b00000000,0x00
+ * OPCODE_DATAOUT_03[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT3	0x84
+
+/*
+ * AP_DATAOUT4,0x85,0b00000000,0x00
+ * OPCODE_DATAOUT_04[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT4	0x85
+
+/*
+ * AP_DATAOUT5,0x86,0b00000000,0x00
+ * OPCODE_DATAOUT_05[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT5	0x86
+
+/*
+ * AP_DATAOUT6,0x87,0b00000000,0x00
+ * OPCODE_DATAOUT_06[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT6	0x87
+
+/*
+ * AP_DATAOUT7,0x88,0b00000000,0x00
+ * OPCODE_DATAOUT_07[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT7	0x88
+
+/*
+ * AP_DATAOUT8,0x89,0b00000000,0x00
+ * OPCODE_DATAOUT_08[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT8	0x89
+
+/*
+ * AP_DATAOUT9,0x8A,0b00000000,0x00
+ * OPCODE_DATAOUT_09[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT9	0x8A
+
+/*
+ * AP_DATAOUT10,0x8B,0b00000000,0x00
+ * OPCODE_DATAOUT_10[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT10	0x8B
+
+/*
+ * AP_DATAOUT11,0x8C,0b00000000,0x00
+ * OPCODE_DATAOUT_11[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT11	0x8C
+
+/*
+ * AP_DATAOUT12,0x8D,0b00000000,0x00
+ * OPCODE_DATAOUT_12[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT12	0x8D
+
+/*
+ * AP_DATAOUT13,0x8E,0b00000000,0x00
+ * OPCODE_DATAOUT_13[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT13	0x8E
+
+/*
+ * AP_DATAOUT14,0x8F,0b00000000,0x00
+ * OPCODE_DATAOUT_14[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT14	0x8F
+
+/*
+ * AP_DATAOUT15,0x90,0b00000000,0x00
+ * OPCODE_DATAOUT_15[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT15	0x90
+
+/*
+ * AP_DATAOUT16,0x91,0b00000000,0x00
+ * OPCODE_DATAOUT_16[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT16	0x91
+
+/*
+ * AP_DATAOUT17,0x92,0b00000000,0x00
+ * OPCODE_DATAOUT_17[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT17	0x92
+
+/*
+ * AP_DATAOUT18,0x93,0b00000000,0x00
+ * OPCODE_DATAOUT_18[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT18	0x93
+
+/*
+ * AP_DATAOUT19,0x94,0b00000000,0x00
+ * OPCODE_DATAOUT_19[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT19	0x94
+
+/*
+ * AP_DATAOUT20,0x95,0b00000000,0x00
+ * OPCODE_DATAOUT_20[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT20	0x95
+
+/*
+ * AP_DATAOUT21,0x96,0b00000000,0x00
+ * OPCODE_DATAOUT_21[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT21	0x96
+
+/*
+ * AP_DATAOUT22,0x97,0b00000000,0x00
+ * OPCODE_DATAOUT_22[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT22	0x97
+
+/*
+ * AP_DATAOUT23,0x98,0b00000000,0x00
+ * OPCODE_DATAOUT_23[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT23	0x98
+
+/*
+ * AP_DATAOUT24,0x99,0b00000000,0x00
+ * OPCODE_DATAOUT_24[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT24	0x99
+
+/*
+ * AP_DATAOUT25,0x9A,0b00000000,0x00
+ * OPCODE_DATAOUT_25[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT25	0x9A
+
+/*
+ * AP_DATAOUT26,0x9B,0b00000000,0x00
+ * OPCODE_DATAOUT_26[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT26	0x9B
+
+/*
+ * AP_DATAOUT27,0x9C,0b00000000,0x00
+ * OPCODE_DATAOUT_27[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT27	0x9C
+
+/*
+ * AP_DATAOUT28,0x9D,0b00000000,0x00
+ * OPCODE_DATAOUT_28[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT28	0x9D
+
+/*
+ * AP_DATAOUT29,0x9E,0b00000000,0x00
+ * OPCODE_DATAOUT_29[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT29	0x9E
+
+/*
+ * AP_DATAOUT30,0x9F,0b00000000,0x00
+ * OPCODE_DATAOUT_30[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT30	0x9F
+
+/*
+ * AP_DATAOUT31,0xA0,0b00000000,0x00
+ * OPCODE_DATAOUT_31[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT31	0xA0
+
+/*
+ * AP_DATAOUT32,0xA1,0b00000000,0x00
+ * OPCODE_DATAOUT_32[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAOUT32	0xA1
+
+/*
+ * AP_DATAIN0,0xB1,0b00000000,0x00
+ * MAXQ_RESPONSE_OPCODE[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN0	0xB1
+
+/*
+ * AP_DATAIN1,0xB2,0b00000000,0x00
+ * OPCODE_DATAIN_01[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN1	0xB2
+
+/*
+ * AP_DATAIN2,0xB3,0b00000000,0x00
+ * OPCODE_DATAIN_02[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN2	0xB3
+
+/*
+ * AP_DATAIN3,0xB4,0b00000000,0x00
+ * OPCODE_DATAIN_03[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN3	0xB4
+
+/*
+ * AP_DATAIN4,0xB5,0b00000000,0x00
+ * OPCODE_DATAIN_04[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN4	0xB5
+
+/*
+ * AP_DATAIN5,0xB6,0b00000000,0x00
+ * OPCODE_DATAIN_05[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN5	0xB6
+
+/*
+ * AP_DATAIN6,0xB7,0b00000000,0x00
+ * OPCODE_DATAIN_06[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN6	0xB7
+
+/*
+ * AP_DATAIN7,0xB8,0b00000000,0x00
+ * OPCODE_DATAIN_07[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN7	0xB8
+
+/*
+ * AP_DATAIN8,0xB9,0b00000000,0x00
+ * OPCODE_DATAIN_08[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN8	0xB9
+
+/*
+ * AP_DATAIN9,0xBA,0b00000000,0x00
+ * OPCODE_DATAIN_09[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN9	0xBA
+
+/*
+ * AP_DATAIN10,0xBB,0b00000000,0x00
+ * OPCODE_DATAIN_10[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN10	0xBB
+
+/*
+ * AP_DATAIN11,0xBC,0b00000000,0x00
+ * OPCODE_DATAIN_11[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN11	0xBC
+
+/*
+ * AP_DATAIN12,0xBD,0b00000000,0x00
+ * OPCODE_DATAIN_12[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN12	0xBD
+
+/*
+ * AP_DATAIN13,0xBE,0b00000000,0x00
+ * OPCODE_DATAIN_13[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN13	0xBE
+
+/*
+ * AP_DATAIN14,0xBF,0b00000000,0x00
+ * OPCODE_DATAIN_14[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN14	0xBF
+
+/*
+ * AP_DATAIN15,0xC0,0b00000000,0x00
+ * OPCODE_DATAIN_15[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN15	0xC0
+
+/*
+ * AP_DATAIN16,0xC1,0b00000000,0x00
+ * OPCODE_DATAIN_16[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN16	0xC1
+
+/*
+ * AP_DATAIN17,0xC2,0b00000000,0x00
+ * OPCODE_DATAIN_17[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN17	0xC2
+
+/*
+ * AP_DATAIN18,0xC3,0b00000000,0x00
+ * OPCODE_DATAIN_18[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN18	0xC3
+
+/*
+ * AP_DATAIN19,0xC4,0b00000000,0x00
+ * OPCODE_DATAIN_19[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN19	0xC4
+
+/*
+ * AP_DATAIN20,0xC5,0b00000000,0x00
+ * OPCODE_DATAIN_20[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN20	0xC5
+
+/*
+ * AP_DATAIN21,0xC6,0b00000000,0x00
+ * OPCODE_DATAIN_21[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN21	0xC6
+
+/*
+ * AP_DATAIN22,0xC7,0b00000000,0x00
+ * OPCODE_DATAIN_22[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN22	0xC7
+
+/*
+ * AP_DATAIN23,0xC8,0b00000000,0x00
+ * OPCODE_DATAIN_23[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN23	0xC8
+
+/*
+ * AP_DATAIN24,0xC9,0b00000000,0x00
+ * OPCODE_DATAIN_24[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN24	0xC9
+
+/*
+ * AP_DATAIN25,0xCA,0b00000000,0x00
+ * OPCODE_DATAIN_25[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN25	0xCA
+
+/*
+ * AP_DATAIN26,0xCB,0b00000000,0x00
+ * OPCODE_DATAIN_26[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN26	0xCB
+
+/*
+ * AP_DATAIN27,0xCC,0b00000000,0x00
+ * OPCODE_DATAIN_27[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN27	0xCC
+
+/*
+ * AP_DATAIN28,0xCD,0b00000000,0x00
+ * OPCODE_DATAIN_28[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN28	0xCD
+
+/*
+ * AP_DATAIN29,0xCE,0b00000000,0x00
+ * OPCODE_DATAIN_29[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN29	0xCE
+
+/*
+ * AP_DATAIN30,0xCF,0b00000000,0x00
+ * OPCODE_DATAIN_30[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN30	0xCF
+
+/*
+ * AP_DATAIN31,0xD0,0b00000000,0x00
+ * OPCODE_DATAIN_31[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN31	0xD0
+
+/*
+ * AP_DATAIN32,0xD1,0b00000000,0x00
+ * OPCODE_DATAIN_32[7:0],,,,,,
+ */
+#define MAX77759_PMIC_AP_DATAIN32	0xD1
+
+/*
+ * UIC_SWRST,0xE0,0b00000000,0x00
+ * UIC_SWRST[7:0],,,,,,
+ */
+#define MAX77759_PMIC_UIC_SWRST	0xE0
+
+/* section:  Charger  */
+
+/*
+ * CHG_INT,0xB0,0b00000000,0x00
+ * AICL_I,CHGIN_I,WCIN_I,CHG_I,BAT_I,INLIM_I,THM2_I
+ */
+#define MAX77759_CHG_INT	0xB0
+#define MAX77759_CHG_INT_AICL_I	(0x1 << 7)
+#define MAX77759_CHG_INT_CHGIN_I	(0x1 << 6)
+#define MAX77759_CHG_INT_WCIN_I	(0x1 << 5)
+#define MAX77759_CHG_INT_CHG_I	(0x1 << 4)
+#define MAX77759_CHG_INT_BAT_I	(0x1 << 3)
+#define MAX77759_CHG_INT_INLIM_I	(0x1 << 2)
+#define MAX77759_CHG_INT_THM2_I	(0x1 << 1)
+#define MAX77759_CHG_INT_BYP_I	(0x1 << 0)
+
+#define MAX77759_CHG_INT_AICL_I_SHIFT	7
+#define MAX77759_CHG_INT_AICL_I_MASK	(0x1 << 7)
+#define MAX77759_CHG_INT_AICL_I_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_INT_CHGIN_I_SHIFT	6
+#define MAX77759_CHG_INT_CHGIN_I_MASK	(0x1 << 6)
+#define MAX77759_CHG_INT_CHGIN_I_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_INT_WCIN_I_SHIFT	5
+#define MAX77759_CHG_INT_WCIN_I_MASK	(0x1 << 5)
+#define MAX77759_CHG_INT_WCIN_I_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_INT_CHG_I_SHIFT	4
+#define MAX77759_CHG_INT_CHG_I_MASK	(0x1 << 4)
+#define MAX77759_CHG_INT_CHG_I_CLEAR	(~(0x1 << 4))
+#define MAX77759_CHG_INT_BAT_I_SHIFT	3
+#define MAX77759_CHG_INT_BAT_I_MASK	(0x1 << 3)
+#define MAX77759_CHG_INT_BAT_I_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_INT_INLIM_I_SHIFT	2
+#define MAX77759_CHG_INT_INLIM_I_MASK	(0x1 << 2)
+#define MAX77759_CHG_INT_INLIM_I_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_INT_THM2_I_SHIFT	1
+#define MAX77759_CHG_INT_THM2_I_MASK	(0x1 << 1)
+#define MAX77759_CHG_INT_THM2_I_CLEAR	(~(0x1 << 1))
+#define MAX77759_CHG_INT_BYP_I_SHIFT	0
+#define MAX77759_CHG_INT_BYP_I_MASK	(0x1 << 0)
+#define MAX77759_CHG_INT_BYP_I_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_int_aicl_i,7,7)
+MAX77759_BFF(chg_int_chgin_i,6,6)
+MAX77759_BFF(chg_int_wcin_i,5,5)
+MAX77759_BFF(chg_int_chg_i,4,4)
+MAX77759_BFF(chg_int_bat_i,3,3)
+MAX77759_BFF(chg_int_inlim_i,2,2)
+MAX77759_BFF(chg_int_thm2_i,1,1)
+MAX77759_BFF(chg_int_byp_i,0,0)
+static inline const char *
+max77759_chg_int_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " AICL_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_AICL_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGIN_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_CHGIN_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " WCIN_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_WCIN_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_CHG_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " BAT_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_BAT_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " INLIM_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_INLIM_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " THM2_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_THM2_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " BYP_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_BYP_I, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_INT2,0xB1,0b00000000,0x00
+ * INSEL_I,SYS_UVLO1_I,SYS_UVLO2_I,BAT_OILO_I,CHG_STA_CC_I,CHG_STA_CV_I,CHG_STA_TO_I
+ */
+#define MAX77759_CHG_INT2	0xB1
+#define MAX77759_CHG_INT2_INSEL_I	(0x1 << 7)
+#define MAX77759_CHG_INT2_SYS_UVLO1_I	(0x1 << 6)
+#define MAX77759_CHG_INT2_SYS_UVLO2_I	(0x1 << 5)
+#define MAX77759_CHG_INT2_BAT_OILO_I	(0x1 << 4)
+#define MAX77759_CHG_INT2_CHG_STA_CC_I	(0x1 << 3)
+#define MAX77759_CHG_INT2_CHG_STA_CV_I	(0x1 << 2)
+#define MAX77759_CHG_INT2_CHG_STA_TO_I	(0x1 << 1)
+#define MAX77759_CHG_INT2_CHG_STA_DONE_I	(0x1 << 0)
+
+#define MAX77759_CHG_INT2_INSEL_I_SHIFT	7
+#define MAX77759_CHG_INT2_INSEL_I_MASK	(0x1 << 7)
+#define MAX77759_CHG_INT2_INSEL_I_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_INT2_SYS_UVLO1_I_SHIFT	6
+#define MAX77759_CHG_INT2_SYS_UVLO1_I_MASK	(0x1 << 6)
+#define MAX77759_CHG_INT2_SYS_UVLO1_I_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_INT2_SYS_UVLO2_I_SHIFT	5
+#define MAX77759_CHG_INT2_SYS_UVLO2_I_MASK	(0x1 << 5)
+#define MAX77759_CHG_INT2_SYS_UVLO2_I_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_INT2_BAT_OILO_I_SHIFT	4
+#define MAX77759_CHG_INT2_BAT_OILO_I_MASK	(0x1 << 4)
+#define MAX77759_CHG_INT2_BAT_OILO_I_CLEAR	(~(0x1 << 4))
+#define MAX77759_CHG_INT2_CHG_STA_CC_I_SHIFT	3
+#define MAX77759_CHG_INT2_CHG_STA_CC_I_MASK	(0x1 << 3)
+#define MAX77759_CHG_INT2_CHG_STA_CC_I_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_INT2_CHG_STA_CV_I_SHIFT	2
+#define MAX77759_CHG_INT2_CHG_STA_CV_I_MASK	(0x1 << 2)
+#define MAX77759_CHG_INT2_CHG_STA_CV_I_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_INT2_CHG_STA_TO_I_SHIFT	1
+#define MAX77759_CHG_INT2_CHG_STA_TO_I_MASK	(0x1 << 1)
+#define MAX77759_CHG_INT2_CHG_STA_TO_I_CLEAR	(~(0x1 << 1))
+#define MAX77759_CHG_INT2_CHG_STA_DONE_I_SHIFT	0
+#define MAX77759_CHG_INT2_CHG_STA_DONE_I_MASK	(0x1 << 0)
+#define MAX77759_CHG_INT2_CHG_STA_DONE_I_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_int2_insel_i,7,7)
+MAX77759_BFF(chg_int2_sys_uvlo1_i,6,6)
+MAX77759_BFF(chg_int2_sys_uvlo2_i,5,5)
+MAX77759_BFF(chg_int2_bat_oilo_i,4,4)
+MAX77759_BFF(chg_int2_chg_sta_cc_i,3,3)
+MAX77759_BFF(chg_int2_chg_sta_cv_i,2,2)
+MAX77759_BFF(chg_int2_chg_sta_to_i,1,1)
+MAX77759_BFF(chg_int2_chg_sta_done_i,0,0)
+static inline const char *
+max77759_chg_int2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " INSEL_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_INSEL_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO1_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_SYS_UVLO1_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO2_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_SYS_UVLO2_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " BAT_OILO_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_BAT_OILO_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_STA_CC_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_CHG_STA_CC_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_STA_CV_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_CHG_STA_CV_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_STA_TO_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_CHG_STA_TO_I, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_STA_DONE_I=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_CHG_STA_DONE_I, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_INT_MASK,0xB2,0b11111111,0xff
+ * AICL_M,CHGIN_M,WCIN_M,CHG_M,BAT_M,INLIM_M,THM2_M
+ */
+#define MAX77759_CHG_INT_MASK	0xB2
+#define MAX77759_CHG_INT_MASK_AICL_M	(0x1 << 7)
+#define MAX77759_CHG_INT_MASK_CHGIN_M	(0x1 << 6)
+#define MAX77759_CHG_INT_MASK_WCIN_M	(0x1 << 5)
+#define MAX77759_CHG_INT_MASK_CHG_M	(0x1 << 4)
+#define MAX77759_CHG_INT_MASK_BAT_M	(0x1 << 3)
+#define MAX77759_CHG_INT_MASK_INLIM_M	(0x1 << 2)
+#define MAX77759_CHG_INT_MASK_THM2_M	(0x1 << 1)
+#define MAX77759_CHG_INT_MASK_BYP_M	(0x1 << 0)
+
+#define MAX77759_CHG_INT_MASK_AICL_M_SHIFT	7
+#define MAX77759_CHG_INT_MASK_AICL_M_MASK	(0x1 << 7)
+#define MAX77759_CHG_INT_MASK_AICL_M_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_INT_MASK_CHGIN_M_SHIFT	6
+#define MAX77759_CHG_INT_MASK_CHGIN_M_MASK	(0x1 << 6)
+#define MAX77759_CHG_INT_MASK_CHGIN_M_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_INT_MASK_WCIN_M_SHIFT	5
+#define MAX77759_CHG_INT_MASK_WCIN_M_MASK	(0x1 << 5)
+#define MAX77759_CHG_INT_MASK_WCIN_M_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_INT_MASK_CHG_M_SHIFT	4
+#define MAX77759_CHG_INT_MASK_CHG_M_MASK	(0x1 << 4)
+#define MAX77759_CHG_INT_MASK_CHG_M_CLEAR	(~(0x1 << 4))
+#define MAX77759_CHG_INT_MASK_BAT_M_SHIFT	3
+#define MAX77759_CHG_INT_MASK_BAT_M_MASK	(0x1 << 3)
+#define MAX77759_CHG_INT_MASK_BAT_M_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_INT_MASK_INLIM_M_SHIFT	2
+#define MAX77759_CHG_INT_MASK_INLIM_M_MASK	(0x1 << 2)
+#define MAX77759_CHG_INT_MASK_INLIM_M_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_INT_MASK_THM2_M_SHIFT	1
+#define MAX77759_CHG_INT_MASK_THM2_M_MASK	(0x1 << 1)
+#define MAX77759_CHG_INT_MASK_THM2_M_CLEAR	(~(0x1 << 1))
+#define MAX77759_CHG_INT_MASK_BYP_M_SHIFT	0
+#define MAX77759_CHG_INT_MASK_BYP_M_MASK	(0x1 << 0)
+#define MAX77759_CHG_INT_MASK_BYP_M_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_int_mask_aicl_m,7,7)
+MAX77759_BFF(chg_int_mask_chgin_m,6,6)
+MAX77759_BFF(chg_int_mask_wcin_m,5,5)
+MAX77759_BFF(chg_int_mask_chg_m,4,4)
+MAX77759_BFF(chg_int_mask_bat_m,3,3)
+MAX77759_BFF(chg_int_mask_inlim_m,2,2)
+MAX77759_BFF(chg_int_mask_thm2_m,1,1)
+MAX77759_BFF(chg_int_mask_byp_m,0,0)
+static inline const char *
+max77759_chg_int_mask_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " AICL_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_MASK_AICL_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGIN_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_MASK_CHGIN_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " WCIN_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_MASK_WCIN_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_MASK_CHG_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " BAT_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_MASK_BAT_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " INLIM_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_MASK_INLIM_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " THM2_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_MASK_THM2_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " BYP_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_MASK_BYP_M, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_INT2_MASK,0xB3,0b11111111,0xff
+ * INSEL_M,SYS_UVLO1_M,SYS_UVLO2_M,BAT_OILO_M,CHG_STA_CC_M,CHG_STA_CV_M,CHG_STA_TO_M
+ */
+#define MAX77759_CHG_INT2_MASK	0xB3
+#define MAX77759_CHG_INT2_MASK_INSEL_M	(0x1 << 7)
+#define MAX77759_CHG_INT2_MASK_SYS_UVLO1_M	(0x1 << 6)
+#define MAX77759_CHG_INT2_MASK_SYS_UVLO2_M	(0x1 << 5)
+#define MAX77759_CHG_INT2_MASK_BAT_OILO_M	(0x1 << 4)
+#define MAX77759_CHG_INT2_MASK_CHG_STA_CC_M	(0x1 << 3)
+#define MAX77759_CHG_INT2_MASK_CHG_STA_CV_M	(0x1 << 2)
+#define MAX77759_CHG_INT2_MASK_CHG_STA_TO_M	(0x1 << 1)
+#define MAX77759_CHG_INT2_MASK_CHG_STA_DONE_M	(0x1 << 0)
+
+#define MAX77759_CHG_INT2_MASK_INSEL_M_SHIFT	7
+#define MAX77759_CHG_INT2_MASK_INSEL_M_MASK	(0x1 << 7)
+#define MAX77759_CHG_INT2_MASK_INSEL_M_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_INT2_MASK_SYS_UVLO1_M_SHIFT	6
+#define MAX77759_CHG_INT2_MASK_SYS_UVLO1_M_MASK	(0x1 << 6)
+#define MAX77759_CHG_INT2_MASK_SYS_UVLO1_M_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_INT2_MASK_SYS_UVLO2_M_SHIFT	5
+#define MAX77759_CHG_INT2_MASK_SYS_UVLO2_M_MASK	(0x1 << 5)
+#define MAX77759_CHG_INT2_MASK_SYS_UVLO2_M_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_INT2_MASK_BAT_OILO_M_SHIFT	4
+#define MAX77759_CHG_INT2_MASK_BAT_OILO_M_MASK	(0x1 << 4)
+#define MAX77759_CHG_INT2_MASK_BAT_OILO_M_CLEAR	(~(0x1 << 4))
+#define MAX77759_CHG_INT2_MASK_CHG_STA_CC_M_SHIFT	3
+#define MAX77759_CHG_INT2_MASK_CHG_STA_CC_M_MASK	(0x1 << 3)
+#define MAX77759_CHG_INT2_MASK_CHG_STA_CC_M_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_INT2_MASK_CHG_STA_CV_M_SHIFT	2
+#define MAX77759_CHG_INT2_MASK_CHG_STA_CV_M_MASK	(0x1 << 2)
+#define MAX77759_CHG_INT2_MASK_CHG_STA_CV_M_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_INT2_MASK_CHG_STA_TO_M_SHIFT	1
+#define MAX77759_CHG_INT2_MASK_CHG_STA_TO_M_MASK	(0x1 << 1)
+#define MAX77759_CHG_INT2_MASK_CHG_STA_TO_M_CLEAR	(~(0x1 << 1))
+#define MAX77759_CHG_INT2_MASK_CHG_STA_DONE_M_SHIFT	0
+#define MAX77759_CHG_INT2_MASK_CHG_STA_DONE_M_MASK	(0x1 << 0)
+#define MAX77759_CHG_INT2_MASK_CHG_STA_DONE_M_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_int2_mask_insel_m,7,7)
+MAX77759_BFF(chg_int2_mask_sys_uvlo1_m,6,6)
+MAX77759_BFF(chg_int2_mask_sys_uvlo2_m,5,5)
+MAX77759_BFF(chg_int2_mask_bat_oilo_m,4,4)
+MAX77759_BFF(chg_int2_mask_chg_sta_cc_m,3,3)
+MAX77759_BFF(chg_int2_mask_chg_sta_cv_m,2,2)
+MAX77759_BFF(chg_int2_mask_chg_sta_to_m,1,1)
+MAX77759_BFF(chg_int2_mask_chg_sta_done_m,0,0)
+static inline const char *
+max77759_chg_int2_mask_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " INSEL_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_MASK_INSEL_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO1_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_MASK_SYS_UVLO1_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO2_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_MASK_SYS_UVLO2_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " BAT_OILO_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_MASK_BAT_OILO_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_STA_CC_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_MASK_CHG_STA_CC_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_STA_CV_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_MASK_CHG_STA_CV_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_STA_TO_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_MASK_CHG_STA_TO_M, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_STA_DONE_M=%x",
+		FIELD2VALUE(MAX77759_CHG_INT2_MASK_CHG_STA_DONE_M, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_INT_OK,0xB4,0b10011111,0x9f
+ * AICL_OK,CHGIN_OK,WCIN_OK,CHG_OK,BAT_OK,INLIM_OK,THM2_OK
+ */
+#define MAX77759_CHG_INT_OK	0xB4
+#define MAX77759_CHG_INT_OK_AICL_OK	(0x1 << 7)
+#define MAX77759_CHG_INT_OK_CHGIN_OK	(0x1 << 6)
+#define MAX77759_CHG_INT_OK_WCIN_OK	(0x1 << 5)
+#define MAX77759_CHG_INT_OK_CHG_OK	(0x1 << 4)
+#define MAX77759_CHG_INT_OK_BAT_OK	(0x1 << 3)
+#define MAX77759_CHG_INT_OK_INLIM_OK	(0x1 << 2)
+#define MAX77759_CHG_INT_OK_THM2_OK	(0x1 << 1)
+#define MAX77759_CHG_INT_OK_BYP_OK	(0x1 << 0)
+
+#define MAX77759_CHG_INT_OK_AICL_OK_SHIFT	7
+#define MAX77759_CHG_INT_OK_AICL_OK_MASK	(0x1 << 7)
+#define MAX77759_CHG_INT_OK_AICL_OK_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_INT_OK_CHGIN_OK_SHIFT	6
+#define MAX77759_CHG_INT_OK_CHGIN_OK_MASK	(0x1 << 6)
+#define MAX77759_CHG_INT_OK_CHGIN_OK_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_INT_OK_WCIN_OK_SHIFT	5
+#define MAX77759_CHG_INT_OK_WCIN_OK_MASK	(0x1 << 5)
+#define MAX77759_CHG_INT_OK_WCIN_OK_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_INT_OK_CHG_OK_SHIFT	4
+#define MAX77759_CHG_INT_OK_CHG_OK_MASK	(0x1 << 4)
+#define MAX77759_CHG_INT_OK_CHG_OK_CLEAR	(~(0x1 << 4))
+#define MAX77759_CHG_INT_OK_BAT_OK_SHIFT	3
+#define MAX77759_CHG_INT_OK_BAT_OK_MASK	(0x1 << 3)
+#define MAX77759_CHG_INT_OK_BAT_OK_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_INT_OK_INLIM_OK_SHIFT	2
+#define MAX77759_CHG_INT_OK_INLIM_OK_MASK	(0x1 << 2)
+#define MAX77759_CHG_INT_OK_INLIM_OK_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_INT_OK_THM2_OK_SHIFT	1
+#define MAX77759_CHG_INT_OK_THM2_OK_MASK	(0x1 << 1)
+#define MAX77759_CHG_INT_OK_THM2_OK_CLEAR	(~(0x1 << 1))
+#define MAX77759_CHG_INT_OK_BYP_OK_SHIFT	0
+#define MAX77759_CHG_INT_OK_BYP_OK_MASK	(0x1 << 0)
+#define MAX77759_CHG_INT_OK_BYP_OK_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_int_ok_aicl_ok,7,7)
+MAX77759_BFF(chg_int_ok_chgin_ok,6,6)
+MAX77759_BFF(chg_int_ok_wcin_ok,5,5)
+MAX77759_BFF(chg_int_ok_chg_ok,4,4)
+MAX77759_BFF(chg_int_ok_bat_ok,3,3)
+MAX77759_BFF(chg_int_ok_inlim_ok,2,2)
+MAX77759_BFF(chg_int_ok_thm2_ok,1,1)
+MAX77759_BFF(chg_int_ok_byp_ok,0,0)
+static inline const char *
+max77759_chg_int_ok_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " AICL_OK=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_OK_AICL_OK, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGIN_OK=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_OK_CHGIN_OK, val));
+	i += SCNPRINTF(&buff[i], len - i, " WCIN_OK=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_OK_WCIN_OK, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_OK=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_OK_CHG_OK, val));
+	i += SCNPRINTF(&buff[i], len - i, " BAT_OK=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_OK_BAT_OK, val));
+	i += SCNPRINTF(&buff[i], len - i, " INLIM_OK=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_OK_INLIM_OK, val));
+	i += SCNPRINTF(&buff[i], len - i, " THM2_OK=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_OK_THM2_OK, val));
+	i += SCNPRINTF(&buff[i], len - i, " BYP_OK=%x",
+		FIELD2VALUE(MAX77759_CHG_INT_OK_BYP_OK, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_DETAILS_00,0xB5,0b00000000,0x00
+ * RSVD,CHGIN_DTLS[1:0],,WCIN_DTLS[1:0],,SPSN_DTLS[1:0],
+ */
+#define MAX77759_CHG_DETAILS_00	0xB5
+#define MAX77759_CHG_DETAILS_00_RSVD	(0x1 << 7)
+#define MAX77759_CHG_DETAILS_00_TREG	(0x1 << 0)
+
+#define MAX77759_CHG_DETAILS_00_RSVD_SHIFT	7
+#define MAX77759_CHG_DETAILS_00_RSVD_MASK	(0x1 << 7)
+#define MAX77759_CHG_DETAILS_00_RSVD_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_DETAILS_00_CHGIN_DTLS_SHIFT	5
+#define MAX77759_CHG_DETAILS_00_CHGIN_DTLS_MASK	(0x3 << 5)
+#define MAX77759_CHG_DETAILS_00_CHGIN_DTLS_CLEAR	(~(0x3 << 5))
+#define MAX77759_CHG_DETAILS_00_WCIN_DTLS_SHIFT	3
+#define MAX77759_CHG_DETAILS_00_WCIN_DTLS_MASK	(0x3 << 3)
+#define MAX77759_CHG_DETAILS_00_WCIN_DTLS_CLEAR	(~(0x3 << 3))
+#define MAX77759_CHG_DETAILS_00_SPSN_DTLS_SHIFT	1
+#define MAX77759_CHG_DETAILS_00_SPSN_DTLS_MASK	(0x3 << 1)
+#define MAX77759_CHG_DETAILS_00_SPSN_DTLS_CLEAR	(~(0x3 << 1))
+#define MAX77759_CHG_DETAILS_00_TREG_SHIFT	0
+#define MAX77759_CHG_DETAILS_00_TREG_MASK	(0x1 << 0)
+#define MAX77759_CHG_DETAILS_00_TREG_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_details_00_rsvd,7,7)
+MAX77759_BFF(chg_details_00_chgin_dtls,6,5)
+MAX77759_BFF(chg_details_00_wcin_dtls,4,3)
+MAX77759_BFF(chg_details_00_spsn_dtls,2,1)
+MAX77759_BFF(chg_details_00_treg,0,0)
+static inline const char *
+max77759_chg_details_00_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_00_RSVD, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGIN_DTLS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_00_CHGIN_DTLS, val));
+	i += SCNPRINTF(&buff[i], len - i, " WCIN_DTLS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_00_WCIN_DTLS, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPSN_DTLS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_00_SPSN_DTLS, val));
+	i += SCNPRINTF(&buff[i], len - i, " TREG=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_00_TREG, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_DETAILS_01,0xB6,0b01111000,0x78
+ * VDROOP2_OK,BAT_DTLS[2:0],,,CHG_DTLS[3:0],,
+ */
+#define MAX77759_CHG_DETAILS_01	0xB6
+#define MAX77759_CHG_DETAILS_01_VDROOP2_OK	(0x1 << 7)
+
+#define MAX77759_CHG_DETAILS_01_VDROOP2_OK_SHIFT	7
+#define MAX77759_CHG_DETAILS_01_VDROOP2_OK_MASK	(0x1 << 7)
+#define MAX77759_CHG_DETAILS_01_VDROOP2_OK_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_DETAILS_01_BAT_DTLS_SHIFT	4
+#define MAX77759_CHG_DETAILS_01_BAT_DTLS_MASK	(0x7 << 4)
+#define MAX77759_CHG_DETAILS_01_BAT_DTLS_CLEAR	(~(0x7 << 4))
+#define MAX77759_CHG_DETAILS_01_CHG_DTLS_SHIFT	0
+#define MAX77759_CHG_DETAILS_01_CHG_DTLS_MASK	(0xf << 0)
+#define MAX77759_CHG_DETAILS_01_CHG_DTLS_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(chg_details_01_vdroop2_ok,7,7)
+MAX77759_BFF(chg_details_01_bat_dtls,6,4)
+MAX77759_BFF(chg_details_01_chg_dtls,3,0)
+static inline const char *
+max77759_chg_details_01_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VDROOP2_OK=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_01_VDROOP2_OK, val));
+	i += SCNPRINTF(&buff[i], len - i, " BAT_DTLS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_01_BAT_DTLS, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_DTLS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_01_CHG_DTLS, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_DETAILS_02,0xB7,0b00000000,0x00
+ * RSVD[1:0],,CHGIN_STS,WCIN_STS,BYP_DTLS[3:0],,
+ */
+#define MAX77759_CHG_DETAILS_02	0xB7
+#define MAX77759_CHG_DETAILS_02_CHGIN_STS	(0x1 << 5)
+#define MAX77759_CHG_DETAILS_02_WCIN_STS	(0x1 << 4)
+
+#define MAX77759_CHG_DETAILS_02_RSVD_SHIFT	6
+#define MAX77759_CHG_DETAILS_02_RSVD_MASK	(0x3 << 6)
+#define MAX77759_CHG_DETAILS_02_RSVD_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_DETAILS_02_CHGIN_STS_SHIFT	5
+#define MAX77759_CHG_DETAILS_02_CHGIN_STS_MASK	(0x1 << 5)
+#define MAX77759_CHG_DETAILS_02_CHGIN_STS_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_DETAILS_02_WCIN_STS_SHIFT	4
+#define MAX77759_CHG_DETAILS_02_WCIN_STS_MASK	(0x1 << 4)
+#define MAX77759_CHG_DETAILS_02_WCIN_STS_CLEAR	(~(0x1 << 4))
+#define MAX77759_CHG_DETAILS_02_BYP_DTLS_SHIFT	0
+#define MAX77759_CHG_DETAILS_02_BYP_DTLS_MASK	(0xf << 0)
+#define MAX77759_CHG_DETAILS_02_BYP_DTLS_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(chg_details_02_rsvd,7,6)
+MAX77759_BFF(chg_details_02_chgin_sts,5,5)
+MAX77759_BFF(chg_details_02_wcin_sts,4,4)
+MAX77759_BFF(chg_details_02_byp_dtls,3,0)
+static inline const char *
+max77759_chg_details_02_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_02_RSVD, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGIN_STS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_02_CHGIN_STS, val));
+	i += SCNPRINTF(&buff[i], len - i, " WCIN_STS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_02_WCIN_STS, val));
+	i += SCNPRINTF(&buff[i], len - i, " BYP_DTLS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_02_BYP_DTLS, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_DETAILS_03,0xB8,0b00000000,0x00
+ * FSHIP_EXIT_DTLS[1:0],,MD_DTLS[1:0],,RSVD,THM_DTLS[2:0],
+ */
+#define MAX77759_CHG_DETAILS_03	0xB8
+#define MAX77759_CHG_DETAILS_03_RSVD	(0x1 << 3)
+
+#define MAX77759_CHG_DETAILS_03_FSHIP_EXIT_DTLS_SHIFT	6
+#define MAX77759_CHG_DETAILS_03_FSHIP_EXIT_DTLS_MASK	(0x3 << 6)
+#define MAX77759_CHG_DETAILS_03_FSHIP_EXIT_DTLS_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_DETAILS_03_MD_DTLS_SHIFT	4
+#define MAX77759_CHG_DETAILS_03_MD_DTLS_MASK	(0x3 << 4)
+#define MAX77759_CHG_DETAILS_03_MD_DTLS_CLEAR	(~(0x3 << 4))
+#define MAX77759_CHG_DETAILS_03_RSVD_SHIFT	3
+#define MAX77759_CHG_DETAILS_03_RSVD_MASK	(0x1 << 3)
+#define MAX77759_CHG_DETAILS_03_RSVD_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_DETAILS_03_THM_DTLS_SHIFT	0
+#define MAX77759_CHG_DETAILS_03_THM_DTLS_MASK	(0x7 << 0)
+#define MAX77759_CHG_DETAILS_03_THM_DTLS_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(chg_details_03_fship_exit_dtls,7,6)
+MAX77759_BFF(chg_details_03_md_dtls,5,4)
+MAX77759_BFF(chg_details_03_rsvd,3,3)
+MAX77759_BFF(chg_details_03_thm_dtls,2,0)
+static inline const char *
+max77759_chg_details_03_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " FSHIP_EXIT_DTLS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_03_FSHIP_EXIT_DTLS, val));
+	i += SCNPRINTF(&buff[i], len - i, " MD_DTLS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_03_MD_DTLS, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_03_RSVD, val));
+	i += SCNPRINTF(&buff[i], len - i, " THM_DTLS=%x",
+		FIELD2VALUE(MAX77759_CHG_DETAILS_03_THM_DTLS, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_00,0xB9,0b00000100,0x04
+ * WDTCLR[1:0],,CP_EN,SPR_4,MODE[3:0],,
+ */
+#define MAX77759_CHG_CNFG_00	0xB9
+#define MAX77759_CHG_CNFG_00_CP_EN	(0x1 << 5)
+#define MAX77759_CHG_CNFG_00_SPR_4	(0x1 << 4)
+
+#define MAX77759_CHG_CNFG_00_WDTCLR_SHIFT	6
+#define MAX77759_CHG_CNFG_00_WDTCLR_MASK	(0x3 << 6)
+#define MAX77759_CHG_CNFG_00_WDTCLR_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_CNFG_00_CP_EN_SHIFT	5
+#define MAX77759_CHG_CNFG_00_CP_EN_MASK	(0x1 << 5)
+#define MAX77759_CHG_CNFG_00_CP_EN_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_CNFG_00_SPR_4_SHIFT	4
+#define MAX77759_CHG_CNFG_00_SPR_4_MASK	(0x1 << 4)
+#define MAX77759_CHG_CNFG_00_SPR_4_CLEAR	(~(0x1 << 4))
+#define MAX77759_CHG_CNFG_00_MODE_SHIFT	0
+#define MAX77759_CHG_CNFG_00_MODE_MASK	(0xf << 0)
+#define MAX77759_CHG_CNFG_00_MODE_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(chg_cnfg_00_wdtclr,7,6)
+MAX77759_BFF(chg_cnfg_00_cp_en,5,5)
+MAX77759_BFF(chg_cnfg_00_spr_4,4,4)
+MAX77759_BFF(chg_cnfg_00_mode,3,0)
+static inline const char *
+max77759_chg_cnfg_00_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " WDTCLR=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_00_WDTCLR, val));
+	i += SCNPRINTF(&buff[i], len - i, " CP_EN=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_00_CP_EN, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_4=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_00_SPR_4, val));
+	i += SCNPRINTF(&buff[i], len - i, " MODE=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_00_MODE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_01,0xBA,0b10010001,0x91
+ * PQEN,LSEL,CHG_RSTRT[1:0],,RECYCLE_EN,FCHGTIME[2:0],
+ */
+#define MAX77759_CHG_CNFG_01	0xBA
+#define MAX77759_CHG_CNFG_01_PQEN	(0x1 << 7)
+#define MAX77759_CHG_CNFG_01_LSEL	(0x1 << 6)
+#define MAX77759_CHG_CNFG_01_RECYCLE_EN	(0x1 << 3)
+
+#define MAX77759_CHG_CNFG_01_PQEN_SHIFT	7
+#define MAX77759_CHG_CNFG_01_PQEN_MASK	(0x1 << 7)
+#define MAX77759_CHG_CNFG_01_PQEN_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_CNFG_01_LSEL_SHIFT	6
+#define MAX77759_CHG_CNFG_01_LSEL_MASK	(0x1 << 6)
+#define MAX77759_CHG_CNFG_01_LSEL_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_CNFG_01_CHG_RSTRT_SHIFT	4
+#define MAX77759_CHG_CNFG_01_CHG_RSTRT_MASK	(0x3 << 4)
+#define MAX77759_CHG_CNFG_01_CHG_RSTRT_CLEAR	(~(0x3 << 4))
+#define MAX77759_CHG_CNFG_01_RECYCLE_EN_SHIFT	3
+#define MAX77759_CHG_CNFG_01_RECYCLE_EN_MASK	(0x1 << 3)
+#define MAX77759_CHG_CNFG_01_RECYCLE_EN_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_CNFG_01_FCHGTIME_SHIFT	0
+#define MAX77759_CHG_CNFG_01_FCHGTIME_MASK	(0x7 << 0)
+#define MAX77759_CHG_CNFG_01_FCHGTIME_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(chg_cnfg_01_pqen,7,7)
+MAX77759_BFF(chg_cnfg_01_lsel,6,6)
+MAX77759_BFF(chg_cnfg_01_chg_rstrt,5,4)
+MAX77759_BFF(chg_cnfg_01_recycle_en,3,3)
+MAX77759_BFF(chg_cnfg_01_fchgtime,2,0)
+static inline const char *
+max77759_chg_cnfg_01_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " PQEN=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_01_PQEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " LSEL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_01_LSEL, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_RSTRT=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_01_CHG_RSTRT, val));
+	i += SCNPRINTF(&buff[i], len - i, " RECYCLE_EN=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_01_RECYCLE_EN, val));
+	i += SCNPRINTF(&buff[i], len - i, " FCHGTIME=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_01_FCHGTIME, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_02,0xBB,0b00000111,0x07
+ * SPR_7_6[1:0],,CHGCC[5:0],,,,
+ */
+#define MAX77759_CHG_CNFG_02	0xBB
+
+#define MAX77759_CHG_CNFG_02_SPR_7_6_SHIFT	6
+#define MAX77759_CHG_CNFG_02_SPR_7_6_MASK	(0x3 << 6)
+#define MAX77759_CHG_CNFG_02_SPR_7_6_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_CNFG_02_CHGCC_SHIFT	0
+#define MAX77759_CHG_CNFG_02_CHGCC_MASK	(0x3f << 0)
+#define MAX77759_CHG_CNFG_02_CHGCC_CLEAR	(~(0x3f << 0))
+
+MAX77759_BFF(chg_cnfg_02_spr_7_6,7,6)
+MAX77759_BFF(chg_cnfg_02_chgcc,5,0)
+static inline const char *
+max77759_chg_cnfg_02_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_6=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_02_SPR_7_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGCC=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_02_CHGCC, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_03,0xBC,0b11011001,0xd9
+ * SYS_TRACK_DIS,AUTO_FSHIP_MODE_EN,TO_TIME[2:0],,,TO_ITH[2:0],
+ */
+#define MAX77759_CHG_CNFG_03	0xBC
+#define MAX77759_CHG_CNFG_03_SYS_TRACK_DIS	(0x1 << 7)
+#define MAX77759_CHG_CNFG_03_AUTO_FSHIP_MODE_EN	(0x1 << 6)
+
+#define MAX77759_CHG_CNFG_03_SYS_TRACK_DIS_SHIFT	7
+#define MAX77759_CHG_CNFG_03_SYS_TRACK_DIS_MASK	(0x1 << 7)
+#define MAX77759_CHG_CNFG_03_SYS_TRACK_DIS_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_CNFG_03_AUTO_FSHIP_MODE_EN_SHIFT	6
+#define MAX77759_CHG_CNFG_03_AUTO_FSHIP_MODE_EN_MASK	(0x1 << 6)
+#define MAX77759_CHG_CNFG_03_AUTO_FSHIP_MODE_EN_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_CNFG_03_TO_TIME_SHIFT	3
+#define MAX77759_CHG_CNFG_03_TO_TIME_MASK	(0x7 << 3)
+#define MAX77759_CHG_CNFG_03_TO_TIME_CLEAR	(~(0x7 << 3))
+#define MAX77759_CHG_CNFG_03_TO_ITH_SHIFT	0
+#define MAX77759_CHG_CNFG_03_TO_ITH_MASK	(0x7 << 0)
+#define MAX77759_CHG_CNFG_03_TO_ITH_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(chg_cnfg_03_sys_track_dis,7,7)
+MAX77759_BFF(chg_cnfg_03_auto_fship_mode_en,6,6)
+MAX77759_BFF(chg_cnfg_03_to_time,5,3)
+MAX77759_BFF(chg_cnfg_03_to_ith,2,0)
+static inline const char *
+max77759_chg_cnfg_03_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SYS_TRACK_DIS=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_03_SYS_TRACK_DIS, val));
+	i += SCNPRINTF(&buff[i], len - i, " AUTO_FSHIP_MODE_EN=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_03_AUTO_FSHIP_MODE_EN, val));
+	i += SCNPRINTF(&buff[i], len - i, " TO_TIME=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_03_TO_TIME, val));
+	i += SCNPRINTF(&buff[i], len - i, " TO_ITH=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_03_TO_ITH, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_04,0xBD,0b00010100,0x14
+ * SPR_7_6[1:0],,CHG_CV_PRM[5:0],,,,
+ */
+#define MAX77759_CHG_CNFG_04	0xBD
+
+#define MAX77759_CHG_CNFG_04_SPR_7_6_SHIFT	6
+#define MAX77759_CHG_CNFG_04_SPR_7_6_MASK	(0x3 << 6)
+#define MAX77759_CHG_CNFG_04_SPR_7_6_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_CNFG_04_CHG_CV_PRM_SHIFT	0
+#define MAX77759_CHG_CNFG_04_CHG_CV_PRM_MASK	(0x3f << 0)
+#define MAX77759_CHG_CNFG_04_CHG_CV_PRM_CLEAR	(~(0x3f << 0))
+
+MAX77759_BFF(chg_cnfg_04_spr_7_6,7,6)
+MAX77759_BFF(chg_cnfg_04_chg_cv_prm,5,0)
+static inline const char *
+max77759_chg_cnfg_04_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_6=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_04_SPR_7_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHG_CV_PRM=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_04_CHG_CV_PRM, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_05,0xBE,0b00110110,0x36
+ * UNO_ILIM[3:0],,,,OTG_ILIM[3:0],,
+ */
+#define MAX77759_CHG_CNFG_05	0xBE
+
+#define MAX77759_CHG_CNFG_05_UNO_ILIM_SHIFT	4
+#define MAX77759_CHG_CNFG_05_UNO_ILIM_MASK	(0xf << 4)
+#define MAX77759_CHG_CNFG_05_UNO_ILIM_CLEAR	(~(0xf << 4))
+#define MAX77759_CHG_CNFG_05_OTG_ILIM_SHIFT	0
+#define MAX77759_CHG_CNFG_05_OTG_ILIM_MASK	(0xf << 0)
+#define MAX77759_CHG_CNFG_05_OTG_ILIM_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(chg_cnfg_05_uno_ilim,7,4)
+MAX77759_BFF(chg_cnfg_05_otg_ilim,3,0)
+static inline const char *
+max77759_chg_cnfg_05_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " UNO_ILIM=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_05_UNO_ILIM, val));
+	i += SCNPRINTF(&buff[i], len - i, " OTG_ILIM=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_05_OTG_ILIM, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_06,0xBF,0b00000000,0x00
+ * SPR_7_4[3:0],,,,CHGPROT[1:0],,SPR_1_0[1:0]
+ */
+#define MAX77759_CHG_CNFG_06	0xBF
+
+#define MAX77759_CHG_CNFG_06_SPR_7_4_SHIFT	4
+#define MAX77759_CHG_CNFG_06_SPR_7_4_MASK	(0xf << 4)
+#define MAX77759_CHG_CNFG_06_SPR_7_4_CLEAR	(~(0xf << 4))
+#define MAX77759_CHG_CNFG_06_CHGPROT_SHIFT	2
+#define MAX77759_CHG_CNFG_06_CHGPROT_MASK	(0x3 << 2)
+#define MAX77759_CHG_CNFG_06_CHGPROT_CLEAR	(~(0x3 << 2))
+#define MAX77759_CHG_CNFG_06_SPR_1_0_SHIFT	0
+#define MAX77759_CHG_CNFG_06_SPR_1_0_MASK	(0x3 << 0)
+#define MAX77759_CHG_CNFG_06_SPR_1_0_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(chg_cnfg_06_spr_7_4,7,4)
+MAX77759_BFF(chg_cnfg_06_chgprot,3,2)
+MAX77759_BFF(chg_cnfg_06_spr_1_0,1,0)
+static inline const char *
+max77759_chg_cnfg_06_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_4=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_06_SPR_7_4, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGPROT=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_06_CHGPROT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_1_0=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_06_SPR_1_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_07,0xC0,0b00110000,0x30
+ * WD_QBATOFF,REGTEMP[3:0],,,,SPR_2,FGSRC
+ */
+#define MAX77759_CHG_CNFG_07	0xC0
+#define MAX77759_CHG_CNFG_07_WD_QBATOFF	(0x1 << 7)
+#define MAX77759_CHG_CNFG_07_SPR_2	(0x1 << 2)
+#define MAX77759_CHG_CNFG_07_FGSRC	(0x1 << 1)
+#define MAX77759_CHG_CNFG_07_FSHIP_MODE	(0x1 << 0)
+
+#define MAX77759_CHG_CNFG_07_WD_QBATOFF_SHIFT	7
+#define MAX77759_CHG_CNFG_07_WD_QBATOFF_MASK	(0x1 << 7)
+#define MAX77759_CHG_CNFG_07_WD_QBATOFF_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_CNFG_07_REGTEMP_SHIFT	3
+#define MAX77759_CHG_CNFG_07_REGTEMP_MASK	(0xf << 3)
+#define MAX77759_CHG_CNFG_07_REGTEMP_CLEAR	(~(0xf << 3))
+#define MAX77759_CHG_CNFG_07_SPR_2_SHIFT	2
+#define MAX77759_CHG_CNFG_07_SPR_2_MASK	(0x1 << 2)
+#define MAX77759_CHG_CNFG_07_SPR_2_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_CNFG_07_FGSRC_SHIFT	1
+#define MAX77759_CHG_CNFG_07_FGSRC_MASK	(0x1 << 1)
+#define MAX77759_CHG_CNFG_07_FGSRC_CLEAR	(~(0x1 << 1))
+#define MAX77759_CHG_CNFG_07_FSHIP_MODE_SHIFT	0
+#define MAX77759_CHG_CNFG_07_FSHIP_MODE_MASK	(0x1 << 0)
+#define MAX77759_CHG_CNFG_07_FSHIP_MODE_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_cnfg_07_wd_qbatoff,7,7)
+MAX77759_BFF(chg_cnfg_07_regtemp,6,3)
+MAX77759_BFF(chg_cnfg_07_spr_2,2,2)
+MAX77759_BFF(chg_cnfg_07_fgsrc,1,1)
+MAX77759_BFF(chg_cnfg_07_fship_mode,0,0)
+static inline const char *
+max77759_chg_cnfg_07_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " WD_QBATOFF=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_07_WD_QBATOFF, val));
+	i += SCNPRINTF(&buff[i], len - i, " REGTEMP=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_07_REGTEMP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_2=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_07_SPR_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " FGSRC=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_07_FGSRC, val));
+	i += SCNPRINTF(&buff[i], len - i, " FSHIP_MODE=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_07_FSHIP_MODE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_08,0xC1,0b00000101,0x05
+ * SPR_7,VCHGCV_WARM,ICHGCC_WARM,VCHGCV_COOL,ICHGCC_COOL,JEITA_EN,FSW[1:0]
+ */
+#define MAX77759_CHG_CNFG_08	0xC1
+#define MAX77759_CHG_CNFG_08_SPR_7	(0x1 << 7)
+#define MAX77759_CHG_CNFG_08_VCHGCV_WARM	(0x1 << 6)
+#define MAX77759_CHG_CNFG_08_ICHGCC_WARM	(0x1 << 5)
+#define MAX77759_CHG_CNFG_08_VCHGCV_COOL	(0x1 << 4)
+#define MAX77759_CHG_CNFG_08_ICHGCC_COOL	(0x1 << 3)
+#define MAX77759_CHG_CNFG_08_JEITA_EN	(0x1 << 2)
+
+#define MAX77759_CHG_CNFG_08_SPR_7_SHIFT	7
+#define MAX77759_CHG_CNFG_08_SPR_7_MASK	(0x1 << 7)
+#define MAX77759_CHG_CNFG_08_SPR_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_CNFG_08_VCHGCV_WARM_SHIFT	6
+#define MAX77759_CHG_CNFG_08_VCHGCV_WARM_MASK	(0x1 << 6)
+#define MAX77759_CHG_CNFG_08_VCHGCV_WARM_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_CNFG_08_ICHGCC_WARM_SHIFT	5
+#define MAX77759_CHG_CNFG_08_ICHGCC_WARM_MASK	(0x1 << 5)
+#define MAX77759_CHG_CNFG_08_ICHGCC_WARM_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_CNFG_08_VCHGCV_COOL_SHIFT	4
+#define MAX77759_CHG_CNFG_08_VCHGCV_COOL_MASK	(0x1 << 4)
+#define MAX77759_CHG_CNFG_08_VCHGCV_COOL_CLEAR	(~(0x1 << 4))
+#define MAX77759_CHG_CNFG_08_ICHGCC_COOL_SHIFT	3
+#define MAX77759_CHG_CNFG_08_ICHGCC_COOL_MASK	(0x1 << 3)
+#define MAX77759_CHG_CNFG_08_ICHGCC_COOL_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_CNFG_08_JEITA_EN_SHIFT	2
+#define MAX77759_CHG_CNFG_08_JEITA_EN_MASK	(0x1 << 2)
+#define MAX77759_CHG_CNFG_08_JEITA_EN_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_CNFG_08_FSW_SHIFT	0
+#define MAX77759_CHG_CNFG_08_FSW_MASK	(0x3 << 0)
+#define MAX77759_CHG_CNFG_08_FSW_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(chg_cnfg_08_spr_7,7,7)
+MAX77759_BFF(chg_cnfg_08_vchgcv_warm,6,6)
+MAX77759_BFF(chg_cnfg_08_ichgcc_warm,5,5)
+MAX77759_BFF(chg_cnfg_08_vchgcv_cool,4,4)
+MAX77759_BFF(chg_cnfg_08_ichgcc_cool,3,3)
+MAX77759_BFF(chg_cnfg_08_jeita_en,2,2)
+MAX77759_BFF(chg_cnfg_08_fsw,1,0)
+static inline const char *
+max77759_chg_cnfg_08_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_08_SPR_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCHGCV_WARM=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_08_VCHGCV_WARM, val));
+	i += SCNPRINTF(&buff[i], len - i, " ICHGCC_WARM=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_08_ICHGCC_WARM, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCHGCV_COOL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_08_VCHGCV_COOL, val));
+	i += SCNPRINTF(&buff[i], len - i, " ICHGCC_COOL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_08_ICHGCC_COOL, val));
+	i += SCNPRINTF(&buff[i], len - i, " JEITA_EN=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_08_JEITA_EN, val));
+	i += SCNPRINTF(&buff[i], len - i, " FSW=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_08_FSW, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_09,0xC2,0b00010011,0x13
+ * NO_AUTOIBUS,CHGIN_ILIM[6:0],,,,,
+ */
+#define MAX77759_CHG_CNFG_09	0xC2
+#define MAX77759_CHG_CNFG_09_NO_AUTOIBUS	(0x1 << 7)
+
+#define MAX77759_CHG_CNFG_09_NO_AUTOIBUS_SHIFT	7
+#define MAX77759_CHG_CNFG_09_NO_AUTOIBUS_MASK	(0x1 << 7)
+#define MAX77759_CHG_CNFG_09_NO_AUTOIBUS_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_CNFG_09_CHGIN_ILIM_SHIFT	0
+#define MAX77759_CHG_CNFG_09_CHGIN_ILIM_MASK	(0x7f << 0)
+#define MAX77759_CHG_CNFG_09_CHGIN_ILIM_CLEAR	(~(0x7f << 0))
+
+MAX77759_BFF(chg_cnfg_09_no_autoibus,7,7)
+MAX77759_BFF(chg_cnfg_09_chgin_ilim,6,0)
+static inline const char *
+max77759_chg_cnfg_09_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " NO_AUTOIBUS=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_09_NO_AUTOIBUS, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGIN_ILIM=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_09_CHGIN_ILIM, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_10,0xC3,0b00001111,0x0f
+ * SPR_7_6[1:0],,WCIN_ILIM[5:0],,,,
+ */
+#define MAX77759_CHG_CNFG_10	0xC3
+
+#define MAX77759_CHG_CNFG_10_SPR_7_6_SHIFT	6
+#define MAX77759_CHG_CNFG_10_SPR_7_6_MASK	(0x3 << 6)
+#define MAX77759_CHG_CNFG_10_SPR_7_6_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_CNFG_10_WCIN_ILIM_SHIFT	0
+#define MAX77759_CHG_CNFG_10_WCIN_ILIM_MASK	(0x3f << 0)
+#define MAX77759_CHG_CNFG_10_WCIN_ILIM_CLEAR	(~(0x3f << 0))
+
+MAX77759_BFF(chg_cnfg_10_spr_7_6,7,6)
+MAX77759_BFF(chg_cnfg_10_wcin_ilim,5,0)
+static inline const char *
+max77759_chg_cnfg_10_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_6=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_10_SPR_7_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " WCIN_ILIM=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_10_WCIN_ILIM, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_11,0xC4,0b00000000,0x00
+ * VBYPSET[7:0],,,,,,
+ */
+#define MAX77759_CHG_CNFG_11	0xC4
+
+/*
+ * CHG_CNFG_12,0xC5,0b01101010,0x6a
+ * CHG_EN,WCINSEL,CHGINSEL,VCHGIN_REG[1:0],,WCIN_REG[1:0],
+ */
+#define MAX77759_CHG_CNFG_12	0xC5
+#define MAX77759_CHG_CNFG_12_CHG_EN	(0x1 << 7)
+#define MAX77759_CHG_CNFG_12_WCINSEL	(0x1 << 6)
+#define MAX77759_CHG_CNFG_12_CHGINSEL	(0x1 << 5)
+#define MAX77759_CHG_CNFG_12_DISKIP	(0x1 << 0)
+
+#define MAX77759_CHG_CNFG_12_CHG_EN_SHIFT	7
+#define MAX77759_CHG_CNFG_12_CHG_EN_MASK	(0x1 << 7)
+#define MAX77759_CHG_CNFG_12_CHG_EN_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_CNFG_12_WCINSEL_SHIFT	6
+#define MAX77759_CHG_CNFG_12_WCINSEL_MASK	(0x1 << 6)
+#define MAX77759_CHG_CNFG_12_WCINSEL_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_CNFG_12_CHGINSEL_SHIFT	5
+#define MAX77759_CHG_CNFG_12_CHGINSEL_MASK	(0x1 << 5)
+#define MAX77759_CHG_CNFG_12_CHGINSEL_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_CNFG_12_VCHGIN_REG_SHIFT	3
+#define MAX77759_CHG_CNFG_12_VCHGIN_REG_MASK	(0x3 << 3)
+#define MAX77759_CHG_CNFG_12_VCHGIN_REG_CLEAR	(~(0x3 << 3))
+#define MAX77759_CHG_CNFG_12_WCIN_REG_SHIFT	1
+#define MAX77759_CHG_CNFG_12_WCIN_REG_MASK	(0x3 << 1)
+#define MAX77759_CHG_CNFG_12_WCIN_REG_CLEAR	(~(0x3 << 1))
+#define MAX77759_CHG_CNFG_12_DISKIP_SHIFT	0
+#define MAX77759_CHG_CNFG_12_DISKIP_MASK	(0x1 << 0)
+#define MAX77759_CHG_CNFG_12_DISKIP_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_cnfg_12_chg_en,7,7)
+MAX77759_BFF(chg_cnfg_12_wcinsel,6,6)
+MAX77759_BFF(chg_cnfg_12_chginsel,5,5)
+MAX77759_BFF(chg_cnfg_12_vchgin_reg,4,3)
+MAX77759_BFF(chg_cnfg_12_wcin_reg,2,1)
+MAX77759_BFF(chg_cnfg_12_diskip,0,0)
+static inline const char *
+max77759_chg_cnfg_12_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " CHG_EN=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_12_CHG_EN, val));
+	i += SCNPRINTF(&buff[i], len - i, " WCINSEL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_12_WCINSEL, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGINSEL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_12_CHGINSEL, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCHGIN_REG=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_12_VCHGIN_REG, val));
+	i += SCNPRINTF(&buff[i], len - i, " WCIN_REG=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_12_WCIN_REG, val));
+	i += SCNPRINTF(&buff[i], len - i, " DISKIP=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_12_DISKIP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_13,0xC6,0b00000011,0x03
+ * EN_FG_ILIM_CTRL,THM_CHR_RSTART,THM_CC_HZ,THM_BUCK_DIS,THM2_HW_CTRL,USB_TEMP[2:0],
+ */
+#define MAX77759_CHG_CNFG_13	0xC6
+#define MAX77759_CHG_CNFG_13_EN_FG_ILIM_CTRL	(0x1 << 7)
+#define MAX77759_CHG_CNFG_13_THM_CHR_RSTART	(0x1 << 6)
+#define MAX77759_CHG_CNFG_13_THM_CC_HZ	(0x1 << 5)
+#define MAX77759_CHG_CNFG_13_THM_BUCK_DIS	(0x1 << 4)
+#define MAX77759_CHG_CNFG_13_THM2_HW_CTRL	(0x1 << 3)
+
+#define MAX77759_CHG_CNFG_13_EN_FG_ILIM_CTRL_SHIFT	7
+#define MAX77759_CHG_CNFG_13_EN_FG_ILIM_CTRL_MASK	(0x1 << 7)
+#define MAX77759_CHG_CNFG_13_EN_FG_ILIM_CTRL_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_CNFG_13_THM_CHR_RSTART_SHIFT	6
+#define MAX77759_CHG_CNFG_13_THM_CHR_RSTART_MASK	(0x1 << 6)
+#define MAX77759_CHG_CNFG_13_THM_CHR_RSTART_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_CNFG_13_THM_CC_HZ_SHIFT	5
+#define MAX77759_CHG_CNFG_13_THM_CC_HZ_MASK	(0x1 << 5)
+#define MAX77759_CHG_CNFG_13_THM_CC_HZ_CLEAR	(~(0x1 << 5))
+#define MAX77759_CHG_CNFG_13_THM_BUCK_DIS_SHIFT	4
+#define MAX77759_CHG_CNFG_13_THM_BUCK_DIS_MASK	(0x1 << 4)
+#define MAX77759_CHG_CNFG_13_THM_BUCK_DIS_CLEAR	(~(0x1 << 4))
+#define MAX77759_CHG_CNFG_13_THM2_HW_CTRL_SHIFT	3
+#define MAX77759_CHG_CNFG_13_THM2_HW_CTRL_MASK	(0x1 << 3)
+#define MAX77759_CHG_CNFG_13_THM2_HW_CTRL_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_CNFG_13_USB_TEMP_SHIFT	0
+#define MAX77759_CHG_CNFG_13_USB_TEMP_MASK	(0x7 << 0)
+#define MAX77759_CHG_CNFG_13_USB_TEMP_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(chg_cnfg_13_en_fg_ilim_ctrl,7,7)
+MAX77759_BFF(chg_cnfg_13_thm_chr_rstart,6,6)
+MAX77759_BFF(chg_cnfg_13_thm_cc_hz,5,5)
+MAX77759_BFF(chg_cnfg_13_thm_buck_dis,4,4)
+MAX77759_BFF(chg_cnfg_13_thm2_hw_ctrl,3,3)
+MAX77759_BFF(chg_cnfg_13_usb_temp,2,0)
+static inline const char *
+max77759_chg_cnfg_13_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " EN_FG_ILIM_CTRL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_13_EN_FG_ILIM_CTRL, val));
+	i += SCNPRINTF(&buff[i], len - i, " THM_CHR_RSTART=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_13_THM_CHR_RSTART, val));
+	i += SCNPRINTF(&buff[i], len - i, " THM_CC_HZ=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_13_THM_CC_HZ, val));
+	i += SCNPRINTF(&buff[i], len - i, " THM_BUCK_DIS=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_13_THM_BUCK_DIS, val));
+	i += SCNPRINTF(&buff[i], len - i, " THM2_HW_CTRL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_13_THM2_HW_CTRL, val));
+	i += SCNPRINTF(&buff[i], len - i, " USB_TEMP=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_13_USB_TEMP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_14,0xC7,0b00000110,0x06
+ * BAT_OILO_REL[1:0],,BAT_OPEN_TO[1:0],,BAT_OILO[3:0],,
+ */
+#define MAX77759_CHG_CNFG_14	0xC7
+
+#define MAX77759_CHG_CNFG_14_BAT_OILO_REL_SHIFT	6
+#define MAX77759_CHG_CNFG_14_BAT_OILO_REL_MASK	(0x3 << 6)
+#define MAX77759_CHG_CNFG_14_BAT_OILO_REL_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_CNFG_14_BAT_OPEN_TO_SHIFT	4
+#define MAX77759_CHG_CNFG_14_BAT_OPEN_TO_MASK	(0x3 << 4)
+#define MAX77759_CHG_CNFG_14_BAT_OPEN_TO_CLEAR	(~(0x3 << 4))
+#define MAX77759_CHG_CNFG_14_BAT_OILO_SHIFT	0
+#define MAX77759_CHG_CNFG_14_BAT_OILO_MASK	(0xf << 0)
+#define MAX77759_CHG_CNFG_14_BAT_OILO_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(chg_cnfg_14_bat_oilo_rel,7,6)
+MAX77759_BFF(chg_cnfg_14_bat_open_to,5,4)
+MAX77759_BFF(chg_cnfg_14_bat_oilo,3,0)
+static inline const char *
+max77759_chg_cnfg_14_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " BAT_OILO_REL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_14_BAT_OILO_REL, val));
+	i += SCNPRINTF(&buff[i], len - i, " BAT_OPEN_TO=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_14_BAT_OPEN_TO, val));
+	i += SCNPRINTF(&buff[i], len - i, " BAT_OILO=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_14_BAT_OILO, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_15,0xC8,0b00001000,0x08
+ * SYS_UVLO1_REL[1:0],,SYS_UVLO1_HYST[1:0],,SYS_UVLO1[3:0],,
+ */
+#define MAX77759_CHG_CNFG_15	0xC8
+
+#define MAX77759_CHG_CNFG_15_SYS_UVLO1_REL_SHIFT	6
+#define MAX77759_CHG_CNFG_15_SYS_UVLO1_REL_MASK	(0x3 << 6)
+#define MAX77759_CHG_CNFG_15_SYS_UVLO1_REL_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_CNFG_15_SYS_UVLO1_HYST_SHIFT	4
+#define MAX77759_CHG_CNFG_15_SYS_UVLO1_HYST_MASK	(0x3 << 4)
+#define MAX77759_CHG_CNFG_15_SYS_UVLO1_HYST_CLEAR	(~(0x3 << 4))
+#define MAX77759_CHG_CNFG_15_SYS_UVLO1_SHIFT	0
+#define MAX77759_CHG_CNFG_15_SYS_UVLO1_MASK	(0xf << 0)
+#define MAX77759_CHG_CNFG_15_SYS_UVLO1_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(chg_cnfg_15_sys_uvlo1_rel,7,6)
+MAX77759_BFF(chg_cnfg_15_sys_uvlo1_hyst,5,4)
+MAX77759_BFF(chg_cnfg_15_sys_uvlo1,3,0)
+static inline const char *
+max77759_chg_cnfg_15_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO1_REL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_15_SYS_UVLO1_REL, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO1_HYST=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_15_SYS_UVLO1_HYST, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO1=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_15_SYS_UVLO1, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_16,0xC9,0b00000100,0x04
+ * SYS_UVLO2_REL[1:0],,SYS_UVLO2_HYST[1:0],,SYS_UVLO2[3:0],,
+ */
+#define MAX77759_CHG_CNFG_16	0xC9
+
+#define MAX77759_CHG_CNFG_16_SYS_UVLO2_REL_SHIFT	6
+#define MAX77759_CHG_CNFG_16_SYS_UVLO2_REL_MASK	(0x3 << 6)
+#define MAX77759_CHG_CNFG_16_SYS_UVLO2_REL_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_CNFG_16_SYS_UVLO2_HYST_SHIFT	4
+#define MAX77759_CHG_CNFG_16_SYS_UVLO2_HYST_MASK	(0x3 << 4)
+#define MAX77759_CHG_CNFG_16_SYS_UVLO2_HYST_CLEAR	(~(0x3 << 4))
+#define MAX77759_CHG_CNFG_16_SYS_UVLO2_SHIFT	0
+#define MAX77759_CHG_CNFG_16_SYS_UVLO2_MASK	(0xf << 0)
+#define MAX77759_CHG_CNFG_16_SYS_UVLO2_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(chg_cnfg_16_sys_uvlo2_rel,7,6)
+MAX77759_BFF(chg_cnfg_16_sys_uvlo2_hyst,5,4)
+MAX77759_BFF(chg_cnfg_16_sys_uvlo2,3,0)
+static inline const char *
+max77759_chg_cnfg_16_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO2_REL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_16_SYS_UVLO2_REL, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO2_HYST=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_16_SYS_UVLO2_HYST, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO2=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_16_SYS_UVLO2, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_17,0xCA,0b01000000,0x40
+ * AICL[1:0],,SPR_5_3[2:0],,,BAT_OILO_DET,SYS_UVLO2_DET
+ */
+#define MAX77759_CHG_CNFG_17	0xCA
+#define MAX77759_CHG_CNFG_17_BAT_OILO_DET	(0x1 << 2)
+#define MAX77759_CHG_CNFG_17_SYS_UVLO2_DET	(0x1 << 1)
+#define MAX77759_CHG_CNFG_17_SYS_UVLO1_DET	(0x1 << 0)
+
+#define MAX77759_CHG_CNFG_17_AICL_SHIFT	6
+#define MAX77759_CHG_CNFG_17_AICL_MASK	(0x3 << 6)
+#define MAX77759_CHG_CNFG_17_AICL_CLEAR	(~(0x3 << 6))
+#define MAX77759_CHG_CNFG_17_SPR_5_3_SHIFT	3
+#define MAX77759_CHG_CNFG_17_SPR_5_3_MASK	(0x7 << 3)
+#define MAX77759_CHG_CNFG_17_SPR_5_3_CLEAR	(~(0x7 << 3))
+#define MAX77759_CHG_CNFG_17_BAT_OILO_DET_SHIFT	2
+#define MAX77759_CHG_CNFG_17_BAT_OILO_DET_MASK	(0x1 << 2)
+#define MAX77759_CHG_CNFG_17_BAT_OILO_DET_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_CNFG_17_SYS_UVLO2_DET_SHIFT	1
+#define MAX77759_CHG_CNFG_17_SYS_UVLO2_DET_MASK	(0x1 << 1)
+#define MAX77759_CHG_CNFG_17_SYS_UVLO2_DET_CLEAR	(~(0x1 << 1))
+#define MAX77759_CHG_CNFG_17_SYS_UVLO1_DET_SHIFT	0
+#define MAX77759_CHG_CNFG_17_SYS_UVLO1_DET_MASK	(0x1 << 0)
+#define MAX77759_CHG_CNFG_17_SYS_UVLO1_DET_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_cnfg_17_aicl,7,6)
+MAX77759_BFF(chg_cnfg_17_spr_5_3,5,3)
+MAX77759_BFF(chg_cnfg_17_bat_oilo_det,2,2)
+MAX77759_BFF(chg_cnfg_17_sys_uvlo2_det,1,1)
+MAX77759_BFF(chg_cnfg_17_sys_uvlo1_det,0,0)
+static inline const char *
+max77759_chg_cnfg_17_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " AICL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_17_AICL, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_5_3=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_17_SPR_5_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " BAT_OILO_DET=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_17_BAT_OILO_DET, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO2_DET=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_17_SYS_UVLO2_DET, val));
+	i += SCNPRINTF(&buff[i], len - i, " SYS_UVLO1_DET=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_17_SYS_UVLO1_DET, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_18,0xCB,0b11000000,0xc0
+ * VDP1_STP_BST,VDP2_STP_BST,MINVSYS[1:0],,OTG_V_PGM,SPSN_DET_EN,MASTER_DC
+ */
+#define MAX77759_CHG_CNFG_18	0xCB
+#define MAX77759_CHG_CNFG_18_VDP1_STP_BST	(0x1 << 7)
+#define MAX77759_CHG_CNFG_18_VDP2_STP_BST	(0x1 << 6)
+#define MAX77759_CHG_CNFG_18_OTG_V_PGM	(0x1 << 3)
+#define MAX77759_CHG_CNFG_18_SPSN_DET_EN	(0x1 << 2)
+#define MAX77759_CHG_CNFG_18_MASTER_DC	(0x1 << 1)
+#define MAX77759_CHG_CNFG_18_WDTEN	(0x1 << 0)
+
+#define MAX77759_CHG_CNFG_18_VDP1_STP_BST_SHIFT	7
+#define MAX77759_CHG_CNFG_18_VDP1_STP_BST_MASK	(0x1 << 7)
+#define MAX77759_CHG_CNFG_18_VDP1_STP_BST_CLEAR	(~(0x1 << 7))
+#define MAX77759_CHG_CNFG_18_VDP2_STP_BST_SHIFT	6
+#define MAX77759_CHG_CNFG_18_VDP2_STP_BST_MASK	(0x1 << 6)
+#define MAX77759_CHG_CNFG_18_VDP2_STP_BST_CLEAR	(~(0x1 << 6))
+#define MAX77759_CHG_CNFG_18_MINVSYS_SHIFT	4
+#define MAX77759_CHG_CNFG_18_MINVSYS_MASK	(0x3 << 4)
+#define MAX77759_CHG_CNFG_18_MINVSYS_CLEAR	(~(0x3 << 4))
+#define MAX77759_CHG_CNFG_18_OTG_V_PGM_SHIFT	3
+#define MAX77759_CHG_CNFG_18_OTG_V_PGM_MASK	(0x1 << 3)
+#define MAX77759_CHG_CNFG_18_OTG_V_PGM_CLEAR	(~(0x1 << 3))
+#define MAX77759_CHG_CNFG_18_SPSN_DET_EN_SHIFT	2
+#define MAX77759_CHG_CNFG_18_SPSN_DET_EN_MASK	(0x1 << 2)
+#define MAX77759_CHG_CNFG_18_SPSN_DET_EN_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_CNFG_18_MASTER_DC_SHIFT	1
+#define MAX77759_CHG_CNFG_18_MASTER_DC_MASK	(0x1 << 1)
+#define MAX77759_CHG_CNFG_18_MASTER_DC_CLEAR	(~(0x1 << 1))
+#define MAX77759_CHG_CNFG_18_WDTEN_SHIFT	0
+#define MAX77759_CHG_CNFG_18_WDTEN_MASK	(0x1 << 0)
+#define MAX77759_CHG_CNFG_18_WDTEN_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(chg_cnfg_18_vdp1_stp_bst,7,7)
+MAX77759_BFF(chg_cnfg_18_vdp2_stp_bst,6,6)
+MAX77759_BFF(chg_cnfg_18_minvsys,5,4)
+MAX77759_BFF(chg_cnfg_18_otg_v_pgm,3,3)
+MAX77759_BFF(chg_cnfg_18_spsn_det_en,2,2)
+MAX77759_BFF(chg_cnfg_18_master_dc,1,1)
+MAX77759_BFF(chg_cnfg_18_wdten,0,0)
+static inline const char *
+max77759_chg_cnfg_18_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VDP1_STP_BST=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_18_VDP1_STP_BST, val));
+	i += SCNPRINTF(&buff[i], len - i, " VDP2_STP_BST=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_18_VDP2_STP_BST, val));
+	i += SCNPRINTF(&buff[i], len - i, " MINVSYS=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_18_MINVSYS, val));
+	i += SCNPRINTF(&buff[i], len - i, " OTG_V_PGM=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_18_OTG_V_PGM, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPSN_DET_EN=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_18_SPSN_DET_EN, val));
+	i += SCNPRINTF(&buff[i], len - i, " MASTER_DC=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_18_MASTER_DC, val));
+	i += SCNPRINTF(&buff[i], len - i, " WDTEN=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_18_WDTEN, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CHG_CNFG_19,0xCC,0b00010000,0x10
+ * SPR_7_5[2:0],,,INLIM_CLK[1:0],,DIS_IR_CTRL,SLOWLX[1:0]
+ */
+#define MAX77759_CHG_CNFG_19	0xCC
+
+/* section:  FuelGauge  */
+#define MAX77759_CHG_CNFG_19_DIS_IR_CTRL	(0x1 << 2)
+
+#define MAX77759_CHG_CNFG_19_SPR_7_5_SHIFT	5
+#define MAX77759_CHG_CNFG_19_SPR_7_5_MASK	(0x7 << 5)
+#define MAX77759_CHG_CNFG_19_SPR_7_5_CLEAR	(~(0x7 << 5))
+#define MAX77759_CHG_CNFG_19_INLIM_CLK_SHIFT	3
+#define MAX77759_CHG_CNFG_19_INLIM_CLK_MASK	(0x3 << 3)
+#define MAX77759_CHG_CNFG_19_INLIM_CLK_CLEAR	(~(0x3 << 3))
+#define MAX77759_CHG_CNFG_19_DIS_IR_CTRL_SHIFT	2
+#define MAX77759_CHG_CNFG_19_DIS_IR_CTRL_MASK	(0x1 << 2)
+#define MAX77759_CHG_CNFG_19_DIS_IR_CTRL_CLEAR	(~(0x1 << 2))
+#define MAX77759_CHG_CNFG_19_SLOWLX_SHIFT	0
+#define MAX77759_CHG_CNFG_19_SLOWLX_MASK	(0x3 << 0)
+#define MAX77759_CHG_CNFG_19_SLOWLX_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(chg_cnfg_19_spr_7_5,7,5)
+MAX77759_BFF(chg_cnfg_19_inlim_clk,4,3)
+MAX77759_BFF(chg_cnfg_19_dis_ir_ctrl,2,2)
+MAX77759_BFF(chg_cnfg_19_slowlx,1,0)
+static inline const char *
+max77759_chg_cnfg_19_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_5=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_19_SPR_7_5, val));
+	i += SCNPRINTF(&buff[i], len - i, " INLIM_CLK=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_19_INLIM_CLK, val));
+	i += SCNPRINTF(&buff[i], len - i, " DIS_IR_CTRL=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_19_DIS_IR_CTRL, val));
+	i += SCNPRINTF(&buff[i], len - i, " SLOWLX=%x",
+		FIELD2VALUE(MAX77759_CHG_CNFG_19_SLOWLX, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * Status,0x0,0b00000010,0x02
+ * Br,Smx,Tmx,Vmx,Bi,Smn,Tmn
+ */
+#define MAX77759_FG_STATUS	0x0
+#define MAX77759_FG_STATUS_BR	(0x1 << 15)
+#define MAX77759_FG_STATUS_SMX	(0x1 << 14)
+#define MAX77759_FG_STATUS_TMX	(0x1 << 13)
+#define MAX77759_FG_STATUS_VMX	(0x1 << 12)
+#define MAX77759_FG_STATUS_BI	(0x1 << 11)
+#define MAX77759_FG_STATUS_SMN	(0x1 << 10)
+#define MAX77759_FG_STATUS_TMN	(0x1 << 9)
+#define MAX77759_FG_STATUS_VMN	(0x1 << 8)
+#define MAX77759_FG_STATUS_DSOCI	(0x1 << 7)
+#define MAX77759_FG_STATUS_THMHOT	(0x1 << 6)
+#define MAX77759_FG_STATUS_SPR_5	(0x1 << 5)
+#define MAX77759_FG_STATUS_ISYSMX	(0x1 << 4)
+#define MAX77759_FG_STATUS_BST	(0x1 << 3)
+#define MAX77759_FG_STATUS_SPR_2	(0x1 << 2)
+#define MAX77759_FG_STATUS_POR	(0x1 << 1)
+#define MAX77759_FG_STATUS_IMN	(0x1 << 0)
+
+#define MAX77759_FG_STATUS_BR_SHIFT	15
+#define MAX77759_FG_STATUS_BR_MASK	(0x1 << 15)
+#define MAX77759_FG_STATUS_BR_CLEAR	(~(0x1 << 15))
+#define MAX77759_FG_STATUS_SMX_SHIFT	14
+#define MAX77759_FG_STATUS_SMX_MASK	(0x1 << 14)
+#define MAX77759_FG_STATUS_SMX_CLEAR	(~(0x1 << 14))
+#define MAX77759_FG_STATUS_TMX_SHIFT	13
+#define MAX77759_FG_STATUS_TMX_MASK	(0x1 << 13)
+#define MAX77759_FG_STATUS_TMX_CLEAR	(~(0x1 << 13))
+#define MAX77759_FG_STATUS_VMX_SHIFT	12
+#define MAX77759_FG_STATUS_VMX_MASK	(0x1 << 12)
+#define MAX77759_FG_STATUS_VMX_CLEAR	(~(0x1 << 12))
+#define MAX77759_FG_STATUS_BI_SHIFT	11
+#define MAX77759_FG_STATUS_BI_MASK	(0x1 << 11)
+#define MAX77759_FG_STATUS_BI_CLEAR	(~(0x1 << 11))
+#define MAX77759_FG_STATUS_SMN_SHIFT	10
+#define MAX77759_FG_STATUS_SMN_MASK	(0x1 << 10)
+#define MAX77759_FG_STATUS_SMN_CLEAR	(~(0x1 << 10))
+#define MAX77759_FG_STATUS_TMN_SHIFT	9
+#define MAX77759_FG_STATUS_TMN_MASK	(0x1 << 9)
+#define MAX77759_FG_STATUS_TMN_CLEAR	(~(0x1 << 9))
+#define MAX77759_FG_STATUS_VMN_SHIFT	8
+#define MAX77759_FG_STATUS_VMN_MASK	(0x1 << 8)
+#define MAX77759_FG_STATUS_VMN_CLEAR	(~(0x1 << 8))
+#define MAX77759_FG_STATUS_DSOCI_SHIFT	7
+#define MAX77759_FG_STATUS_DSOCI_MASK	(0x1 << 7)
+#define MAX77759_FG_STATUS_DSOCI_CLEAR	(~(0x1 << 7))
+#define MAX77759_FG_STATUS_THMHOT_SHIFT	6
+#define MAX77759_FG_STATUS_THMHOT_MASK	(0x1 << 6)
+#define MAX77759_FG_STATUS_THMHOT_CLEAR	(~(0x1 << 6))
+#define MAX77759_FG_STATUS_SPR_5_SHIFT	5
+#define MAX77759_FG_STATUS_SPR_5_MASK	(0x1 << 5)
+#define MAX77759_FG_STATUS_SPR_5_CLEAR	(~(0x1 << 5))
+#define MAX77759_FG_STATUS_ISYSMX_SHIFT	4
+#define MAX77759_FG_STATUS_ISYSMX_MASK	(0x1 << 4)
+#define MAX77759_FG_STATUS_ISYSMX_CLEAR	(~(0x1 << 4))
+#define MAX77759_FG_STATUS_BST_SHIFT	3
+#define MAX77759_FG_STATUS_BST_MASK	(0x1 << 3)
+#define MAX77759_FG_STATUS_BST_CLEAR	(~(0x1 << 3))
+#define MAX77759_FG_STATUS_SPR_2_SHIFT	2
+#define MAX77759_FG_STATUS_SPR_2_MASK	(0x1 << 2)
+#define MAX77759_FG_STATUS_SPR_2_CLEAR	(~(0x1 << 2))
+#define MAX77759_FG_STATUS_POR_SHIFT	1
+#define MAX77759_FG_STATUS_POR_MASK	(0x1 << 1)
+#define MAX77759_FG_STATUS_POR_CLEAR	(~(0x1 << 1))
+#define MAX77759_FG_STATUS_IMN_SHIFT	0
+#define MAX77759_FG_STATUS_IMN_MASK	(0x1 << 0)
+#define MAX77759_FG_STATUS_IMN_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(fg_status_br,15,15)
+MAX77759_BFF(fg_status_smx,14,14)
+MAX77759_BFF(fg_status_tmx,13,13)
+MAX77759_BFF(fg_status_vmx,12,12)
+MAX77759_BFF(fg_status_bi,11,11)
+MAX77759_BFF(fg_status_smn,10,10)
+MAX77759_BFF(fg_status_tmn,9,9)
+MAX77759_BFF(fg_status_vmn,8,8)
+MAX77759_BFF(fg_status_dsoci,7,7)
+MAX77759_BFF(fg_status_thmhot,6,6)
+MAX77759_BFF(fg_status_spr_5,5,5)
+MAX77759_BFF(fg_status_isysmx,4,4)
+MAX77759_BFF(fg_status_bst,3,3)
+MAX77759_BFF(fg_status_spr_2,2,2)
+MAX77759_BFF(fg_status_por,1,1)
+MAX77759_BFF(fg_status_imn,0,0)
+static inline const char *
+max77759_fg_status_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " BR=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_BR, val));
+	i += SCNPRINTF(&buff[i], len - i, " SMX=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_SMX, val));
+	i += SCNPRINTF(&buff[i], len - i, " TMX=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_TMX, val));
+	i += SCNPRINTF(&buff[i], len - i, " VMX=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_VMX, val));
+	i += SCNPRINTF(&buff[i], len - i, " BI=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_BI, val));
+	i += SCNPRINTF(&buff[i], len - i, " SMN=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_SMN, val));
+	i += SCNPRINTF(&buff[i], len - i, " TMN=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_TMN, val));
+	i += SCNPRINTF(&buff[i], len - i, " VMN=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_VMN, val));
+	i += SCNPRINTF(&buff[i], len - i, " DSOCI=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_DSOCI, val));
+	i += SCNPRINTF(&buff[i], len - i, " THMHOT=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_THMHOT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_5=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_SPR_5, val));
+	i += SCNPRINTF(&buff[i], len - i, " ISYSMX=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_ISYSMX, val));
+	i += SCNPRINTF(&buff[i], len - i, " BST=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_BST, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_2=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_SPR_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " POR=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_POR, val));
+	i += SCNPRINTF(&buff[i], len - i, " IMN=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS_IMN, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VAlrtTh,0x1,0b1111111100000000,0xff00
+ * MaxVoltageAlrt[7:0],,,,,,
+ */
+#define MAX77759_FG_VALRTTH	0x1
+
+#define MAX77759_FG_VALRTTH_MAXVOLTAGEALRT_SHIFT	8
+#define MAX77759_FG_VALRTTH_MAXVOLTAGEALRT_MASK	(0xff << 8)
+#define MAX77759_FG_VALRTTH_MAXVOLTAGEALRT_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_VALRTTH_MINVOLTAGEALRT_SHIFT	0
+#define MAX77759_FG_VALRTTH_MINVOLTAGEALRT_MASK	(0xff << 0)
+#define MAX77759_FG_VALRTTH_MINVOLTAGEALRT_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_valrtth_maxvoltagealrt,15,8)
+MAX77759_BFF(fg_valrtth_minvoltagealrt,7,0)
+static inline const char *
+max77759_fg_valrtth_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MAXVOLTAGEALRT=%x",
+		FIELD2VALUE(MAX77759_FG_VALRTTH_MAXVOLTAGEALRT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MINVOLTAGEALRT=%x",
+		FIELD2VALUE(MAX77759_FG_VALRTTH_MINVOLTAGEALRT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TAlrtTh,0x2,0b111111110000000,0x7f80
+ * MaxTempAlrt[7:0],,,,,,
+ */
+#define MAX77759_FG_TALRTTH	0x2
+
+#define MAX77759_FG_TALRTTH_MAXTEMPALRT_SHIFT	8
+#define MAX77759_FG_TALRTTH_MAXTEMPALRT_MASK	(0xff << 8)
+#define MAX77759_FG_TALRTTH_MAXTEMPALRT_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_TALRTTH_MINTEMPALRT_SHIFT	0
+#define MAX77759_FG_TALRTTH_MINTEMPALRT_MASK	(0xff << 0)
+#define MAX77759_FG_TALRTTH_MINTEMPALRT_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_talrtth_maxtempalrt,15,8)
+MAX77759_BFF(fg_talrtth_mintempalrt,7,0)
+static inline const char *
+max77759_fg_talrtth_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MAXTEMPALRT=%x",
+		FIELD2VALUE(MAX77759_FG_TALRTTH_MAXTEMPALRT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MINTEMPALRT=%x",
+		FIELD2VALUE(MAX77759_FG_TALRTTH_MINTEMPALRT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * SAlrtTh,0x3,0b1111111100000000,0xff00
+ * MaxSocAlrt[7:0],,,,,,
+ */
+#define MAX77759_FG_SALRTTH	0x3
+
+#define MAX77759_FG_SALRTTH_MAXSOCALRT_SHIFT	8
+#define MAX77759_FG_SALRTTH_MAXSOCALRT_MASK	(0xff << 8)
+#define MAX77759_FG_SALRTTH_MAXSOCALRT_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_SALRTTH_MINSOCALRT_SHIFT	0
+#define MAX77759_FG_SALRTTH_MINSOCALRT_MASK	(0xff << 0)
+#define MAX77759_FG_SALRTTH_MINSOCALRT_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_salrtth_maxsocalrt,15,8)
+MAX77759_BFF(fg_salrtth_minsocalrt,7,0)
+static inline const char *
+max77759_fg_salrtth_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MAXSOCALRT=%x",
+		FIELD2VALUE(MAX77759_FG_SALRTTH_MAXSOCALRT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MINSOCALRT=%x",
+		FIELD2VALUE(MAX77759_FG_SALRTTH_MINSOCALRT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * AtRate,0x4,0b00000000,0x00
+ * AtRate[15:8],,,,,,
+ */
+#define MAX77759_FG_ATRATE	0x4
+
+/*
+ * RepCap,0x5,0b10111011100,0x5dc
+ * RepCap[15:8],,,,,,
+ */
+#define MAX77759_FG_REPCAP	0x5
+
+/*
+ * RepSOC,0x6,0b11001000000000,0x3200
+ * RepSOC[15:8],,,,,,
+ */
+#define MAX77759_FG_REPSOC	0x6
+
+/*
+ * Age,0x7,0b110010000000000,0x6400
+ * Age[15:8],,,,,,
+ */
+#define MAX77759_FG_AGE	0x7
+
+/*
+ * Temp,0x8,0b1011000000000,0x1600
+ * TEMP[15:8],,,,,,
+ */
+#define MAX77759_FG_TEMP	0x8
+
+/*
+ * Vcell,0x9,0b1011010000000000,0xb400
+ * VCELL[15:8],,,,,,
+ */
+#define MAX77759_FG_VCELL	0x9
+
+/*
+ * Current,0xA,0b00000000,0x00
+ * Current[15:8],,,,,,
+ */
+#define MAX77759_FG_CURRENT	0xA
+
+/*
+ * AvgCurrent,0xB,0b00000000,0x00
+ * AvgCurrent[15:8],,,,,,
+ */
+#define MAX77759_FG_AVGCURRENT	0xB
+
+/*
+ * QResidual,0xC,0b00000000,0x00
+ * Qresidual[15:8],,,,,,
+ */
+#define MAX77759_FG_QRESIDUAL	0xC
+
+/*
+ * MixSOC,0xD,0b11001000000000,0x3200
+ * MixSOC[15:8],,,,,,
+ */
+#define MAX77759_FG_MIXSOC	0xD
+
+/*
+ * AvSOC,0xE,0b11001000000000,0x3200
+ * AvSOC[15:8],,,,,,
+ */
+#define MAX77759_FG_AVSOC	0xE
+
+/*
+ * MixCap,0xF,0b10111011100,0x5dc
+ * MixCapH[15:8],,,,,,
+ */
+#define MAX77759_FG_MIXCAP	0xF
+
+/*
+ * FullCap,0x10,0b101110111000,0xbb8
+ * FullCAP[15:8],,,,,,
+ */
+#define MAX77759_FG_FULLCAP	0x10
+
+/*
+ * TTE,0x11,0b00000000,0x00
+ * hr[5:0],,,,,,mn[5:4]
+ */
+#define MAX77759_FG_TTE	0x11
+
+#define MAX77759_FG_TTE_HR_SHIFT	10
+#define MAX77759_FG_TTE_HR_MASK	(0x3f << 10)
+#define MAX77759_FG_TTE_HR_CLEAR	(~(0x3f << 10))
+#define MAX77759_FG_TTE_MN_SHIFT	4
+#define MAX77759_FG_TTE_MN_MASK	(0x3f << 4)
+#define MAX77759_FG_TTE_MN_CLEAR	(~(0x3f << 4))
+#define MAX77759_FG_TTE_SEC_SHIFT	0
+#define MAX77759_FG_TTE_SEC_MASK	(0xf << 0)
+#define MAX77759_FG_TTE_SEC_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(fg_tte_hr,15,10)
+MAX77759_BFF(fg_tte_mn,9,4)
+MAX77759_BFF(fg_tte_sec,3,0)
+static inline const char *
+max77759_fg_tte_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " HR=%x",
+		FIELD2VALUE(MAX77759_FG_TTE_HR, val));
+	i += SCNPRINTF(&buff[i], len - i, " MN=%x",
+		FIELD2VALUE(MAX77759_FG_TTE_MN, val));
+	i += SCNPRINTF(&buff[i], len - i, " SEC=%x",
+		FIELD2VALUE(MAX77759_FG_TTE_SEC, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * QRTable00,0x12,0b11110000000000,0x3c00
+ * QRTable00[15:8],,,,,,
+ */
+#define MAX77759_FG_QRTABLE00	0x12
+
+/*
+ * FullSocThr,0x13,0b101000000000000,0x5000
+ * FullSOCThr[15:8],,,,,,
+ */
+#define MAX77759_FG_FULLSOCTHR	0x13
+
+/*
+ * Rslow,0x14,0b1010010000,0x290
+ * RSLOW[15:8],,,,,,
+ */
+#define MAX77759_FG_RSLOW	0x14
+
+/*
+ * RFast,0x15,0b101001000,0x148
+ * RFAST[15:8],,,,,,
+ */
+#define MAX77759_FG_RFAST	0x15
+
+/*
+ * AvgTA,0x16,0b1011000000000,0x1600
+ * AvgTA[15:8],,,,,,
+ */
+#define MAX77759_FG_AVGTA	0x16
+
+/*
+ * Cycles,0x17,0b00000000,0x00
+ * Cycles[15:8],,,,,,
+ */
+#define MAX77759_FG_CYCLES	0x17
+
+/*
+ * DesignCap,0x18,0b101110111000,0xbb8
+ * DesignCap[15:8],,,,,,
+ */
+#define MAX77759_FG_DESIGNCAP	0x18
+
+/*
+ * AvgVCell,0x19,0b1011010000000000,0xb400
+ * AvgVCELL[15:8],,,,,,
+ */
+#define MAX77759_FG_AVGVCELL	0x19
+
+/*
+ * MaxMinTemp,0x1A,0b1000000001111111,0x807f
+ * MaxTemperature[7:0],,,,,,
+ */
+#define MAX77759_FG_MAXMINTEMP	0x1A
+
+#define MAX77759_FG_MAXMINTEMP_MAXTEMPERATURE_SHIFT	8
+#define MAX77759_FG_MAXMINTEMP_MAXTEMPERATURE_MASK	(0xff << 8)
+#define MAX77759_FG_MAXMINTEMP_MAXTEMPERATURE_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_MAXMINTEMP_MINTEMPERATURE_SHIFT	0
+#define MAX77759_FG_MAXMINTEMP_MINTEMPERATURE_MASK	(0xff << 0)
+#define MAX77759_FG_MAXMINTEMP_MINTEMPERATURE_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_maxmintemp_maxtemperature,15,8)
+MAX77759_BFF(fg_maxmintemp_mintemperature,7,0)
+static inline const char *
+max77759_fg_maxmintemp_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MAXTEMPERATURE=%x",
+		FIELD2VALUE(MAX77759_FG_MAXMINTEMP_MAXTEMPERATURE, val));
+	i += SCNPRINTF(&buff[i], len - i, " MINTEMPERATURE=%x",
+		FIELD2VALUE(MAX77759_FG_MAXMINTEMP_MINTEMPERATURE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * MaxMinVolt,0x1B,0b11111111,0xff
+ * MaxVoltage[7:0],,,,,,
+ */
+#define MAX77759_FG_MAXMINVOLT	0x1B
+
+#define MAX77759_FG_MAXMINVOLT_MAXVOLTAGE_SHIFT	8
+#define MAX77759_FG_MAXMINVOLT_MAXVOLTAGE_MASK	(0xff << 8)
+#define MAX77759_FG_MAXMINVOLT_MAXVOLTAGE_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_MAXMINVOLT_MINVOLTAGE_SHIFT	0
+#define MAX77759_FG_MAXMINVOLT_MINVOLTAGE_MASK	(0xff << 0)
+#define MAX77759_FG_MAXMINVOLT_MINVOLTAGE_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_maxminvolt_maxvoltage,15,8)
+MAX77759_BFF(fg_maxminvolt_minvoltage,7,0)
+static inline const char *
+max77759_fg_maxminvolt_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MAXVOLTAGE=%x",
+		FIELD2VALUE(MAX77759_FG_MAXMINVOLT_MAXVOLTAGE, val));
+	i += SCNPRINTF(&buff[i], len - i, " MINVOLTAGE=%x",
+		FIELD2VALUE(MAX77759_FG_MAXMINVOLT_MINVOLTAGE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * MaxMinCurr,0x1C,0b1000000001111111,0x807f
+ * MaxChargeCurrent[7:0],,,,,,
+ */
+#define MAX77759_FG_MAXMINCURR	0x1C
+
+#define MAX77759_FG_MAXMINCURR_MAXCHARGECURRENT_SHIFT	8
+#define MAX77759_FG_MAXMINCURR_MAXCHARGECURRENT_MASK	(0xff << 8)
+#define MAX77759_FG_MAXMINCURR_MAXCHARGECURRENT_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_MAXMINCURR_MAXDISCURRENT_SHIFT	0
+#define MAX77759_FG_MAXMINCURR_MAXDISCURRENT_MASK	(0xff << 0)
+#define MAX77759_FG_MAXMINCURR_MAXDISCURRENT_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_maxmincurr_maxchargecurrent,15,8)
+MAX77759_BFF(fg_maxmincurr_maxdiscurrent,7,0)
+static inline const char *
+max77759_fg_maxmincurr_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MAXCHARGECURRENT=%x",
+		FIELD2VALUE(MAX77759_FG_MAXMINCURR_MAXCHARGECURRENT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MAXDISCURRENT=%x",
+		FIELD2VALUE(MAX77759_FG_MAXMINCURR_MAXDISCURRENT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * Config,0x1D,0b10001101010000,0x2350
+ * FCFE,Ss,Ts,Vs,FGCC,AINSH,Ten
+ */
+#define MAX77759_FG_CONFIG	0x1D
+#define MAX77759_FG_CONFIG_FCFE	(0x1 << 15)
+#define MAX77759_FG_CONFIG_SS	(0x1 << 14)
+#define MAX77759_FG_CONFIG_TS	(0x1 << 13)
+#define MAX77759_FG_CONFIG_VS	(0x1 << 12)
+#define MAX77759_FG_CONFIG_FGCC	(0x1 << 11)
+#define MAX77759_FG_CONFIG_AINSH	(0x1 << 10)
+#define MAX77759_FG_CONFIG_TEN	(0x1 << 9)
+#define MAX77759_FG_CONFIG_TEX	(0x1 << 8)
+#define MAX77759_FG_CONFIG_SHDN	(0x1 << 7)
+#define MAX77759_FG_CONFIG_I2CSH	(0x1 << 6)
+#define MAX77759_FG_CONFIG_ICFE	(0x1 << 5)
+#define MAX77759_FG_CONFIG_ETHRM	(0x1 << 4)
+#define MAX77759_FG_CONFIG_FTHRM	(0x1 << 3)
+#define MAX77759_FG_CONFIG_AEN	(0x1 << 2)
+#define MAX77759_FG_CONFIG_BEI	(0x1 << 1)
+#define MAX77759_FG_CONFIG_BER	(0x1 << 0)
+
+#define MAX77759_FG_CONFIG_FCFE_SHIFT	15
+#define MAX77759_FG_CONFIG_FCFE_MASK	(0x1 << 15)
+#define MAX77759_FG_CONFIG_FCFE_CLEAR	(~(0x1 << 15))
+#define MAX77759_FG_CONFIG_SS_SHIFT	14
+#define MAX77759_FG_CONFIG_SS_MASK	(0x1 << 14)
+#define MAX77759_FG_CONFIG_SS_CLEAR	(~(0x1 << 14))
+#define MAX77759_FG_CONFIG_TS_SHIFT	13
+#define MAX77759_FG_CONFIG_TS_MASK	(0x1 << 13)
+#define MAX77759_FG_CONFIG_TS_CLEAR	(~(0x1 << 13))
+#define MAX77759_FG_CONFIG_VS_SHIFT	12
+#define MAX77759_FG_CONFIG_VS_MASK	(0x1 << 12)
+#define MAX77759_FG_CONFIG_VS_CLEAR	(~(0x1 << 12))
+#define MAX77759_FG_CONFIG_FGCC_SHIFT	11
+#define MAX77759_FG_CONFIG_FGCC_MASK	(0x1 << 11)
+#define MAX77759_FG_CONFIG_FGCC_CLEAR	(~(0x1 << 11))
+#define MAX77759_FG_CONFIG_AINSH_SHIFT	10
+#define MAX77759_FG_CONFIG_AINSH_MASK	(0x1 << 10)
+#define MAX77759_FG_CONFIG_AINSH_CLEAR	(~(0x1 << 10))
+#define MAX77759_FG_CONFIG_TEN_SHIFT	9
+#define MAX77759_FG_CONFIG_TEN_MASK	(0x1 << 9)
+#define MAX77759_FG_CONFIG_TEN_CLEAR	(~(0x1 << 9))
+#define MAX77759_FG_CONFIG_TEX_SHIFT	8
+#define MAX77759_FG_CONFIG_TEX_MASK	(0x1 << 8)
+#define MAX77759_FG_CONFIG_TEX_CLEAR	(~(0x1 << 8))
+#define MAX77759_FG_CONFIG_SHDN_SHIFT	7
+#define MAX77759_FG_CONFIG_SHDN_MASK	(0x1 << 7)
+#define MAX77759_FG_CONFIG_SHDN_CLEAR	(~(0x1 << 7))
+#define MAX77759_FG_CONFIG_I2CSH_SHIFT	6
+#define MAX77759_FG_CONFIG_I2CSH_MASK	(0x1 << 6)
+#define MAX77759_FG_CONFIG_I2CSH_CLEAR	(~(0x1 << 6))
+#define MAX77759_FG_CONFIG_ICFE_SHIFT	5
+#define MAX77759_FG_CONFIG_ICFE_MASK	(0x1 << 5)
+#define MAX77759_FG_CONFIG_ICFE_CLEAR	(~(0x1 << 5))
+#define MAX77759_FG_CONFIG_ETHRM_SHIFT	4
+#define MAX77759_FG_CONFIG_ETHRM_MASK	(0x1 << 4)
+#define MAX77759_FG_CONFIG_ETHRM_CLEAR	(~(0x1 << 4))
+#define MAX77759_FG_CONFIG_FTHRM_SHIFT	3
+#define MAX77759_FG_CONFIG_FTHRM_MASK	(0x1 << 3)
+#define MAX77759_FG_CONFIG_FTHRM_CLEAR	(~(0x1 << 3))
+#define MAX77759_FG_CONFIG_AEN_SHIFT	2
+#define MAX77759_FG_CONFIG_AEN_MASK	(0x1 << 2)
+#define MAX77759_FG_CONFIG_AEN_CLEAR	(~(0x1 << 2))
+#define MAX77759_FG_CONFIG_BEI_SHIFT	1
+#define MAX77759_FG_CONFIG_BEI_MASK	(0x1 << 1)
+#define MAX77759_FG_CONFIG_BEI_CLEAR	(~(0x1 << 1))
+#define MAX77759_FG_CONFIG_BER_SHIFT	0
+#define MAX77759_FG_CONFIG_BER_MASK	(0x1 << 0)
+#define MAX77759_FG_CONFIG_BER_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(fg_config_fcfe,15,15)
+MAX77759_BFF(fg_config_ss,14,14)
+MAX77759_BFF(fg_config_ts,13,13)
+MAX77759_BFF(fg_config_vs,12,12)
+MAX77759_BFF(fg_config_fgcc,11,11)
+MAX77759_BFF(fg_config_ainsh,10,10)
+MAX77759_BFF(fg_config_ten,9,9)
+MAX77759_BFF(fg_config_tex,8,8)
+MAX77759_BFF(fg_config_shdn,7,7)
+MAX77759_BFF(fg_config_i2csh,6,6)
+MAX77759_BFF(fg_config_icfe,5,5)
+MAX77759_BFF(fg_config_ethrm,4,4)
+MAX77759_BFF(fg_config_fthrm,3,3)
+MAX77759_BFF(fg_config_aen,2,2)
+MAX77759_BFF(fg_config_bei,1,1)
+MAX77759_BFF(fg_config_ber,0,0)
+static inline const char *
+max77759_fg_config_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " FCFE=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_FCFE, val));
+	i += SCNPRINTF(&buff[i], len - i, " SS=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_SS, val));
+	i += SCNPRINTF(&buff[i], len - i, " TS=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_TS, val));
+	i += SCNPRINTF(&buff[i], len - i, " VS=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_VS, val));
+	i += SCNPRINTF(&buff[i], len - i, " FGCC=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_FGCC, val));
+	i += SCNPRINTF(&buff[i], len - i, " AINSH=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_AINSH, val));
+	i += SCNPRINTF(&buff[i], len - i, " TEN=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_TEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " TEX=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_TEX, val));
+	i += SCNPRINTF(&buff[i], len - i, " SHDN=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_SHDN, val));
+	i += SCNPRINTF(&buff[i], len - i, " I2CSH=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_I2CSH, val));
+	i += SCNPRINTF(&buff[i], len - i, " ICFE=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_ICFE, val));
+	i += SCNPRINTF(&buff[i], len - i, " ETHRM=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_ETHRM, val));
+	i += SCNPRINTF(&buff[i], len - i, " FTHRM=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_FTHRM, val));
+	i += SCNPRINTF(&buff[i], len - i, " AEN=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_AEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " BEI=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_BEI, val));
+	i += SCNPRINTF(&buff[i], len - i, " BER=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG_BER, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * IChgTerm,0x1E,0b1111000000,0x3c0
+ * ICHGTerm[15:8],,,,,,
+ */
+#define MAX77759_FG_ICHGTERM	0x1E
+
+/*
+ * AvCap,0x1F,0b10111011100,0x5dc
+ * AvCap[15:8],,,,,,
+ */
+#define MAX77759_FG_AVCAP	0x1F
+
+/*
+ * TTF,0x20,0b1111111111111111,0xffff
+ * hr[5:0],,,,,,mn[5:4]
+ */
+#define MAX77759_FG_TTF	0x20
+
+#define MAX77759_FG_TTF_HR_SHIFT	10
+#define MAX77759_FG_TTF_HR_MASK	(0x3f << 10)
+#define MAX77759_FG_TTF_HR_CLEAR	(~(0x3f << 10))
+#define MAX77759_FG_TTF_MN_SHIFT	4
+#define MAX77759_FG_TTF_MN_MASK	(0x3f << 4)
+#define MAX77759_FG_TTF_MN_CLEAR	(~(0x3f << 4))
+#define MAX77759_FG_TTF_SEC_SHIFT	0
+#define MAX77759_FG_TTF_SEC_MASK	(0xf << 0)
+#define MAX77759_FG_TTF_SEC_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(fg_ttf_hr,15,10)
+MAX77759_BFF(fg_ttf_mn,9,4)
+MAX77759_BFF(fg_ttf_sec,3,0)
+static inline const char *
+max77759_fg_ttf_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " HR=%x",
+		FIELD2VALUE(MAX77759_FG_TTF_HR, val));
+	i += SCNPRINTF(&buff[i], len - i, " MN=%x",
+		FIELD2VALUE(MAX77759_FG_TTF_MN, val));
+	i += SCNPRINTF(&buff[i], len - i, " SEC=%x",
+		FIELD2VALUE(MAX77759_FG_TTF_SEC, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * DevName,0x21,0b110001000000000,0x6200
+ * DevName[15:8],,,,,,
+ */
+#define MAX77759_FG_DEVNAME	0x21
+
+/*
+ * QRTable10,0x22,0b1101110000000,0x1b80
+ * QRTable10[15:8],,,,,,
+ */
+#define MAX77759_FG_QRTABLE10	0x22
+
+/*
+ * FullCapNom,0x23,0b101110111000,0xbb8
+ * FullCapNom[15:8],,,,,,
+ */
+#define MAX77759_FG_FULLCAPNOM	0x23
+
+/*
+ * TempNom,0x24,0b1010000000000,0x1400
+ * TempNom[9:2],,,,,,
+ */
+#define MAX77759_FG_TEMPNOM	0x24
+
+#define MAX77759_FG_TEMPNOM_TEMPNOM_SHIFT	6
+#define MAX77759_FG_TEMPNOM_TEMPNOM_MASK	(0x3ff << 6)
+#define MAX77759_FG_TEMPNOM_TEMPNOM_CLEAR	(~(0x3ff << 6))
+#define MAX77759_FG_TEMPNOM_SPR_5_0_SHIFT	0
+#define MAX77759_FG_TEMPNOM_SPR_5_0_MASK	(0x3f << 0)
+#define MAX77759_FG_TEMPNOM_SPR_5_0_CLEAR	(~(0x3f << 0))
+
+MAX77759_BFF(fg_tempnom_tempnom,15,6)
+MAX77759_BFF(fg_tempnom_spr_5_0,5,0)
+static inline const char *
+max77759_fg_tempnom_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " TEMPNOM=%x",
+		FIELD2VALUE(MAX77759_FG_TEMPNOM_TEMPNOM, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_5_0=%x",
+		FIELD2VALUE(MAX77759_FG_TEMPNOM_SPR_5_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TempLim,0x25,0b10001100000101,0x2305
+ * TempHot[7:0],,,,,,
+ */
+#define MAX77759_FG_TEMPLIM	0x25
+
+#define MAX77759_FG_TEMPLIM_TEMPHOT_SHIFT	8
+#define MAX77759_FG_TEMPLIM_TEMPHOT_MASK	(0xff << 8)
+#define MAX77759_FG_TEMPLIM_TEMPHOT_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_TEMPLIM_TEMPCOLD_SHIFT	0
+#define MAX77759_FG_TEMPLIM_TEMPCOLD_MASK	(0xff << 0)
+#define MAX77759_FG_TEMPLIM_TEMPCOLD_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_templim_temphot,15,8)
+MAX77759_BFF(fg_templim_tempcold,7,0)
+static inline const char *
+max77759_fg_templim_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " TEMPHOT=%x",
+		FIELD2VALUE(MAX77759_FG_TEMPLIM_TEMPHOT, val));
+	i += SCNPRINTF(&buff[i], len - i, " TEMPCOLD=%x",
+		FIELD2VALUE(MAX77759_FG_TEMPLIM_TEMPCOLD, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * AvgTA0,0x26,0b1011000000000,0x1600
+ * AvgTA0[15:8],,,,,,
+ */
+#define MAX77759_FG_AVGTA0	0x26
+
+/*
+ * AIN0,0x27,0b1000100011010000,0x88d0
+ * AIN0[15:8],,,,,,
+ */
+#define MAX77759_FG_AIN0	0x27
+
+/*
+ * LearnCfg,0x28,0b10011000000011,0x2603
+ * LearnRCOMP[2:0],,,LearnTCO[2:0],,,FCLm[1:0]
+ */
+#define MAX77759_FG_LEARNCFG	0x28
+#define MAX77759_FG_LEARNCFG_FCX	(0x1 << 7)
+#define MAX77759_FG_LEARNCFG_SPR_3	(0x1 << 3)
+#define MAX77759_FG_LEARNCFG_FILLEMPTY	(0x1 << 2)
+#define MAX77759_FG_LEARNCFG_MIXEN	(0x1 << 1)
+#define MAX77759_FG_LEARNCFG_SPR_0	(0x1 << 0)
+
+#define MAX77759_FG_LEARNCFG_LEARNRCOMP_SHIFT	13
+#define MAX77759_FG_LEARNCFG_LEARNRCOMP_MASK	(0x7 << 13)
+#define MAX77759_FG_LEARNCFG_LEARNRCOMP_CLEAR	(~(0x7 << 13))
+#define MAX77759_FG_LEARNCFG_LEARNTCO_SHIFT	10
+#define MAX77759_FG_LEARNCFG_LEARNTCO_MASK	(0x7 << 10)
+#define MAX77759_FG_LEARNCFG_LEARNTCO_CLEAR	(~(0x7 << 10))
+#define MAX77759_FG_LEARNCFG_FCLM_SHIFT	8
+#define MAX77759_FG_LEARNCFG_FCLM_MASK	(0x3 << 8)
+#define MAX77759_FG_LEARNCFG_FCLM_CLEAR	(~(0x3 << 8))
+#define MAX77759_FG_LEARNCFG_FCX_SHIFT	7
+#define MAX77759_FG_LEARNCFG_FCX_MASK	(0x1 << 7)
+#define MAX77759_FG_LEARNCFG_FCX_CLEAR	(~(0x1 << 7))
+#define MAX77759_FG_LEARNCFG_FCLRNSTAGE_SHIFT	4
+#define MAX77759_FG_LEARNCFG_FCLRNSTAGE_MASK	(0x7 << 4)
+#define MAX77759_FG_LEARNCFG_FCLRNSTAGE_CLEAR	(~(0x7 << 4))
+#define MAX77759_FG_LEARNCFG_SPR_3_SHIFT	3
+#define MAX77759_FG_LEARNCFG_SPR_3_MASK	(0x1 << 3)
+#define MAX77759_FG_LEARNCFG_SPR_3_CLEAR	(~(0x1 << 3))
+#define MAX77759_FG_LEARNCFG_FILLEMPTY_SHIFT	2
+#define MAX77759_FG_LEARNCFG_FILLEMPTY_MASK	(0x1 << 2)
+#define MAX77759_FG_LEARNCFG_FILLEMPTY_CLEAR	(~(0x1 << 2))
+#define MAX77759_FG_LEARNCFG_MIXEN_SHIFT	1
+#define MAX77759_FG_LEARNCFG_MIXEN_MASK	(0x1 << 1)
+#define MAX77759_FG_LEARNCFG_MIXEN_CLEAR	(~(0x1 << 1))
+#define MAX77759_FG_LEARNCFG_SPR_0_SHIFT	0
+#define MAX77759_FG_LEARNCFG_SPR_0_MASK	(0x1 << 0)
+#define MAX77759_FG_LEARNCFG_SPR_0_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(fg_learncfg_learnrcomp,15,13)
+MAX77759_BFF(fg_learncfg_learntco,12,10)
+MAX77759_BFF(fg_learncfg_fclm,9,8)
+MAX77759_BFF(fg_learncfg_fcx,7,7)
+MAX77759_BFF(fg_learncfg_fclrnstage,6,4)
+MAX77759_BFF(fg_learncfg_spr_3,3,3)
+MAX77759_BFF(fg_learncfg_fillempty,2,2)
+MAX77759_BFF(fg_learncfg_mixen,1,1)
+MAX77759_BFF(fg_learncfg_spr_0,0,0)
+static inline const char *
+max77759_fg_learncfg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " LEARNRCOMP=%x",
+		FIELD2VALUE(MAX77759_FG_LEARNCFG_LEARNRCOMP, val));
+	i += SCNPRINTF(&buff[i], len - i, " LEARNTCO=%x",
+		FIELD2VALUE(MAX77759_FG_LEARNCFG_LEARNTCO, val));
+	i += SCNPRINTF(&buff[i], len - i, " FCLM=%x",
+		FIELD2VALUE(MAX77759_FG_LEARNCFG_FCLM, val));
+	i += SCNPRINTF(&buff[i], len - i, " FCX=%x",
+		FIELD2VALUE(MAX77759_FG_LEARNCFG_FCX, val));
+	i += SCNPRINTF(&buff[i], len - i, " FCLRNSTAGE=%x",
+		FIELD2VALUE(MAX77759_FG_LEARNCFG_FCLRNSTAGE, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_3=%x",
+		FIELD2VALUE(MAX77759_FG_LEARNCFG_SPR_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " FILLEMPTY=%x",
+		FIELD2VALUE(MAX77759_FG_LEARNCFG_FILLEMPTY, val));
+	i += SCNPRINTF(&buff[i], len - i, " MIXEN=%x",
+		FIELD2VALUE(MAX77759_FG_LEARNCFG_MIXEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_0=%x",
+		FIELD2VALUE(MAX77759_FG_LEARNCFG_SPR_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * FilterCfg,0x29,0b1100111010100100,0xcea4
+ * NEMPTY[1:0],,NTEMP[2:0],,,NMIX[3:1],
+ */
+#define MAX77759_FG_FILTERCFG	0x29
+
+#define MAX77759_FG_FILTERCFG_NEMPTY_SHIFT	14
+#define MAX77759_FG_FILTERCFG_NEMPTY_MASK	(0x3 << 14)
+#define MAX77759_FG_FILTERCFG_NEMPTY_CLEAR	(~(0x3 << 14))
+#define MAX77759_FG_FILTERCFG_NTEMP_SHIFT	11
+#define MAX77759_FG_FILTERCFG_NTEMP_MASK	(0x7 << 11)
+#define MAX77759_FG_FILTERCFG_NTEMP_CLEAR	(~(0x7 << 11))
+#define MAX77759_FG_FILTERCFG_NMIX_SHIFT	8
+#define MAX77759_FG_FILTERCFG_NMIX_MASK	(0x7 << 8)
+#define MAX77759_FG_FILTERCFG_NMIX_CLEAR	(~(0x7 << 8))
+#define MAX77759_FG_FILTERCFG_NAVGCELL_SHIFT	5
+#define MAX77759_FG_FILTERCFG_NAVGCELL_MASK	(0x7 << 5)
+#define MAX77759_FG_FILTERCFG_NAVGCELL_CLEAR	(~(0x7 << 5))
+#define MAX77759_FG_FILTERCFG_NCURR_SHIFT	1
+#define MAX77759_FG_FILTERCFG_NCURR_MASK	(0xf << 1)
+#define MAX77759_FG_FILTERCFG_NCURR_CLEAR	(~(0xf << 1))
+
+MAX77759_BFF(fg_filtercfg_nempty,15,14)
+MAX77759_BFF(fg_filtercfg_ntemp,13,11)
+MAX77759_BFF(fg_filtercfg_nmix,10,8)
+MAX77759_BFF(fg_filtercfg_navgcell,7,5)
+MAX77759_BFF(fg_filtercfg_ncurr,4,1)
+static inline const char *
+max77759_fg_filtercfg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " NEMPTY=%x",
+		FIELD2VALUE(MAX77759_FG_FILTERCFG_NEMPTY, val));
+	i += SCNPRINTF(&buff[i], len - i, " NTEMP=%x",
+		FIELD2VALUE(MAX77759_FG_FILTERCFG_NTEMP, val));
+	i += SCNPRINTF(&buff[i], len - i, " NMIX=%x",
+		FIELD2VALUE(MAX77759_FG_FILTERCFG_NMIX, val));
+	i += SCNPRINTF(&buff[i], len - i, " NAVGCELL=%x",
+		FIELD2VALUE(MAX77759_FG_FILTERCFG_NAVGCELL, val));
+	i += SCNPRINTF(&buff[i], len - i, " NCURR=%x",
+		FIELD2VALUE(MAX77759_FG_FILTERCFG_NCURR, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * RelaxCfg,0x2A,0b10000011001001,0x20c9
+ * LoadThr[6:0],,,,,,
+ */
+#define MAX77759_FG_RELAXCFG	0x2A
+
+#define MAX77759_FG_RELAXCFG_LOADTHR_SHIFT	9
+#define MAX77759_FG_RELAXCFG_LOADTHR_MASK	(0x7f << 9)
+#define MAX77759_FG_RELAXCFG_LOADTHR_CLEAR	(~(0x7f << 9))
+#define MAX77759_FG_RELAXCFG_DVTHR_SHIFT	4
+#define MAX77759_FG_RELAXCFG_DVTHR_MASK	(0xf << 4)
+#define MAX77759_FG_RELAXCFG_DVTHR_CLEAR	(~(0xf << 4))
+#define MAX77759_FG_RELAXCFG_DTTHR_SHIFT	0
+#define MAX77759_FG_RELAXCFG_DTTHR_MASK	(0xf << 0)
+#define MAX77759_FG_RELAXCFG_DTTHR_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(fg_relaxcfg_loadthr,15,9)
+MAX77759_BFF(fg_relaxcfg_dvthr,7,4)
+MAX77759_BFF(fg_relaxcfg_dtthr,3,0)
+static inline const char *
+max77759_fg_relaxcfg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " LOADTHR=%x",
+		FIELD2VALUE(MAX77759_FG_RELAXCFG_LOADTHR, val));
+	i += SCNPRINTF(&buff[i], len - i, " DVTHR=%x",
+		FIELD2VALUE(MAX77759_FG_RELAXCFG_DVTHR, val));
+	i += SCNPRINTF(&buff[i], len - i, " DTTHR=%x",
+		FIELD2VALUE(MAX77759_FG_RELAXCFG_DTTHR, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * MiscCfg,0x2B,0b100111010000,0x9d0
+ * OopsFilter[3:0],,,,EnBi1,InitVFG,MixRate[4:3]
+ */
+#define MAX77759_FG_MISCCFG	0x2B
+#define MAX77759_FG_MISCCFG_ENBI1	(0x1 << 11)
+#define MAX77759_FG_MISCCFG_INITVFG	(0x1 << 10)
+#define MAX77759_FG_MISCCFG_RDFCLRN	(0x1 << 4)
+#define MAX77759_FG_MISCCFG_VTTL	(0x1 << 3)
+#define MAX77759_FG_MISCCFG_VEX	(0x1 << 2)
+
+#define MAX77759_FG_MISCCFG_OOPSFILTER_SHIFT	12
+#define MAX77759_FG_MISCCFG_OOPSFILTER_MASK	(0xf << 12)
+#define MAX77759_FG_MISCCFG_OOPSFILTER_CLEAR	(~(0xf << 12))
+#define MAX77759_FG_MISCCFG_ENBI1_SHIFT	11
+#define MAX77759_FG_MISCCFG_ENBI1_MASK	(0x1 << 11)
+#define MAX77759_FG_MISCCFG_ENBI1_CLEAR	(~(0x1 << 11))
+#define MAX77759_FG_MISCCFG_INITVFG_SHIFT	10
+#define MAX77759_FG_MISCCFG_INITVFG_MASK	(0x1 << 10)
+#define MAX77759_FG_MISCCFG_INITVFG_CLEAR	(~(0x1 << 10))
+#define MAX77759_FG_MISCCFG_MIXRATE_SHIFT	5
+#define MAX77759_FG_MISCCFG_MIXRATE_MASK	(0x1f << 5)
+#define MAX77759_FG_MISCCFG_MIXRATE_CLEAR	(~(0x1f << 5))
+#define MAX77759_FG_MISCCFG_RDFCLRN_SHIFT	4
+#define MAX77759_FG_MISCCFG_RDFCLRN_MASK	(0x1 << 4)
+#define MAX77759_FG_MISCCFG_RDFCLRN_CLEAR	(~(0x1 << 4))
+#define MAX77759_FG_MISCCFG_VTTL_SHIFT	3
+#define MAX77759_FG_MISCCFG_VTTL_MASK	(0x1 << 3)
+#define MAX77759_FG_MISCCFG_VTTL_CLEAR	(~(0x1 << 3))
+#define MAX77759_FG_MISCCFG_VEX_SHIFT	2
+#define MAX77759_FG_MISCCFG_VEX_MASK	(0x1 << 2)
+#define MAX77759_FG_MISCCFG_VEX_CLEAR	(~(0x1 << 2))
+#define MAX77759_FG_MISCCFG_SACFG_SHIFT	0
+#define MAX77759_FG_MISCCFG_SACFG_MASK	(0x3 << 0)
+#define MAX77759_FG_MISCCFG_SACFG_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(fg_misccfg_oopsfilter,15,12)
+MAX77759_BFF(fg_misccfg_enbi1,11,11)
+MAX77759_BFF(fg_misccfg_initvfg,10,10)
+MAX77759_BFF(fg_misccfg_mixrate,9,5)
+MAX77759_BFF(fg_misccfg_rdfclrn,4,4)
+MAX77759_BFF(fg_misccfg_vttl,3,3)
+MAX77759_BFF(fg_misccfg_vex,2,2)
+MAX77759_BFF(fg_misccfg_sacfg,1,0)
+static inline const char *
+max77759_fg_misccfg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " OOPSFILTER=%x",
+		FIELD2VALUE(MAX77759_FG_MISCCFG_OOPSFILTER, val));
+	i += SCNPRINTF(&buff[i], len - i, " ENBI1=%x",
+		FIELD2VALUE(MAX77759_FG_MISCCFG_ENBI1, val));
+	i += SCNPRINTF(&buff[i], len - i, " INITVFG=%x",
+		FIELD2VALUE(MAX77759_FG_MISCCFG_INITVFG, val));
+	i += SCNPRINTF(&buff[i], len - i, " MIXRATE=%x",
+		FIELD2VALUE(MAX77759_FG_MISCCFG_MIXRATE, val));
+	i += SCNPRINTF(&buff[i], len - i, " RDFCLRN=%x",
+		FIELD2VALUE(MAX77759_FG_MISCCFG_RDFCLRN, val));
+	i += SCNPRINTF(&buff[i], len - i, " VTTL=%x",
+		FIELD2VALUE(MAX77759_FG_MISCCFG_VTTL, val));
+	i += SCNPRINTF(&buff[i], len - i, " VEX=%x",
+		FIELD2VALUE(MAX77759_FG_MISCCFG_VEX, val));
+	i += SCNPRINTF(&buff[i], len - i, " SACFG=%x",
+		FIELD2VALUE(MAX77759_FG_MISCCFG_SACFG, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TGain,0x2C,0b1110101110001101,0xeb8d
+ * TGAIN[15:8],,,,,,
+ */
+#define MAX77759_FG_TGAIN	0x2C
+
+/*
+ * TOff,0x2D,0b10000010101010,0x20aa
+ * TOFF[15:8],,,,,,
+ */
+#define MAX77759_FG_TOFF	0x2D
+
+/*
+ * CGain,0x2E,0b10000000000,0x400
+ * CGAIN[15:8],,,,,,
+ */
+#define MAX77759_FG_CGAIN	0x2E
+
+/*
+ * COff,0x2F,0b00000000,0x00
+ * COFF[15:8],,,,,,
+ */
+#define MAX77759_FG_COFF	0x2F
+
+/*
+ * dV_acc,0x30,0b10000000000,0x400
+ * dV_acc[15:8],,,,,,
+ */
+#define MAX77759_FG_DV_ACC	0x30
+
+/*
+ * dI_acc,0x31,0b11001000000,0x640
+ * dI_acc[15:8],,,,,,
+ */
+#define MAX77759_FG_DI_ACC	0x31
+
+/*
+ * QRTable20,0x32,0b101100000100,0xb04
+ * QRTable20[15:8],,,,,,
+ */
+#define MAX77759_FG_QRTABLE20	0x32
+
+/*
+ * AtTTF,0x33,0b1111111111111111,0xffff
+ * AtTTF[15:8],,,,,,
+ */
+#define MAX77759_FG_ATTTF	0x33
+
+/*
+ * TConvert,0x34,0b1011000000000,0x1600
+ * TConvert[15:8],,,,,,
+ */
+#define MAX77759_FG_TCONVERT	0x34
+
+/*
+ * FullCapRep,0x35,0b101110111000,0xbb8
+ * FullCapRep[15:8],,,,,,
+ */
+#define MAX77759_FG_FULLCAPREP	0x35
+
+/*
+ * IAvgEmpty,0x36,0b1111010001001000,0xf448
+ * Iavg_empty[15:8],,,,,,
+ */
+#define MAX77759_FG_IAVGEMPTY	0x36
+
+/*
+ * FCTC,0x37,0b10111100000,0x5e0
+ * FCTC[15:8],,,,,,
+ */
+#define MAX77759_FG_FCTC	0x37
+
+/*
+ * RComp0,0x38,0b01110000,0x70
+ * SPR_15_8[7:0],,,,,,
+ */
+#define MAX77759_FG_RCOMP0	0x38
+
+#define MAX77759_FG_RCOMP0_SPR_15_8_SHIFT	8
+#define MAX77759_FG_RCOMP0_SPR_15_8_MASK	(0xff << 8)
+#define MAX77759_FG_RCOMP0_SPR_15_8_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_RCOMP0_RCOMP0_SHIFT	0
+#define MAX77759_FG_RCOMP0_RCOMP0_MASK	(0xff << 0)
+#define MAX77759_FG_RCOMP0_RCOMP0_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_rcomp0_spr_15_8,15,8)
+MAX77759_BFF(fg_rcomp0_rcomp0,7,0)
+static inline const char *
+max77759_fg_rcomp0_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_15_8=%x",
+		FIELD2VALUE(MAX77759_FG_RCOMP0_SPR_15_8, val));
+	i += SCNPRINTF(&buff[i], len - i, " RCOMP0=%x",
+		FIELD2VALUE(MAX77759_FG_RCOMP0_RCOMP0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TempCo,0x39,0b10011000111101,0x263d
+ * TempCoHot[7:0],,,,,,
+ */
+#define MAX77759_FG_TEMPCO	0x39
+
+#define MAX77759_FG_TEMPCO_TEMPCOHOT_SHIFT	8
+#define MAX77759_FG_TEMPCO_TEMPCOHOT_MASK	(0xff << 8)
+#define MAX77759_FG_TEMPCO_TEMPCOHOT_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_TEMPCO_TEMPCOCOLD_SHIFT	0
+#define MAX77759_FG_TEMPCO_TEMPCOCOLD_MASK	(0xff << 0)
+#define MAX77759_FG_TEMPCO_TEMPCOCOLD_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_tempco_tempcohot,15,8)
+MAX77759_BFF(fg_tempco_tempcocold,7,0)
+static inline const char *
+max77759_fg_tempco_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " TEMPCOHOT=%x",
+		FIELD2VALUE(MAX77759_FG_TEMPCO_TEMPCOHOT, val));
+	i += SCNPRINTF(&buff[i], len - i, " TEMPCOCOLD=%x",
+		FIELD2VALUE(MAX77759_FG_TEMPCO_TEMPCOCOLD, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VEmpty,0x3A,0b1010010101100001,0xa561
+ * V_Empty[8:1],,,,,,
+ */
+#define MAX77759_FG_VEMPTY	0x3A
+
+#define MAX77759_FG_VEMPTY_V_EMPTY_SHIFT	8
+#define MAX77759_FG_VEMPTY_V_EMPTY_MASK	(0xff << 8)
+#define MAX77759_FG_VEMPTY_V_EMPTY_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_VEMPTY_V_RECOVER_SHIFT	1
+#define MAX77759_FG_VEMPTY_V_RECOVER_MASK	(0x7f << 1)
+#define MAX77759_FG_VEMPTY_V_RECOVER_CLEAR	(~(0x7f << 1))
+
+MAX77759_BFF(fg_vempty_v_empty,15,8)
+MAX77759_BFF(fg_vempty_v_recover,7,1)
+static inline const char *
+max77759_fg_vempty_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " V_EMPTY=%x",
+		FIELD2VALUE(MAX77759_FG_VEMPTY_V_EMPTY, val));
+	i += SCNPRINTF(&buff[i], len - i, " V_RECOVER=%x",
+		FIELD2VALUE(MAX77759_FG_VEMPTY_V_RECOVER, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * AvgCurrent0,0x3B,0b111111111111111,0x7fff
+ * AvgCurrent0[15:8],,,,,,
+ */
+#define MAX77759_FG_AVGCURRENT0	0x3B
+
+/*
+ * TaskPeriod,0x3C,0b1011010000000,0x1680
+ * TaskPeriod[15:8],,,,,,
+ */
+#define MAX77759_FG_TASKPERIOD	0x3C
+
+/*
+ * FStat,0x3D,0b00000001,0x01
+ * xBr,RDF,tmode,DeBn,xBi,Relck,RelDt
+ */
+#define MAX77759_FG_FSTAT	0x3D
+#define MAX77759_FG_FSTAT_XBR	(0x1 << 15)
+#define MAX77759_FG_FSTAT_RDF	(0x1 << 14)
+#define MAX77759_FG_FSTAT_TMODE	(0x1 << 13)
+#define MAX77759_FG_FSTAT_DEBN	(0x1 << 12)
+#define MAX77759_FG_FSTAT_XBI	(0x1 << 11)
+#define MAX77759_FG_FSTAT_RELCK	(0x1 << 10)
+#define MAX77759_FG_FSTAT_RELDT	(0x1 << 9)
+#define MAX77759_FG_FSTAT_EDET	(0x1 << 8)
+#define MAX77759_FG_FSTAT_FQ	(0x1 << 7)
+#define MAX77759_FG_FSTAT_RELDT2	(0x1 << 6)
+#define MAX77759_FG_FSTAT_TIMER_START	(0x1 << 5)
+#define MAX77759_FG_FSTAT_XBST	(0x1 << 4)
+#define MAX77759_FG_FSTAT_ACCEN	(0x1 << 3)
+#define MAX77759_FG_FSTAT_WK	(0x1 << 2)
+#define MAX77759_FG_FSTAT_LDMDL	(0x1 << 1)
+#define MAX77759_FG_FSTAT_DNR	(0x1 << 0)
+
+#define MAX77759_FG_FSTAT_XBR_SHIFT	15
+#define MAX77759_FG_FSTAT_XBR_MASK	(0x1 << 15)
+#define MAX77759_FG_FSTAT_XBR_CLEAR	(~(0x1 << 15))
+#define MAX77759_FG_FSTAT_RDF_SHIFT	14
+#define MAX77759_FG_FSTAT_RDF_MASK	(0x1 << 14)
+#define MAX77759_FG_FSTAT_RDF_CLEAR	(~(0x1 << 14))
+#define MAX77759_FG_FSTAT_TMODE_SHIFT	13
+#define MAX77759_FG_FSTAT_TMODE_MASK	(0x1 << 13)
+#define MAX77759_FG_FSTAT_TMODE_CLEAR	(~(0x1 << 13))
+#define MAX77759_FG_FSTAT_DEBN_SHIFT	12
+#define MAX77759_FG_FSTAT_DEBN_MASK	(0x1 << 12)
+#define MAX77759_FG_FSTAT_DEBN_CLEAR	(~(0x1 << 12))
+#define MAX77759_FG_FSTAT_XBI_SHIFT	11
+#define MAX77759_FG_FSTAT_XBI_MASK	(0x1 << 11)
+#define MAX77759_FG_FSTAT_XBI_CLEAR	(~(0x1 << 11))
+#define MAX77759_FG_FSTAT_RELCK_SHIFT	10
+#define MAX77759_FG_FSTAT_RELCK_MASK	(0x1 << 10)
+#define MAX77759_FG_FSTAT_RELCK_CLEAR	(~(0x1 << 10))
+#define MAX77759_FG_FSTAT_RELDT_SHIFT	9
+#define MAX77759_FG_FSTAT_RELDT_MASK	(0x1 << 9)
+#define MAX77759_FG_FSTAT_RELDT_CLEAR	(~(0x1 << 9))
+#define MAX77759_FG_FSTAT_EDET_SHIFT	8
+#define MAX77759_FG_FSTAT_EDET_MASK	(0x1 << 8)
+#define MAX77759_FG_FSTAT_EDET_CLEAR	(~(0x1 << 8))
+#define MAX77759_FG_FSTAT_FQ_SHIFT	7
+#define MAX77759_FG_FSTAT_FQ_MASK	(0x1 << 7)
+#define MAX77759_FG_FSTAT_FQ_CLEAR	(~(0x1 << 7))
+#define MAX77759_FG_FSTAT_RELDT2_SHIFT	6
+#define MAX77759_FG_FSTAT_RELDT2_MASK	(0x1 << 6)
+#define MAX77759_FG_FSTAT_RELDT2_CLEAR	(~(0x1 << 6))
+#define MAX77759_FG_FSTAT_TIMER_START_SHIFT	5
+#define MAX77759_FG_FSTAT_TIMER_START_MASK	(0x1 << 5)
+#define MAX77759_FG_FSTAT_TIMER_START_CLEAR	(~(0x1 << 5))
+#define MAX77759_FG_FSTAT_XBST_SHIFT	4
+#define MAX77759_FG_FSTAT_XBST_MASK	(0x1 << 4)
+#define MAX77759_FG_FSTAT_XBST_CLEAR	(~(0x1 << 4))
+#define MAX77759_FG_FSTAT_ACCEN_SHIFT	3
+#define MAX77759_FG_FSTAT_ACCEN_MASK	(0x1 << 3)
+#define MAX77759_FG_FSTAT_ACCEN_CLEAR	(~(0x1 << 3))
+#define MAX77759_FG_FSTAT_WK_SHIFT	2
+#define MAX77759_FG_FSTAT_WK_MASK	(0x1 << 2)
+#define MAX77759_FG_FSTAT_WK_CLEAR	(~(0x1 << 2))
+#define MAX77759_FG_FSTAT_LDMDL_SHIFT	1
+#define MAX77759_FG_FSTAT_LDMDL_MASK	(0x1 << 1)
+#define MAX77759_FG_FSTAT_LDMDL_CLEAR	(~(0x1 << 1))
+#define MAX77759_FG_FSTAT_DNR_SHIFT	0
+#define MAX77759_FG_FSTAT_DNR_MASK	(0x1 << 0)
+#define MAX77759_FG_FSTAT_DNR_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(fg_fstat_xbr,15,15)
+MAX77759_BFF(fg_fstat_rdf,14,14)
+MAX77759_BFF(fg_fstat_tmode,13,13)
+MAX77759_BFF(fg_fstat_debn,12,12)
+MAX77759_BFF(fg_fstat_xbi,11,11)
+MAX77759_BFF(fg_fstat_relck,10,10)
+MAX77759_BFF(fg_fstat_reldt,9,9)
+MAX77759_BFF(fg_fstat_edet,8,8)
+MAX77759_BFF(fg_fstat_fq,7,7)
+MAX77759_BFF(fg_fstat_reldt2,6,6)
+MAX77759_BFF(fg_fstat_timer_start,5,5)
+MAX77759_BFF(fg_fstat_xbst,4,4)
+MAX77759_BFF(fg_fstat_accen,3,3)
+MAX77759_BFF(fg_fstat_wk,2,2)
+MAX77759_BFF(fg_fstat_ldmdl,1,1)
+MAX77759_BFF(fg_fstat_dnr,0,0)
+static inline const char *
+max77759_fg_fstat_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " XBR=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_XBR, val));
+	i += SCNPRINTF(&buff[i], len - i, " RDF=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_RDF, val));
+	i += SCNPRINTF(&buff[i], len - i, " TMODE=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_TMODE, val));
+	i += SCNPRINTF(&buff[i], len - i, " DEBN=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_DEBN, val));
+	i += SCNPRINTF(&buff[i], len - i, " XBI=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_XBI, val));
+	i += SCNPRINTF(&buff[i], len - i, " RELCK=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_RELCK, val));
+	i += SCNPRINTF(&buff[i], len - i, " RELDT=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_RELDT, val));
+	i += SCNPRINTF(&buff[i], len - i, " EDET=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_EDET, val));
+	i += SCNPRINTF(&buff[i], len - i, " FQ=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_FQ, val));
+	i += SCNPRINTF(&buff[i], len - i, " RELDT2=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_RELDT2, val));
+	i += SCNPRINTF(&buff[i], len - i, " TIMER_START=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_TIMER_START, val));
+	i += SCNPRINTF(&buff[i], len - i, " XBST=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_XBST, val));
+	i += SCNPRINTF(&buff[i], len - i, " ACCEN=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_ACCEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " WK=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_WK, val));
+	i += SCNPRINTF(&buff[i], len - i, " LDMDL=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_LDMDL, val));
+	i += SCNPRINTF(&buff[i], len - i, " DNR=%x",
+		FIELD2VALUE(MAX77759_FG_FSTAT_DNR, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * Timer,0x3E,0b00000000,0x00
+ * TIMER[15:8],,,,,,
+ */
+#define MAX77759_FG_TIMER	0x3E
+
+/*
+ * ShdnTimer,0x3F,0b1110000000000000,0xe000
+ * SHDN_THR[2:0],,,SHDNCTR[12:8],,,
+ */
+#define MAX77759_FG_SHDNTIMER	0x3F
+
+#define MAX77759_FG_SHDNTIMER_SHDN_THR_SHIFT	13
+#define MAX77759_FG_SHDNTIMER_SHDN_THR_MASK	(0x7 << 13)
+#define MAX77759_FG_SHDNTIMER_SHDN_THR_CLEAR	(~(0x7 << 13))
+#define MAX77759_FG_SHDNTIMER_SHDNCTR_SHIFT	0
+#define MAX77759_FG_SHDNTIMER_SHDNCTR_MASK	(0x1fff << 0)
+#define MAX77759_FG_SHDNTIMER_SHDNCTR_CLEAR	(~(0x1fff << 0))
+
+MAX77759_BFF(fg_shdntimer_shdn_thr,15,13)
+MAX77759_BFF(fg_shdntimer_shdnctr,12,0)
+static inline const char *
+max77759_fg_shdntimer_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SHDN_THR=%x",
+		FIELD2VALUE(MAX77759_FG_SHDNTIMER_SHDN_THR, val));
+	i += SCNPRINTF(&buff[i], len - i, " SHDNCTR=%x",
+		FIELD2VALUE(MAX77759_FG_SHDNTIMER_SHDNCTR, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * THMHOT,0x40,0b11111111100,0x7fc
+ * VR[4:0],,,,,Vhys[2:0],
+ */
+#define MAX77759_FG_THMHOT	0x40
+
+#define MAX77759_FG_THMHOT_VR_SHIFT	11
+#define MAX77759_FG_THMHOT_VR_MASK	(0x1f << 11)
+#define MAX77759_FG_THMHOT_VR_CLEAR	(~(0x1f << 11))
+#define MAX77759_FG_THMHOT_VHYS_SHIFT	8
+#define MAX77759_FG_THMHOT_VHYS_MASK	(0x7 << 8)
+#define MAX77759_FG_THMHOT_VHYS_CLEAR	(~(0x7 << 8))
+#define MAX77759_FG_THMHOT_TR_SHIFT	3
+#define MAX77759_FG_THMHOT_TR_MASK	(0x1f << 3)
+#define MAX77759_FG_THMHOT_TR_CLEAR	(~(0x1f << 3))
+#define MAX77759_FG_THMHOT_THYS_SHIFT	0
+#define MAX77759_FG_THMHOT_THYS_MASK	(0x7 << 0)
+#define MAX77759_FG_THMHOT_THYS_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(fg_thmhot_vr,15,11)
+MAX77759_BFF(fg_thmhot_vhys,10,8)
+MAX77759_BFF(fg_thmhot_tr,7,3)
+MAX77759_BFF(fg_thmhot_thys,2,0)
+static inline const char *
+max77759_fg_thmhot_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VR=%x",
+		FIELD2VALUE(MAX77759_FG_THMHOT_VR, val));
+	i += SCNPRINTF(&buff[i], len - i, " VHYS=%x",
+		FIELD2VALUE(MAX77759_FG_THMHOT_VHYS, val));
+	i += SCNPRINTF(&buff[i], len - i, " TR=%x",
+		FIELD2VALUE(MAX77759_FG_THMHOT_TR, val));
+	i += SCNPRINTF(&buff[i], len - i, " THYS=%x",
+		FIELD2VALUE(MAX77759_FG_THMHOT_THYS, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CTESample,0x41,0b00000000,0x00
+ * CTESample[15:8],,,,,,
+ */
+#define MAX77759_FG_CTESAMPLE	0x41
+
+/*
+ * QRTable30,0x42,0b100010000101,0x885
+ * QRTable30[15:8],,,,,,
+ */
+#define MAX77759_FG_QRTABLE30	0x42
+
+/*
+ * ISys,0x43,0b00000000,0x00
+ * ISYS[15:8],,,,,,
+ */
+#define MAX77759_FG_ISYS	0x43
+
+/*
+ * AvgVCell0,0x44,0b1000000000000000,0x8000
+ * AvgVCELL0[15:8],,,,,,
+ */
+#define MAX77759_FG_AVGVCELL0	0x44
+
+/*
+ * dQAcc,0x45,0b00010111,0x17
+ * dQacc[15:8],,,,,,
+ */
+#define MAX77759_FG_DQACC	0x45
+
+/*
+ * dPAcc,0x46,0b110010000,0x190
+ * dPacc[15:8],,,,,,
+ */
+#define MAX77759_FG_DPACC	0x46
+
+/*
+ * RlxSOC,0x47,0b00000000,0x00
+ * RlxSOC[15:8],,,,,,
+ */
+#define MAX77759_FG_RLXSOC	0x47
+
+/*
+ * VFSOC0,0x48,0b11001000000000,0x3200
+ * VFSOC0[15:8],,,,,,
+ */
+#define MAX77759_FG_VFSOC0	0x48
+
+/*
+ * ConvgCfg,0x49,0b10001001000001,0x2241
+ * RepLow[3:0],,,,VoltLowOff[4:1],,
+ */
+#define MAX77759_FG_CONVGCFG	0x49
+
+#define MAX77759_FG_CONVGCFG_REPLOW_SHIFT	12
+#define MAX77759_FG_CONVGCFG_REPLOW_MASK	(0xf << 12)
+#define MAX77759_FG_CONVGCFG_REPLOW_CLEAR	(~(0xf << 12))
+#define MAX77759_FG_CONVGCFG_VOLTLOWOFF_SHIFT	8
+#define MAX77759_FG_CONVGCFG_VOLTLOWOFF_MASK	(0xf << 8)
+#define MAX77759_FG_CONVGCFG_VOLTLOWOFF_CLEAR	(~(0xf << 8))
+#define MAX77759_FG_CONVGCFG_MINSLOPEX_SHIFT	4
+#define MAX77759_FG_CONVGCFG_MINSLOPEX_MASK	(0xf << 4)
+#define MAX77759_FG_CONVGCFG_MINSLOPEX_CLEAR	(~(0xf << 4))
+#define MAX77759_FG_CONVGCFG_REPL_PER_STAGE_SHIFT	1
+#define MAX77759_FG_CONVGCFG_REPL_PER_STAGE_MASK	(0x7 << 1)
+#define MAX77759_FG_CONVGCFG_REPL_PER_STAGE_CLEAR	(~(0x7 << 1))
+
+MAX77759_BFF(fg_convgcfg_replow,15,12)
+MAX77759_BFF(fg_convgcfg_voltlowoff,11,8)
+MAX77759_BFF(fg_convgcfg_minslopex,7,4)
+MAX77759_BFF(fg_convgcfg_repl_per_stage,3,1)
+static inline const char *
+max77759_fg_convgcfg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " REPLOW=%x",
+		FIELD2VALUE(MAX77759_FG_CONVGCFG_REPLOW, val));
+	i += SCNPRINTF(&buff[i], len - i, " VOLTLOWOFF=%x",
+		FIELD2VALUE(MAX77759_FG_CONVGCFG_VOLTLOWOFF, val));
+	i += SCNPRINTF(&buff[i], len - i, " MINSLOPEX=%x",
+		FIELD2VALUE(MAX77759_FG_CONVGCFG_MINSLOPEX, val));
+	i += SCNPRINTF(&buff[i], len - i, " REPL_PER_STAGE=%x",
+		FIELD2VALUE(MAX77759_FG_CONVGCFG_REPL_PER_STAGE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VFRemCap,0x4A,0b10111011100,0x5dc
+ * VFRemCap[15:8],,,,,,
+ */
+#define MAX77759_FG_VFREMCAP	0x4A
+
+/*
+ * AvgISys,0x4B,0b00000000,0x00
+ * AVGISYS[15:8],,,,,,
+ */
+#define MAX77759_FG_AVGISYS	0x4B
+
+/*
+ * QH0,0x4C,0b00000000,0x00
+ * QH0[15:8],,,,,,
+ */
+#define MAX77759_FG_QH0	0x4C
+
+/*
+ * QH,0x4D,0b00000000,0x00
+ * QH[15:8],,,,,,
+ */
+#define MAX77759_FG_QH	0x4D
+
+/*
+ * QL,0x4E,0b00000000,0x00
+ * QL[15:8],,,,,,
+ */
+#define MAX77759_FG_QL	0x4E
+
+/*
+ * MixAtFull,0x4F,0b101110111000,0xbb8
+ * MixAtFull[15:8],,,,,,
+ */
+#define MAX77759_FG_MIXATFULL	0x4F
+
+/*
+ * Status2,0xB0,0b00000000,0x00
+ * SPR_15_6[9:2],,,,,,
+ */
+#define MAX77759_FG_STATUS2	0xB0
+#define MAX77759_FG_STATUS2_FULLDET	(0x1 << 5)
+#define MAX77759_FG_STATUS2_HIB	(0x1 << 1)
+#define MAX77759_FG_STATUS2_SPR_0	(0x1 << 0)
+
+#define MAX77759_FG_STATUS2_SPR_15_6_SHIFT	6
+#define MAX77759_FG_STATUS2_SPR_15_6_MASK	(0x3ff << 6)
+#define MAX77759_FG_STATUS2_SPR_15_6_CLEAR	(~(0x3ff << 6))
+#define MAX77759_FG_STATUS2_FULLDET_SHIFT	5
+#define MAX77759_FG_STATUS2_FULLDET_MASK	(0x1 << 5)
+#define MAX77759_FG_STATUS2_FULLDET_CLEAR	(~(0x1 << 5))
+#define MAX77759_FG_STATUS2_SPR_4_2_SHIFT	2
+#define MAX77759_FG_STATUS2_SPR_4_2_MASK	(0x7 << 2)
+#define MAX77759_FG_STATUS2_SPR_4_2_CLEAR	(~(0x7 << 2))
+#define MAX77759_FG_STATUS2_HIB_SHIFT	1
+#define MAX77759_FG_STATUS2_HIB_MASK	(0x1 << 1)
+#define MAX77759_FG_STATUS2_HIB_CLEAR	(~(0x1 << 1))
+#define MAX77759_FG_STATUS2_SPR_0_SHIFT	0
+#define MAX77759_FG_STATUS2_SPR_0_MASK	(0x1 << 0)
+#define MAX77759_FG_STATUS2_SPR_0_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(fg_status2_spr_15_6,15,6)
+MAX77759_BFF(fg_status2_fulldet,5,5)
+MAX77759_BFF(fg_status2_spr_4_2,4,2)
+MAX77759_BFF(fg_status2_hib,1,1)
+MAX77759_BFF(fg_status2_spr_0,0,0)
+static inline const char *
+max77759_fg_status2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_15_6=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS2_SPR_15_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " FULLDET=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS2_FULLDET, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_4_2=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS2_SPR_4_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " HIB=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS2_HIB, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_0=%x",
+		FIELD2VALUE(MAX77759_FG_STATUS2_SPR_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VSys,0xB1,0b00000000,0x00
+ * VSys[15:8],,,,,,
+ */
+#define MAX77759_FG_VSYS	0xB1
+
+/*
+ * TAlrtTh2,0xB2,0b111111110000000,0x7f80
+ * TempWarm[7:0],,,,,,
+ */
+#define MAX77759_FG_TALRTTH2	0xB2
+
+#define MAX77759_FG_TALRTTH2_TEMPWARM_SHIFT	8
+#define MAX77759_FG_TALRTTH2_TEMPWARM_MASK	(0xff << 8)
+#define MAX77759_FG_TALRTTH2_TEMPWARM_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_TALRTTH2_TEMPCOOL_SHIFT	0
+#define MAX77759_FG_TALRTTH2_TEMPCOOL_MASK	(0xff << 0)
+#define MAX77759_FG_TALRTTH2_TEMPCOOL_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_talrtth2_tempwarm,15,8)
+MAX77759_BFF(fg_talrtth2_tempcool,7,0)
+static inline const char *
+max77759_fg_talrtth2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " TEMPWARM=%x",
+		FIELD2VALUE(MAX77759_FG_TALRTTH2_TEMPWARM, val));
+	i += SCNPRINTF(&buff[i], len - i, " TEMPCOOL=%x",
+		FIELD2VALUE(MAX77759_FG_TALRTTH2_TEMPCOOL, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VByp,0xB3,0b00000000,0x00
+ * VByp[15:8],,,,,,
+ */
+#define MAX77759_FG_VBYP	0xB3
+
+/*
+ * IAlrtTh,0xB4,0b111111110000000,0x7f80
+ * ISYSOCP_TH[7:0],,,,,,
+ */
+#define MAX77759_FG_IALRTTH	0xB4
+
+#define MAX77759_FG_IALRTTH_ISYSOCP_TH_SHIFT	8
+#define MAX77759_FG_IALRTTH_ISYSOCP_TH_MASK	(0xff << 8)
+#define MAX77759_FG_IALRTTH_ISYSOCP_TH_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_IALRTTH_IBATTMIN_TH_SHIFT	0
+#define MAX77759_FG_IALRTTH_IBATTMIN_TH_MASK	(0xff << 0)
+#define MAX77759_FG_IALRTTH_IBATTMIN_TH_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_ialrtth_isysocp_th,15,8)
+MAX77759_BFF(fg_ialrtth_ibattmin_th,7,0)
+static inline const char *
+max77759_fg_ialrtth_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " ISYSOCP_TH=%x",
+		FIELD2VALUE(MAX77759_FG_IALRTTH_ISYSOCP_TH, val));
+	i += SCNPRINTF(&buff[i], len - i, " IBATTMIN_TH=%x",
+		FIELD2VALUE(MAX77759_FG_IALRTTH_IBATTMIN_TH, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TTF_CFG,0xB5,0b00000101,0x05
+ * SPR_15_3[12:5],,,,,,
+ */
+#define MAX77759_FG_TTF_CFG	0xB5
+
+#define MAX77759_FG_TTF_CFG_SPR_15_3_SHIFT	3
+#define MAX77759_FG_TTF_CFG_SPR_15_3_MASK	(0x1fff << 3)
+#define MAX77759_FG_TTF_CFG_SPR_15_3_CLEAR	(~(0x1fff << 3))
+#define MAX77759_FG_TTF_CFG_TTF_CFG_SHIFT	0
+#define MAX77759_FG_TTF_CFG_TTF_CFG_MASK	(0x7 << 0)
+#define MAX77759_FG_TTF_CFG_TTF_CFG_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(fg_ttf_cfg_spr_15_3,15,3)
+MAX77759_BFF(fg_ttf_cfg_ttf_cfg,2,0)
+static inline const char *
+max77759_fg_ttf_cfg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_15_3=%x",
+		FIELD2VALUE(MAX77759_FG_TTF_CFG_SPR_15_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " TTF_CFG=%x",
+		FIELD2VALUE(MAX77759_FG_TTF_CFG_TTF_CFG, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CV_MixCap,0xB6,0b100011001010,0x8ca
+ * CV_MixCap[15:8],,,,,,
+ */
+#define MAX77759_FG_CV_MIXCAP	0xB6
+
+/*
+ * CV_HalfTime,0xB7,0b101000000000,0xa00
+ * CV_Halftime[15:8],,,,,,
+ */
+#define MAX77759_FG_CV_HALFTIME	0xB7
+
+/*
+ * CGTempCo,0xB8,0b00000000,0x00
+ * CGTempCo[15:8],,,,,,
+ */
+#define MAX77759_FG_CGTEMPCO	0xB8
+
+/*
+ * Curve,0xB9,0b01101011,0x6b
+ * ECURVE[7:0],,,,,,
+ */
+#define MAX77759_FG_CURVE	0xB9
+
+#define MAX77759_FG_CURVE_ECURVE_SHIFT	8
+#define MAX77759_FG_CURVE_ECURVE_MASK	(0xff << 8)
+#define MAX77759_FG_CURVE_ECURVE_CLEAR	(~(0xff << 8))
+#define MAX77759_FG_CURVE_TCURVE_SHIFT	0
+#define MAX77759_FG_CURVE_TCURVE_MASK	(0xff << 0)
+#define MAX77759_FG_CURVE_TCURVE_CLEAR	(~(0xff << 0))
+
+MAX77759_BFF(fg_curve_ecurve,15,8)
+MAX77759_BFF(fg_curve_tcurve,7,0)
+static inline const char *
+max77759_fg_curve_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " ECURVE=%x",
+		FIELD2VALUE(MAX77759_FG_CURVE_ECURVE, val));
+	i += SCNPRINTF(&buff[i], len - i, " TCURVE=%x",
+		FIELD2VALUE(MAX77759_FG_CURVE_TCURVE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * HibCfg,0xBA,0b100100001100,0x90c
+ * EnHib,HibEnterTime[2:0],,,HibThreshold[3:0],,
+ */
+#define MAX77759_FG_HIBCFG	0xBA
+#define MAX77759_FG_HIBCFG_ENHIB	(0x1 << 15)
+
+#define MAX77759_FG_HIBCFG_ENHIB_SHIFT	15
+#define MAX77759_FG_HIBCFG_ENHIB_MASK	(0x1 << 15)
+#define MAX77759_FG_HIBCFG_ENHIB_CLEAR	(~(0x1 << 15))
+#define MAX77759_FG_HIBCFG_HIBENTERTIME_SHIFT	12
+#define MAX77759_FG_HIBCFG_HIBENTERTIME_MASK	(0x7 << 12)
+#define MAX77759_FG_HIBCFG_HIBENTERTIME_CLEAR	(~(0x7 << 12))
+#define MAX77759_FG_HIBCFG_HIBTHRESHOLD_SHIFT	8
+#define MAX77759_FG_HIBCFG_HIBTHRESHOLD_MASK	(0xf << 8)
+#define MAX77759_FG_HIBCFG_HIBTHRESHOLD_CLEAR	(~(0xf << 8))
+#define MAX77759_FG_HIBCFG_SPR_7_5_SHIFT	5
+#define MAX77759_FG_HIBCFG_SPR_7_5_MASK	(0x7 << 5)
+#define MAX77759_FG_HIBCFG_SPR_7_5_CLEAR	(~(0x7 << 5))
+#define MAX77759_FG_HIBCFG_HIBEXITTIME_SHIFT	3
+#define MAX77759_FG_HIBCFG_HIBEXITTIME_MASK	(0x3 << 3)
+#define MAX77759_FG_HIBCFG_HIBEXITTIME_CLEAR	(~(0x3 << 3))
+#define MAX77759_FG_HIBCFG_HIBSCALAR_SHIFT	0
+#define MAX77759_FG_HIBCFG_HIBSCALAR_MASK	(0x7 << 0)
+#define MAX77759_FG_HIBCFG_HIBSCALAR_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(fg_hibcfg_enhib,15,15)
+MAX77759_BFF(fg_hibcfg_hibentertime,14,12)
+MAX77759_BFF(fg_hibcfg_hibthreshold,11,8)
+MAX77759_BFF(fg_hibcfg_spr_7_5,7,5)
+MAX77759_BFF(fg_hibcfg_hibexittime,4,3)
+MAX77759_BFF(fg_hibcfg_hibscalar,2,0)
+static inline const char *
+max77759_fg_hibcfg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " ENHIB=%x",
+		FIELD2VALUE(MAX77759_FG_HIBCFG_ENHIB, val));
+	i += SCNPRINTF(&buff[i], len - i, " HIBENTERTIME=%x",
+		FIELD2VALUE(MAX77759_FG_HIBCFG_HIBENTERTIME, val));
+	i += SCNPRINTF(&buff[i], len - i, " HIBTHRESHOLD=%x",
+		FIELD2VALUE(MAX77759_FG_HIBCFG_HIBTHRESHOLD, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_5=%x",
+		FIELD2VALUE(MAX77759_FG_HIBCFG_SPR_7_5, val));
+	i += SCNPRINTF(&buff[i], len - i, " HIBEXITTIME=%x",
+		FIELD2VALUE(MAX77759_FG_HIBCFG_HIBEXITTIME, val));
+	i += SCNPRINTF(&buff[i], len - i, " HIBSCALAR=%x",
+		FIELD2VALUE(MAX77759_FG_HIBCFG_HIBSCALAR, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * Config2,0xBB,0b01010000,0x50
+ * SPR_15_11[4:0],,,,,FCThmHot,ThmHotEn
+ */
+#define MAX77759_FG_CONFIG2	0xBB
+#define MAX77759_FG_CONFIG2_FCTHMHOT	(0x1 << 10)
+#define MAX77759_FG_CONFIG2_THMHOTEN	(0x1 << 9)
+#define MAX77759_FG_CONFIG2_THMHOTALRTEN	(0x1 << 8)
+#define MAX77759_FG_CONFIG2_DSOCEN	(0x1 << 7)
+#define MAX77759_FG_CONFIG2_TALRTEN	(0x1 << 6)
+#define MAX77759_FG_CONFIG2_LDMDL	(0x1 << 5)
+#define MAX77759_FG_CONFIG2_OCVQEN	(0x1 << 4)
+
+#define MAX77759_FG_CONFIG2_SPR_15_11_SHIFT	11
+#define MAX77759_FG_CONFIG2_SPR_15_11_MASK	(0x1f << 11)
+#define MAX77759_FG_CONFIG2_SPR_15_11_CLEAR	(~(0x1f << 11))
+#define MAX77759_FG_CONFIG2_FCTHMHOT_SHIFT	10
+#define MAX77759_FG_CONFIG2_FCTHMHOT_MASK	(0x1 << 10)
+#define MAX77759_FG_CONFIG2_FCTHMHOT_CLEAR	(~(0x1 << 10))
+#define MAX77759_FG_CONFIG2_THMHOTEN_SHIFT	9
+#define MAX77759_FG_CONFIG2_THMHOTEN_MASK	(0x1 << 9)
+#define MAX77759_FG_CONFIG2_THMHOTEN_CLEAR	(~(0x1 << 9))
+#define MAX77759_FG_CONFIG2_THMHOTALRTEN_SHIFT	8
+#define MAX77759_FG_CONFIG2_THMHOTALRTEN_MASK	(0x1 << 8)
+#define MAX77759_FG_CONFIG2_THMHOTALRTEN_CLEAR	(~(0x1 << 8))
+#define MAX77759_FG_CONFIG2_DSOCEN_SHIFT	7
+#define MAX77759_FG_CONFIG2_DSOCEN_MASK	(0x1 << 7)
+#define MAX77759_FG_CONFIG2_DSOCEN_CLEAR	(~(0x1 << 7))
+#define MAX77759_FG_CONFIG2_TALRTEN_SHIFT	6
+#define MAX77759_FG_CONFIG2_TALRTEN_MASK	(0x1 << 6)
+#define MAX77759_FG_CONFIG2_TALRTEN_CLEAR	(~(0x1 << 6))
+#define MAX77759_FG_CONFIG2_LDMDL_SHIFT	5
+#define MAX77759_FG_CONFIG2_LDMDL_MASK	(0x1 << 5)
+#define MAX77759_FG_CONFIG2_LDMDL_CLEAR	(~(0x1 << 5))
+#define MAX77759_FG_CONFIG2_OCVQEN_SHIFT	4
+#define MAX77759_FG_CONFIG2_OCVQEN_MASK	(0x1 << 4)
+#define MAX77759_FG_CONFIG2_OCVQEN_CLEAR	(~(0x1 << 4))
+#define MAX77759_FG_CONFIG2_ISYSNCURR_SHIFT	0
+#define MAX77759_FG_CONFIG2_ISYSNCURR_MASK	(0xf << 0)
+#define MAX77759_FG_CONFIG2_ISYSNCURR_CLEAR	(~(0xf << 0))
+
+MAX77759_BFF(fg_config2_spr_15_11,15,11)
+MAX77759_BFF(fg_config2_fcthmhot,10,10)
+MAX77759_BFF(fg_config2_thmhoten,9,9)
+MAX77759_BFF(fg_config2_thmhotalrten,8,8)
+MAX77759_BFF(fg_config2_dsocen,7,7)
+MAX77759_BFF(fg_config2_talrten,6,6)
+MAX77759_BFF(fg_config2_ldmdl,5,5)
+MAX77759_BFF(fg_config2_ocvqen,4,4)
+MAX77759_BFF(fg_config2_isysncurr,3,0)
+static inline const char *
+max77759_fg_config2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_15_11=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG2_SPR_15_11, val));
+	i += SCNPRINTF(&buff[i], len - i, " FCTHMHOT=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG2_FCTHMHOT, val));
+	i += SCNPRINTF(&buff[i], len - i, " THMHOTEN=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG2_THMHOTEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " THMHOTALRTEN=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG2_THMHOTALRTEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " DSOCEN=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG2_DSOCEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " TALRTEN=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG2_TALRTEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " LDMDL=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG2_LDMDL, val));
+	i += SCNPRINTF(&buff[i], len - i, " OCVQEN=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG2_OCVQEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " ISYSNCURR=%x",
+		FIELD2VALUE(MAX77759_FG_CONFIG2_ISYSNCURR, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VRipple,0xBC,0b00000000,0x00
+ * Vripple[15:8],,,,,,
+ */
+#define MAX77759_FG_VRIPPLE	0xBC
+
+/*
+ * RippleCfg,0xBD,0b1000000100,0x204
+ * kDV[12:5],,,,,,
+ */
+#define MAX77759_FG_RIPPLECFG	0xBD
+
+#define MAX77759_FG_RIPPLECFG_KDV_SHIFT	3
+#define MAX77759_FG_RIPPLECFG_KDV_MASK	(0x1fff << 3)
+#define MAX77759_FG_RIPPLECFG_KDV_CLEAR	(~(0x1fff << 3))
+#define MAX77759_FG_RIPPLECFG_NR_SHIFT	0
+#define MAX77759_FG_RIPPLECFG_NR_MASK	(0x7 << 0)
+#define MAX77759_FG_RIPPLECFG_NR_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(fg_ripplecfg_kdv,15,3)
+MAX77759_BFF(fg_ripplecfg_nr,2,0)
+static inline const char *
+max77759_fg_ripplecfg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " KDV=%x",
+		FIELD2VALUE(MAX77759_FG_RIPPLECFG_KDV, val));
+	i += SCNPRINTF(&buff[i], len - i, " NR=%x",
+		FIELD2VALUE(MAX77759_FG_RIPPLECFG_NR, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TimerH,0xBE,0b00000000,0x00
+ * TIMERH[15:8],,,,,,
+ */
+#define MAX77759_FG_TIMERH	0xBE
+
+/*
+ * MaxError,0xBF,0b00000000,0x00
+ * MaxError[15:8],,,,,,
+ */
+#define MAX77759_FG_MAXERROR	0xBF
+
+/*
+ * IIn,0xD0,0b00000000,0x00
+ * IIn[15:8],,,,,,
+ */
+#define MAX77759_FG_IIN	0xD0
+
+/*
+ * AtQresidual,0xDC,0b00000000,0x00
+ * AtQresidual[15:8],,,,,,
+ */
+#define MAX77759_FG_ATQRESIDUAL	0xDC
+
+/*
+ * AtTTE,0xDD,0b00000000,0x00
+ * AtTTE[15:8],,,,,,
+ */
+#define MAX77759_FG_ATTTE	0xDD
+
+/*
+ * AtAvSOC,0xDE,0b00000000,0x00
+ * AtAvSOC[15:8],,,,,,
+ */
+#define MAX77759_FG_ATAVSOC	0xDE
+
+/*
+ * AtAvCap,0xDF,0b00000000,0x00
+ * AtAvCap[15:8],,,,,,
+ */
+#define MAX77759_FG_ATAVCAP	0xDF
+
+/* section:  USB  */
+
+/*
+ * VENDOR_ID_L,0x0,0b01101010,0x6a
+ * VENDOR_ID_L[7:0],,,,,,
+ */
+#define MAX77759_USB_VENDOR_ID_L	0x0
+
+/*
+ * VENDOR_ID_H,0x1,0b00001011,0x0b
+ * VENDOR_ID_H[7:0],,,,,,
+ */
+#define MAX77759_USB_VENDOR_ID_H	0x1
+
+/*
+ * PRODUCT_ID_L,0x2,0b01011001,0x59
+ * PRODUCT_ID_L[7:0],,,,,,
+ */
+#define MAX77759_USB_PRODUCT_ID_L	0x2
+
+/*
+ * PRODUCT_ID_H,0x3,0b01110111,0x77
+ * PRODUCT_ID_H[7:0],,,,,,
+ */
+#define MAX77759_USB_PRODUCT_ID_H	0x3
+
+/*
+ * DEVICE_ID_L,0x4,0b00000001,0x01
+ * DEVICE_ID_L[7:0],,,,,,
+ */
+#define MAX77759_USB_DEVICE_ID_L	0x4
+
+/*
+ * DEVICE_ID_H,0x5,0b00000000,0x00
+ * DEVICE_ID_H[7:0],,,,,,
+ */
+#define MAX77759_USB_DEVICE_ID_H	0x5
+
+/*
+ * USBTYPEC_REV_L,0x6,0b00010011,0x13
+ * TYPEC_REV_L[7:0],,,,,,
+ */
+#define MAX77759_USB_USBTYPEC_REV_L	0x6
+
+/*
+ * USBTYPEC_REV_H,0x7,0b00000000,0x00
+ * TYPEC_REV_H[7:0],,,,,,
+ */
+#define MAX77759_USB_USBTYPEC_REV_H	0x7
+
+/*
+ * USBPD_REV_VER_L,0x8,0b00010010,0x12
+ * PD_VER[7:0],,,,,,
+ */
+#define MAX77759_USB_USBPD_REV_VER_L	0x8
+
+/*
+ * USBPD_REV_VER_H,0x9,0b00110000,0x30
+ * PD_REV[7:0],,,,,,
+ */
+#define MAX77759_USB_USBPD_REV_VER_H	0x9
+
+/*
+ * PD_INTERFACE_REV_L,0xA,0b00010001,0x11
+ * PD_IF_REV_L[7:0],,,,,,
+ */
+#define MAX77759_USB_PD_INTERFACE_REV_L	0xA
+
+/*
+ * PD_INTERFACE_REV_H,0xB,0b00100000,0x20
+ * PD_IF_REV_H[7:0],,,,,,
+ */
+#define MAX77759_USB_PD_INTERFACE_REV_H	0xB
+
+/*
+ * ALERT_L,0x10,0b00000000,0x00
+ * VBUS_ALARM_HI,TX_SOP_MSG_SUCC,TX_SOP_MSG_DISCRD,TX_SOP_MSG_FAIL,RX_HARD_RST,RX_SOP_MSG_STAT,PWR_STAT
+ */
+#define MAX77759_USB_ALERT_L	0x10
+#define MAX77759_USB_ALERT_L_VBUS_ALARM_HI	(0x1 << 7)
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_SUCC	(0x1 << 6)
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_DISCRD	(0x1 << 5)
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_FAIL	(0x1 << 4)
+#define MAX77759_USB_ALERT_L_RX_HARD_RST	(0x1 << 3)
+#define MAX77759_USB_ALERT_L_RX_SOP_MSG_STAT	(0x1 << 2)
+#define MAX77759_USB_ALERT_L_PWR_STAT	(0x1 << 1)
+#define MAX77759_USB_ALERT_L_CC_STAT	(0x1 << 0)
+
+#define MAX77759_USB_ALERT_L_VBUS_ALARM_HI_SHIFT	7
+#define MAX77759_USB_ALERT_L_VBUS_ALARM_HI_MASK	(0x1 << 7)
+#define MAX77759_USB_ALERT_L_VBUS_ALARM_HI_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_SUCC_SHIFT	6
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_SUCC_MASK	(0x1 << 6)
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_SUCC_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_DISCRD_SHIFT	5
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_DISCRD_MASK	(0x1 << 5)
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_DISCRD_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_FAIL_SHIFT	4
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_FAIL_MASK	(0x1 << 4)
+#define MAX77759_USB_ALERT_L_TX_SOP_MSG_FAIL_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_ALERT_L_RX_HARD_RST_SHIFT	3
+#define MAX77759_USB_ALERT_L_RX_HARD_RST_MASK	(0x1 << 3)
+#define MAX77759_USB_ALERT_L_RX_HARD_RST_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_ALERT_L_RX_SOP_MSG_STAT_SHIFT	2
+#define MAX77759_USB_ALERT_L_RX_SOP_MSG_STAT_MASK	(0x1 << 2)
+#define MAX77759_USB_ALERT_L_RX_SOP_MSG_STAT_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_ALERT_L_PWR_STAT_SHIFT	1
+#define MAX77759_USB_ALERT_L_PWR_STAT_MASK	(0x1 << 1)
+#define MAX77759_USB_ALERT_L_PWR_STAT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_ALERT_L_CC_STAT_SHIFT	0
+#define MAX77759_USB_ALERT_L_CC_STAT_MASK	(0x1 << 0)
+#define MAX77759_USB_ALERT_L_CC_STAT_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_alert_l_vbus_alarm_hi,7,7)
+MAX77759_BFF(usb_alert_l_tx_sop_msg_succ,6,6)
+MAX77759_BFF(usb_alert_l_tx_sop_msg_discrd,5,5)
+MAX77759_BFF(usb_alert_l_tx_sop_msg_fail,4,4)
+MAX77759_BFF(usb_alert_l_rx_hard_rst,3,3)
+MAX77759_BFF(usb_alert_l_rx_sop_msg_stat,2,2)
+MAX77759_BFF(usb_alert_l_pwr_stat,1,1)
+MAX77759_BFF(usb_alert_l_cc_stat,0,0)
+static inline const char *
+max77759_usb_alert_l_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_ALARM_HI=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_L_VBUS_ALARM_HI, val));
+	i += SCNPRINTF(&buff[i], len - i, " TX_SOP_MSG_SUCC=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_L_TX_SOP_MSG_SUCC, val));
+	i += SCNPRINTF(&buff[i], len - i, " TX_SOP_MSG_DISCRD=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_L_TX_SOP_MSG_DISCRD, val));
+	i += SCNPRINTF(&buff[i], len - i, " TX_SOP_MSG_FAIL=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_L_TX_SOP_MSG_FAIL, val));
+	i += SCNPRINTF(&buff[i], len - i, " RX_HARD_RST=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_L_RX_HARD_RST, val));
+	i += SCNPRINTF(&buff[i], len - i, " RX_SOP_MSG_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_L_RX_SOP_MSG_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " PWR_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_L_PWR_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_L_CC_STAT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * ALERT_H,0x11,0b00000000,0x00
+ * VNDR_ALRT,ALERT_EXTND,EXTND_STAT,RSVD_4,VBUS_SNK_DISC_DET,RX_BUFF_OVRFL,FAULT_STAT
+ */
+#define MAX77759_USB_ALERT_H	0x11
+#define MAX77759_USB_ALERT_H_VNDR_ALRT	(0x1 << 7)
+#define MAX77759_USB_ALERT_H_ALERT_EXTND	(0x1 << 6)
+#define MAX77759_USB_ALERT_H_EXTND_STAT	(0x1 << 5)
+#define MAX77759_USB_ALERT_H_RSVD_4	(0x1 << 4)
+#define MAX77759_USB_ALERT_H_VBUS_SNK_DISC_DET	(0x1 << 3)
+#define MAX77759_USB_ALERT_H_RX_BUFF_OVRFL	(0x1 << 2)
+#define MAX77759_USB_ALERT_H_FAULT_STAT	(0x1 << 1)
+#define MAX77759_USB_ALERT_H_VBUS_ALARM_LO	(0x1 << 0)
+
+#define MAX77759_USB_ALERT_H_VNDR_ALRT_SHIFT	7
+#define MAX77759_USB_ALERT_H_VNDR_ALRT_MASK	(0x1 << 7)
+#define MAX77759_USB_ALERT_H_VNDR_ALRT_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_ALERT_H_ALERT_EXTND_SHIFT	6
+#define MAX77759_USB_ALERT_H_ALERT_EXTND_MASK	(0x1 << 6)
+#define MAX77759_USB_ALERT_H_ALERT_EXTND_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_ALERT_H_EXTND_STAT_SHIFT	5
+#define MAX77759_USB_ALERT_H_EXTND_STAT_MASK	(0x1 << 5)
+#define MAX77759_USB_ALERT_H_EXTND_STAT_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_ALERT_H_RSVD_4_SHIFT	4
+#define MAX77759_USB_ALERT_H_RSVD_4_MASK	(0x1 << 4)
+#define MAX77759_USB_ALERT_H_RSVD_4_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_ALERT_H_VBUS_SNK_DISC_DET_SHIFT	3
+#define MAX77759_USB_ALERT_H_VBUS_SNK_DISC_DET_MASK	(0x1 << 3)
+#define MAX77759_USB_ALERT_H_VBUS_SNK_DISC_DET_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_ALERT_H_RX_BUFF_OVRFL_SHIFT	2
+#define MAX77759_USB_ALERT_H_RX_BUFF_OVRFL_MASK	(0x1 << 2)
+#define MAX77759_USB_ALERT_H_RX_BUFF_OVRFL_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_ALERT_H_FAULT_STAT_SHIFT	1
+#define MAX77759_USB_ALERT_H_FAULT_STAT_MASK	(0x1 << 1)
+#define MAX77759_USB_ALERT_H_FAULT_STAT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_ALERT_H_VBUS_ALARM_LO_SHIFT	0
+#define MAX77759_USB_ALERT_H_VBUS_ALARM_LO_MASK	(0x1 << 0)
+#define MAX77759_USB_ALERT_H_VBUS_ALARM_LO_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_alert_h_vndr_alrt,7,7)
+MAX77759_BFF(usb_alert_h_alert_extnd,6,6)
+MAX77759_BFF(usb_alert_h_extnd_stat,5,5)
+MAX77759_BFF(usb_alert_h_rsvd_4,4,4)
+MAX77759_BFF(usb_alert_h_vbus_snk_disc_det,3,3)
+MAX77759_BFF(usb_alert_h_rx_buff_ovrfl,2,2)
+MAX77759_BFF(usb_alert_h_fault_stat,1,1)
+MAX77759_BFF(usb_alert_h_vbus_alarm_lo,0,0)
+static inline const char *
+max77759_usb_alert_h_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VNDR_ALRT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_H_VNDR_ALRT, val));
+	i += SCNPRINTF(&buff[i], len - i, " ALERT_EXTND=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_H_ALERT_EXTND, val));
+	i += SCNPRINTF(&buff[i], len - i, " EXTND_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_H_EXTND_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_4=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_H_RSVD_4, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_SNK_DISC_DET=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_H_VBUS_SNK_DISC_DET, val));
+	i += SCNPRINTF(&buff[i], len - i, " RX_BUFF_OVRFL=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_H_RX_BUFF_OVRFL, val));
+	i += SCNPRINTF(&buff[i], len - i, " FAULT_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_H_FAULT_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_ALARM_LO=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_H_VBUS_ALARM_LO, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * ALERT_MASK_L,0x12,0b11111111,0xff
+ * MSK_VBUS_V_ALRM_HI,MSK_TX_SOP_MSG_SUCC,MSK_TX_SOP_MSG_DISCRD,MSK_TX_SOP_MSG_FAIL,MSK_RX_HARD_RST,MSK_RX_SOP_MSG_STAT,MSK_PWR_STAT
+ */
+#define MAX77759_USB_ALERT_MASK_L	0x12
+#define MAX77759_USB_ALERT_MASK_L_MSK_VBUS_V_ALRM_HI	(0x1 << 7)
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_SUCC	(0x1 << 6)
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_DISCRD	(0x1 << 5)
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_FAIL	(0x1 << 4)
+#define MAX77759_USB_ALERT_MASK_L_MSK_RX_HARD_RST	(0x1 << 3)
+#define MAX77759_USB_ALERT_MASK_L_MSK_RX_SOP_MSG_STAT	(0x1 << 2)
+#define MAX77759_USB_ALERT_MASK_L_MSK_PWR_STAT	(0x1 << 1)
+#define MAX77759_USB_ALERT_MASK_L_MSK_CC_STAT	(0x1 << 0)
+
+#define MAX77759_USB_ALERT_MASK_L_MSK_VBUS_V_ALRM_HI_SHIFT	7
+#define MAX77759_USB_ALERT_MASK_L_MSK_VBUS_V_ALRM_HI_MASK	(0x1 << 7)
+#define MAX77759_USB_ALERT_MASK_L_MSK_VBUS_V_ALRM_HI_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_SUCC_SHIFT	6
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_SUCC_MASK	(0x1 << 6)
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_SUCC_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_DISCRD_SHIFT	5
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_DISCRD_MASK	(0x1 << 5)
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_DISCRD_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_FAIL_SHIFT	4
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_FAIL_MASK	(0x1 << 4)
+#define MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_FAIL_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_ALERT_MASK_L_MSK_RX_HARD_RST_SHIFT	3
+#define MAX77759_USB_ALERT_MASK_L_MSK_RX_HARD_RST_MASK	(0x1 << 3)
+#define MAX77759_USB_ALERT_MASK_L_MSK_RX_HARD_RST_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_ALERT_MASK_L_MSK_RX_SOP_MSG_STAT_SHIFT	2
+#define MAX77759_USB_ALERT_MASK_L_MSK_RX_SOP_MSG_STAT_MASK	(0x1 << 2)
+#define MAX77759_USB_ALERT_MASK_L_MSK_RX_SOP_MSG_STAT_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_ALERT_MASK_L_MSK_PWR_STAT_SHIFT	1
+#define MAX77759_USB_ALERT_MASK_L_MSK_PWR_STAT_MASK	(0x1 << 1)
+#define MAX77759_USB_ALERT_MASK_L_MSK_PWR_STAT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_ALERT_MASK_L_MSK_CC_STAT_SHIFT	0
+#define MAX77759_USB_ALERT_MASK_L_MSK_CC_STAT_MASK	(0x1 << 0)
+#define MAX77759_USB_ALERT_MASK_L_MSK_CC_STAT_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_alert_mask_l_msk_vbus_v_alrm_hi,7,7)
+MAX77759_BFF(usb_alert_mask_l_msk_tx_sop_msg_succ,6,6)
+MAX77759_BFF(usb_alert_mask_l_msk_tx_sop_msg_discrd,5,5)
+MAX77759_BFF(usb_alert_mask_l_msk_tx_sop_msg_fail,4,4)
+MAX77759_BFF(usb_alert_mask_l_msk_rx_hard_rst,3,3)
+MAX77759_BFF(usb_alert_mask_l_msk_rx_sop_msg_stat,2,2)
+MAX77759_BFF(usb_alert_mask_l_msk_pwr_stat,1,1)
+MAX77759_BFF(usb_alert_mask_l_msk_cc_stat,0,0)
+static inline const char *
+max77759_usb_alert_mask_l_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VBUS_V_ALRM_HI=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_L_MSK_VBUS_V_ALRM_HI, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_TX_SOP_MSG_SUCC=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_SUCC, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_TX_SOP_MSG_DISCRD=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_DISCRD, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_TX_SOP_MSG_FAIL=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_L_MSK_TX_SOP_MSG_FAIL, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_RX_HARD_RST=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_L_MSK_RX_HARD_RST, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_RX_SOP_MSG_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_L_MSK_RX_SOP_MSG_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_PWR_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_L_MSK_PWR_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_CC_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_L_MSK_CC_STAT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * ALERT_MASK_H,0x13,0b01101111,0x6f
+ * MSK_VNDR_ALRT,MSK_ALRT_EXTND,MSK_EXTND_STAT,RSVD_4,MSK_VBUS_SNK_DISC_DET,MSK_RX_BUFF_OVRFL,MSK_FAULT_STAT
+ */
+#define MAX77759_USB_ALERT_MASK_H	0x13
+#define MAX77759_USB_ALERT_MASK_H_MSK_VNDR_ALRT	(0x1 << 7)
+#define MAX77759_USB_ALERT_MASK_H_MSK_ALRT_EXTND	(0x1 << 6)
+#define MAX77759_USB_ALERT_MASK_H_MSK_EXTND_STAT	(0x1 << 5)
+#define MAX77759_USB_ALERT_MASK_H_RSVD_4	(0x1 << 4)
+#define MAX77759_USB_ALERT_MASK_H_MSK_VBUS_SNK_DISC_DET	(0x1 << 3)
+#define MAX77759_USB_ALERT_MASK_H_MSK_RX_BUFF_OVRFL	(0x1 << 2)
+#define MAX77759_USB_ALERT_MASK_H_MSK_FAULT_STAT	(0x1 << 1)
+#define MAX77759_USB_ALERT_MASK_H_MSK_VBUS_V_ALRM_LO	(0x1 << 0)
+
+#define MAX77759_USB_ALERT_MASK_H_MSK_VNDR_ALRT_SHIFT	7
+#define MAX77759_USB_ALERT_MASK_H_MSK_VNDR_ALRT_MASK	(0x1 << 7)
+#define MAX77759_USB_ALERT_MASK_H_MSK_VNDR_ALRT_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_ALERT_MASK_H_MSK_ALRT_EXTND_SHIFT	6
+#define MAX77759_USB_ALERT_MASK_H_MSK_ALRT_EXTND_MASK	(0x1 << 6)
+#define MAX77759_USB_ALERT_MASK_H_MSK_ALRT_EXTND_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_ALERT_MASK_H_MSK_EXTND_STAT_SHIFT	5
+#define MAX77759_USB_ALERT_MASK_H_MSK_EXTND_STAT_MASK	(0x1 << 5)
+#define MAX77759_USB_ALERT_MASK_H_MSK_EXTND_STAT_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_ALERT_MASK_H_RSVD_4_SHIFT	4
+#define MAX77759_USB_ALERT_MASK_H_RSVD_4_MASK	(0x1 << 4)
+#define MAX77759_USB_ALERT_MASK_H_RSVD_4_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_ALERT_MASK_H_MSK_VBUS_SNK_DISC_DET_SHIFT	3
+#define MAX77759_USB_ALERT_MASK_H_MSK_VBUS_SNK_DISC_DET_MASK	(0x1 << 3)
+#define MAX77759_USB_ALERT_MASK_H_MSK_VBUS_SNK_DISC_DET_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_ALERT_MASK_H_MSK_RX_BUFF_OVRFL_SHIFT	2
+#define MAX77759_USB_ALERT_MASK_H_MSK_RX_BUFF_OVRFL_MASK	(0x1 << 2)
+#define MAX77759_USB_ALERT_MASK_H_MSK_RX_BUFF_OVRFL_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_ALERT_MASK_H_MSK_FAULT_STAT_SHIFT	1
+#define MAX77759_USB_ALERT_MASK_H_MSK_FAULT_STAT_MASK	(0x1 << 1)
+#define MAX77759_USB_ALERT_MASK_H_MSK_FAULT_STAT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_ALERT_MASK_H_MSK_VBUS_V_ALRM_LO_SHIFT	0
+#define MAX77759_USB_ALERT_MASK_H_MSK_VBUS_V_ALRM_LO_MASK	(0x1 << 0)
+#define MAX77759_USB_ALERT_MASK_H_MSK_VBUS_V_ALRM_LO_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_alert_mask_h_msk_vndr_alrt,7,7)
+MAX77759_BFF(usb_alert_mask_h_msk_alrt_extnd,6,6)
+MAX77759_BFF(usb_alert_mask_h_msk_extnd_stat,5,5)
+MAX77759_BFF(usb_alert_mask_h_rsvd_4,4,4)
+MAX77759_BFF(usb_alert_mask_h_msk_vbus_snk_disc_det,3,3)
+MAX77759_BFF(usb_alert_mask_h_msk_rx_buff_ovrfl,2,2)
+MAX77759_BFF(usb_alert_mask_h_msk_fault_stat,1,1)
+MAX77759_BFF(usb_alert_mask_h_msk_vbus_v_alrm_lo,0,0)
+static inline const char *
+max77759_usb_alert_mask_h_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VNDR_ALRT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_H_MSK_VNDR_ALRT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_ALRT_EXTND=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_H_MSK_ALRT_EXTND, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_EXTND_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_H_MSK_EXTND_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_4=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_H_RSVD_4, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VBUS_SNK_DISC_DET=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_H_MSK_VBUS_SNK_DISC_DET, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_RX_BUFF_OVRFL=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_H_MSK_RX_BUFF_OVRFL, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_FAULT_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_H_MSK_FAULT_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VBUS_V_ALRM_LO=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_MASK_H_MSK_VBUS_V_ALRM_LO, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * POWER_STATUS_MASK_REG,0x14,0b11111111,0xff
+ * MSK_DEBG_ACC_CONN_STAT,MSK_TCPC_INIT_STAT,MSK_SRC_HI_V_STAT,MSK_SRC_VBUS_STAT,MSK_VBUS_DET_STAT,MSK_VBUS_PRSN_STAT,MSK_VCONN_PRSN_STAT
+ */
+#define MAX77759_USB_POWER_STATUS_MASK_REG	0x14
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_DEBG_ACC_CONN_STAT	(0x1 << 7)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_TCPC_INIT_STAT	(0x1 << 6)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_HI_V_STAT	(0x1 << 5)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_VBUS_STAT	(0x1 << 4)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_DET_STAT	(0x1 << 3)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_PRSN_STAT	(0x1 << 2)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VCONN_PRSN_STAT	(0x1 << 1)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SNK_VBUS_STAT	(0x1 << 0)
+
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_DEBG_ACC_CONN_STAT_SHIFT	7
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_DEBG_ACC_CONN_STAT_MASK	(0x1 << 7)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_DEBG_ACC_CONN_STAT_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_TCPC_INIT_STAT_SHIFT	6
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_TCPC_INIT_STAT_MASK	(0x1 << 6)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_TCPC_INIT_STAT_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_HI_V_STAT_SHIFT	5
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_HI_V_STAT_MASK	(0x1 << 5)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_HI_V_STAT_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_VBUS_STAT_SHIFT	4
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_VBUS_STAT_MASK	(0x1 << 4)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_VBUS_STAT_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_DET_STAT_SHIFT	3
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_DET_STAT_MASK	(0x1 << 3)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_DET_STAT_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_PRSN_STAT_SHIFT	2
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_PRSN_STAT_MASK	(0x1 << 2)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_PRSN_STAT_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VCONN_PRSN_STAT_SHIFT	1
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VCONN_PRSN_STAT_MASK	(0x1 << 1)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VCONN_PRSN_STAT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SNK_VBUS_STAT_SHIFT	0
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SNK_VBUS_STAT_MASK	(0x1 << 0)
+#define MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SNK_VBUS_STAT_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_power_status_mask_reg_msk_debg_acc_conn_stat,7,7)
+MAX77759_BFF(usb_power_status_mask_reg_msk_tcpc_init_stat,6,6)
+MAX77759_BFF(usb_power_status_mask_reg_msk_src_hi_v_stat,5,5)
+MAX77759_BFF(usb_power_status_mask_reg_msk_src_vbus_stat,4,4)
+MAX77759_BFF(usb_power_status_mask_reg_msk_vbus_det_stat,3,3)
+MAX77759_BFF(usb_power_status_mask_reg_msk_vbus_prsn_stat,2,2)
+MAX77759_BFF(usb_power_status_mask_reg_msk_vconn_prsn_stat,1,1)
+MAX77759_BFF(usb_power_status_mask_reg_msk_snk_vbus_stat,0,0)
+static inline const char *
+max77759_usb_power_status_mask_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MSK_DEBG_ACC_CONN_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_MASK_REG_MSK_DEBG_ACC_CONN_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_TCPC_INIT_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_MASK_REG_MSK_TCPC_INIT_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_SRC_HI_V_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_HI_V_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_SRC_VBUS_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SRC_VBUS_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VBUS_DET_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_DET_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VBUS_PRSN_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VBUS_PRSN_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VCONN_PRSN_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_MASK_REG_MSK_VCONN_PRSN_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_SNK_VBUS_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_MASK_REG_MSK_SNK_VBUS_STAT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * FAULT_STATUS_MASK_REG,0x15,0b11111111,0xff
+ * MSK_All_REG_RST,MSK_FORC_VBUS,MSK_AUTO_DISCH_FAIL,MSK_FORC_DISCH_FAIL,MSK_VBUS_OCP,MSK_VBUS_OVP,MSK_VCONN_OCP
+ */
+#define MAX77759_USB_FAULT_STATUS_MASK_REG	0x15
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_ALL_REG_RST	(0x1 << 7)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_VBUS	(0x1 << 6)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_AUTO_DISCH_FAIL	(0x1 << 5)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_DISCH_FAIL	(0x1 << 4)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OCP	(0x1 << 3)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OVP	(0x1 << 2)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VCONN_OCP	(0x1 << 1)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_I2C_ERR	(0x1 << 0)
+
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_ALL_REG_RST_SHIFT	7
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_ALL_REG_RST_MASK	(0x1 << 7)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_ALL_REG_RST_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_VBUS_SHIFT	6
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_VBUS_MASK	(0x1 << 6)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_VBUS_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_AUTO_DISCH_FAIL_SHIFT	5
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_AUTO_DISCH_FAIL_MASK	(0x1 << 5)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_AUTO_DISCH_FAIL_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_DISCH_FAIL_SHIFT	4
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_DISCH_FAIL_MASK	(0x1 << 4)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_DISCH_FAIL_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OCP_SHIFT	3
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OCP_MASK	(0x1 << 3)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OCP_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OVP_SHIFT	2
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OVP_MASK	(0x1 << 2)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OVP_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VCONN_OCP_SHIFT	1
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VCONN_OCP_MASK	(0x1 << 1)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VCONN_OCP_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_I2C_ERR_SHIFT	0
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_I2C_ERR_MASK	(0x1 << 0)
+#define MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_I2C_ERR_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_fault_status_mask_reg_msk_all_reg_rst,7,7)
+MAX77759_BFF(usb_fault_status_mask_reg_msk_forc_vbus,6,6)
+MAX77759_BFF(usb_fault_status_mask_reg_msk_auto_disch_fail,5,5)
+MAX77759_BFF(usb_fault_status_mask_reg_msk_forc_disch_fail,4,4)
+MAX77759_BFF(usb_fault_status_mask_reg_msk_vbus_ocp,3,3)
+MAX77759_BFF(usb_fault_status_mask_reg_msk_vbus_ovp,2,2)
+MAX77759_BFF(usb_fault_status_mask_reg_msk_vconn_ocp,1,1)
+MAX77759_BFF(usb_fault_status_mask_reg_msk_i2c_err,0,0)
+static inline const char *
+max77759_usb_fault_status_mask_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MSK_ALL_REG_RST=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_ALL_REG_RST, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_FORC_VBUS=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_VBUS, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_AUTO_DISCH_FAIL=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_AUTO_DISCH_FAIL, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_FORC_DISCH_FAIL=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_FORC_DISCH_FAIL, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VBUS_OCP=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OCP, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VBUS_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VBUS_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VCONN_OCP=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_VCONN_OCP, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_I2C_ERR=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_MASK_REG_MSK_I2C_ERR, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * EXTENDED_STATUS_MASK_REG,0x16,0b00000001,0x01
+ * RSVD_7_1[6:0],,,,,,
+ */
+#define MAX77759_USB_EXTENDED_STATUS_MASK_REG	0x16
+#define MAX77759_USB_EXTENDED_STATUS_MASK_REG_MSK_VSAFE0V	(0x1 << 0)
+
+#define MAX77759_USB_EXTENDED_STATUS_MASK_REG_RSVD_7_1_SHIFT	1
+#define MAX77759_USB_EXTENDED_STATUS_MASK_REG_RSVD_7_1_MASK	(0x7f << 1)
+#define MAX77759_USB_EXTENDED_STATUS_MASK_REG_RSVD_7_1_CLEAR	(~(0x7f << 1))
+#define MAX77759_USB_EXTENDED_STATUS_MASK_REG_MSK_VSAFE0V_SHIFT	0
+#define MAX77759_USB_EXTENDED_STATUS_MASK_REG_MSK_VSAFE0V_MASK	(0x1 << 0)
+#define MAX77759_USB_EXTENDED_STATUS_MASK_REG_MSK_VSAFE0V_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_extended_status_mask_reg_rsvd_7_1,7,1)
+MAX77759_BFF(usb_extended_status_mask_reg_msk_vsafe0v,0,0)
+static inline const char *
+max77759_usb_extended_status_mask_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_1=%x",
+		FIELD2VALUE(MAX77759_USB_EXTENDED_STATUS_MASK_REG_RSVD_7_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_VSAFE0V=%x",
+		FIELD2VALUE(MAX77759_USB_EXTENDED_STATUS_MASK_REG_MSK_VSAFE0V, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * ALERT_EXTENDED_MASK,0x17,0b00000001,0x01
+ * RSVD_7_1[6:0],,,,,,
+ */
+#define MAX77759_USB_ALERT_EXTENDED_MASK	0x17
+#define MAX77759_USB_ALERT_EXTENDED_MASK_MSK_SNK_FRS	(0x1 << 0)
+
+#define MAX77759_USB_ALERT_EXTENDED_MASK_RSVD_7_1_SHIFT	1
+#define MAX77759_USB_ALERT_EXTENDED_MASK_RSVD_7_1_MASK	(0x7f << 1)
+#define MAX77759_USB_ALERT_EXTENDED_MASK_RSVD_7_1_CLEAR	(~(0x7f << 1))
+#define MAX77759_USB_ALERT_EXTENDED_MASK_MSK_SNK_FRS_SHIFT	0
+#define MAX77759_USB_ALERT_EXTENDED_MASK_MSK_SNK_FRS_MASK	(0x1 << 0)
+#define MAX77759_USB_ALERT_EXTENDED_MASK_MSK_SNK_FRS_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_alert_extended_mask_rsvd_7_1,7,1)
+MAX77759_BFF(usb_alert_extended_mask_msk_snk_frs,0,0)
+static inline const char *
+max77759_usb_alert_extended_mask_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_1=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_EXTENDED_MASK_RSVD_7_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_SNK_FRS=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_EXTENDED_MASK_MSK_SNK_FRS, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CONFIG_STANDARD_OUTPUT,0x18,0b01000000,0x40
+ * RSVD_7,DbgAccConn,RSVD_5,RSVD_4_3[1:0],,RSVD_2,RSVD_1
+ */
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT	0x18
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_7	(0x1 << 7)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_DBGACCCONN	(0x1 << 6)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_5	(0x1 << 5)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_2	(0x1 << 2)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_1	(0x1 << 1)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_0	(0x1 << 0)
+
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_7_SHIFT	7
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_7_MASK	(0x1 << 7)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_DBGACCCONN_SHIFT	6
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_DBGACCCONN_MASK	(0x1 << 6)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_DBGACCCONN_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_5_SHIFT	5
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_5_MASK	(0x1 << 5)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_5_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_4_3_SHIFT	3
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_4_3_MASK	(0x3 << 3)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_4_3_CLEAR	(~(0x3 << 3))
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_2_SHIFT	2
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_2_MASK	(0x1 << 2)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_2_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_1_SHIFT	1
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_1_MASK	(0x1 << 1)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_1_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_0_SHIFT	0
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_0_MASK	(0x1 << 0)
+#define MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_0_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_config_standard_output_rsvd_7,7,7)
+MAX77759_BFF(usb_config_standard_output_dbgaccconn,6,6)
+MAX77759_BFF(usb_config_standard_output_rsvd_5,5,5)
+MAX77759_BFF(usb_config_standard_output_rsvd_4_3,4,3)
+MAX77759_BFF(usb_config_standard_output_rsvd_2,2,2)
+MAX77759_BFF(usb_config_standard_output_rsvd_1,1,1)
+MAX77759_BFF(usb_config_standard_output_rsvd_0,0,0)
+static inline const char *
+max77759_usb_config_standard_output_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " DBGACCCONN=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_STANDARD_OUTPUT_DBGACCCONN, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_5=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_5, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_4_3=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_4_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_2=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_1=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_0=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_STANDARD_OUTPUT_RSVD_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TCPC_CONTROL_REG,0x19,0b00000000,0x00
+ * RSVD_7,EN_LK4CONN_ALRT,EN_WD_TMR,DBG_ACC_CNTRL,RSVD_3_2[1:0],,BIST_TM
+ */
+#define MAX77759_USB_TCPC_CONTROL_REG	0x19
+#define MAX77759_USB_TCPC_CONTROL_REG_RSVD_7	(0x1 << 7)
+#define MAX77759_USB_TCPC_CONTROL_REG_EN_LK4CONN_ALRT	(0x1 << 6)
+#define MAX77759_USB_TCPC_CONTROL_REG_EN_WD_TMR	(0x1 << 5)
+#define MAX77759_USB_TCPC_CONTROL_REG_DBG_ACC_CNTRL	(0x1 << 4)
+#define MAX77759_USB_TCPC_CONTROL_REG_BIST_TM	(0x1 << 1)
+#define MAX77759_USB_TCPC_CONTROL_REG_PLUG_ORNT	(0x1 << 0)
+
+#define MAX77759_USB_TCPC_CONTROL_REG_RSVD_7_SHIFT	7
+#define MAX77759_USB_TCPC_CONTROL_REG_RSVD_7_MASK	(0x1 << 7)
+#define MAX77759_USB_TCPC_CONTROL_REG_RSVD_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_TCPC_CONTROL_REG_EN_LK4CONN_ALRT_SHIFT	6
+#define MAX77759_USB_TCPC_CONTROL_REG_EN_LK4CONN_ALRT_MASK	(0x1 << 6)
+#define MAX77759_USB_TCPC_CONTROL_REG_EN_LK4CONN_ALRT_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_TCPC_CONTROL_REG_EN_WD_TMR_SHIFT	5
+#define MAX77759_USB_TCPC_CONTROL_REG_EN_WD_TMR_MASK	(0x1 << 5)
+#define MAX77759_USB_TCPC_CONTROL_REG_EN_WD_TMR_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_TCPC_CONTROL_REG_DBG_ACC_CNTRL_SHIFT	4
+#define MAX77759_USB_TCPC_CONTROL_REG_DBG_ACC_CNTRL_MASK	(0x1 << 4)
+#define MAX77759_USB_TCPC_CONTROL_REG_DBG_ACC_CNTRL_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_TCPC_CONTROL_REG_RSVD_3_2_SHIFT	2
+#define MAX77759_USB_TCPC_CONTROL_REG_RSVD_3_2_MASK	(0x3 << 2)
+#define MAX77759_USB_TCPC_CONTROL_REG_RSVD_3_2_CLEAR	(~(0x3 << 2))
+#define MAX77759_USB_TCPC_CONTROL_REG_BIST_TM_SHIFT	1
+#define MAX77759_USB_TCPC_CONTROL_REG_BIST_TM_MASK	(0x1 << 1)
+#define MAX77759_USB_TCPC_CONTROL_REG_BIST_TM_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_TCPC_CONTROL_REG_PLUG_ORNT_SHIFT	0
+#define MAX77759_USB_TCPC_CONTROL_REG_PLUG_ORNT_MASK	(0x1 << 0)
+#define MAX77759_USB_TCPC_CONTROL_REG_PLUG_ORNT_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_tcpc_control_reg_rsvd_7,7,7)
+MAX77759_BFF(usb_tcpc_control_reg_en_lk4conn_alrt,6,6)
+MAX77759_BFF(usb_tcpc_control_reg_en_wd_tmr,5,5)
+MAX77759_BFF(usb_tcpc_control_reg_dbg_acc_cntrl,4,4)
+MAX77759_BFF(usb_tcpc_control_reg_rsvd_3_2,3,2)
+MAX77759_BFF(usb_tcpc_control_reg_bist_tm,1,1)
+MAX77759_BFF(usb_tcpc_control_reg_plug_ornt,0,0)
+static inline const char *
+max77759_usb_tcpc_control_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7=%x",
+		FIELD2VALUE(MAX77759_USB_TCPC_CONTROL_REG_RSVD_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_LK4CONN_ALRT=%x",
+		FIELD2VALUE(MAX77759_USB_TCPC_CONTROL_REG_EN_LK4CONN_ALRT, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_WD_TMR=%x",
+		FIELD2VALUE(MAX77759_USB_TCPC_CONTROL_REG_EN_WD_TMR, val));
+	i += SCNPRINTF(&buff[i], len - i, " DBG_ACC_CNTRL=%x",
+		FIELD2VALUE(MAX77759_USB_TCPC_CONTROL_REG_DBG_ACC_CNTRL, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_3_2=%x",
+		FIELD2VALUE(MAX77759_USB_TCPC_CONTROL_REG_RSVD_3_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " BIST_TM=%x",
+		FIELD2VALUE(MAX77759_USB_TCPC_CONTROL_REG_BIST_TM, val));
+	i += SCNPRINTF(&buff[i], len - i, " PLUG_ORNT=%x",
+		FIELD2VALUE(MAX77759_USB_TCPC_CONTROL_REG_PLUG_ORNT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * ROLE_CONTROL_REG,0x1A,0b00001010,0x0a
+ * RSVD_7,DRP,RP_VAL[1:0],,CC2[1:0],,CC1[1:0]
+ */
+#define MAX77759_USB_ROLE_CONTROL_REG	0x1A
+#define MAX77759_USB_ROLE_CONTROL_REG_RSVD_7	(0x1 << 7)
+#define MAX77759_USB_ROLE_CONTROL_REG_DRP	(0x1 << 6)
+
+#define MAX77759_USB_ROLE_CONTROL_REG_RSVD_7_SHIFT	7
+#define MAX77759_USB_ROLE_CONTROL_REG_RSVD_7_MASK	(0x1 << 7)
+#define MAX77759_USB_ROLE_CONTROL_REG_RSVD_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_ROLE_CONTROL_REG_DRP_SHIFT	6
+#define MAX77759_USB_ROLE_CONTROL_REG_DRP_MASK	(0x1 << 6)
+#define MAX77759_USB_ROLE_CONTROL_REG_DRP_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_ROLE_CONTROL_REG_RP_VAL_SHIFT	4
+#define MAX77759_USB_ROLE_CONTROL_REG_RP_VAL_MASK	(0x3 << 4)
+#define MAX77759_USB_ROLE_CONTROL_REG_RP_VAL_CLEAR	(~(0x3 << 4))
+#define MAX77759_USB_ROLE_CONTROL_REG_CC2_SHIFT	2
+#define MAX77759_USB_ROLE_CONTROL_REG_CC2_MASK	(0x3 << 2)
+#define MAX77759_USB_ROLE_CONTROL_REG_CC2_CLEAR	(~(0x3 << 2))
+#define MAX77759_USB_ROLE_CONTROL_REG_CC1_SHIFT	0
+#define MAX77759_USB_ROLE_CONTROL_REG_CC1_MASK	(0x3 << 0)
+#define MAX77759_USB_ROLE_CONTROL_REG_CC1_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_role_control_reg_rsvd_7,7,7)
+MAX77759_BFF(usb_role_control_reg_drp,6,6)
+MAX77759_BFF(usb_role_control_reg_rp_val,5,4)
+MAX77759_BFF(usb_role_control_reg_cc2,3,2)
+MAX77759_BFF(usb_role_control_reg_cc1,1,0)
+static inline const char *
+max77759_usb_role_control_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7=%x",
+		FIELD2VALUE(MAX77759_USB_ROLE_CONTROL_REG_RSVD_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " DRP=%x",
+		FIELD2VALUE(MAX77759_USB_ROLE_CONTROL_REG_DRP, val));
+	i += SCNPRINTF(&buff[i], len - i, " RP_VAL=%x",
+		FIELD2VALUE(MAX77759_USB_ROLE_CONTROL_REG_RP_VAL, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC2=%x",
+		FIELD2VALUE(MAX77759_USB_ROLE_CONTROL_REG_CC2, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC1=%x",
+		FIELD2VALUE(MAX77759_USB_ROLE_CONTROL_REG_CC1, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * FAULT_CONTROL_REG,0x1B,0b00000000,0x00
+ * RSVD_7_5[2:0],,,RSVD_4,VBUS_DISCH_FAIL_DIS,RSVD_2,RSVD_1
+ */
+#define MAX77759_USB_FAULT_CONTROL_REG	0x1B
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_4	(0x1 << 4)
+#define MAX77759_USB_FAULT_CONTROL_REG_VBUS_DISCH_FAIL_DIS	(0x1 << 3)
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_2	(0x1 << 2)
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_1	(0x1 << 1)
+#define MAX77759_USB_FAULT_CONTROL_REG_VCONN_OCP_FAULT_DIS	(0x1 << 0)
+
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_7_5_SHIFT	5
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_7_5_MASK	(0x7 << 5)
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_7_5_CLEAR	(~(0x7 << 5))
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_4_SHIFT	4
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_4_MASK	(0x1 << 4)
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_4_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_FAULT_CONTROL_REG_VBUS_DISCH_FAIL_DIS_SHIFT	3
+#define MAX77759_USB_FAULT_CONTROL_REG_VBUS_DISCH_FAIL_DIS_MASK	(0x1 << 3)
+#define MAX77759_USB_FAULT_CONTROL_REG_VBUS_DISCH_FAIL_DIS_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_2_SHIFT	2
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_2_MASK	(0x1 << 2)
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_2_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_1_SHIFT	1
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_1_MASK	(0x1 << 1)
+#define MAX77759_USB_FAULT_CONTROL_REG_RSVD_1_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_FAULT_CONTROL_REG_VCONN_OCP_FAULT_DIS_SHIFT	0
+#define MAX77759_USB_FAULT_CONTROL_REG_VCONN_OCP_FAULT_DIS_MASK	(0x1 << 0)
+#define MAX77759_USB_FAULT_CONTROL_REG_VCONN_OCP_FAULT_DIS_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_fault_control_reg_rsvd_7_5,7,5)
+MAX77759_BFF(usb_fault_control_reg_rsvd_4,4,4)
+MAX77759_BFF(usb_fault_control_reg_vbus_disch_fail_dis,3,3)
+MAX77759_BFF(usb_fault_control_reg_rsvd_2,2,2)
+MAX77759_BFF(usb_fault_control_reg_rsvd_1,1,1)
+MAX77759_BFF(usb_fault_control_reg_vconn_ocp_fault_dis,0,0)
+static inline const char *
+max77759_usb_fault_control_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_5=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_CONTROL_REG_RSVD_7_5, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_4=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_CONTROL_REG_RSVD_4, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_DISCH_FAIL_DIS=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_CONTROL_REG_VBUS_DISCH_FAIL_DIS, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_2=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_CONTROL_REG_RSVD_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_1=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_CONTROL_REG_RSVD_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCONN_OCP_FAULT_DIS=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_CONTROL_REG_VCONN_OCP_FAULT_DIS, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * POWER_CONTROL_REG,0x1C,0b01100000,0x60
+ * FAST_RSWP_EN,VBUS_VOLT_MON,DIS_VOLT_ALRM,AUTO_DISCH_DISC,EN_BLEED_DISCH,FORC_DISCH,RSVD_1
+ */
+#define MAX77759_USB_POWER_CONTROL_REG	0x1C
+#define MAX77759_USB_POWER_CONTROL_REG_FAST_RSWP_EN	(0x1 << 7)
+#define MAX77759_USB_POWER_CONTROL_REG_VBUS_VOLT_MON	(0x1 << 6)
+#define MAX77759_USB_POWER_CONTROL_REG_DIS_VOLT_ALRM	(0x1 << 5)
+#define MAX77759_USB_POWER_CONTROL_REG_AUTO_DISCH_DISC	(0x1 << 4)
+#define MAX77759_USB_POWER_CONTROL_REG_EN_BLEED_DISCH	(0x1 << 3)
+#define MAX77759_USB_POWER_CONTROL_REG_FORC_DISCH	(0x1 << 2)
+#define MAX77759_USB_POWER_CONTROL_REG_RSVD_1	(0x1 << 1)
+#define MAX77759_USB_POWER_CONTROL_REG_EN_VCONN	(0x1 << 0)
+
+#define MAX77759_USB_POWER_CONTROL_REG_FAST_RSWP_EN_SHIFT	7
+#define MAX77759_USB_POWER_CONTROL_REG_FAST_RSWP_EN_MASK	(0x1 << 7)
+#define MAX77759_USB_POWER_CONTROL_REG_FAST_RSWP_EN_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_POWER_CONTROL_REG_VBUS_VOLT_MON_SHIFT	6
+#define MAX77759_USB_POWER_CONTROL_REG_VBUS_VOLT_MON_MASK	(0x1 << 6)
+#define MAX77759_USB_POWER_CONTROL_REG_VBUS_VOLT_MON_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_POWER_CONTROL_REG_DIS_VOLT_ALRM_SHIFT	5
+#define MAX77759_USB_POWER_CONTROL_REG_DIS_VOLT_ALRM_MASK	(0x1 << 5)
+#define MAX77759_USB_POWER_CONTROL_REG_DIS_VOLT_ALRM_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_POWER_CONTROL_REG_AUTO_DISCH_DISC_SHIFT	4
+#define MAX77759_USB_POWER_CONTROL_REG_AUTO_DISCH_DISC_MASK	(0x1 << 4)
+#define MAX77759_USB_POWER_CONTROL_REG_AUTO_DISCH_DISC_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_POWER_CONTROL_REG_EN_BLEED_DISCH_SHIFT	3
+#define MAX77759_USB_POWER_CONTROL_REG_EN_BLEED_DISCH_MASK	(0x1 << 3)
+#define MAX77759_USB_POWER_CONTROL_REG_EN_BLEED_DISCH_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_POWER_CONTROL_REG_FORC_DISCH_SHIFT	2
+#define MAX77759_USB_POWER_CONTROL_REG_FORC_DISCH_MASK	(0x1 << 2)
+#define MAX77759_USB_POWER_CONTROL_REG_FORC_DISCH_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_POWER_CONTROL_REG_RSVD_1_SHIFT	1
+#define MAX77759_USB_POWER_CONTROL_REG_RSVD_1_MASK	(0x1 << 1)
+#define MAX77759_USB_POWER_CONTROL_REG_RSVD_1_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_POWER_CONTROL_REG_EN_VCONN_SHIFT	0
+#define MAX77759_USB_POWER_CONTROL_REG_EN_VCONN_MASK	(0x1 << 0)
+#define MAX77759_USB_POWER_CONTROL_REG_EN_VCONN_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_power_control_reg_fast_rswp_en,7,7)
+MAX77759_BFF(usb_power_control_reg_vbus_volt_mon,6,6)
+MAX77759_BFF(usb_power_control_reg_dis_volt_alrm,5,5)
+MAX77759_BFF(usb_power_control_reg_auto_disch_disc,4,4)
+MAX77759_BFF(usb_power_control_reg_en_bleed_disch,3,3)
+MAX77759_BFF(usb_power_control_reg_forc_disch,2,2)
+MAX77759_BFF(usb_power_control_reg_rsvd_1,1,1)
+MAX77759_BFF(usb_power_control_reg_en_vconn,0,0)
+static inline const char *
+max77759_usb_power_control_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " FAST_RSWP_EN=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_CONTROL_REG_FAST_RSWP_EN, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_VOLT_MON=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_CONTROL_REG_VBUS_VOLT_MON, val));
+	i += SCNPRINTF(&buff[i], len - i, " DIS_VOLT_ALRM=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_CONTROL_REG_DIS_VOLT_ALRM, val));
+	i += SCNPRINTF(&buff[i], len - i, " AUTO_DISCH_DISC=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_CONTROL_REG_AUTO_DISCH_DISC, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_BLEED_DISCH=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_CONTROL_REG_EN_BLEED_DISCH, val));
+	i += SCNPRINTF(&buff[i], len - i, " FORC_DISCH=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_CONTROL_REG_FORC_DISCH, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_1=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_CONTROL_REG_RSVD_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_VCONN=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_CONTROL_REG_EN_VCONN, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CC_STATUS_REG,0x1D,0b00000000,0x00
+ * RSVD_7_6[1:0],,LOOKING4CONN,CONN_RSLT,CC2_STATE[1:0],,CC1_STATE[1:0]
+ */
+#define MAX77759_USB_CC_STATUS_REG	0x1D
+#define MAX77759_USB_CC_STATUS_REG_LOOKING4CONN	(0x1 << 5)
+#define MAX77759_USB_CC_STATUS_REG_CONN_RSLT	(0x1 << 4)
+
+#define MAX77759_USB_CC_STATUS_REG_RSVD_7_6_SHIFT	6
+#define MAX77759_USB_CC_STATUS_REG_RSVD_7_6_MASK	(0x3 << 6)
+#define MAX77759_USB_CC_STATUS_REG_RSVD_7_6_CLEAR	(~(0x3 << 6))
+#define MAX77759_USB_CC_STATUS_REG_LOOKING4CONN_SHIFT	5
+#define MAX77759_USB_CC_STATUS_REG_LOOKING4CONN_MASK	(0x1 << 5)
+#define MAX77759_USB_CC_STATUS_REG_LOOKING4CONN_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_CC_STATUS_REG_CONN_RSLT_SHIFT	4
+#define MAX77759_USB_CC_STATUS_REG_CONN_RSLT_MASK	(0x1 << 4)
+#define MAX77759_USB_CC_STATUS_REG_CONN_RSLT_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_CC_STATUS_REG_CC2_STATE_SHIFT	2
+#define MAX77759_USB_CC_STATUS_REG_CC2_STATE_MASK	(0x3 << 2)
+#define MAX77759_USB_CC_STATUS_REG_CC2_STATE_CLEAR	(~(0x3 << 2))
+#define MAX77759_USB_CC_STATUS_REG_CC1_STATE_SHIFT	0
+#define MAX77759_USB_CC_STATUS_REG_CC1_STATE_MASK	(0x3 << 0)
+#define MAX77759_USB_CC_STATUS_REG_CC1_STATE_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_cc_status_reg_rsvd_7_6,7,6)
+MAX77759_BFF(usb_cc_status_reg_looking4conn,5,5)
+MAX77759_BFF(usb_cc_status_reg_conn_rslt,4,4)
+MAX77759_BFF(usb_cc_status_reg_cc2_state,3,2)
+MAX77759_BFF(usb_cc_status_reg_cc1_state,1,0)
+static inline const char *
+max77759_usb_cc_status_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_6=%x",
+		FIELD2VALUE(MAX77759_USB_CC_STATUS_REG_RSVD_7_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " LOOKING4CONN=%x",
+		FIELD2VALUE(MAX77759_USB_CC_STATUS_REG_LOOKING4CONN, val));
+	i += SCNPRINTF(&buff[i], len - i, " CONN_RSLT=%x",
+		FIELD2VALUE(MAX77759_USB_CC_STATUS_REG_CONN_RSLT, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC2_STATE=%x",
+		FIELD2VALUE(MAX77759_USB_CC_STATUS_REG_CC2_STATE, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC1_STATE=%x",
+		FIELD2VALUE(MAX77759_USB_CC_STATUS_REG_CC1_STATE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * POWER_STATUS_REG,0x1E,0b00001000,0x08
+ * DBG_ACC_CONN,TCPC_INIT_STAT,SRC_HI_VOLT,SRC_VBUS,VBUS_DET_EN,VBUS_PRESENT,VCONN_PRESENT
+ */
+#define MAX77759_USB_POWER_STATUS_REG	0x1E
+#define MAX77759_USB_POWER_STATUS_REG_DBG_ACC_CONN	(0x1 << 7)
+#define MAX77759_USB_POWER_STATUS_REG_TCPC_INIT_STAT	(0x1 << 6)
+#define MAX77759_USB_POWER_STATUS_REG_SRC_HI_VOLT	(0x1 << 5)
+#define MAX77759_USB_POWER_STATUS_REG_SRC_VBUS	(0x1 << 4)
+#define MAX77759_USB_POWER_STATUS_REG_VBUS_DET_EN	(0x1 << 3)
+#define MAX77759_USB_POWER_STATUS_REG_VBUS_PRESENT	(0x1 << 2)
+#define MAX77759_USB_POWER_STATUS_REG_VCONN_PRESENT	(0x1 << 1)
+#define MAX77759_USB_POWER_STATUS_REG_SNK_VBUS	(0x1 << 0)
+
+#define MAX77759_USB_POWER_STATUS_REG_DBG_ACC_CONN_SHIFT	7
+#define MAX77759_USB_POWER_STATUS_REG_DBG_ACC_CONN_MASK	(0x1 << 7)
+#define MAX77759_USB_POWER_STATUS_REG_DBG_ACC_CONN_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_POWER_STATUS_REG_TCPC_INIT_STAT_SHIFT	6
+#define MAX77759_USB_POWER_STATUS_REG_TCPC_INIT_STAT_MASK	(0x1 << 6)
+#define MAX77759_USB_POWER_STATUS_REG_TCPC_INIT_STAT_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_POWER_STATUS_REG_SRC_HI_VOLT_SHIFT	5
+#define MAX77759_USB_POWER_STATUS_REG_SRC_HI_VOLT_MASK	(0x1 << 5)
+#define MAX77759_USB_POWER_STATUS_REG_SRC_HI_VOLT_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_POWER_STATUS_REG_SRC_VBUS_SHIFT	4
+#define MAX77759_USB_POWER_STATUS_REG_SRC_VBUS_MASK	(0x1 << 4)
+#define MAX77759_USB_POWER_STATUS_REG_SRC_VBUS_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_POWER_STATUS_REG_VBUS_DET_EN_SHIFT	3
+#define MAX77759_USB_POWER_STATUS_REG_VBUS_DET_EN_MASK	(0x1 << 3)
+#define MAX77759_USB_POWER_STATUS_REG_VBUS_DET_EN_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_POWER_STATUS_REG_VBUS_PRESENT_SHIFT	2
+#define MAX77759_USB_POWER_STATUS_REG_VBUS_PRESENT_MASK	(0x1 << 2)
+#define MAX77759_USB_POWER_STATUS_REG_VBUS_PRESENT_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_POWER_STATUS_REG_VCONN_PRESENT_SHIFT	1
+#define MAX77759_USB_POWER_STATUS_REG_VCONN_PRESENT_MASK	(0x1 << 1)
+#define MAX77759_USB_POWER_STATUS_REG_VCONN_PRESENT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_POWER_STATUS_REG_SNK_VBUS_SHIFT	0
+#define MAX77759_USB_POWER_STATUS_REG_SNK_VBUS_MASK	(0x1 << 0)
+#define MAX77759_USB_POWER_STATUS_REG_SNK_VBUS_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_power_status_reg_dbg_acc_conn,7,7)
+MAX77759_BFF(usb_power_status_reg_tcpc_init_stat,6,6)
+MAX77759_BFF(usb_power_status_reg_src_hi_volt,5,5)
+MAX77759_BFF(usb_power_status_reg_src_vbus,4,4)
+MAX77759_BFF(usb_power_status_reg_vbus_det_en,3,3)
+MAX77759_BFF(usb_power_status_reg_vbus_present,2,2)
+MAX77759_BFF(usb_power_status_reg_vconn_present,1,1)
+MAX77759_BFF(usb_power_status_reg_snk_vbus,0,0)
+static inline const char *
+max77759_usb_power_status_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " DBG_ACC_CONN=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_REG_DBG_ACC_CONN, val));
+	i += SCNPRINTF(&buff[i], len - i, " TCPC_INIT_STAT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_REG_TCPC_INIT_STAT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SRC_HI_VOLT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_REG_SRC_HI_VOLT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SRC_VBUS=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_REG_SRC_VBUS, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_DET_EN=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_REG_VBUS_DET_EN, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_PRESENT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_REG_VBUS_PRESENT, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCONN_PRESENT=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_REG_VCONN_PRESENT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SNK_VBUS=%x",
+		FIELD2VALUE(MAX77759_USB_POWER_STATUS_REG_SNK_VBUS, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * FAULT_STATUS_REG,0x1F,0b10000000,0x80
+ * ALL_REG_RST,RSVD_6,AUTO_DISCH_FAIL,FORCE_DISCH_FAIL,RSVD_3,RSVD_2,VCONN_OCP_FAULT
+ */
+#define MAX77759_USB_FAULT_STATUS_REG	0x1F
+#define MAX77759_USB_FAULT_STATUS_REG_ALL_REG_RST	(0x1 << 7)
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_6	(0x1 << 6)
+#define MAX77759_USB_FAULT_STATUS_REG_AUTO_DISCH_FAIL	(0x1 << 5)
+#define MAX77759_USB_FAULT_STATUS_REG_FORCE_DISCH_FAIL	(0x1 << 4)
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_3	(0x1 << 3)
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_2	(0x1 << 2)
+#define MAX77759_USB_FAULT_STATUS_REG_VCONN_OCP_FAULT	(0x1 << 1)
+#define MAX77759_USB_FAULT_STATUS_REG_I2C_ERR	(0x1 << 0)
+
+#define MAX77759_USB_FAULT_STATUS_REG_ALL_REG_RST_SHIFT	7
+#define MAX77759_USB_FAULT_STATUS_REG_ALL_REG_RST_MASK	(0x1 << 7)
+#define MAX77759_USB_FAULT_STATUS_REG_ALL_REG_RST_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_6_SHIFT	6
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_6_MASK	(0x1 << 6)
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_6_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_FAULT_STATUS_REG_AUTO_DISCH_FAIL_SHIFT	5
+#define MAX77759_USB_FAULT_STATUS_REG_AUTO_DISCH_FAIL_MASK	(0x1 << 5)
+#define MAX77759_USB_FAULT_STATUS_REG_AUTO_DISCH_FAIL_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_FAULT_STATUS_REG_FORCE_DISCH_FAIL_SHIFT	4
+#define MAX77759_USB_FAULT_STATUS_REG_FORCE_DISCH_FAIL_MASK	(0x1 << 4)
+#define MAX77759_USB_FAULT_STATUS_REG_FORCE_DISCH_FAIL_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_3_SHIFT	3
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_3_MASK	(0x1 << 3)
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_3_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_2_SHIFT	2
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_2_MASK	(0x1 << 2)
+#define MAX77759_USB_FAULT_STATUS_REG_RSVD_2_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_FAULT_STATUS_REG_VCONN_OCP_FAULT_SHIFT	1
+#define MAX77759_USB_FAULT_STATUS_REG_VCONN_OCP_FAULT_MASK	(0x1 << 1)
+#define MAX77759_USB_FAULT_STATUS_REG_VCONN_OCP_FAULT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_FAULT_STATUS_REG_I2C_ERR_SHIFT	0
+#define MAX77759_USB_FAULT_STATUS_REG_I2C_ERR_MASK	(0x1 << 0)
+#define MAX77759_USB_FAULT_STATUS_REG_I2C_ERR_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_fault_status_reg_all_reg_rst,7,7)
+MAX77759_BFF(usb_fault_status_reg_rsvd_6,6,6)
+MAX77759_BFF(usb_fault_status_reg_auto_disch_fail,5,5)
+MAX77759_BFF(usb_fault_status_reg_force_disch_fail,4,4)
+MAX77759_BFF(usb_fault_status_reg_rsvd_3,3,3)
+MAX77759_BFF(usb_fault_status_reg_rsvd_2,2,2)
+MAX77759_BFF(usb_fault_status_reg_vconn_ocp_fault,1,1)
+MAX77759_BFF(usb_fault_status_reg_i2c_err,0,0)
+static inline const char *
+max77759_usb_fault_status_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " ALL_REG_RST=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_REG_ALL_REG_RST, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_6=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_REG_RSVD_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " AUTO_DISCH_FAIL=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_REG_AUTO_DISCH_FAIL, val));
+	i += SCNPRINTF(&buff[i], len - i, " FORCE_DISCH_FAIL=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_REG_FORCE_DISCH_FAIL, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_3=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_REG_RSVD_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_2=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_REG_RSVD_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCONN_OCP_FAULT=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_REG_VCONN_OCP_FAULT, val));
+	i += SCNPRINTF(&buff[i], len - i, " I2C_ERR=%x",
+		FIELD2VALUE(MAX77759_USB_FAULT_STATUS_REG_I2C_ERR, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * EXTENDED_STATUS_REG,0x20,0b00000000,0x00
+ * RSVD_7_1[6:0],,,,,,
+ */
+#define MAX77759_USB_EXTENDED_STATUS_REG	0x20
+#define MAX77759_USB_EXTENDED_STATUS_REG_VSAFE0V	(0x1 << 0)
+
+#define MAX77759_USB_EXTENDED_STATUS_REG_RSVD_7_1_SHIFT	1
+#define MAX77759_USB_EXTENDED_STATUS_REG_RSVD_7_1_MASK	(0x7f << 1)
+#define MAX77759_USB_EXTENDED_STATUS_REG_RSVD_7_1_CLEAR	(~(0x7f << 1))
+#define MAX77759_USB_EXTENDED_STATUS_REG_VSAFE0V_SHIFT	0
+#define MAX77759_USB_EXTENDED_STATUS_REG_VSAFE0V_MASK	(0x1 << 0)
+#define MAX77759_USB_EXTENDED_STATUS_REG_VSAFE0V_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_extended_status_reg_rsvd_7_1,7,1)
+MAX77759_BFF(usb_extended_status_reg_vsafe0v,0,0)
+static inline const char *
+max77759_usb_extended_status_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_1=%x",
+		FIELD2VALUE(MAX77759_USB_EXTENDED_STATUS_REG_RSVD_7_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " VSAFE0V=%x",
+		FIELD2VALUE(MAX77759_USB_EXTENDED_STATUS_REG_VSAFE0V, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * ALERT_EXTENDED,0x21,0b00000000,0x00
+ * RSVD_7_3[4:0],,,,,RSVD_2,RSVD_1
+ */
+#define MAX77759_USB_ALERT_EXTENDED	0x21
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_2	(0x1 << 2)
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_1	(0x1 << 1)
+#define MAX77759_USB_ALERT_EXTENDED_SNK_FRS	(0x1 << 0)
+
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_7_3_SHIFT	3
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_7_3_MASK	(0x1f << 3)
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_7_3_CLEAR	(~(0x1f << 3))
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_2_SHIFT	2
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_2_MASK	(0x1 << 2)
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_2_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_1_SHIFT	1
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_1_MASK	(0x1 << 1)
+#define MAX77759_USB_ALERT_EXTENDED_RSVD_1_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_ALERT_EXTENDED_SNK_FRS_SHIFT	0
+#define MAX77759_USB_ALERT_EXTENDED_SNK_FRS_MASK	(0x1 << 0)
+#define MAX77759_USB_ALERT_EXTENDED_SNK_FRS_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_alert_extended_rsvd_7_3,7,3)
+MAX77759_BFF(usb_alert_extended_rsvd_2,2,2)
+MAX77759_BFF(usb_alert_extended_rsvd_1,1,1)
+MAX77759_BFF(usb_alert_extended_snk_frs,0,0)
+static inline const char *
+max77759_usb_alert_extended_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_3=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_EXTENDED_RSVD_7_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_2=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_EXTENDED_RSVD_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_1=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_EXTENDED_RSVD_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " SNK_FRS=%x",
+		FIELD2VALUE(MAX77759_USB_ALERT_EXTENDED_SNK_FRS, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * COMMAND_REG,0x23,0b00000000,0x00
+ * COMMAND[7:0],,,,,,
+ */
+#define MAX77759_USB_COMMAND_REG	0x23
+
+/*
+ * DEVICE_CAPABILITIES_1_L,0x24,0b11011000,0xd8
+ * PWR_ROLE_CAP[2:0],,,SOP_DBG_CAP,SRC_VCONN_CAP,SNK_VBUS_CAP,SRC_HI_VBUS_CAP
+ */
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L	0x24
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SOP_DBG_CAP	(0x1 << 4)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VCONN_CAP	(0x1 << 3)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SNK_VBUS_CAP	(0x1 << 2)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_HI_VBUS_CAP	(0x1 << 1)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VBUS_CAP	(0x1 << 0)
+
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_PWR_ROLE_CAP_SHIFT	5
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_PWR_ROLE_CAP_MASK	(0x7 << 5)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_PWR_ROLE_CAP_CLEAR	(~(0x7 << 5))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SOP_DBG_CAP_SHIFT	4
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SOP_DBG_CAP_MASK	(0x1 << 4)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SOP_DBG_CAP_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VCONN_CAP_SHIFT	3
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VCONN_CAP_MASK	(0x1 << 3)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VCONN_CAP_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SNK_VBUS_CAP_SHIFT	2
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SNK_VBUS_CAP_MASK	(0x1 << 2)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SNK_VBUS_CAP_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_HI_VBUS_CAP_SHIFT	1
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_HI_VBUS_CAP_MASK	(0x1 << 1)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_HI_VBUS_CAP_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VBUS_CAP_SHIFT	0
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VBUS_CAP_MASK	(0x1 << 0)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VBUS_CAP_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_device_capabilities_1_l_pwr_role_cap,7,5)
+MAX77759_BFF(usb_device_capabilities_1_l_sop_dbg_cap,4,4)
+MAX77759_BFF(usb_device_capabilities_1_l_src_vconn_cap,3,3)
+MAX77759_BFF(usb_device_capabilities_1_l_snk_vbus_cap,2,2)
+MAX77759_BFF(usb_device_capabilities_1_l_src_hi_vbus_cap,1,1)
+MAX77759_BFF(usb_device_capabilities_1_l_src_vbus_cap,0,0)
+static inline const char *
+max77759_usb_device_capabilities_1_l_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " PWR_ROLE_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_L_PWR_ROLE_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SOP_DBG_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_L_SOP_DBG_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SRC_VCONN_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VCONN_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SNK_VBUS_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_L_SNK_VBUS_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SRC_HI_VBUS_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_HI_VBUS_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SRC_VBUS_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_L_SRC_VBUS_CAP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * DEVICE_CAPABILITIES_1_H,0x25,0b00011110,0x1e
+ * VBUS_HI_VOLT_TRGT_CAP,VBUS_OCP_RPT_CAP,VBUS_OVP_RPT_CAP,BLEED_DISCH_CAP,FORCE_DISCH_CAP,VBUS_MEAS_ALRM_CAP,SRC_RES_SUP_CAP[1:0]
+ */
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H	0x25
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_HI_VOLT_TRGT_CAP	(0x1 << 7)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OCP_RPT_CAP	(0x1 << 6)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OVP_RPT_CAP	(0x1 << 5)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_BLEED_DISCH_CAP	(0x1 << 4)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_FORCE_DISCH_CAP	(0x1 << 3)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_MEAS_ALRM_CAP	(0x1 << 2)
+
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_HI_VOLT_TRGT_CAP_SHIFT	7
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_HI_VOLT_TRGT_CAP_MASK	(0x1 << 7)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_HI_VOLT_TRGT_CAP_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OCP_RPT_CAP_SHIFT	6
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OCP_RPT_CAP_MASK	(0x1 << 6)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OCP_RPT_CAP_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OVP_RPT_CAP_SHIFT	5
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OVP_RPT_CAP_MASK	(0x1 << 5)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OVP_RPT_CAP_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_BLEED_DISCH_CAP_SHIFT	4
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_BLEED_DISCH_CAP_MASK	(0x1 << 4)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_BLEED_DISCH_CAP_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_FORCE_DISCH_CAP_SHIFT	3
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_FORCE_DISCH_CAP_MASK	(0x1 << 3)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_FORCE_DISCH_CAP_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_MEAS_ALRM_CAP_SHIFT	2
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_MEAS_ALRM_CAP_MASK	(0x1 << 2)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_MEAS_ALRM_CAP_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_SRC_RES_SUP_CAP_SHIFT	0
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_SRC_RES_SUP_CAP_MASK	(0x3 << 0)
+#define MAX77759_USB_DEVICE_CAPABILITIES_1_H_SRC_RES_SUP_CAP_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_device_capabilities_1_h_vbus_hi_volt_trgt_cap,7,7)
+MAX77759_BFF(usb_device_capabilities_1_h_vbus_ocp_rpt_cap,6,6)
+MAX77759_BFF(usb_device_capabilities_1_h_vbus_ovp_rpt_cap,5,5)
+MAX77759_BFF(usb_device_capabilities_1_h_bleed_disch_cap,4,4)
+MAX77759_BFF(usb_device_capabilities_1_h_force_disch_cap,3,3)
+MAX77759_BFF(usb_device_capabilities_1_h_vbus_meas_alrm_cap,2,2)
+MAX77759_BFF(usb_device_capabilities_1_h_src_res_sup_cap,1,0)
+static inline const char *
+max77759_usb_device_capabilities_1_h_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_HI_VOLT_TRGT_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_HI_VOLT_TRGT_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_OCP_RPT_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OCP_RPT_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_OVP_RPT_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_OVP_RPT_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " BLEED_DISCH_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_H_BLEED_DISCH_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " FORCE_DISCH_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_H_FORCE_DISCH_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_MEAS_ALRM_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_H_VBUS_MEAS_ALRM_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SRC_RES_SUP_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_1_H_SRC_RES_SUP_CAP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * DEVICE_CAPABILITIES_2_L,0x26,0b11000001,0xc1
+ * SNK_DISC_DET_CAP,STP_DISCH_THR_CAP,VBUS_VOLT_ALRM_LSB_CAP[1:0],,VCONN_PWR_CAP[2:0],,
+ */
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L	0x26
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_SNK_DISC_DET_CAP	(0x1 << 7)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_STP_DISCH_THR_CAP	(0x1 << 6)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VCONN_OCP_CAP	(0x1 << 0)
+
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_SNK_DISC_DET_CAP_SHIFT	7
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_SNK_DISC_DET_CAP_MASK	(0x1 << 7)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_SNK_DISC_DET_CAP_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_STP_DISCH_THR_CAP_SHIFT	6
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_STP_DISCH_THR_CAP_MASK	(0x1 << 6)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_STP_DISCH_THR_CAP_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VBUS_VOLT_ALRM_LSB_CAP_SHIFT	4
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VBUS_VOLT_ALRM_LSB_CAP_MASK	(0x3 << 4)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VBUS_VOLT_ALRM_LSB_CAP_CLEAR	(~(0x3 << 4))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VCONN_PWR_CAP_SHIFT	1
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VCONN_PWR_CAP_MASK	(0x7 << 1)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VCONN_PWR_CAP_CLEAR	(~(0x7 << 1))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VCONN_OCP_CAP_SHIFT	0
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VCONN_OCP_CAP_MASK	(0x1 << 0)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_L_VCONN_OCP_CAP_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_device_capabilities_2_l_snk_disc_det_cap,7,7)
+MAX77759_BFF(usb_device_capabilities_2_l_stp_disch_thr_cap,6,6)
+MAX77759_BFF(usb_device_capabilities_2_l_vbus_volt_alrm_lsb_cap,5,4)
+MAX77759_BFF(usb_device_capabilities_2_l_vconn_pwr_cap,3,1)
+MAX77759_BFF(usb_device_capabilities_2_l_vconn_ocp_cap,0,0)
+static inline const char *
+max77759_usb_device_capabilities_2_l_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SNK_DISC_DET_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_L_SNK_DISC_DET_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " STP_DISCH_THR_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_L_STP_DISCH_THR_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_VOLT_ALRM_LSB_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_L_VBUS_VOLT_ALRM_LSB_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCONN_PWR_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_L_VCONN_PWR_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCONN_OCP_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_L_VCONN_OCP_CAP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * DEVICE_CAPABILITIES_2_H,0x27,0b00000011,0x03
+ * RSVD_7,MSGDisDisc,GENERIC_TMR_CAP,LONG_MSG_CAP,SMB_PEC_CAP,SRC_FRS_CAP,SNK_FRS_CAP
+ */
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H	0x27
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_RSVD_7	(0x1 << 7)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_MSGDISDISC	(0x1 << 6)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_GENERIC_TMR_CAP	(0x1 << 5)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_LONG_MSG_CAP	(0x1 << 4)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SMB_PEC_CAP	(0x1 << 3)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SRC_FRS_CAP	(0x1 << 2)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SNK_FRS_CAP	(0x1 << 1)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_WDOG_TMR_CAP	(0x1 << 0)
+
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_RSVD_7_SHIFT	7
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_RSVD_7_MASK	(0x1 << 7)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_RSVD_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_MSGDISDISC_SHIFT	6
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_MSGDISDISC_MASK	(0x1 << 6)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_MSGDISDISC_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_GENERIC_TMR_CAP_SHIFT	5
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_GENERIC_TMR_CAP_MASK	(0x1 << 5)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_GENERIC_TMR_CAP_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_LONG_MSG_CAP_SHIFT	4
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_LONG_MSG_CAP_MASK	(0x1 << 4)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_LONG_MSG_CAP_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SMB_PEC_CAP_SHIFT	3
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SMB_PEC_CAP_MASK	(0x1 << 3)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SMB_PEC_CAP_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SRC_FRS_CAP_SHIFT	2
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SRC_FRS_CAP_MASK	(0x1 << 2)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SRC_FRS_CAP_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SNK_FRS_CAP_SHIFT	1
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SNK_FRS_CAP_MASK	(0x1 << 1)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_SNK_FRS_CAP_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_WDOG_TMR_CAP_SHIFT	0
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_WDOG_TMR_CAP_MASK	(0x1 << 0)
+#define MAX77759_USB_DEVICE_CAPABILITIES_2_H_WDOG_TMR_CAP_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_device_capabilities_2_h_rsvd_7,7,7)
+MAX77759_BFF(usb_device_capabilities_2_h_msgdisdisc,6,6)
+MAX77759_BFF(usb_device_capabilities_2_h_generic_tmr_cap,5,5)
+MAX77759_BFF(usb_device_capabilities_2_h_long_msg_cap,4,4)
+MAX77759_BFF(usb_device_capabilities_2_h_smb_pec_cap,3,3)
+MAX77759_BFF(usb_device_capabilities_2_h_src_frs_cap,2,2)
+MAX77759_BFF(usb_device_capabilities_2_h_snk_frs_cap,1,1)
+MAX77759_BFF(usb_device_capabilities_2_h_wdog_tmr_cap,0,0)
+static inline const char *
+max77759_usb_device_capabilities_2_h_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_H_RSVD_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSGDISDISC=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_H_MSGDISDISC, val));
+	i += SCNPRINTF(&buff[i], len - i, " GENERIC_TMR_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_H_GENERIC_TMR_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " LONG_MSG_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_H_LONG_MSG_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SMB_PEC_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_H_SMB_PEC_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SRC_FRS_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_H_SRC_FRS_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SNK_FRS_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_H_SNK_FRS_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " WDOG_TMR_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_DEVICE_CAPABILITIES_2_H_WDOG_TMR_CAP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * STANDARD_INPUT_CAPABILITIES_REG,0x28,0b00000000,0x00
+ * RSVD_7_5[2:0],,,SRC_FRS_INP_CAP[1:0],,VBUS_EXT_OVP_CAP,VBUS_EXT_OCP_CAP
+ */
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG	0x28
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OVP_CAP	(0x1 << 2)
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OCP_CAP	(0x1 << 1)
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_FRC_OFF_VBUS_CAP	(0x1 << 0)
+
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_RSVD_7_5_SHIFT	5
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_RSVD_7_5_MASK	(0x7 << 5)
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_RSVD_7_5_CLEAR	(~(0x7 << 5))
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_SRC_FRS_INP_CAP_SHIFT	3
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_SRC_FRS_INP_CAP_MASK	(0x3 << 3)
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_SRC_FRS_INP_CAP_CLEAR	(~(0x3 << 3))
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OVP_CAP_SHIFT	2
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OVP_CAP_MASK	(0x1 << 2)
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OVP_CAP_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OCP_CAP_SHIFT	1
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OCP_CAP_MASK	(0x1 << 1)
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OCP_CAP_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_FRC_OFF_VBUS_CAP_SHIFT	0
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_FRC_OFF_VBUS_CAP_MASK	(0x1 << 0)
+#define MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_FRC_OFF_VBUS_CAP_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_standard_input_capabilities_reg_rsvd_7_5,7,5)
+MAX77759_BFF(usb_standard_input_capabilities_reg_src_frs_inp_cap,4,3)
+MAX77759_BFF(usb_standard_input_capabilities_reg_vbus_ext_ovp_cap,2,2)
+MAX77759_BFF(usb_standard_input_capabilities_reg_vbus_ext_ocp_cap,1,1)
+MAX77759_BFF(usb_standard_input_capabilities_reg_frc_off_vbus_cap,0,0)
+static inline const char *
+max77759_usb_standard_input_capabilities_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_5=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_RSVD_7_5, val));
+	i += SCNPRINTF(&buff[i], len - i, " SRC_FRS_INP_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_SRC_FRS_INP_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_EXT_OVP_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OVP_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_EXT_OCP_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_VBUS_EXT_OCP_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " FRC_OFF_VBUS_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_INPUT_CAPABILITIES_REG_FRC_OFF_VBUS_CAP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * STANDARD_OUTPUT_CAPABILITIES_REG,0x29,0b01000000,0x40
+ * VBUS_SNK_DIS_DET_CAP,DBG_ACC_CAP,VBUS_PRESENT_CAP,AUD_ACC_CAP,ACT_CBL_CAP,MUX_CONFG_CAP,CONN_PRESENT_CAP
+ */
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG	0x29
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_SNK_DIS_DET_CAP	(0x1 << 7)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_DBG_ACC_CAP	(0x1 << 6)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_PRESENT_CAP	(0x1 << 5)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_AUD_ACC_CAP	(0x1 << 4)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_ACT_CBL_CAP	(0x1 << 3)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_MUX_CONFG_CAP	(0x1 << 2)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_PRESENT_CAP	(0x1 << 1)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_ORIENT_CAP	(0x1 << 0)
+
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_SNK_DIS_DET_CAP_SHIFT	7
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_SNK_DIS_DET_CAP_MASK	(0x1 << 7)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_SNK_DIS_DET_CAP_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_DBG_ACC_CAP_SHIFT	6
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_DBG_ACC_CAP_MASK	(0x1 << 6)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_DBG_ACC_CAP_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_PRESENT_CAP_SHIFT	5
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_PRESENT_CAP_MASK	(0x1 << 5)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_PRESENT_CAP_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_AUD_ACC_CAP_SHIFT	4
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_AUD_ACC_CAP_MASK	(0x1 << 4)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_AUD_ACC_CAP_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_ACT_CBL_CAP_SHIFT	3
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_ACT_CBL_CAP_MASK	(0x1 << 3)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_ACT_CBL_CAP_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_MUX_CONFG_CAP_SHIFT	2
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_MUX_CONFG_CAP_MASK	(0x1 << 2)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_MUX_CONFG_CAP_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_PRESENT_CAP_SHIFT	1
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_PRESENT_CAP_MASK	(0x1 << 1)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_PRESENT_CAP_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_ORIENT_CAP_SHIFT	0
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_ORIENT_CAP_MASK	(0x1 << 0)
+#define MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_ORIENT_CAP_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_standard_output_capabilities_reg_vbus_snk_dis_det_cap,7,7)
+MAX77759_BFF(usb_standard_output_capabilities_reg_dbg_acc_cap,6,6)
+MAX77759_BFF(usb_standard_output_capabilities_reg_vbus_present_cap,5,5)
+MAX77759_BFF(usb_standard_output_capabilities_reg_aud_acc_cap,4,4)
+MAX77759_BFF(usb_standard_output_capabilities_reg_act_cbl_cap,3,3)
+MAX77759_BFF(usb_standard_output_capabilities_reg_mux_confg_cap,2,2)
+MAX77759_BFF(usb_standard_output_capabilities_reg_conn_present_cap,1,1)
+MAX77759_BFF(usb_standard_output_capabilities_reg_conn_orient_cap,0,0)
+static inline const char *
+max77759_usb_standard_output_capabilities_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_SNK_DIS_DET_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_SNK_DIS_DET_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " DBG_ACC_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_DBG_ACC_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_PRESENT_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_VBUS_PRESENT_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " AUD_ACC_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_AUD_ACC_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " ACT_CBL_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_ACT_CBL_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " MUX_CONFG_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_MUX_CONFG_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " CONN_PRESENT_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_PRESENT_CAP, val));
+	i += SCNPRINTF(&buff[i], len - i, " CONN_ORIENT_CAP=%x",
+		FIELD2VALUE(MAX77759_USB_STANDARD_OUTPUT_CAPABILITIES_REG_CONN_ORIENT_CAP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * CONFIG_EXTENDED1_REG,0x2A,0b00000000,0x00
+ * RSVD_7_2[5:0],,,,,,RSVD_1
+ */
+#define MAX77759_USB_CONFIG_EXTENDED1_REG	0x2A
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_1	(0x1 << 1)
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_0	(0x1 << 0)
+
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_7_2_SHIFT	2
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_7_2_MASK	(0x3f << 2)
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_7_2_CLEAR	(~(0x3f << 2))
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_1_SHIFT	1
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_1_MASK	(0x1 << 1)
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_1_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_0_SHIFT	0
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_0_MASK	(0x1 << 0)
+#define MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_0_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_config_extended1_reg_rsvd_7_2,7,2)
+MAX77759_BFF(usb_config_extended1_reg_rsvd_1,1,1)
+MAX77759_BFF(usb_config_extended1_reg_rsvd_0,0,0)
+static inline const char *
+max77759_usb_config_extended1_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_2=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_7_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_1=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_0=%x",
+		FIELD2VALUE(MAX77759_USB_CONFIG_EXTENDED1_REG_RSVD_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * MESSAGE_HEADER_INFO_REG,0x2E,0b00000100,0x04
+ * RSVD_7_5[2:0],,,CBL_PLG,DATA_ROLE,USB_PD[1:0],
+ */
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG	0x2E
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_CBL_PLG	(0x1 << 4)
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_DATA_ROLE	(0x1 << 3)
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_PWR_ROLE	(0x1 << 0)
+
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_RSVD_7_5_SHIFT	5
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_RSVD_7_5_MASK	(0x7 << 5)
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_RSVD_7_5_CLEAR	(~(0x7 << 5))
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_CBL_PLG_SHIFT	4
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_CBL_PLG_MASK	(0x1 << 4)
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_CBL_PLG_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_DATA_ROLE_SHIFT	3
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_DATA_ROLE_MASK	(0x1 << 3)
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_DATA_ROLE_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_USB_PD_SHIFT	1
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_USB_PD_MASK	(0x3 << 1)
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_USB_PD_CLEAR	(~(0x3 << 1))
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_PWR_ROLE_SHIFT	0
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_PWR_ROLE_MASK	(0x1 << 0)
+#define MAX77759_USB_MESSAGE_HEADER_INFO_REG_PWR_ROLE_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_message_header_info_reg_rsvd_7_5,7,5)
+MAX77759_BFF(usb_message_header_info_reg_cbl_plg,4,4)
+MAX77759_BFF(usb_message_header_info_reg_data_role,3,3)
+MAX77759_BFF(usb_message_header_info_reg_usb_pd,2,1)
+MAX77759_BFF(usb_message_header_info_reg_pwr_role,0,0)
+static inline const char *
+max77759_usb_message_header_info_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_5=%x",
+		FIELD2VALUE(MAX77759_USB_MESSAGE_HEADER_INFO_REG_RSVD_7_5, val));
+	i += SCNPRINTF(&buff[i], len - i, " CBL_PLG=%x",
+		FIELD2VALUE(MAX77759_USB_MESSAGE_HEADER_INFO_REG_CBL_PLG, val));
+	i += SCNPRINTF(&buff[i], len - i, " DATA_ROLE=%x",
+		FIELD2VALUE(MAX77759_USB_MESSAGE_HEADER_INFO_REG_DATA_ROLE, val));
+	i += SCNPRINTF(&buff[i], len - i, " USB_PD=%x",
+		FIELD2VALUE(MAX77759_USB_MESSAGE_HEADER_INFO_REG_USB_PD, val));
+	i += SCNPRINTF(&buff[i], len - i, " PWR_ROLE=%x",
+		FIELD2VALUE(MAX77759_USB_MESSAGE_HEADER_INFO_REG_PWR_ROLE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * RECEIVE_DETECT_REG,0x2F,0b00000000,0x00
+ * RSVD_7,EN_CBL_RST,EN_HRD_RST,EN_SOP_DBG2,EN_SOP_DBG1,EN_SOP2,EN_SOP1
+ */
+#define MAX77759_USB_RECEIVE_DETECT_REG	0x2F
+#define MAX77759_USB_RECEIVE_DETECT_REG_RSVD_7	(0x1 << 7)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_CBL_RST	(0x1 << 6)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_HRD_RST	(0x1 << 5)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG2	(0x1 << 4)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG1	(0x1 << 3)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP2	(0x1 << 2)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP1	(0x1 << 1)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP	(0x1 << 0)
+
+#define MAX77759_USB_RECEIVE_DETECT_REG_RSVD_7_SHIFT	7
+#define MAX77759_USB_RECEIVE_DETECT_REG_RSVD_7_MASK	(0x1 << 7)
+#define MAX77759_USB_RECEIVE_DETECT_REG_RSVD_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_CBL_RST_SHIFT	6
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_CBL_RST_MASK	(0x1 << 6)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_CBL_RST_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_HRD_RST_SHIFT	5
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_HRD_RST_MASK	(0x1 << 5)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_HRD_RST_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG2_SHIFT	4
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG2_MASK	(0x1 << 4)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG2_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG1_SHIFT	3
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG1_MASK	(0x1 << 3)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG1_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP2_SHIFT	2
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP2_MASK	(0x1 << 2)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP2_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP1_SHIFT	1
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP1_MASK	(0x1 << 1)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP1_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_SHIFT	0
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_MASK	(0x1 << 0)
+#define MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_receive_detect_reg_rsvd_7,7,7)
+MAX77759_BFF(usb_receive_detect_reg_en_cbl_rst,6,6)
+MAX77759_BFF(usb_receive_detect_reg_en_hrd_rst,5,5)
+MAX77759_BFF(usb_receive_detect_reg_en_sop_dbg2,4,4)
+MAX77759_BFF(usb_receive_detect_reg_en_sop_dbg1,3,3)
+MAX77759_BFF(usb_receive_detect_reg_en_sop2,2,2)
+MAX77759_BFF(usb_receive_detect_reg_en_sop1,1,1)
+MAX77759_BFF(usb_receive_detect_reg_en_sop,0,0)
+static inline const char *
+max77759_usb_receive_detect_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7=%x",
+		FIELD2VALUE(MAX77759_USB_RECEIVE_DETECT_REG_RSVD_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_CBL_RST=%x",
+		FIELD2VALUE(MAX77759_USB_RECEIVE_DETECT_REG_EN_CBL_RST, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_HRD_RST=%x",
+		FIELD2VALUE(MAX77759_USB_RECEIVE_DETECT_REG_EN_HRD_RST, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_SOP_DBG2=%x",
+		FIELD2VALUE(MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG2, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_SOP_DBG1=%x",
+		FIELD2VALUE(MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP_DBG1, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_SOP2=%x",
+		FIELD2VALUE(MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP2, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_SOP1=%x",
+		FIELD2VALUE(MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP1, val));
+	i += SCNPRINTF(&buff[i], len - i, " EN_SOP=%x",
+		FIELD2VALUE(MAX77759_USB_RECEIVE_DETECT_REG_EN_SOP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * RECEIVE_BUFFER_REG,0x30,0b00000000,0x00
+ * RECEIVE_BUFFER[7:0],,,,,,
+ */
+#define MAX77759_USB_RECEIVE_BUFFER_REG	0x30
+
+/*
+ * TRANSMIT_REG,0x50,0b00000000,0x00
+ * RSVD_7_6[1:0],,RETRY_COUNTER[1:0],,RSVD_3,TX_SOP_MESSAGE[2:0],
+ */
+#define MAX77759_USB_TRANSMIT_REG	0x50
+#define MAX77759_USB_TRANSMIT_REG_RSVD_3	(0x1 << 3)
+
+#define MAX77759_USB_TRANSMIT_REG_RSVD_7_6_SHIFT	6
+#define MAX77759_USB_TRANSMIT_REG_RSVD_7_6_MASK	(0x3 << 6)
+#define MAX77759_USB_TRANSMIT_REG_RSVD_7_6_CLEAR	(~(0x3 << 6))
+#define MAX77759_USB_TRANSMIT_REG_RETRY_COUNTER_SHIFT	4
+#define MAX77759_USB_TRANSMIT_REG_RETRY_COUNTER_MASK	(0x3 << 4)
+#define MAX77759_USB_TRANSMIT_REG_RETRY_COUNTER_CLEAR	(~(0x3 << 4))
+#define MAX77759_USB_TRANSMIT_REG_RSVD_3_SHIFT	3
+#define MAX77759_USB_TRANSMIT_REG_RSVD_3_MASK	(0x1 << 3)
+#define MAX77759_USB_TRANSMIT_REG_RSVD_3_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_TRANSMIT_REG_TX_SOP_MESSAGE_SHIFT	0
+#define MAX77759_USB_TRANSMIT_REG_TX_SOP_MESSAGE_MASK	(0x7 << 0)
+#define MAX77759_USB_TRANSMIT_REG_TX_SOP_MESSAGE_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(usb_transmit_reg_rsvd_7_6,7,6)
+MAX77759_BFF(usb_transmit_reg_retry_counter,5,4)
+MAX77759_BFF(usb_transmit_reg_rsvd_3,3,3)
+MAX77759_BFF(usb_transmit_reg_tx_sop_message,2,0)
+static inline const char *
+max77759_usb_transmit_reg_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_6=%x",
+		FIELD2VALUE(MAX77759_USB_TRANSMIT_REG_RSVD_7_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " RETRY_COUNTER=%x",
+		FIELD2VALUE(MAX77759_USB_TRANSMIT_REG_RETRY_COUNTER, val));
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_3=%x",
+		FIELD2VALUE(MAX77759_USB_TRANSMIT_REG_RSVD_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " TX_SOP_MESSAGE=%x",
+		FIELD2VALUE(MAX77759_USB_TRANSMIT_REG_TX_SOP_MESSAGE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * TRANSMIT_BUFFER_REG,0x51,0b00000000,0x00
+ * TRANSMIT_BUFFER[7:0],,,,,,
+ */
+#define MAX77759_USB_TRANSMIT_BUFFER_REG	0x51
+
+/*
+ * VBUS_VOLTAGE_L,0x70,0b00000000,0x00
+ * VBUS_VOLTAGE7_0[7:0],,,,,,
+ */
+#define MAX77759_USB_VBUS_VOLTAGE_L	0x70
+
+/*
+ * VBUS_VOLTAGE_H,0x71,0b00000000,0x00
+ * RSVD_7_4[3:0],,,,SCALE_FACTOR[1:0],,VBUS_VOLTAGE9_8[1:0]
+ */
+#define MAX77759_USB_VBUS_VOLTAGE_H	0x71
+
+#define MAX77759_USB_VBUS_VOLTAGE_H_RSVD_7_4_SHIFT	4
+#define MAX77759_USB_VBUS_VOLTAGE_H_RSVD_7_4_MASK	(0xf << 4)
+#define MAX77759_USB_VBUS_VOLTAGE_H_RSVD_7_4_CLEAR	(~(0xf << 4))
+#define MAX77759_USB_VBUS_VOLTAGE_H_SCALE_FACTOR_SHIFT	2
+#define MAX77759_USB_VBUS_VOLTAGE_H_SCALE_FACTOR_MASK	(0x3 << 2)
+#define MAX77759_USB_VBUS_VOLTAGE_H_SCALE_FACTOR_CLEAR	(~(0x3 << 2))
+#define MAX77759_USB_VBUS_VOLTAGE_H_VBUS_VOLTAGE9_8_SHIFT	0
+#define MAX77759_USB_VBUS_VOLTAGE_H_VBUS_VOLTAGE9_8_MASK	(0x3 << 0)
+#define MAX77759_USB_VBUS_VOLTAGE_H_VBUS_VOLTAGE9_8_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vbus_voltage_h_rsvd_7_4,7,4)
+MAX77759_BFF(usb_vbus_voltage_h_scale_factor,3,2)
+MAX77759_BFF(usb_vbus_voltage_h_vbus_voltage9_8,1,0)
+static inline const char *
+max77759_usb_vbus_voltage_h_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_4=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_VOLTAGE_H_RSVD_7_4, val));
+	i += SCNPRINTF(&buff[i], len - i, " SCALE_FACTOR=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_VOLTAGE_H_SCALE_FACTOR, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_VOLTAGE9_8=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_VOLTAGE_H_VBUS_VOLTAGE9_8, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VBUS_SNK_DISC_L,0x72,0b10001100,0x8c
+ * VBUS_SNK_DISC7_0[7:0],,,,,,
+ */
+#define MAX77759_USB_VBUS_SNK_DISC_L	0x72
+
+/*
+ * VBUS_SNK_DISC_H,0x73,0b00000000,0x00
+ * RSVD_7_2[5:0],,,,,,VBUS_SNK_DISC9_8[1:0]
+ */
+#define MAX77759_USB_VBUS_SNK_DISC_H	0x73
+
+#define MAX77759_USB_VBUS_SNK_DISC_H_RSVD_7_2_SHIFT	2
+#define MAX77759_USB_VBUS_SNK_DISC_H_RSVD_7_2_MASK	(0x3f << 2)
+#define MAX77759_USB_VBUS_SNK_DISC_H_RSVD_7_2_CLEAR	(~(0x3f << 2))
+#define MAX77759_USB_VBUS_SNK_DISC_H_VBUS_SNK_DISC9_8_SHIFT	0
+#define MAX77759_USB_VBUS_SNK_DISC_H_VBUS_SNK_DISC9_8_MASK	(0x3 << 0)
+#define MAX77759_USB_VBUS_SNK_DISC_H_VBUS_SNK_DISC9_8_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vbus_snk_disc_h_rsvd_7_2,7,2)
+MAX77759_BFF(usb_vbus_snk_disc_h_vbus_snk_disc9_8,1,0)
+static inline const char *
+max77759_usb_vbus_snk_disc_h_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_2=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_SNK_DISC_H_RSVD_7_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_SNK_DISC9_8=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_SNK_DISC_H_VBUS_SNK_DISC9_8, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VBUS_STOP_DISCHARGE_THRESHOLD_L,0x74,0b00100000,0x20
+ * VBUS_STOP_DISCH_THRESHOLD7_0[7:0],,,,,,
+ */
+#define MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_L	0x74
+
+/*
+ * VBUS_STOP_DISCHARGE_THRESHOLD_H,0x75,0b00000000,0x00
+ * RSVD_7_2[5:0],,,,,,VBUS_STOP_DISCH_THRESHOLD9_8[1:0]
+ */
+#define MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_H	0x75
+
+#define MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_H_RSVD_7_2_SHIFT	2
+#define MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_H_RSVD_7_2_MASK	(0x3f << 2)
+#define MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_H_RSVD_7_2_CLEAR	(~(0x3f << 2))
+#define MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_H_VBUS_STOP_DISCH_THRESHOLD9_8_SHIFT	0
+#define MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_H_VBUS_STOP_DISCH_THRESHOLD9_8_MASK	(0x3 << 0)
+#define MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_H_VBUS_STOP_DISCH_THRESHOLD9_8_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vbus_stop_discharge_threshold_h_rsvd_7_2,7,2)
+MAX77759_BFF(usb_vbus_stop_discharge_threshold_h_vbus_stop_disch_threshold9_8,1,0)
+static inline const char *
+max77759_usb_vbus_stop_discharge_threshold_h_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_2=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_H_RSVD_7_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_STOP_DISCH_THRESHOLD9_8=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_STOP_DISCHARGE_THRESHOLD_H_VBUS_STOP_DISCH_THRESHOLD9_8, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VBUS_VOLTAGE_ALARM_HI_CFG_L,0x76,0b00000000,0x00
+ * VBUS_ALARM_HI_CFG7_0[7:0],,,,,,
+ */
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_L	0x76
+
+/*
+ * VBUS_VOLTAGE_ALARM_HI_CFG_H,0x77,0b00000000,0x00
+ * RSVD_7_2[5:0],,,,,,VBUS_ALARM_HI_CFG9_8[1:0]
+ */
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_H	0x77
+
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_H_RSVD_7_2_SHIFT	2
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_H_RSVD_7_2_MASK	(0x3f << 2)
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_H_RSVD_7_2_CLEAR	(~(0x3f << 2))
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_H_VBUS_ALARM_HI_CFG9_8_SHIFT	0
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_H_VBUS_ALARM_HI_CFG9_8_MASK	(0x3 << 0)
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_H_VBUS_ALARM_HI_CFG9_8_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vbus_voltage_alarm_hi_cfg_h_rsvd_7_2,7,2)
+MAX77759_BFF(usb_vbus_voltage_alarm_hi_cfg_h_vbus_alarm_hi_cfg9_8,1,0)
+static inline const char *
+max77759_usb_vbus_voltage_alarm_hi_cfg_h_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_2=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_H_RSVD_7_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_ALARM_HI_CFG9_8=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_VOLTAGE_ALARM_HI_CFG_H_VBUS_ALARM_HI_CFG9_8, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VBUS_VOLTAGE_ALARM_LO_CFG_L,0x78,0b00000000,0x00
+ * VBUS_ALARM_LO_CFG_7_0[7:0],,,,,,
+ */
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_L	0x78
+
+/*
+ * VBUS_VOLTAGE_ALARM_LO_CFG_H,0x79,0b00000000,0x00
+ * RSVD_7_2[5:0],,,,,,VBUS_ALARM_LO_CFG9_8[1:0]
+ */
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_H	0x79
+
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_H_RSVD_7_2_SHIFT	2
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_H_RSVD_7_2_MASK	(0x3f << 2)
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_H_RSVD_7_2_CLEAR	(~(0x3f << 2))
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_H_VBUS_ALARM_LO_CFG9_8_SHIFT	0
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_H_VBUS_ALARM_LO_CFG9_8_MASK	(0x3 << 0)
+#define MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_H_VBUS_ALARM_LO_CFG9_8_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vbus_voltage_alarm_lo_cfg_h_rsvd_7_2,7,2)
+MAX77759_BFF(usb_vbus_voltage_alarm_lo_cfg_h_vbus_alarm_lo_cfg9_8,1,0)
+static inline const char *
+max77759_usb_vbus_voltage_alarm_lo_cfg_h_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_2=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_H_RSVD_7_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " VBUS_ALARM_LO_CFG9_8=%x",
+		FIELD2VALUE(MAX77759_USB_VBUS_VOLTAGE_ALARM_LO_CFG_H_VBUS_ALARM_LO_CFG9_8, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_ALERT1,0x80,0b00000000,0x00
+ * SPR_7_6[1:0],,dnVdatRefInt,chgTypRunFInt,chgTypRunRInt,prChgTypInt,dcdTmoInt
+ */
+#define MAX77759_USB_VENDOR_ALERT1	0x80
+#define MAX77759_USB_VENDOR_ALERT1_DNVDATREFINT	(0x1 << 5)
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNFINT	(0x1 << 4)
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNRINT	(0x1 << 3)
+#define MAX77759_USB_VENDOR_ALERT1_PRCHGTYPINT	(0x1 << 2)
+#define MAX77759_USB_VENDOR_ALERT1_DCDTMOINT	(0x1 << 1)
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPINT	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_ALERT1_SPR_7_6_SHIFT	6
+#define MAX77759_USB_VENDOR_ALERT1_SPR_7_6_MASK	(0x3 << 6)
+#define MAX77759_USB_VENDOR_ALERT1_SPR_7_6_CLEAR	(~(0x3 << 6))
+#define MAX77759_USB_VENDOR_ALERT1_DNVDATREFINT_SHIFT	5
+#define MAX77759_USB_VENDOR_ALERT1_DNVDATREFINT_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_ALERT1_DNVDATREFINT_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNFINT_SHIFT	4
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNFINT_MASK	(0x1 << 4)
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNFINT_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNRINT_SHIFT	3
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNRINT_MASK	(0x1 << 3)
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNRINT_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_VENDOR_ALERT1_PRCHGTYPINT_SHIFT	2
+#define MAX77759_USB_VENDOR_ALERT1_PRCHGTYPINT_MASK	(0x1 << 2)
+#define MAX77759_USB_VENDOR_ALERT1_PRCHGTYPINT_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_VENDOR_ALERT1_DCDTMOINT_SHIFT	1
+#define MAX77759_USB_VENDOR_ALERT1_DCDTMOINT_MASK	(0x1 << 1)
+#define MAX77759_USB_VENDOR_ALERT1_DCDTMOINT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPINT_SHIFT	0
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPINT_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_ALERT1_CHGTYPINT_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_alert1_spr_7_6,7,6)
+MAX77759_BFF(usb_vendor_alert1_dnvdatrefint,5,5)
+MAX77759_BFF(usb_vendor_alert1_chgtyprunfint,4,4)
+MAX77759_BFF(usb_vendor_alert1_chgtyprunrint,3,3)
+MAX77759_BFF(usb_vendor_alert1_prchgtypint,2,2)
+MAX77759_BFF(usb_vendor_alert1_dcdtmoint,1,1)
+MAX77759_BFF(usb_vendor_alert1_chgtypint,0,0)
+static inline const char *
+max77759_usb_vendor_alert1_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_6=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT1_SPR_7_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " DNVDATREFINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT1_DNVDATREFINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGTYPRUNFINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNFINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGTYPRUNRINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT1_CHGTYPRUNRINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " PRCHGTYPINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT1_PRCHGTYPINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " DCDTMOINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT1_DCDTMOINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGTYPINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT1_CHGTYPINT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_ALERT2,0x81,0b00000000,0x00
+ * SBU_OVPint,USB_OVPint,CC_OVPint,SPR_4_3[1:0],,CCVCNSCInt,FLASH_ADCInt
+ */
+#define MAX77759_USB_VENDOR_ALERT2	0x81
+#define MAX77759_USB_VENDOR_ALERT2_SBU_OVPINT	(0x1 << 7)
+#define MAX77759_USB_VENDOR_ALERT2_USB_OVPINT	(0x1 << 6)
+#define MAX77759_USB_VENDOR_ALERT2_CC_OVPINT	(0x1 << 5)
+#define MAX77759_USB_VENDOR_ALERT2_CCVCNSCINT	(0x1 << 2)
+#define MAX77759_USB_VENDOR_ALERT2_FLASH_ADCINT	(0x1 << 1)
+#define MAX77759_USB_VENDOR_ALERT2_SPR_0	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_ALERT2_SBU_OVPINT_SHIFT	7
+#define MAX77759_USB_VENDOR_ALERT2_SBU_OVPINT_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_ALERT2_SBU_OVPINT_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_ALERT2_USB_OVPINT_SHIFT	6
+#define MAX77759_USB_VENDOR_ALERT2_USB_OVPINT_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_ALERT2_USB_OVPINT_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_ALERT2_CC_OVPINT_SHIFT	5
+#define MAX77759_USB_VENDOR_ALERT2_CC_OVPINT_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_ALERT2_CC_OVPINT_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_ALERT2_SPR_4_3_SHIFT	3
+#define MAX77759_USB_VENDOR_ALERT2_SPR_4_3_MASK	(0x3 << 3)
+#define MAX77759_USB_VENDOR_ALERT2_SPR_4_3_CLEAR	(~(0x3 << 3))
+#define MAX77759_USB_VENDOR_ALERT2_CCVCNSCINT_SHIFT	2
+#define MAX77759_USB_VENDOR_ALERT2_CCVCNSCINT_MASK	(0x1 << 2)
+#define MAX77759_USB_VENDOR_ALERT2_CCVCNSCINT_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_VENDOR_ALERT2_FLASH_ADCINT_SHIFT	1
+#define MAX77759_USB_VENDOR_ALERT2_FLASH_ADCINT_MASK	(0x1 << 1)
+#define MAX77759_USB_VENDOR_ALERT2_FLASH_ADCINT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_VENDOR_ALERT2_SPR_0_SHIFT	0
+#define MAX77759_USB_VENDOR_ALERT2_SPR_0_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_ALERT2_SPR_0_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_alert2_sbu_ovpint,7,7)
+MAX77759_BFF(usb_vendor_alert2_usb_ovpint,6,6)
+MAX77759_BFF(usb_vendor_alert2_cc_ovpint,5,5)
+MAX77759_BFF(usb_vendor_alert2_spr_4_3,4,3)
+MAX77759_BFF(usb_vendor_alert2_ccvcnscint,2,2)
+MAX77759_BFF(usb_vendor_alert2_flash_adcint,1,1)
+MAX77759_BFF(usb_vendor_alert2_spr_0,0,0)
+static inline const char *
+max77759_usb_vendor_alert2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SBU_OVPINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT2_SBU_OVPINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " USB_OVPINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT2_USB_OVPINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC_OVPINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT2_CC_OVPINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_4_3=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT2_SPR_4_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCVCNSCINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT2_CCVCNSCINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " FLASH_ADCINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT2_FLASH_ADCINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_0=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT2_SPR_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_ALERT_MASK1,0x82,0b11111111,0xff
+ * SPR_7_6[1:0],,MSK_dnVDatRef,MSK_chgTypRunF,MSK_chgTypRunR,MSK_PrchgTyp,MSK_dcdTmo
+ */
+#define MAX77759_USB_VENDOR_ALERT_MASK1	0x82
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DNVDATREF	(0x1 << 5)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNF	(0x1 << 4)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNR	(0x1 << 3)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_PRCHGTYP	(0x1 << 2)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DCDTMO	(0x1 << 1)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYP	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_ALERT_MASK1_SPR_7_6_SHIFT	6
+#define MAX77759_USB_VENDOR_ALERT_MASK1_SPR_7_6_MASK	(0x3 << 6)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_SPR_7_6_CLEAR	(~(0x3 << 6))
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DNVDATREF_SHIFT	5
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DNVDATREF_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DNVDATREF_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNF_SHIFT	4
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNF_MASK	(0x1 << 4)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNF_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNR_SHIFT	3
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNR_MASK	(0x1 << 3)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNR_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_PRCHGTYP_SHIFT	2
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_PRCHGTYP_MASK	(0x1 << 2)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_PRCHGTYP_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DCDTMO_SHIFT	1
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DCDTMO_MASK	(0x1 << 1)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DCDTMO_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYP_SHIFT	0
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYP_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYP_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_alert_mask1_spr_7_6,7,6)
+MAX77759_BFF(usb_vendor_alert_mask1_msk_dnvdatref,5,5)
+MAX77759_BFF(usb_vendor_alert_mask1_msk_chgtyprunf,4,4)
+MAX77759_BFF(usb_vendor_alert_mask1_msk_chgtyprunr,3,3)
+MAX77759_BFF(usb_vendor_alert_mask1_msk_prchgtyp,2,2)
+MAX77759_BFF(usb_vendor_alert_mask1_msk_dcdtmo,1,1)
+MAX77759_BFF(usb_vendor_alert_mask1_msk_chgtyp,0,0)
+static inline const char *
+max77759_usb_vendor_alert_mask1_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_6=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK1_SPR_7_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_DNVDATREF=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DNVDATREF, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_CHGTYPRUNF=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNF, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_CHGTYPRUNR=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYPRUNR, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_PRCHGTYP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK1_MSK_PRCHGTYP, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_DCDTMO=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK1_MSK_DCDTMO, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_CHGTYP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK1_MSK_CHGTYP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_ALERT_MASK2,0x83,0b11111111,0xff
+ * MSK_SBU_OVP,MSK_USB_OVP,MSK_CC_OVP,SPR_4_3[1:0],,MSK_CCVCNSCInt,MSK_FLASH_ADCInt
+ */
+#define MAX77759_USB_VENDOR_ALERT_MASK2	0x83
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_SBU_OVP	(0x1 << 7)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_USB_OVP	(0x1 << 6)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CC_OVP	(0x1 << 5)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CCVCNSCINT	(0x1 << 2)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_FLASH_ADCINT	(0x1 << 1)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_SPR_0	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_SBU_OVP_SHIFT	7
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_SBU_OVP_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_SBU_OVP_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_USB_OVP_SHIFT	6
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_USB_OVP_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_USB_OVP_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CC_OVP_SHIFT	5
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CC_OVP_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CC_OVP_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_ALERT_MASK2_SPR_4_3_SHIFT	3
+#define MAX77759_USB_VENDOR_ALERT_MASK2_SPR_4_3_MASK	(0x3 << 3)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_SPR_4_3_CLEAR	(~(0x3 << 3))
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CCVCNSCINT_SHIFT	2
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CCVCNSCINT_MASK	(0x1 << 2)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CCVCNSCINT_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_FLASH_ADCINT_SHIFT	1
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_FLASH_ADCINT_MASK	(0x1 << 1)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_MSK_FLASH_ADCINT_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_VENDOR_ALERT_MASK2_SPR_0_SHIFT	0
+#define MAX77759_USB_VENDOR_ALERT_MASK2_SPR_0_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_ALERT_MASK2_SPR_0_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_alert_mask2_msk_sbu_ovp,7,7)
+MAX77759_BFF(usb_vendor_alert_mask2_msk_usb_ovp,6,6)
+MAX77759_BFF(usb_vendor_alert_mask2_msk_cc_ovp,5,5)
+MAX77759_BFF(usb_vendor_alert_mask2_spr_4_3,4,3)
+MAX77759_BFF(usb_vendor_alert_mask2_msk_ccvcnscint,2,2)
+MAX77759_BFF(usb_vendor_alert_mask2_msk_flash_adcint,1,1)
+MAX77759_BFF(usb_vendor_alert_mask2_spr_0,0,0)
+static inline const char *
+max77759_usb_vendor_alert_mask2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " MSK_SBU_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK2_MSK_SBU_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_USB_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK2_MSK_USB_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_CC_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CC_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_4_3=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK2_SPR_4_3, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_CCVCNSCINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK2_MSK_CCVCNSCINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " MSK_FLASH_ADCINT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK2_MSK_FLASH_ADCINT, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_0=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ALERT_MASK2_SPR_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_CC_STATUS1,0x84,0b00000000,0x00
+ * SBU2_OVP,SBU1_OVP,USBDP_OVP,USBDN_OVP,CC2_OVP,CC1_OVP,SPR_1_0[1:0]
+ */
+#define MAX77759_USB_VENDOR_CC_STATUS1	0x84
+#define MAX77759_USB_VENDOR_CC_STATUS1_SBU2_OVP	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_STATUS1_SBU1_OVP	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_STATUS1_USBDP_OVP	(0x1 << 5)
+#define MAX77759_USB_VENDOR_CC_STATUS1_USBDN_OVP	(0x1 << 4)
+#define MAX77759_USB_VENDOR_CC_STATUS1_CC2_OVP	(0x1 << 3)
+#define MAX77759_USB_VENDOR_CC_STATUS1_CC1_OVP	(0x1 << 2)
+
+#define MAX77759_USB_VENDOR_CC_STATUS1_SBU2_OVP_SHIFT	7
+#define MAX77759_USB_VENDOR_CC_STATUS1_SBU2_OVP_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_STATUS1_SBU2_OVP_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_CC_STATUS1_SBU1_OVP_SHIFT	6
+#define MAX77759_USB_VENDOR_CC_STATUS1_SBU1_OVP_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_STATUS1_SBU1_OVP_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_CC_STATUS1_USBDP_OVP_SHIFT	5
+#define MAX77759_USB_VENDOR_CC_STATUS1_USBDP_OVP_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_CC_STATUS1_USBDP_OVP_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_CC_STATUS1_USBDN_OVP_SHIFT	4
+#define MAX77759_USB_VENDOR_CC_STATUS1_USBDN_OVP_MASK	(0x1 << 4)
+#define MAX77759_USB_VENDOR_CC_STATUS1_USBDN_OVP_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_VENDOR_CC_STATUS1_CC2_OVP_SHIFT	3
+#define MAX77759_USB_VENDOR_CC_STATUS1_CC2_OVP_MASK	(0x1 << 3)
+#define MAX77759_USB_VENDOR_CC_STATUS1_CC2_OVP_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_VENDOR_CC_STATUS1_CC1_OVP_SHIFT	2
+#define MAX77759_USB_VENDOR_CC_STATUS1_CC1_OVP_MASK	(0x1 << 2)
+#define MAX77759_USB_VENDOR_CC_STATUS1_CC1_OVP_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_VENDOR_CC_STATUS1_SPR_1_0_SHIFT	0
+#define MAX77759_USB_VENDOR_CC_STATUS1_SPR_1_0_MASK	(0x3 << 0)
+#define MAX77759_USB_VENDOR_CC_STATUS1_SPR_1_0_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vendor_cc_status1_sbu2_ovp,7,7)
+MAX77759_BFF(usb_vendor_cc_status1_sbu1_ovp,6,6)
+MAX77759_BFF(usb_vendor_cc_status1_usbdp_ovp,5,5)
+MAX77759_BFF(usb_vendor_cc_status1_usbdn_ovp,4,4)
+MAX77759_BFF(usb_vendor_cc_status1_cc2_ovp,3,3)
+MAX77759_BFF(usb_vendor_cc_status1_cc1_ovp,2,2)
+MAX77759_BFF(usb_vendor_cc_status1_spr_1_0,1,0)
+static inline const char *
+max77759_usb_vendor_cc_status1_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SBU2_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS1_SBU2_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SBU1_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS1_SBU1_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " USBDP_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS1_USBDP_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " USBDN_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS1_USBDN_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC2_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS1_CC2_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC1_OVP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS1_CC1_OVP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_1_0=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS1_SPR_1_0, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_CC_STATUS2,0x85,0b00000000,0x00
+ * CC2_VDFP_OPEN,CC2_VUFP_RD1P5,CC2_VUFP_RD0P5,CC2_VRA_RD0P5,CC1_VDFP_OPEN,CC1_VUFP_RD1P5,CC1_VUFP_RD0P5
+ */
+#define MAX77759_USB_VENDOR_CC_STATUS2	0x85
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VDFP_OPEN	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD1P5	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD0P5	(0x1 << 5)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VRA_RD0P5	(0x1 << 4)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VDFP_OPEN	(0x1 << 3)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD1P5	(0x1 << 2)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD0P5	(0x1 << 1)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VRA_RD0P5	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VDFP_OPEN_SHIFT	7
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VDFP_OPEN_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VDFP_OPEN_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD1P5_SHIFT	6
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD1P5_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD1P5_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD0P5_SHIFT	5
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD0P5_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD0P5_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VRA_RD0P5_SHIFT	4
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VRA_RD0P5_MASK	(0x1 << 4)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC2_VRA_RD0P5_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VDFP_OPEN_SHIFT	3
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VDFP_OPEN_MASK	(0x1 << 3)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VDFP_OPEN_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD1P5_SHIFT	2
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD1P5_MASK	(0x1 << 2)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD1P5_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD0P5_SHIFT	1
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD0P5_MASK	(0x1 << 1)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD0P5_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VRA_RD0P5_SHIFT	0
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VRA_RD0P5_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_CC_STATUS2_CC1_VRA_RD0P5_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_cc_status2_cc2_vdfp_open,7,7)
+MAX77759_BFF(usb_vendor_cc_status2_cc2_vufp_rd1p5,6,6)
+MAX77759_BFF(usb_vendor_cc_status2_cc2_vufp_rd0p5,5,5)
+MAX77759_BFF(usb_vendor_cc_status2_cc2_vra_rd0p5,4,4)
+MAX77759_BFF(usb_vendor_cc_status2_cc1_vdfp_open,3,3)
+MAX77759_BFF(usb_vendor_cc_status2_cc1_vufp_rd1p5,2,2)
+MAX77759_BFF(usb_vendor_cc_status2_cc1_vufp_rd0p5,1,1)
+MAX77759_BFF(usb_vendor_cc_status2_cc1_vra_rd0p5,0,0)
+static inline const char *
+max77759_usb_vendor_cc_status2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " CC2_VDFP_OPEN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS2_CC2_VDFP_OPEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC2_VUFP_RD1P5=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD1P5, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC2_VUFP_RD0P5=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS2_CC2_VUFP_RD0P5, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC2_VRA_RD0P5=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS2_CC2_VRA_RD0P5, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC1_VDFP_OPEN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS2_CC1_VDFP_OPEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC1_VUFP_RD1P5=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD1P5, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC1_VUFP_RD0P5=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS2_CC1_VUFP_RD0P5, val));
+	i += SCNPRINTF(&buff[i], len - i, " CC1_VRA_RD0P5=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS2_CC1_VRA_RD0P5, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_CC_STATUS3,0x86,0b00000000,0x00
+ * ccVcnSc,ccVcnOCP,SPR_5_1[4:0],,,,
+ */
+#define MAX77759_USB_VENDOR_CC_STATUS3	0x86
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSC	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNOCP	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSTAT	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSC_SHIFT	7
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSC_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSC_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNOCP_SHIFT	6
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNOCP_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNOCP_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_CC_STATUS3_SPR_5_1_SHIFT	1
+#define MAX77759_USB_VENDOR_CC_STATUS3_SPR_5_1_MASK	(0x1f << 1)
+#define MAX77759_USB_VENDOR_CC_STATUS3_SPR_5_1_CLEAR	(~(0x1f << 1))
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSTAT_SHIFT	0
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSTAT_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSTAT_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_cc_status3_ccvcnsc,7,7)
+MAX77759_BFF(usb_vendor_cc_status3_ccvcnocp,6,6)
+MAX77759_BFF(usb_vendor_cc_status3_spr_5_1,5,1)
+MAX77759_BFF(usb_vendor_cc_status3_ccvcnstat,0,0)
+static inline const char *
+max77759_usb_vendor_cc_status3_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " CCVCNSC=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSC, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCVCNOCP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS3_CCVCNOCP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_5_1=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS3_SPR_5_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCVCNSTAT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_STATUS3_CCVCNSTAT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_BC_STATUS1,0x87,0b00000000,0x00
+ * SPR_7,ChgTypRun,PrChgTyp[2:0],,,DCDTmo,ChgTyp[1:0]
+ */
+#define MAX77759_USB_VENDOR_BC_STATUS1	0x87
+#define MAX77759_USB_VENDOR_BC_STATUS1_SPR_7	(0x1 << 7)
+#define MAX77759_USB_VENDOR_BC_STATUS1_CHGTYPRUN	(0x1 << 6)
+#define MAX77759_USB_VENDOR_BC_STATUS1_DCDTMO	(0x1 << 2)
+
+#define MAX77759_USB_VENDOR_BC_STATUS1_SPR_7_SHIFT	7
+#define MAX77759_USB_VENDOR_BC_STATUS1_SPR_7_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_BC_STATUS1_SPR_7_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_BC_STATUS1_CHGTYPRUN_SHIFT	6
+#define MAX77759_USB_VENDOR_BC_STATUS1_CHGTYPRUN_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_BC_STATUS1_CHGTYPRUN_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_BC_STATUS1_PRCHGTYP_SHIFT	3
+#define MAX77759_USB_VENDOR_BC_STATUS1_PRCHGTYP_MASK	(0x7 << 3)
+#define MAX77759_USB_VENDOR_BC_STATUS1_PRCHGTYP_CLEAR	(~(0x7 << 3))
+#define MAX77759_USB_VENDOR_BC_STATUS1_DCDTMO_SHIFT	2
+#define MAX77759_USB_VENDOR_BC_STATUS1_DCDTMO_MASK	(0x1 << 2)
+#define MAX77759_USB_VENDOR_BC_STATUS1_DCDTMO_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_VENDOR_BC_STATUS1_CHGTYP_SHIFT	0
+#define MAX77759_USB_VENDOR_BC_STATUS1_CHGTYP_MASK	(0x3 << 0)
+#define MAX77759_USB_VENDOR_BC_STATUS1_CHGTYP_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vendor_bc_status1_spr_7,7,7)
+MAX77759_BFF(usb_vendor_bc_status1_chgtyprun,6,6)
+MAX77759_BFF(usb_vendor_bc_status1_prchgtyp,5,3)
+MAX77759_BFF(usb_vendor_bc_status1_dcdtmo,2,2)
+MAX77759_BFF(usb_vendor_bc_status1_chgtyp,1,0)
+static inline const char *
+max77759_usb_vendor_bc_status1_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS1_SPR_7, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGTYPRUN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS1_CHGTYPRUN, val));
+	i += SCNPRINTF(&buff[i], len - i, " PRCHGTYP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS1_PRCHGTYP, val));
+	i += SCNPRINTF(&buff[i], len - i, " DCDTMO=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS1_DCDTMO, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGTYP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS1_CHGTYP, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_BC_STATUS2,0x88,0b00000000,0x00
+ * dnDebOk,SPR_6,dnVlgc,dnVdatRef,dpDebOk,SPR_2,dpVlgc
+ */
+#define MAX77759_USB_VENDOR_BC_STATUS2	0x88
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNDEBOK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_BC_STATUS2_SPR_6	(0x1 << 6)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNVLGC	(0x1 << 5)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNVDATREF	(0x1 << 4)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPDEBOK	(0x1 << 3)
+#define MAX77759_USB_VENDOR_BC_STATUS2_SPR_2	(0x1 << 2)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPVLGC	(0x1 << 1)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPVDATREF	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNDEBOK_SHIFT	7
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNDEBOK_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNDEBOK_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_BC_STATUS2_SPR_6_SHIFT	6
+#define MAX77759_USB_VENDOR_BC_STATUS2_SPR_6_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_BC_STATUS2_SPR_6_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNVLGC_SHIFT	5
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNVLGC_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNVLGC_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNVDATREF_SHIFT	4
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNVDATREF_MASK	(0x1 << 4)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DNVDATREF_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPDEBOK_SHIFT	3
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPDEBOK_MASK	(0x1 << 3)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPDEBOK_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_VENDOR_BC_STATUS2_SPR_2_SHIFT	2
+#define MAX77759_USB_VENDOR_BC_STATUS2_SPR_2_MASK	(0x1 << 2)
+#define MAX77759_USB_VENDOR_BC_STATUS2_SPR_2_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPVLGC_SHIFT	1
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPVLGC_MASK	(0x1 << 1)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPVLGC_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPVDATREF_SHIFT	0
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPVDATREF_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_BC_STATUS2_DPVDATREF_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_bc_status2_dndebok,7,7)
+MAX77759_BFF(usb_vendor_bc_status2_spr_6,6,6)
+MAX77759_BFF(usb_vendor_bc_status2_dnvlgc,5,5)
+MAX77759_BFF(usb_vendor_bc_status2_dnvdatref,4,4)
+MAX77759_BFF(usb_vendor_bc_status2_dpdebok,3,3)
+MAX77759_BFF(usb_vendor_bc_status2_spr_2,2,2)
+MAX77759_BFF(usb_vendor_bc_status2_dpvlgc,1,1)
+MAX77759_BFF(usb_vendor_bc_status2_dpvdatref,0,0)
+static inline const char *
+max77759_usb_vendor_bc_status2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " DNDEBOK=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS2_DNDEBOK, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_6=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS2_SPR_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " DNVLGC=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS2_DNVLGC, val));
+	i += SCNPRINTF(&buff[i], len - i, " DNVDATREF=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS2_DNVDATREF, val));
+	i += SCNPRINTF(&buff[i], len - i, " DPDEBOK=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS2_DPDEBOK, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_2=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS2_SPR_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " DPVLGC=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS2_DPVLGC, val));
+	i += SCNPRINTF(&buff[i], len - i, " DPVDATREF=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_STATUS2_DPVDATREF, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_FLADC_STATUS,0x89,0b00000000,0x00
+ * ADC_VAL[7:0],,,,,,
+ */
+#define MAX77759_USB_VENDOR_FLADC_STATUS	0x89
+
+/*
+ * VENDOR_WDG_CTRL,0x8A,0b00000000,0x00
+ * RSVD_7_2[5:0],,,,,,WD_TIMEOUT[1:0]
+ */
+#define MAX77759_USB_VENDOR_WDG_CTRL	0x8A
+
+#define MAX77759_USB_VENDOR_WDG_CTRL_RSVD_7_2_SHIFT	2
+#define MAX77759_USB_VENDOR_WDG_CTRL_RSVD_7_2_MASK	(0x3f << 2)
+#define MAX77759_USB_VENDOR_WDG_CTRL_RSVD_7_2_CLEAR	(~(0x3f << 2))
+#define MAX77759_USB_VENDOR_WDG_CTRL_WD_TIMEOUT_SHIFT	0
+#define MAX77759_USB_VENDOR_WDG_CTRL_WD_TIMEOUT_MASK	(0x3 << 0)
+#define MAX77759_USB_VENDOR_WDG_CTRL_WD_TIMEOUT_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vendor_wdg_ctrl_rsvd_7_2,7,2)
+MAX77759_BFF(usb_vendor_wdg_ctrl_wd_timeout,1,0)
+static inline const char *
+max77759_usb_vendor_wdg_ctrl_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " RSVD_7_2=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_WDG_CTRL_RSVD_7_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " WD_TIMEOUT=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_WDG_CTRL_WD_TIMEOUT, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_VCON_CTRL,0x8B,0b10000001,0x81
+ * VcnOcpEn,SPR_6_5[1:0],,VcnSoftStartDis,VcnSc_Deb,VcnIlim[2:0],
+ */
+#define MAX77759_USB_VENDOR_VCON_CTRL	0x8B
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNOCPEN	(0x1 << 7)
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNSOFTSTARTDIS	(0x1 << 4)
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNSC_DEB	(0x1 << 3)
+
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNOCPEN_SHIFT	7
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNOCPEN_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNOCPEN_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_VCON_CTRL_SPR_6_5_SHIFT	5
+#define MAX77759_USB_VENDOR_VCON_CTRL_SPR_6_5_MASK	(0x3 << 5)
+#define MAX77759_USB_VENDOR_VCON_CTRL_SPR_6_5_CLEAR	(~(0x3 << 5))
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNSOFTSTARTDIS_SHIFT	4
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNSOFTSTARTDIS_MASK	(0x1 << 4)
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNSOFTSTARTDIS_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNSC_DEB_SHIFT	3
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNSC_DEB_MASK	(0x1 << 3)
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNSC_DEB_CLEAR	(~(0x1 << 3))
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNILIM_SHIFT	0
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNILIM_MASK	(0x7 << 0)
+#define MAX77759_USB_VENDOR_VCON_CTRL_VCNILIM_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(usb_vendor_vcon_ctrl_vcnocpen,7,7)
+MAX77759_BFF(usb_vendor_vcon_ctrl_spr_6_5,6,5)
+MAX77759_BFF(usb_vendor_vcon_ctrl_vcnsoftstartdis,4,4)
+MAX77759_BFF(usb_vendor_vcon_ctrl_vcnsc_deb,3,3)
+MAX77759_BFF(usb_vendor_vcon_ctrl_vcnilim,2,0)
+static inline const char *
+max77759_usb_vendor_vcon_ctrl_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " VCNOCPEN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_VCON_CTRL_VCNOCPEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_6_5=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_VCON_CTRL_SPR_6_5, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCNSOFTSTARTDIS=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_VCON_CTRL_VCNSOFTSTARTDIS, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCNSC_DEB=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_VCON_CTRL_VCNSC_DEB, val));
+	i += SCNPRINTF(&buff[i], len - i, " VCNILIM=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_VCON_CTRL_VCNILIM, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_CC_CTRL1,0x8C,0b00000010,0x02
+ * ccConnDry,RdOpenDis,ccCompEn,ccSnkExitEn,ccLpDrpCycle[1:0],,ccDrpPhase[1:0]
+ */
+#define MAX77759_USB_VENDOR_CC_CTRL1	0x8C
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCCONNDRY	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_CTRL1_RDOPENDIS	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCCOMPEN	(0x1 << 5)
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCSNKEXITEN	(0x1 << 4)
+
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCCONNDRY_SHIFT	7
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCCONNDRY_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCCONNDRY_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_CC_CTRL1_RDOPENDIS_SHIFT	6
+#define MAX77759_USB_VENDOR_CC_CTRL1_RDOPENDIS_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_CTRL1_RDOPENDIS_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCCOMPEN_SHIFT	5
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCCOMPEN_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCCOMPEN_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCSNKEXITEN_SHIFT	4
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCSNKEXITEN_MASK	(0x1 << 4)
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCSNKEXITEN_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCLPDRPCYCLE_SHIFT	2
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCLPDRPCYCLE_MASK	(0x3 << 2)
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCLPDRPCYCLE_CLEAR	(~(0x3 << 2))
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCDRPPHASE_SHIFT	0
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCDRPPHASE_MASK	(0x3 << 0)
+#define MAX77759_USB_VENDOR_CC_CTRL1_CCDRPPHASE_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vendor_cc_ctrl1_ccconndry,7,7)
+MAX77759_BFF(usb_vendor_cc_ctrl1_rdopendis,6,6)
+MAX77759_BFF(usb_vendor_cc_ctrl1_cccompen,5,5)
+MAX77759_BFF(usb_vendor_cc_ctrl1_ccsnkexiten,4,4)
+MAX77759_BFF(usb_vendor_cc_ctrl1_cclpdrpcycle,3,2)
+MAX77759_BFF(usb_vendor_cc_ctrl1_ccdrpphase,1,0)
+static inline const char *
+max77759_usb_vendor_cc_ctrl1_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " CCCONNDRY=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL1_CCCONNDRY, val));
+	i += SCNPRINTF(&buff[i], len - i, " RDOPENDIS=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL1_RDOPENDIS, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCCOMPEN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL1_CCCOMPEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCSNKEXITEN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL1_CCSNKEXITEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCLPDRPCYCLE=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL1_CCLPDRPCYCLE, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCDRPPHASE=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL1_CCDRPPHASE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_CC_CTRL2,0x8D,0b00000000,0x00
+ * sbuOvpDis,ccOvpDis,sbuRpCtrl,ccLpModeSel[1:0],,ccRpCtrl[2:0],
+ */
+#define MAX77759_USB_VENDOR_CC_CTRL2	0x8D
+#define MAX77759_USB_VENDOR_CC_CTRL2_SBUOVPDIS	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCOVPDIS	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_CTRL2_SBURPCTRL	(0x1 << 5)
+
+#define MAX77759_USB_VENDOR_CC_CTRL2_SBUOVPDIS_SHIFT	7
+#define MAX77759_USB_VENDOR_CC_CTRL2_SBUOVPDIS_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_CC_CTRL2_SBUOVPDIS_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCOVPDIS_SHIFT	6
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCOVPDIS_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCOVPDIS_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_CC_CTRL2_SBURPCTRL_SHIFT	5
+#define MAX77759_USB_VENDOR_CC_CTRL2_SBURPCTRL_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_CC_CTRL2_SBURPCTRL_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCLPMODESEL_SHIFT	3
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCLPMODESEL_MASK	(0x3 << 3)
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCLPMODESEL_CLEAR	(~(0x3 << 3))
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCRPCTRL_SHIFT	0
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCRPCTRL_MASK	(0x7 << 0)
+#define MAX77759_USB_VENDOR_CC_CTRL2_CCRPCTRL_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(usb_vendor_cc_ctrl2_sbuovpdis,7,7)
+MAX77759_BFF(usb_vendor_cc_ctrl2_ccovpdis,6,6)
+MAX77759_BFF(usb_vendor_cc_ctrl2_sburpctrl,5,5)
+MAX77759_BFF(usb_vendor_cc_ctrl2_cclpmodesel,4,3)
+MAX77759_BFF(usb_vendor_cc_ctrl2_ccrpctrl,2,0)
+static inline const char *
+max77759_usb_vendor_cc_ctrl2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SBUOVPDIS=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL2_SBUOVPDIS, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCOVPDIS=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL2_CCOVPDIS, val));
+	i += SCNPRINTF(&buff[i], len - i, " SBURPCTRL=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL2_SBURPCTRL, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCLPMODESEL=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL2_CCLPMODESEL, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCRPCTRL=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL2_CCRPCTRL, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_CC_CTRL3,0x8E,0b00100000,0x20
+ * ccWtrDeb[1:0],,ccWtrSel[2:0],,,ccLadderDis,SPR_1
+ */
+#define MAX77759_USB_VENDOR_CC_CTRL3	0x8E
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCLADDERDIS	(0x1 << 2)
+#define MAX77759_USB_VENDOR_CC_CTRL3_SPR_1	(0x1 << 1)
+#define MAX77759_USB_VENDOR_CC_CTRL3_WTRCYCLE	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCWTRDEB_SHIFT	6
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCWTRDEB_MASK	(0x3 << 6)
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCWTRDEB_CLEAR	(~(0x3 << 6))
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCWTRSEL_SHIFT	3
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCWTRSEL_MASK	(0x7 << 3)
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCWTRSEL_CLEAR	(~(0x7 << 3))
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCLADDERDIS_SHIFT	2
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCLADDERDIS_MASK	(0x1 << 2)
+#define MAX77759_USB_VENDOR_CC_CTRL3_CCLADDERDIS_CLEAR	(~(0x1 << 2))
+#define MAX77759_USB_VENDOR_CC_CTRL3_SPR_1_SHIFT	1
+#define MAX77759_USB_VENDOR_CC_CTRL3_SPR_1_MASK	(0x1 << 1)
+#define MAX77759_USB_VENDOR_CC_CTRL3_SPR_1_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_VENDOR_CC_CTRL3_WTRCYCLE_SHIFT	0
+#define MAX77759_USB_VENDOR_CC_CTRL3_WTRCYCLE_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_CC_CTRL3_WTRCYCLE_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_cc_ctrl3_ccwtrdeb,7,6)
+MAX77759_BFF(usb_vendor_cc_ctrl3_ccwtrsel,5,3)
+MAX77759_BFF(usb_vendor_cc_ctrl3_ccladderdis,2,2)
+MAX77759_BFF(usb_vendor_cc_ctrl3_spr_1,1,1)
+MAX77759_BFF(usb_vendor_cc_ctrl3_wtrcycle,0,0)
+static inline const char *
+max77759_usb_vendor_cc_ctrl3_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " CCWTRDEB=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL3_CCWTRDEB, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCWTRSEL=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL3_CCWTRSEL, val));
+	i += SCNPRINTF(&buff[i], len - i, " CCLADDERDIS=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL3_CCLADDERDIS, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_1=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL3_SPR_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " WTRCYCLE=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_CC_CTRL3_WTRCYCLE, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_BC_CTRL1,0x8F,0b10100001,0xa1
+ * dcdCpl,SPR_6,noBcComp,SPR_4_2[2:0],,,chgDetMan
+ */
+#define MAX77759_USB_VENDOR_BC_CTRL1	0x8F
+#define MAX77759_USB_VENDOR_BC_CTRL1_DCDCPL	(0x1 << 7)
+#define MAX77759_USB_VENDOR_BC_CTRL1_SPR_6	(0x1 << 6)
+#define MAX77759_USB_VENDOR_BC_CTRL1_NOBCCOMP	(0x1 << 5)
+#define MAX77759_USB_VENDOR_BC_CTRL1_CHGDETMAN	(0x1 << 1)
+#define MAX77759_USB_VENDOR_BC_CTRL1_CHGDETEN	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_BC_CTRL1_DCDCPL_SHIFT	7
+#define MAX77759_USB_VENDOR_BC_CTRL1_DCDCPL_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_BC_CTRL1_DCDCPL_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_BC_CTRL1_SPR_6_SHIFT	6
+#define MAX77759_USB_VENDOR_BC_CTRL1_SPR_6_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_BC_CTRL1_SPR_6_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_BC_CTRL1_NOBCCOMP_SHIFT	5
+#define MAX77759_USB_VENDOR_BC_CTRL1_NOBCCOMP_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_BC_CTRL1_NOBCCOMP_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_BC_CTRL1_SPR_4_2_SHIFT	2
+#define MAX77759_USB_VENDOR_BC_CTRL1_SPR_4_2_MASK	(0x7 << 2)
+#define MAX77759_USB_VENDOR_BC_CTRL1_SPR_4_2_CLEAR	(~(0x7 << 2))
+#define MAX77759_USB_VENDOR_BC_CTRL1_CHGDETMAN_SHIFT	1
+#define MAX77759_USB_VENDOR_BC_CTRL1_CHGDETMAN_MASK	(0x1 << 1)
+#define MAX77759_USB_VENDOR_BC_CTRL1_CHGDETMAN_CLEAR	(~(0x1 << 1))
+#define MAX77759_USB_VENDOR_BC_CTRL1_CHGDETEN_SHIFT	0
+#define MAX77759_USB_VENDOR_BC_CTRL1_CHGDETEN_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_BC_CTRL1_CHGDETEN_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_bc_ctrl1_dcdcpl,7,7)
+MAX77759_BFF(usb_vendor_bc_ctrl1_spr_6,6,6)
+MAX77759_BFF(usb_vendor_bc_ctrl1_nobccomp,5,5)
+MAX77759_BFF(usb_vendor_bc_ctrl1_spr_4_2,4,2)
+MAX77759_BFF(usb_vendor_bc_ctrl1_chgdetman,1,1)
+MAX77759_BFF(usb_vendor_bc_ctrl1_chgdeten,0,0)
+static inline const char *
+max77759_usb_vendor_bc_ctrl1_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " DCDCPL=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL1_DCDCPL, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_6=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL1_SPR_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " NOBCCOMP=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL1_NOBCCOMP, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_4_2=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL1_SPR_4_2, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGDETMAN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL1_CHGDETMAN, val));
+	i += SCNPRINTF(&buff[i], len - i, " CHGDETEN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL1_CHGDETEN, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_BC_CTRL2,0x90,0b00000000,0x00
+ * dpMonEn,SPR_6,dnMonEn,dpDnMan,dpDrv[1:0],,dnDrv[1:0]
+ */
+#define MAX77759_USB_VENDOR_BC_CTRL2	0x90
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPMONEN	(0x1 << 7)
+#define MAX77759_USB_VENDOR_BC_CTRL2_SPR_6	(0x1 << 6)
+#define MAX77759_USB_VENDOR_BC_CTRL2_DNMONEN	(0x1 << 5)
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPDNMAN	(0x1 << 4)
+
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPMONEN_SHIFT	7
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPMONEN_MASK	(0x1 << 7)
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPMONEN_CLEAR	(~(0x1 << 7))
+#define MAX77759_USB_VENDOR_BC_CTRL2_SPR_6_SHIFT	6
+#define MAX77759_USB_VENDOR_BC_CTRL2_SPR_6_MASK	(0x1 << 6)
+#define MAX77759_USB_VENDOR_BC_CTRL2_SPR_6_CLEAR	(~(0x1 << 6))
+#define MAX77759_USB_VENDOR_BC_CTRL2_DNMONEN_SHIFT	5
+#define MAX77759_USB_VENDOR_BC_CTRL2_DNMONEN_MASK	(0x1 << 5)
+#define MAX77759_USB_VENDOR_BC_CTRL2_DNMONEN_CLEAR	(~(0x1 << 5))
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPDNMAN_SHIFT	4
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPDNMAN_MASK	(0x1 << 4)
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPDNMAN_CLEAR	(~(0x1 << 4))
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPDRV_SHIFT	2
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPDRV_MASK	(0x3 << 2)
+#define MAX77759_USB_VENDOR_BC_CTRL2_DPDRV_CLEAR	(~(0x3 << 2))
+#define MAX77759_USB_VENDOR_BC_CTRL2_DNDRV_SHIFT	0
+#define MAX77759_USB_VENDOR_BC_CTRL2_DNDRV_MASK	(0x3 << 0)
+#define MAX77759_USB_VENDOR_BC_CTRL2_DNDRV_CLEAR	(~(0x3 << 0))
+
+MAX77759_BFF(usb_vendor_bc_ctrl2_dpmonen,7,7)
+MAX77759_BFF(usb_vendor_bc_ctrl2_spr_6,6,6)
+MAX77759_BFF(usb_vendor_bc_ctrl2_dnmonen,5,5)
+MAX77759_BFF(usb_vendor_bc_ctrl2_dpdnman,4,4)
+MAX77759_BFF(usb_vendor_bc_ctrl2_dpdrv,3,2)
+MAX77759_BFF(usb_vendor_bc_ctrl2_dndrv,1,0)
+static inline const char *
+max77759_usb_vendor_bc_ctrl2_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " DPMONEN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL2_DPMONEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_6=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL2_SPR_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " DNMONEN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL2_DNMONEN, val));
+	i += SCNPRINTF(&buff[i], len - i, " DPDNMAN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL2_DPDNMAN, val));
+	i += SCNPRINTF(&buff[i], len - i, " DPDRV=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL2_DPDRV, val));
+	i += SCNPRINTF(&buff[i], len - i, " DNDRV=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_BC_CTRL2_DNDRV, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_ADC_CTRL1,0x91,0b00000000,0x00
+ * adcinSel[2:0],,,SPR_4_1[3:0],,,
+ */
+#define MAX77759_USB_VENDOR_ADC_CTRL1	0x91
+#define MAX77759_USB_VENDOR_ADC_CTRL1_ADCEN	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_ADC_CTRL1_ADCINSEL_SHIFT	5
+#define MAX77759_USB_VENDOR_ADC_CTRL1_ADCINSEL_MASK	(0x7 << 5)
+#define MAX77759_USB_VENDOR_ADC_CTRL1_ADCINSEL_CLEAR	(~(0x7 << 5))
+#define MAX77759_USB_VENDOR_ADC_CTRL1_SPR_4_1_SHIFT	1
+#define MAX77759_USB_VENDOR_ADC_CTRL1_SPR_4_1_MASK	(0xf << 1)
+#define MAX77759_USB_VENDOR_ADC_CTRL1_SPR_4_1_CLEAR	(~(0xf << 1))
+#define MAX77759_USB_VENDOR_ADC_CTRL1_ADCEN_SHIFT	0
+#define MAX77759_USB_VENDOR_ADC_CTRL1_ADCEN_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_ADC_CTRL1_ADCEN_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_adc_ctrl1_adcinsel,7,5)
+MAX77759_BFF(usb_vendor_adc_ctrl1_spr_4_1,4,1)
+MAX77759_BFF(usb_vendor_adc_ctrl1_adcen,0,0)
+static inline const char *
+max77759_usb_vendor_adc_ctrl1_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " ADCINSEL=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ADC_CTRL1_ADCINSEL, val));
+	i += SCNPRINTF(&buff[i], len - i, " SPR_4_1=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ADC_CTRL1_SPR_4_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " ADCEN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_ADC_CTRL1_ADCEN, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_EXTBST_CTRL,0x92,0b00000000,0x00
+ * SPR_7_1[6:0],,,,,,
+ */
+#define MAX77759_USB_VENDOR_EXTBST_CTRL	0x92
+#define MAX77759_USB_VENDOR_EXTBST_CTRL_EXT_BST_EN	(0x1 << 0)
+
+#define MAX77759_USB_VENDOR_EXTBST_CTRL_SPR_7_1_SHIFT	1
+#define MAX77759_USB_VENDOR_EXTBST_CTRL_SPR_7_1_MASK	(0x7f << 1)
+#define MAX77759_USB_VENDOR_EXTBST_CTRL_SPR_7_1_CLEAR	(~(0x7f << 1))
+#define MAX77759_USB_VENDOR_EXTBST_CTRL_EXT_BST_EN_SHIFT	0
+#define MAX77759_USB_VENDOR_EXTBST_CTRL_EXT_BST_EN_MASK	(0x1 << 0)
+#define MAX77759_USB_VENDOR_EXTBST_CTRL_EXT_BST_EN_CLEAR	(~(0x1 << 0))
+
+MAX77759_BFF(usb_vendor_extbst_ctrl_spr_7_1,7,1)
+MAX77759_BFF(usb_vendor_extbst_ctrl_ext_bst_en,0,0)
+static inline const char *
+max77759_usb_vendor_extbst_ctrl_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_1=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_EXTBST_CTRL_SPR_7_1, val));
+	i += SCNPRINTF(&buff[i], len - i, " EXT_BST_EN=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_EXTBST_CTRL_EXT_BST_EN, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_USBSW_CTRL,0x93,0b00000000,0x00
+ * SPR_7_6[1:0],,DPSw[2:0],,,DNSw[2:0],
+ */
+#define MAX77759_USB_VENDOR_USBSW_CTRL	0x93
+
+#define MAX77759_USB_VENDOR_USBSW_CTRL_SPR_7_6_SHIFT	6
+#define MAX77759_USB_VENDOR_USBSW_CTRL_SPR_7_6_MASK	(0x3 << 6)
+#define MAX77759_USB_VENDOR_USBSW_CTRL_SPR_7_6_CLEAR	(~(0x3 << 6))
+#define MAX77759_USB_VENDOR_USBSW_CTRL_DPSW_SHIFT	3
+#define MAX77759_USB_VENDOR_USBSW_CTRL_DPSW_MASK	(0x7 << 3)
+#define MAX77759_USB_VENDOR_USBSW_CTRL_DPSW_CLEAR	(~(0x7 << 3))
+#define MAX77759_USB_VENDOR_USBSW_CTRL_DNSW_SHIFT	0
+#define MAX77759_USB_VENDOR_USBSW_CTRL_DNSW_MASK	(0x7 << 0)
+#define MAX77759_USB_VENDOR_USBSW_CTRL_DNSW_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(usb_vendor_usbsw_ctrl_spr_7_6,7,6)
+MAX77759_BFF(usb_vendor_usbsw_ctrl_dpsw,5,3)
+MAX77759_BFF(usb_vendor_usbsw_ctrl_dnsw,2,0)
+static inline const char *
+max77759_usb_vendor_usbsw_ctrl_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_6=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_USBSW_CTRL_SPR_7_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " DPSW=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_USBSW_CTRL_DPSW, val));
+	i += SCNPRINTF(&buff[i], len - i, " DNSW=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_USBSW_CTRL_DNSW, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_SBUSW_CTRL,0x94,0b00000000,0x00
+ * SPR_7_6[1:0],,SBU2Sw[2:0],,,SBU1Sw[2:0],
+ */
+#define MAX77759_USB_VENDOR_SBUSW_CTRL	0x94
+
+#define MAX77759_USB_VENDOR_SBUSW_CTRL_SPR_7_6_SHIFT	6
+#define MAX77759_USB_VENDOR_SBUSW_CTRL_SPR_7_6_MASK	(0x3 << 6)
+#define MAX77759_USB_VENDOR_SBUSW_CTRL_SPR_7_6_CLEAR	(~(0x3 << 6))
+#define MAX77759_USB_VENDOR_SBUSW_CTRL_SBU2SW_SHIFT	3
+#define MAX77759_USB_VENDOR_SBUSW_CTRL_SBU2SW_MASK	(0x7 << 3)
+#define MAX77759_USB_VENDOR_SBUSW_CTRL_SBU2SW_CLEAR	(~(0x7 << 3))
+#define MAX77759_USB_VENDOR_SBUSW_CTRL_SBU1SW_SHIFT	0
+#define MAX77759_USB_VENDOR_SBUSW_CTRL_SBU1SW_MASK	(0x7 << 0)
+#define MAX77759_USB_VENDOR_SBUSW_CTRL_SBU1SW_CLEAR	(~(0x7 << 0))
+
+MAX77759_BFF(usb_vendor_sbusw_ctrl_spr_7_6,7,6)
+MAX77759_BFF(usb_vendor_sbusw_ctrl_sbu2sw,5,3)
+MAX77759_BFF(usb_vendor_sbusw_ctrl_sbu1sw,2,0)
+static inline const char *
+max77759_usb_vendor_sbusw_ctrl_cstr(char *buff, size_t len, int val)
+{
+#ifdef SCNPRINTF
+	int i = 0;
+
+	i += SCNPRINTF(&buff[i], len - i, " SPR_7_6=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_SBUSW_CTRL_SPR_7_6, val));
+	i += SCNPRINTF(&buff[i], len - i, " SBU2SW=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_SBUSW_CTRL_SBU2SW, val));
+	i += SCNPRINTF(&buff[i], len - i, " SBU1SW=%x",
+		FIELD2VALUE(MAX77759_USB_VENDOR_SBUSW_CTRL_SBU1SW, val));
+#else
+	buff[0] = 0;
+#endif
+	return buff;
+}
+
+/*
+ * VENDOR_SW_CTRL,0x95,0b00000000,0x00
+ * SPR_7_1[6:0],,,,,,
+ */
+#define MAX77759_USB_VENDOR_SW_CTRL	0x95
+
+#endif /* MAX77759_REG_v0p65_121919_H_ */
