@@ -1,0 +1,60 @@
+#
+# Synaptics TCM touchscreen driver configuration
+#
+menuconfig TOUCHSCREEN_SYNA_TCM2
+	tristate "Synaptics TCM touchscreen"
+	default y
+	help
+	  Say Y here if you have a Synaptics TCM touchscreen connected
+	  to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here.
+
+if TOUCHSCREEN_SYNA_TCM2
+
+choice
+	default TOUCHSCREEN_SYNA_TCM2_I2C
+	prompt "Synaptics TCM bus module"
+config TOUCHSCREEN_SYNA_TCM2_I2C
+	bool "I2C"
+	depends on I2C
+config TOUCHSCREEN_SYNA_TCM2_SPI
+	bool "SPI"
+	depends on SPI_MASTER
+endchoice
+
+config TOUCHSCREEN_SYNA_TCM2_SYSFS
+	bool "Synaptics TCM device sysfs module"
+	depends on TOUCHSCREEN_SYNA_TCM2
+	help
+	  Say Y here to enable support for the sysfs interface.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_SYNA_TCM2_REFLASH
+	bool "Synaptics TCM reflash module"
+	depends on TOUCHSCREEN_SYNA_TCM2
+	help
+	  Say Y here to enable support for the reflashing.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_SYNA_TCM2_TESTING
+	bool "Synaptics TCM testing module"
+	depends on TOUCHSCREEN_SYNA_TCM2
+	help
+	  Say Y here to enable support for the production test.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_SYNA_TCM2_ROMBOOT
+	bool "Synaptics TCM rom-bootloader module"
+	depends on TOUCHSCREEN_SYNA_TCM2
+	help
+	  Say Y here to enable support for the rom-boot access.
+
+	  If unsure, say N.
+
+endif
