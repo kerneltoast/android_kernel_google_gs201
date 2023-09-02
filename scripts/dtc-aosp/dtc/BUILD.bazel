@@ -1,0 +1,129 @@
+cc_library(
+    name = "libfdt",
+    srcs = glob([
+        "libfdt/*.h",
+        "libfdt/*.c",
+    ]),
+    copts = [
+        "-Werror",
+        "-Wno-macro-redefined",
+        "-Wno-sign-compare",
+    ],
+    includes = ["libfdt"],
+)
+
+COPTS = [
+    "-Wall",
+    "-Werror",
+    "-Wno-sign-compare",
+    "-Wno-missing-field-initializers",
+    "-Wno-unused-parameter",
+]
+
+genrule(
+    name = "lexer",
+    srcs = [
+        "dtc-lexer.l",
+        ":parser",
+    ],
+    outs = ["dtc-lexer.lex.c"],
+    cmd = "lex -o$@ $(location dtc-lexer.l)",
+)
+
+genrule(
+    name = "parser",
+    srcs = ["dtc-parser.y"],
+    outs = [
+        "dtc-parser.c",
+        "dtc-parser.h",
+    ],
+    cmd = """
+      bison -b dtc-parser -d $(location dtc-parser.y)
+      cp ./*.c $(location dtc-parser.c)
+      cp ./*.h $(location dtc-parser.h)
+    """,
+)
+
+cc_library(
+    name = "dtc_gen",
+    srcs = [
+        ":lexer",
+        ":parser",
+    ],
+    hdrs = glob(["*.h"]),
+    copts = COPTS,
+    deps = [":libfdt"],
+)
+
+cc_binary(
+    name = "dtc",
+    srcs = [
+        "checks.c",
+        "data.c",
+        "dtc.c",
+        "flattree.c",
+        "fstree.c",
+        "livetree.c",
+        "srcpos.c",
+        "treesource.c",
+        "util.c",
+    ],
+    copts = COPTS,
+    defines = ["NO_YAML"],
+    deps = [
+        ":dtc_gen",
+        ":libfdt",
+    ],
+)
+
+cc_binary(
+    name = "fdtget",
+    srcs = [
+        "fdtget.c",
+        "util.c",
+        "util.h",
+        "version_non_gen.h",
+    ],
+    copts = COPTS,
+    defines = ["NO_YAML"],
+    deps = [":libfdt"],
+)
+
+cc_binary(
+    name = "fdtput",
+    srcs = [
+        "fdtput.c",
+        "util.c",
+        "util.h",
+        "version_non_gen.h",
+    ],
+    copts = COPTS,
+    defines = ["NO_YAML"],
+    deps = [":libfdt"],
+)
+
+cc_binary(
+    name = "fdtdump",
+    srcs = [
+        "fdtdump.c",
+        "util.c",
+        "util.h",
+        "version_non_gen.h",
+    ],
+    copts = COPTS,
+    defines = ["NO_YAML"],
+    deps = [":libfdt"],
+)
+
+cc_binary(
+    name = "fdtoverlay",
+    srcs = [
+        "fdtoverlay.c",
+        "util.c",
+        "util.h",
+        "version_non_gen.h",
+    ],
+    copts = COPTS,
+    defines = ["NO_YAML"],
+    deps = [":libfdt"],
+)

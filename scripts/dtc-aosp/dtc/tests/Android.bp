@@ -1,0 +1,12 @@
+// Copyright 2022 The Android Open Source Project
+package {
+    default_applicable_licenses: [
+        "external_dtc_license",
+        "external_dtc_tests_license",
+    ],
+}
+
+filegroup {
+    name: "external_dtc_tests",
+    srcs: ["**/*"],
+}
