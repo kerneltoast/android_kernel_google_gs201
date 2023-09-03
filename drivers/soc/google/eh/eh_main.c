@@ -43,7 +43,7 @@
 #include <linux/highmem.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -1069,10 +1069,8 @@ static void eh_put_decompr_slot(struct eh_device *eh_dev, int slot)
 int eh_decompress_page(struct eh_device *eh_dev, void *src,
 		       unsigned int slen, struct page *page)
 {
-	int ret = 0;
-	int index;
-	unsigned long timeout;
 	unsigned long status;
+	int index, ret;
 
 	/*
 	 * Since it uses per-cpu bounce buffer, it doesn't allow to be called
@@ -1086,17 +1084,17 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
 	/* program decompress register (no IRQ) */
 	eh_setup_dcmd(eh_dev, index, src, slen, page);
 
-	timeout = jiffies + msecs_to_jiffies(EH_POLL_DELAY_MS);
-	do {
-		cpu_relax();
-		if (time_after(jiffies, timeout)) {
-			pr_err("poll timeout on decompression\n");
-			eh_dump_regs(eh_dev);
-			ret = -ETIME;
-			goto out;
-		}
-		status = eh_read_dcmd_status(eh_dev, index);
-	} while (status == EH_DCMD_PENDING);
+	/* Poll every 4 us until decompression is complete */
+	ret = read_poll_timeout(eh_read_dcmd_status, status,
+				status != EH_DCMD_PENDING, 4 /* us */,
+				EH_POLL_DELAY_MS * USEC_PER_MSEC, false,
+				eh_dev, index);
+	if (ret) {
+		pr_err("poll timeout on decompression\n");
+		eh_dump_regs(eh_dev);
+		ret = -ETIME;
+		goto out;
+	}
 
 	pr_devel("dcmd [%u] status = %lu\n", index, status);
 
