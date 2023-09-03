@@ -10,6 +10,7 @@
 
 #include <linux/eh.h>
 #include "eh_regs.h"
+#include <linux/semaphore.h>
 #include <linux/spinlock_types.h>
 #include <linux/wait.h>
 #include <linux/kobject.h>
@@ -101,5 +102,12 @@ struct eh_device {
 
 	/* keep pending request */
 	struct eh_sw_fifo sw_fifo;
+
+	/*
+	 * Decompression semaphore and slots to allow any CPU to freely access
+	 * any available decompression command set.
+	 */
+	struct semaphore decompr_sem;
+	atomic_t decompr_slots;
 };
 #endif

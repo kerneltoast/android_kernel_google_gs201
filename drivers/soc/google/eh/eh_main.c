@@ -699,6 +699,7 @@ static int eh_init_compression(struct eh_device *eh_dev, unsigned short fifo_siz
 	unsigned int desc_size = EH_COMPRESS_DESC_SIZE;
 
 	spin_lock_init(&eh_dev->fifo_prod_lock);
+	sema_init(&eh_dev->decompr_sem, eh_dev->decompr_cmd_count);
 
 	eh_dev->fifo_size = fifo_size;
 	eh_dev->fifo_index_mask = fifo_size - 1;
@@ -1032,6 +1033,32 @@ req_to_sw_fifo:
 }
 EXPORT_SYMBOL(eh_compress_page);
 
+static int eh_get_decompr_slot(struct eh_device *eh_dev)
+{
+	unsigned int dslots = atomic_read(&eh_dev->decompr_slots);
+	int slot;
+
+	down(&eh_dev->decompr_sem);
+	do {
+		/*
+		 * Find the first zero bit in dslots. No need to check if @slot
+		 * is over the concurrency limit (decompr_cmd_count) because the
+		 * semaphore prevents too many threads from decompressing
+		 * concurrently.
+		 */
+		slot = __builtin_ctz(~dslots);
+	} while (!atomic_try_cmpxchg(&eh_dev->decompr_slots, &dslots,
+				     dslots | BIT(slot)));
+
+	return slot;
+}
+
+static void eh_put_decompr_slot(struct eh_device *eh_dev, int slot)
+{
+	atomic_andnot(BIT(slot), &eh_dev->decompr_slots);
+	up(&eh_dev->decompr_sem);
+}
+
 /*
  * eh_decompress_page
  *
@@ -1053,8 +1080,8 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
 	 */
 	WARN_ON(in_interrupt());
 
-	index = get_cpu();
-	pr_devel("[%s]: submit: cpu %u slen %u\n", current->comm, index, slen);
+	index = eh_get_decompr_slot(eh_dev);
+	pr_devel("[%s]: submit: slot %u slen %u\n", current->comm, index, slen);
 
 	/* program decompress register (no IRQ) */
 	eh_setup_dcmd(eh_dev, index, src, slen, page);
@@ -1080,7 +1107,7 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
 	}
 
 out:
-	put_cpu();
+	eh_put_decompr_slot(eh_dev, index);
 	return ret;
 }
 EXPORT_SYMBOL(eh_decompress_page);
