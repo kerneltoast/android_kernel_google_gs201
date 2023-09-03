@@ -133,7 +133,7 @@ struct s3c2410_wdt {
 	void __iomem		*reg_base;
 	unsigned int		count;
 	/* lock to serialize watchdog operation */
-	spinlock_t		lock;
+	raw_spinlock_t		lock;
 	unsigned long		wtcon_save;
 	unsigned long		wtdat_save;
 	unsigned long		freq;
@@ -597,9 +597,9 @@ static int s3c2410wdt_keepalive(struct watchdog_device *wdd)
 
 	old_wtcnt = readl(wdt->reg_base + S3C2410_WTCNT);
 
-	spin_lock_irqsave(&wdt->lock, flags);
+	raw_spin_lock_irqsave(&wdt->lock, flags);
 	writel(wdt->count, wdt->reg_base + S3C2410_WTCNT);
-	spin_unlock_irqrestore(&wdt->lock, flags);
+	raw_spin_unlock_irqrestore(&wdt->lock, flags);
 
 	wtcnt = readl(wdt->reg_base + S3C2410_WTCNT);
 	dev_dbg(wdt->dev, "Watchdog cluster %u keepalive!, old_wtcnt = %lx, wtcnt = %lx\n",
@@ -764,9 +764,9 @@ static int s3c2410wdt_stop(struct watchdog_device *wdd)
 	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
 	unsigned long flags;
 
-	spin_lock_irqsave(&wdt->lock, flags);
+	raw_spin_lock_irqsave(&wdt->lock, flags);
 	__s3c2410wdt_stop(wdt);
-	spin_unlock_irqrestore(&wdt->lock, flags);
+	raw_spin_unlock_irqrestore(&wdt->lock, flags);
 
 	return 0;
 }
@@ -775,10 +775,10 @@ static int s3c2410wdt_stop_intclear(struct s3c2410_wdt *wdt)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wdt->lock, flags);
+	raw_spin_lock_irqsave(&wdt->lock, flags);
 	__s3c2410wdt_stop(wdt);
 	writel(1, wdt->reg_base + S3C2410_WTCLRINT);
-	spin_unlock_irqrestore(&wdt->lock, flags);
+	raw_spin_unlock_irqrestore(&wdt->lock, flags);
 
 	return 0;
 }
@@ -788,7 +788,7 @@ static int s3c2410wdt_start(struct watchdog_device *wdd)
 	unsigned long wtcon, wtmincnt, flags;
 	struct s3c2410_wdt *wdt = watchdog_get_drvdata(wdd);
 
-	spin_lock_irqsave(&wdt->lock, flags);
+	raw_spin_lock_irqsave(&wdt->lock, flags);
 
 	__s3c2410wdt_stop(wdt);
 
@@ -817,7 +817,7 @@ static int s3c2410wdt_start(struct watchdog_device *wdd)
 	writel(wtcon, wdt->reg_base + S3C2410_WTCON);
 	s3c2410wdt_multistage_wdt_start();
 
-	spin_unlock_irqrestore(&wdt->lock, flags);
+	raw_spin_unlock_irqrestore(&wdt->lock, flags);
 
 	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
 	dev_info(wdt->dev, "Watchdog cluster %u start, WTCON = %lx\n", wdt->cluster, wtcon);
@@ -1157,9 +1157,9 @@ static void s3c2410wdt_multistage_wdt_keepalive(void)
 
 	old_wtcnt = readl(s3c_wdt[index]->reg_base + S3C2410_WTCNT);
 
-	spin_lock_irqsave(&s3c_wdt[index]->lock, flags);
+	raw_spin_lock_irqsave(&s3c_wdt[index]->lock, flags);
 	writel(s3c_wdt[index]->count, s3c_wdt[index]->reg_base + S3C2410_WTCNT);
-	spin_unlock_irqrestore(&s3c_wdt[index]->lock, flags);
+	raw_spin_unlock_irqrestore(&s3c_wdt[index]->lock, flags);
 
 	wtcnt = readl(s3c_wdt[index]->reg_base + S3C2410_WTCNT);
 	dev_info(s3c_wdt[index]->dev,
@@ -1563,7 +1563,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	wdt->dev = dev;
-	spin_lock_init(&wdt->lock);
+	raw_spin_lock_init(&wdt->lock);
 	wdt->wdt_device = s3c2410_wdd;
 
 	if (of_property_read_u32(dev->of_node, "index", &cluster_index)) {
