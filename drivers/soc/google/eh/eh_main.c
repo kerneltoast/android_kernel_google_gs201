@@ -425,7 +425,7 @@ static void request_to_sw_fifo(struct eh_device *eh_dev,
 	req->priv = priv;
 
 	spin_lock(&fifo->lock);
-	list_add(&req->list, &fifo->head);
+	list_add_tail(&req->list, &fifo->head);
 	fifo->count++;
 	spin_unlock(&fifo->lock);
 	wake_up(&eh_dev->comp_wq);
