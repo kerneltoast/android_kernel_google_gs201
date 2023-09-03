@@ -11,6 +11,7 @@
  * mechanism for vendor modules to hook and extend functionality
  */
 struct mutex;
+struct mutex_waiter;
 struct rt_mutex;
 struct rw_semaphore;
 struct task_struct;
