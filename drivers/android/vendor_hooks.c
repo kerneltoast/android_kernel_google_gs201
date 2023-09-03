@@ -32,7 +32,6 @@
 #include <trace/hooks/vendor_hooks.h>
 #include <linux/tracepoint.h>
 #include <trace/hooks/sched.h>
-#include <trace/hooks/cpu.h>
 #include <trace/hooks/binder.h>
 #include <trace/hooks/rwsem.h>
 #include <trace/hooks/futex.h>
@@ -206,8 +205,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_update_next_freq);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sugov_get_util);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_report_bug);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_em_cpu_energy);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_up);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpu_down);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_balance_rt);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_timer_calc_index);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_watchdog_timer_softlockup);
