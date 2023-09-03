@@ -1210,8 +1210,7 @@ int pause_cpus(struct cpumask *cpus)
 	cpumask_and(cpus, cpus, cpu_active_mask);
 
 	for_each_cpu(cpu, cpus) {
-		if (!cpu_online(cpu) || dl_cpu_busy(cpu) ||
-			get_cpu_device(cpu)->offline_disabled == true) {
+		if (!cpu_online(cpu) || dl_cpu_busy(cpu)) {
 			err = -EBUSY;
 			goto err_cpu_maps_update;
 		}
