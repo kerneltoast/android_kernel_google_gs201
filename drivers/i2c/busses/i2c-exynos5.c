@@ -738,6 +738,13 @@ out:
 	return IRQ_HANDLED;
 }
 
+static unsigned long curr_timeout = 5000;
+
+void exynos5_i2c_set_timeout(void)
+{
+	WRITE_ONCE(curr_timeout, 100);
+}
+
 static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 				struct i2c_msg *msgs, int stop)
 {
@@ -754,6 +761,7 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	unsigned char byte;
 	int ret = 0;
 	int operation_mode = i2c->operation_mode;
+	unsigned long curr;
 
 	i2c->msg = msgs;
 	i2c->msg_ptr = 0;
@@ -762,8 +770,9 @@ static int exynos5_i2c_xfer_msg(struct exynos5_i2c *i2c,
 	/* (length * (bits + ack) * (s/ms) * / freq) * (tolerance) */
 	timeout_max = (i2c->msg->len * 9 * 1000 / i2c->clock_frequency) * 2;
 	/* Minimum timeout is 5000ms */
-	if (timeout_max < 5000)
-		timeout_max = 5000;
+	curr = READ_ONCE(curr_timeout);
+	if (timeout_max < curr)
+		timeout_max = curr;
 
 	reinit_completion(&i2c->msg_complete);
 
