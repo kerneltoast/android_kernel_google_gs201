@@ -12409,7 +12409,7 @@ dhd_prot_flow_ring_create_response_process(dhd_pub_t *dhd, void *msg)
 {
 	tx_flowring_create_response_t *flow_create_resp = (tx_flowring_create_response_t *)msg;
 
-	DHD_ERROR(("%s: Flow Create Response status = %d Flow %d\n", __FUNCTION__,
+	DHD_INFO(("%s: Flow Create Response status = %d Flow %d\n", __FUNCTION__,
 		ltoh16(flow_create_resp->cmplt.status),
 		ltoh16(flow_create_resp->cmplt.flow_ring_id)));
 
