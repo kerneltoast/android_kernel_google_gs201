@@ -36,7 +36,7 @@ typedef struct {
     char sku[MAX_HW_INFO_LEN];
 } sku_info_t;
 
-char hw_stage_name[MAX_HW_STAGE][MAX_HW_INFO_LEN] = {
+static char hw_stage_name[MAX_HW_STAGE][MAX_HW_INFO_LEN] = {
 	"DEV",
 	"PROTO",
 	"EVT",
@@ -45,7 +45,7 @@ char hw_stage_name[MAX_HW_STAGE][MAX_HW_INFO_LEN] = {
 	"MP",
 };
 
-sku_info_t sku_table[] = {
+static sku_info_t sku_table[] = {
 	{ {"G0DZQ"}, {"MMW"} },
 	{ {"GWKK3"}, {"NA"} },
 	{ {"G82U8"}, {"JPN"} },
@@ -57,9 +57,9 @@ typedef struct platform_hw_info {
 	char ext_name[MAX_FILE_COUNT][MAX_HW_EXT_LEN];
 } platform_hw_info_t;
 
-platform_hw_info_t platform_hw_info;
-char val_revision[MAX_HW_INFO_LEN] = "NULL";
-char val_sku[MAX_HW_INFO_LEN] = "NULL";
+static platform_hw_info_t platform_hw_info;
+static char val_revision[MAX_HW_INFO_LEN] = "NULL";
+static char val_sku[MAX_HW_INFO_LEN] = "NULL";
 
 extern int exynos_pcie_pm_resume(int ch_num);
 extern void exynos_pcie_pm_suspend(int ch_num);
