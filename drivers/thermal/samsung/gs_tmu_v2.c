@@ -76,6 +76,10 @@ enum tmu_grp_idx_t {
 	TZ_END,
 };
 
+/* Always disable CPU pause feature */
+#define pause_cpus(x) 1
+#define resume_cpus(x) 1
+
 #if defined(CONFIG_SOC_GS101)
 #define TZ_BIG_SENSOR_MASK (TMU_P0_SENSOR_MASK | \
 			    TMU_P6_SENSOR_MASK | \
@@ -1556,8 +1560,7 @@ static int gs_map_dt_data(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "tmu type: %d \n", data->tmu_type);
 
-	data->pause_enable = of_property_read_bool(pdev->dev.of_node,
-						   "pause_enable");
+	data->pause_enable = false; /* Always disable CPU pause feature */
 	if (data->pause_enable) {
 		dev_info(&pdev->dev, "thermal zone use pause function\n");
 
