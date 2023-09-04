@@ -196,6 +196,11 @@ if test ! "$srctree" -ef .; then
 	res="$res$(collect_files "$srctree"/localversion*)"
 fi
 
+# Append -rt if PREEMPT_RT is enabled
+if test "$CONFIG_PREEMPT_RT" = "y"; then
+	res="$res-rt"
+fi
+
 # CONFIG_LOCALVERSION and LOCALVERSION (if set)
 res="${res}${CONFIG_LOCALVERSION}${LOCALVERSION}"
 
