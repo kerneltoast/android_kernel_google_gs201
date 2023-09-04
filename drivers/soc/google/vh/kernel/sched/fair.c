@@ -110,13 +110,6 @@ static inline unsigned long capacity_of(int cpu)
 	return cpu_rq(cpu)->cpu_capacity;
 }
 
-static unsigned long capacity_curr_of(int cpu)
-{
-	unsigned long max_cap = cpu_rq(cpu)->cpu_capacity_orig;
-
-	return cap_scale(max_cap, per_cpu(freq_scale, cpu));
-}
-
 /* Runqueue only has SCHED_IDLE tasks enqueued */
 static int sched_idle_rq(struct rq *rq)
 {
@@ -341,14 +334,14 @@ out:
 }
 #endif
 
-static unsigned long cpu_util_without(int cpu, struct task_struct *p, unsigned long max)
+static unsigned long cpu_util_without_raw(int cpu, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq;
 	unsigned long util;
 
 	/* Task has no contribution or is new */
 	if (cpu != task_cpu(p) || !READ_ONCE(p->se.avg.last_update_time))
-		return cpu_util(cpu);
+		return cpu_util_cfs_group_mod(cpu_rq(cpu));
 
 	cfs_rq = &cpu_rq(cpu)->cfs;
 	util = cpu_util_cfs_group_mod_no_est(cpu_rq(cpu));
@@ -409,12 +402,7 @@ static unsigned long cpu_util_without(int cpu, struct task_struct *p, unsigned l
 		util = max_t(unsigned long, util, estimated);
 	}
 
-	/*
-	 * Utilization (estimated) can exceed the CPU capacity, thus let's
-	 * clamp to the maximum CPU capacity to ensure consistency with
-	 * the cpu_util call.
-	 */
-	return min_t(unsigned long, util, max);
+	return util;
 }
 
 struct vendor_group_property *get_vendor_group_property(enum vendor_group group)
@@ -692,351 +680,190 @@ static u64 __sched_period(unsigned long nr_running)
 		return sysctl_sched_latency;
 }
 
-static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, bool sync_boost,
-		cpumask_t *valid_mask)
+static bool cpu_is_better(int cpu, int best_cpu,
+			  const unsigned int exit_lat[CPU_NUM],
+			  unsigned long util, unsigned long l_util)
 {
-	struct root_domain *rd;
-	struct perf_domain *pd;
-	cpumask_t idle_fit = { CPU_BITS_NONE }, idle_unfit = { CPU_BITS_NONE },
-		  unimportant_fit = { CPU_BITS_NONE }, unimportant_unfit = { CPU_BITS_NONE },
-		  max_spare_cap = { CPU_BITS_NONE }, packing = { CPU_BITS_NONE },
-		  candidates = { CPU_BITS_NONE };
-	int i, weight, best_energy_cpu = -1, this_cpu = smp_processor_id();
-	long cur_energy, best_energy = LONG_MAX;
-	unsigned long spare_cap, target_max_spare_cap = 0;
-	unsigned long task_importance =
-			((p->prio <= DEFAULT_PRIO) ? uclamp_eff_value(p, UCLAMP_MIN) : 0) +
-			uclamp_eff_value(p, UCLAMP_MAX);
-	unsigned int exit_lat, pd_best_exit_lat, best_exit_lat;
-	bool is_idle, task_fits;
-	bool idle_target_found = false, importance_target_found = false;
-	bool prefer_idle = get_prefer_idle(p), prefer_high_cap = get_prefer_high_cap(p);
-	unsigned long capacity, wake_util, cpu_importance;
-#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-	bool group_overutilize;
-	unsigned long group_capacity, wake_group_util;
-#endif
-	unsigned long pd_max_spare_cap, pd_max_unimportant_spare_cap, pd_max_packing_spare_cap;
-	int pd_max_spare_cap_cpu, pd_best_idle_cpu, pd_most_unimportant_cpu, pd_best_packing_cpu;
-	int most_spare_cap_cpu = -1;
-	struct cpuidle_state *idle_state;
+	/*
+	 * Find the CPU with the lowest raw utilization ratio. A non-idle CPU or
+	 * CPU with lower exit latency is preferred when utilization is equal.
+	 */
+	return util < l_util || (util == l_util &&
+				 exit_lat[cpu] < exit_lat[best_cpu]);
+}
+
+static unsigned long cpu_util_ratio(struct task_struct *p,
+				    const unsigned long cap[CPU_NUM],
+				    const unsigned int exit_lat[CPU_NUM],
+				    int cpu, int prev_cpu, int *best_cpu,
+				    unsigned long *l_util)
+{
 	unsigned long util;
-	bool prefer_fit = prefer_idle && get_vendor_task_struct(p)->uclamp_fork_reset;
 
-	rd = cpu_rq(this_cpu)->rd;
-
-	rcu_read_lock();
-	pd = rcu_dereference(rd->pd);
-	if (!pd)
-		goto out;
-
-	for (; pd; pd = pd->next) {
-		pd_max_spare_cap = 0;
-		pd_max_packing_spare_cap = 0;
-		pd_max_unimportant_spare_cap = 0;
-		pd_best_exit_lat = UINT_MAX;
-		pd_max_spare_cap_cpu = -1;
-		pd_best_idle_cpu = -1;
-		pd_most_unimportant_cpu = -1;
-		pd_best_packing_cpu = -1;
-
-		for_each_cpu_and(i, perf_domain_span(pd), valid_mask ? valid_mask : p->cpus_ptr) {
-			if (i >= CPU_NUM)
-				break;
-
-			if (!cpu_active(i))
-				continue;
-
-			capacity = capacity_of(i);
-			is_idle = cpu_is_idle(i);
-			cpu_importance = READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MIN].value) +
-					   READ_ONCE(cpu_rq(i)->uclamp[UCLAMP_MAX].value);
-			wake_util = cpu_util_without(i, p, capacity);
-#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-			group_capacity = cap_scale(get_task_group_throttle(p),
-					   arch_scale_cpu_capacity(i));
-			wake_group_util = group_util_without(i, p, group_capacity);
-			spare_cap = min_t(unsigned long, capacity - wake_util,
-					  group_capacity - wake_group_util);
-			group_overutilize = group_overutilized(i, task_group(p));
-#else
-			spare_cap = capacity - wake_util;
-#endif
-			task_fits = task_fits_capacity(p, i, sync_boost);
-			exit_lat = 0;
-			util = cpu_util(i);
-
-			if (is_idle) {
-				idle_state = idle_get_state(cpu_rq(i));
-				if (idle_state)
-					exit_lat = idle_state->exit_latency;
-			}
-
-#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-			trace_sched_cpu_util_cfs(i, is_idle, exit_lat, cpu_importance, util,
-						 capacity, wake_util, group_capacity,
-						 wake_group_util, spare_cap, task_fits,
-						 group_overutilize);
-#else
-			trace_sched_cpu_util_cfs(i, is_idle, exit_lat, cpu_importance, util,
-						 capacity, wake_util, capacity,	wake_util,
-						 spare_cap, task_fits, false);
-#endif
-
-			if (prefer_idle) {
-				/*
-				 * For a cluster, the energy computation result will be the same for
-				 * idle cpus on that cluster, so we could save some computation by
-				 * just choosing 1 idle cpu for each cluster.
-				 * If there are multiple idle cpus, compare their c states (exit
-				 * latency).
-				 */
-				if (is_idle) {
-					/* The first idle cpu will always fall into this case. */
-					if (exit_lat < pd_best_exit_lat) {
-						pd_best_idle_cpu = i;
-						pd_best_exit_lat = exit_lat;
-					} else if (exit_lat == pd_best_exit_lat) {
-						/*
-						 * A simple randomization, by choosing the first or
-						 * the last cpu if pd_best_idle_cpu != prev_cpu.
-						 */
-						if (i == prev_cpu ||
-						    (pd_best_idle_cpu != prev_cpu && this_cpu % 2))
-							pd_best_idle_cpu = i;
-					}
-
-					idle_target_found = true;
-				}
-
-				if (idle_target_found)
-					continue;
-
-				/* Find an unimportant cpu with the max spare capacity. */
-				if (task_importance > cpu_importance &&
-				    spare_cap >= pd_max_unimportant_spare_cap) {
-					pd_max_unimportant_spare_cap = spare_cap;
-					pd_most_unimportant_cpu = i;
-					importance_target_found = true;
-				}
-
-				if (importance_target_found)
-					continue;
-
-				if (prefer_high_cap && i < HIGH_CAPACITY_CPU)
-					continue;
-
-				/*
-				 * Make srue prefer_fit task could find a candidate in high capacity
-				 * clusters.
-				 */
-#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-				if (!prefer_fit &&
-				    (group_overutilize || cpu_overutilized(util, capacity, i)))
-					continue;
-#else
-				if (!prefer_fit && cpu_overutilized(util, capacity, i))
-					continue;
-#endif
-
-				if (prefer_fit && !task_fits)
-					continue;
-
-				/* find max spare capacity cpu, used as backup */
-				if (spare_cap > target_max_spare_cap) {
-					target_max_spare_cap = spare_cap;
-					cpumask_clear(&max_spare_cap);
-					cpumask_set_cpu(i, &max_spare_cap);
-				} else if (spare_cap == target_max_spare_cap) {
-					/*
-					 * When spare capacity is the same, clear the choice
-					 * randomly based on task_util.
-					 */
-					if ((task_util_est(p) % 2))
-							cpumask_clear(&max_spare_cap);
-					cpumask_set_cpu(i, &max_spare_cap);
-				}
-			} else { /* Below path is for non-prefer idle case */
-#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-				if (group_overutilize || cpu_overutilized(util, capacity, i))
-					continue;
-#else
-				if (cpu_overutilized(util, capacity, i))
-					continue;
-#endif
-
-				if (spare_cap >= target_max_spare_cap) {
-					target_max_spare_cap = spare_cap;
-					most_spare_cap_cpu = i;
-				}
-
-				if (!task_fits)
-					continue;
-
-#if IS_ENABLED(CONFIG_USE_GROUP_THROTTLE)
-				if (spare_cap < min_t(unsigned long, task_util_est(p),
-				    cap_scale(get_task_group_throttle(p),
-					      arch_scale_cpu_capacity(i))))
-					continue;
-#else
-				if (spare_cap < task_util_est(p))
-					continue;
-#endif
-
-				/*
-				 * Find the best packing CPU with the maximum spare capacity in
-				 * the performance domain
-				 */
-				if (vendor_sched_npi_packing && !is_idle &&
-				    cpu_importance <= DEFAULT_IMPRATANCE_THRESHOLD &&
-				    spare_cap > pd_max_packing_spare_cap && capacity_curr_of(i) >=
-				    ((cpu_util_next(i, p, i) + cpu_util_rt(cpu_rq(i))) *
-				    sched_capacity_margin[i]) >> SCHED_CAPACITY_SHIFT) {
-					pd_max_packing_spare_cap = spare_cap;
-					pd_best_packing_cpu = i;
-				}
-
-				if (pd_best_packing_cpu != -1)
-					continue;
-
-				/*
-				 * Find the CPU with the maximum spare capacity in
-				 * the performance domain
-				 */
-				if (spare_cap > pd_max_spare_cap) {
-					pd_max_spare_cap = spare_cap;
-					pd_max_spare_cap_cpu = i;
-					pd_best_exit_lat = exit_lat;
-				/* Candidates could be idle cpu, so compare their exit lat. */
-				} else if (spare_cap == pd_max_spare_cap) {
-					if (exit_lat < pd_best_exit_lat) {
-						pd_max_spare_cap_cpu = i;
-						pd_best_exit_lat = exit_lat;
-					} else if (exit_lat == pd_best_exit_lat) {
-						/*
-						 * A simple randomization by choosing the first or
-						 * the last cpu if pd_max_spare_cap_cpu != prev_cpu.
-						 */
-						if (i == prev_cpu ||
-						    (pd_max_spare_cap_cpu != prev_cpu &&
-						      this_cpu % 2))
-							pd_max_spare_cap_cpu = i;
-					}
-				}
-			}
-		}
-
-		/* set the best_idle_cpu of each cluster */
-		if (pd_best_idle_cpu != -1) {
-			if (task_fits) {
-				cpumask_set_cpu(pd_best_idle_cpu, &idle_fit);
-			} else {
-				cpumask_set_cpu(pd_best_idle_cpu, &idle_unfit);
-			}
-		}
-
-		/* set the best_important_cpu of each cluster */
-		if (pd_most_unimportant_cpu != -1) {
-			if (task_fits) {
-				cpumask_set_cpu(pd_most_unimportant_cpu, &unimportant_fit);
-			} else {
-				cpumask_set_cpu(pd_most_unimportant_cpu, &unimportant_unfit);
-			}
-		}
-
-		/* set the packing cpu of max_spare_cap of each cluster */
-		if (pd_best_packing_cpu != -1)
-			cpumask_set_cpu(pd_best_packing_cpu, &packing);
-
-		/* set the max_spare_cap_cpu of each cluster */
-		if (pd_max_spare_cap_cpu != -1)
-			cpumask_set_cpu(pd_max_spare_cap_cpu, &max_spare_cap);
+	/* Exclude @p from the CPU's utilization if this is the previous CPU */
+	if (cpu == prev_cpu)
+		util = cpu_util_without_raw(cpu, p);
+	else
+		util = cpu_util_cfs_group_mod(cpu_rq(cpu));
+	util = util * SCHED_CAPACITY_SCALE / cap[cpu];
+	if (cpu_is_better(cpu, *best_cpu, exit_lat, util, *l_util)) {
+		*l_util = util;
+		*best_cpu = cpu;
 	}
 
-	/* Assign candidates based on search order. */
-	if (prefer_fit) {
-		if (!cpumask_empty(&idle_fit)) {
-			cpumask_copy(&candidates, &idle_fit);
-		} else if (!cpumask_empty(&unimportant_fit)) {
-			cpumask_copy(&candidates, &unimportant_fit);
-		} else if (!cpumask_empty(&max_spare_cap)) {
-			cpumask_copy(&candidates, &max_spare_cap);
-		} else if (!cpumask_empty(&idle_unfit)) {
-			/* Assign biggest cpu core found for unfit case. */
-			cpumask_set_cpu(cpumask_last(&idle_unfit), &candidates);
-		} else if (!cpumask_empty(&unimportant_unfit)) {
-			/* Assign biggest cpu core found for unfit case. */
-			cpumask_set_cpu(cpumask_last(&unimportant_unfit), &candidates);
-		}
-	} else {
-		if (!cpumask_empty(&idle_fit)) {
-			cpumask_copy(&candidates, &idle_fit);
-		} else if (!cpumask_empty(&idle_unfit)) {
-			/* Assign biggest cpu core found for unfit case. */
-			cpumask_set_cpu(cpumask_last(&idle_unfit), &candidates);
-		} else if (!cpumask_empty(&unimportant_fit)) {
-			cpumask_copy(&candidates, &unimportant_fit);
-		} else if (!cpumask_empty(&unimportant_unfit)) {
-			/* Assign biggest cpu core found for unfit case. */
-			cpumask_set_cpu(cpumask_last(&unimportant_unfit), &candidates);
-		} else if (!cpumask_empty(&packing)) {
-			cpumask_copy(&candidates, &packing);
-		} else if (!cpumask_empty(&max_spare_cap)) {
-			cpumask_copy(&candidates, &max_spare_cap);
+	return util;
+}
+
+static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
+				     const cpumask_t *valid_mask)
+{
+	unsigned long cap[CPU_NUM], cpu_util[CPU_NUM], energy[CPU_NUM] = {};
+	unsigned long l_util = ULONG_MAX, p_util;
+	cpumask_t allowed, candidates = {};
+	struct cpuidle_state *idle_state;
+	unsigned int exit_lat[CPU_NUM];
+	struct perf_domain *pd;
+	int i, best_cpu;
+	struct rq *rq;
+
+	/*
+	 * If there aren't any valid CPUs which are active, then just return the
+	 * first valid CPU since it's possible for certain types of tasks to run
+	 * on !active CPUs.
+	 */
+	if (unlikely(!cpumask_and(&allowed, valid_mask, cpu_active_mask)))
+		return cpumask_first(valid_mask);
+
+	/* Compute the utilization for this task */
+	p_util = get_task_spreading(p) ? task_util_est(p) : uclamp_task_util(p);
+
+	/*
+	 * Find the best-fitting CPU with the lowest total raw utilization
+	 * ratio; i.e., the least relatively-loaded CPU. Note that although
+	 * idle_get_state() requires an RCU read lock, an RCU read lock isn't
+	 * needed because we're not preemptible and RCU-sched is unified with
+	 * normal RCU. Therefore, non-preemptible contexts are implicitly
+	 * RCU-safe.
+	 *
+	 * Iteration through @allowed is intended to go from the lowest-capacity
+	 * cluster to the highest-capacity cluster in order to pack tasks onto
+	 * lower-capacity clusters. If all cores in a higher-capacity cluster
+	 * can idle, then it may be possible to enter a cluster idle state where
+	 * the whole cluster goes into a deeper C-state, saving more power. This
+	 * is generally moot for the lowest-capacity cluster though, since it
+	 * typically contains the boot CPU and handles housekeeping, plus
+	 * generally has the most cores, so it's less likely for it to enter
+	 * cluster idle.
+	 *
+	 * Packing tasks onto lower-capacity clusters also improves overall
+	 * single-threaded performance by reducing the load on higher-capacity
+	 * CPUs, making them more available to heavy tasks.
+	 */
+	for_each_cpu(i, &allowed) {
+		/*
+		 * Get the current capacity of this CPU adjusted for thermal
+		 * pressure as well as IRQ and RT-task time.
+		 */
+		cap[i] = capacity_of(i);
+
+		/* Get the idle exit latency for this CPU if it's idle */
+		rq = cpu_rq(i);
+		idle_state = idle_get_state(rq);
+		exit_lat[i] = idle_state ? idle_state->exit_latency : 0;
+
+		/* Calculate the raw utilization ratio if this CPU fits */
+		if (!cpu_overutilized(p_util, cap[i], i)) {
+			cpu_util[i] = cpu_util_ratio(p, cap, exit_lat, i,
+						     prev_cpu, &best_cpu,
+						     &l_util);
+			__cpumask_set_cpu(i, &candidates);
 		}
 	}
 
-	weight = cpumask_weight(&candidates);
-	best_energy_cpu = most_spare_cap_cpu;
-
-	/* Bail out if no candidate was found. */
-	if (weight == 0)
-		goto out;
-
-	/* Bail out if only 1 candidate was found. */
-	if (weight == 1) {
-		best_energy_cpu = cpumask_first(&candidates);
-		goto out;
+	/* If no CPU fits, then place the task on the least utilized CPU */
+	if (l_util == ULONG_MAX) {
+		for_each_cpu(i, &allowed)
+			cpu_util_ratio(p, cap, exit_lat, i, prev_cpu, &best_cpu,
+				       &l_util);
+		goto check_prev;
 	}
 
-	/* Compute Energy */
-	best_exit_lat = UINT_MAX;
-	pd = rcu_dereference(rd->pd);
+	/* Stop now if only one CPU fits */
+	if (cpumask_weight(&candidates) == 1)
+		return best_cpu;
+
+	/*
+	 * Quickly filter out CPUs with significantly higher utilization by
+	 * comparing floor(sqrt(util)) for each candidate. This helps avoid
+	 * CPUs which are quadratically more loaded than the least utilized CPU
+	 * found earlier, and eliminates their heavy energy computations. These
+	 * CPUs are a bad choice from a performance standpoint, so discard them.
+	 */
+	l_util = int_sqrt(l_util);
+	__cpumask_clear_cpu(best_cpu, &candidates);
 	for_each_cpu(i, &candidates) {
-		exit_lat = 0;
-
-		if (cpu_is_idle(i)) {
-			idle_state = idle_get_state(cpu_rq(i));
-			if (idle_state)
-				exit_lat = idle_state->exit_latency;
-		}
-
-		cur_energy = compute_energy(p, i, pd);
-
-		if (cur_energy < best_energy) {
-			best_energy = cur_energy;
-			best_energy_cpu = i;
-			best_exit_lat = exit_lat;
-		} else if (cur_energy == best_energy) {
-			if (exit_lat < best_exit_lat) {
-				best_energy_cpu = i;
-				best_exit_lat = exit_lat;
-			} else if (exit_lat == best_exit_lat) {
-				/* Prefer prev cpu or this cpu. */
-				if (i == prev_cpu ||
-				    (best_energy_cpu != prev_cpu && i == this_cpu)) {
-					best_energy_cpu = i;
-				}
-			}
-		}
+		if (int_sqrt(cpu_util[i]) > l_util)
+			__cpumask_clear_cpu(i, &candidates);
 	}
 
-out:
-	rcu_read_unlock();
-	trace_sched_find_energy_efficient_cpu(p, task_util_est(p), prefer_idle, prefer_high_cap,
-				     task_importance, &idle_fit, &idle_unfit, &unimportant_fit,
-				     &unimportant_unfit, &packing, &max_spare_cap, best_energy_cpu);
-	return best_energy_cpu;
+	/* Stop now if all other CPUs are obviously a bad choice */
+	if (cpumask_empty(&candidates))
+		return best_cpu;
+
+	pd = rcu_dereference(rq->rd->pd);
+	if (unlikely(!pd))
+		goto check_prev;
+
+	/*
+	 * Search for an energy efficient alternative to @best_cpu. This
+	 * intentionally iterates over the candidates in ascending order from
+	 * the lowest-capacity cluster to the highest-capacity cluster; that
+	 * way, CPUs from lower-capacity clusters are preferred when there are
+	 * multiple CPU candidates available that have similar energy and
+	 * performance attributes.
+	 */
+	energy[best_cpu] = int_sqrt(compute_energy(p, best_cpu, pd));
+	for_each_cpu(i, &candidates) {
+		/*
+		 * Compare floor(sqrt(energy)) to ignore small differences in
+		 * energy and prefer performance at the expense of slightly
+		 * higher predicted energy. This also helps avoid bouncing tasks
+		 * between different CPUs over very small energy differences,
+		 * which hurts performance and can worsen energy.
+		 */
+		energy[i] = int_sqrt(compute_energy(p, i, pd));
+		if (energy[i] > energy[best_cpu])
+			continue;
+
+		/*
+		 * Use this CPU if it has either lower energy or equal energy
+		 * with better performance.
+		 */
+		if (energy[i] < energy[best_cpu] ||
+		    cpu_is_better(i, best_cpu, exit_lat, cpu_util[i],
+				  cpu_util[best_cpu]))
+			best_cpu = i;
+	}
+
+check_prev:
+	/*
+	 * If utilization, idle exit latency, and energy are equal between the
+	 * previous CPU and the best CPU, prefer the previous CPU if it's part
+	 * of the same cluster as the best CPU or a lower-capacity cluster. The
+	 * previous CPU isn't preferred if it's part of a higher-capacity
+	 * cluster in order to pack tasks into lower-capacity clusters.
+	 *
+	 * This check is at the end because there's no way to know which cluster
+	 * the best CPU will belong to until the final best CPU is found.
+	 */
+	if (best_cpu != prev_cpu && cpumask_test_cpu(prev_cpu, &allowed) &&
+	    cpu_util[prev_cpu] == cpu_util[best_cpu] &&
+	    exit_lat[prev_cpu] == exit_lat[best_cpu] &&
+	    energy[prev_cpu] == energy[best_cpu] &&
+	    capacity_orig_of(prev_cpu) <= capacity_orig_of(best_cpu))
+		best_cpu = prev_cpu;
+
+	return best_cpu;
 }
 
 #if IS_ENABLED(CONFIG_PIXEL_EM)
@@ -1398,12 +1225,9 @@ void rvh_cpumask_any_and_distribute(void *data, struct task_struct *p,
 	 * current cpu are not allowed
 	 */
 	if ((p->on_cpu || p->state == TASK_WAKING || task_on_rq_queued(p)) &&
-		!cpumask_test_cpu(task_cpu(p), new_mask)) {
-		*dest_cpu = find_energy_efficient_cpu(p, task_cpu(p), false, &valid_mask);
-
-		if (*dest_cpu == -1)
-			*dest_cpu = nr_cpu_ids;
-	}
+	    !cpumask_test_cpu(task_cpu(p), new_mask))
+		*dest_cpu = find_energy_efficient_cpu(p, task_cpu(p),
+						      &valid_mask);
 
 out:
 	trace_cpumask_any_and_distribute(p, &valid_mask, *dest_cpu);
