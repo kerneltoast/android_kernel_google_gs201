@@ -3410,7 +3410,7 @@ bool dhd_runtimepm_state(dhd_pub_t *dhd)
 
 			if (bus->dhd->rx_pending_due_to_rpm) {
 				/* Reschedule tasklet to process Rx frames */
-				DHD_ERROR(("%s: Schedule DPC to process pending Rx packets\n",
+				DHD_RPM(("%s: Schedule DPC to process pending Rx packets\n",
 					__FUNCTION__));
 				bus->rpm_sched_dpc_time = OSL_LOCALTIME_NS();
 				dhd_schedule_delayed_dpc_on_dpc_cpu(bus->dhd, 0);
