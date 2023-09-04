@@ -1277,11 +1277,10 @@ void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int pr
 		}
 	}
 
-	if (sd_flag & SD_BALANCE_WAKE) {
-		*target_cpu = find_energy_efficient_cpu(p, prev_cpu, sync_boost, NULL);
-	}
-
 out:
+	if (*target_cpu == -1)
+		*target_cpu = find_energy_efficient_cpu(p, prev_cpu,
+							p->cpus_ptr);
 	trace_sched_select_task_rq_fair(p, task_util_est(p),
 					sync_wakeup, prefer_prev, sync_boost,
 					get_vendor_group(p),
