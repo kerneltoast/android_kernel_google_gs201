@@ -32,7 +32,7 @@
 #define WLAN_NLINK_SRV_H
 
 #include <linux/skbuff.h>
-#include <net/netlink.h>
+#include <net/genetlink.h>
 #include <wlan_nlink_common.h>
 
 #define INVALID_PID -1
@@ -75,25 +75,19 @@ int nl_srv_register(tWlanNlModTypes msg_type, nl_srv_msg_callback msg_handler);
 int nl_srv_unregister(tWlanNlModTypes msg_type,
 		      nl_srv_msg_callback msg_handler);
 
+struct genl_family *cld80211_get_genl_family(void);
+static inline void *nl80211hdr_put(struct sk_buff *skb, uint32_t portid,
+				   uint32_t seq, int flags, uint8_t cmd)
+{
+	struct genl_family *cld80211_fam = cld80211_get_genl_family();
+
+	return genlmsg_put(skb, portid, seq, cld80211_fam, flags, cmd);
+}
+
 #ifdef CNSS_GENL
 int nl_srv_ucast(struct sk_buff *skb, int dst_pid, int flag,
 			int app_id, int mcgroup_id);
 int nl_srv_bcast(struct sk_buff *skb, int mcgroup_id, int app_id);
-
-/**
- * nl80211hdr_put() - API to fill genlmsg header
- * @skb: Sk buffer
- * @portid: Port ID
- * @seq: Sequence number
- * @flags: Flags
- * @cmd: Command id
- *
- * API to fill genl message header for brodcast events to user space
- *
- * Return: Pointer to user specific header/payload
- */
-void *nl80211hdr_put(struct sk_buff *skb, uint32_t portid,
-		     uint32_t seq, int flags, uint8_t cmd);
 #else
 int nl_srv_ucast(struct sk_buff *skb, int dst_pid, int flag);
 int nl_srv_bcast(struct sk_buff *skb);
