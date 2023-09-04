@@ -793,6 +793,7 @@ static ssize_t store_debug_scaling_devfreq_min(struct device *dev,
 	return count;
 }
 
+void exynos5_i2c_set_timeout(void);
 static ssize_t cancel_boot_freq_store(struct device *dev,
 					       struct device_attribute *attr,
 					       const char *buf, size_t count)
@@ -810,8 +811,10 @@ static ssize_t cancel_boot_freq_store(struct device *dev,
 		return ret;
 	}
 
-	if (cancel_flag)
+	if (cancel_flag) {
 		exynos_pm_qos_update_request(&data->boot_pm_qos, data->default_qos);
+		exynos5_i2c_set_timeout();
+	}
 	return count;
 }
 
