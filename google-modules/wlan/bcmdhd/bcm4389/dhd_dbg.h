@@ -556,8 +556,8 @@ do {	\
 #define DHD_ERROR(args)		do {if (dhd_msg_level & DHD_ERROR_VAL) \
 								printf args;} while (0)
 #define DHD_TRACE(args)
-#define DHD_INFO(args)
-#define DHD_ERROR_ROAM(args)	DHD_ERROR(args)
+#define DHD_INFO(args)		do { if (0) printf args; } while (0)
+#define DHD_ERROR_ROAM(args)	do { if (0) printf args; } while (0)
 #endif /* defined(NDIS) */
 
 #define DHD_DATA(args)
@@ -632,14 +632,14 @@ do {	\
 } while (0)
 #define DHD_ERROR_EX(args) DHD_ERROR(args)
 #else
-#define DHD_ERROR_MEM(args)	DHD_ERROR(args)
-#define DHD_IOVAR_MEM(args)	DHD_ERROR(args)
-#define DHD_LOG_MEM(args)	DHD_ERROR(args)
-#define DHD_ERROR_EX(args)	DHD_ERROR(args)
+#define DHD_ERROR_MEM(args)	do { if (0) printf args; } while (0)
+#define DHD_IOVAR_MEM(args)	do { if (0) printf args; } while (0)
+#define DHD_LOG_MEM(args)	do { if (0) printf args; } while (0)
+#define DHD_ERROR_EX(args)	do { if (0) printf args; } while (0)
 #endif /* DHD_EFI */
-#define DHD_ERROR_ROAM(args)    DHD_ERROR(args)
-#define DHD_RPM(args)		DHD_ERROR(args)
-#define DHD_TXFLOWCTL(args)     DHD_ERROR(args)
+#define DHD_ERROR_ROAM(args)	do { if (0) printf args; } while (0)
+#define DHD_RPM(args)		do { if (0) printf args; } while (0)
+#define DHD_TXFLOWCTL(args)	do { if (0) printf args; } while (0)
 #ifdef CUSTOMER_HW4_DEBUG
 #define DHD_TRACE_HW4	DHD_ERROR
 #define DHD_INFO_HW4	DHD_ERROR
