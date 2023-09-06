@@ -332,7 +332,10 @@ static void request_to_sw_fifo(struct eh_device *eh_dev, struct page *page,
 	spin_lock(&fifo->lock);
 	list_add_tail(&cookie->list, &fifo->head);
 	spin_unlock(&fifo->lock);
-	wake_up(&eh_dev->comp_wq);
+
+	/* spin_unlock() provides a barrier before waitqueue_active() */
+	if (waitqueue_active(&eh_dev->comp_wq))
+		wake_up(&eh_dev->comp_wq);
 }
 
 static int request_to_hw_fifo(struct eh_device *eh_dev,
@@ -355,11 +358,13 @@ static int request_to_hw_fifo(struct eh_device *eh_dev,
 	compl->priv = cookie;
 
 	atomic_inc(&eh_dev->nr_request);
-	if (wake_up)
-		wake_up(&eh_dev->comp_wq);
 
 	update_fifo_write_index(eh_dev);
 	spin_unlock(&eh_dev->fifo_prod_lock);
+
+	/* spin_unlock() provides a barrier before waitqueue_active() */
+	if (wake_up && waitqueue_active(&eh_dev->comp_wq))
+		wake_up(&eh_dev->comp_wq);
 
 	return 0;
 }
