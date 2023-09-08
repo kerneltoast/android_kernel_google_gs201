@@ -709,12 +709,8 @@ static bool ready_to_run(struct eh_device *eh_dev, bool *slept)
 static int eh_comp_thread(void *data)
 {
 	struct eh_device *eh_dev = data;
-	struct sched_attr attr = {
-		.sched_policy = SCHED_NORMAL,
-		.sched_nice = -10,
-	};
 
-	WARN_ON_ONCE(sched_setattr_nocheck(current, &attr) != 0);
+	sched_set_fifo_low(current);
 	current->flags |= PF_MEMALLOC;
 	set_freezable();
 
