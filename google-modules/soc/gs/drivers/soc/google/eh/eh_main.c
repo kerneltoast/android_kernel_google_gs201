@@ -114,7 +114,7 @@ enum eh_cdesc_status {
 static LIST_HEAD(eh_dev_list);
 static DEFINE_SPINLOCK(eh_dev_list_lock);
 
-static unsigned int eh_default_fifo_size = 512;
+static unsigned int eh_default_fifo_size = 4096;
 
 static bool sw_fifo_empty(struct eh_sw_fifo *fifo)
 {
