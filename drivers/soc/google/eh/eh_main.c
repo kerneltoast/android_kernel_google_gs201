@@ -183,19 +183,13 @@ static inline void update_fifo_write_index(struct eh_device *eh_dev)
 
 static inline void update_fifo_complete_index(struct eh_device *eh_dev)
 {
-	smp_store_release(&eh_dev->complete_index,
-			  (eh_dev->complete_index + 1) &
-			  eh_dev->fifo_color_mask);
+	eh_dev->complete_index = (eh_dev->complete_index + 1) &
+				  eh_dev->fifo_color_mask;
 }
 
 static bool fifo_full(struct eh_device *eh_dev)
 {
-	unsigned int write_idx = fifo_write_index(eh_dev);
-	unsigned int complete_idx = fifo_complete_index(eh_dev);
-
-	if (write_idx != complete_idx)
-		return false;
-	return  eh_dev->write_index != eh_dev->complete_index;
+	return atomic_read(&eh_dev->nr_request) == eh_dev->fifo_size;
 }
 
 /* index of the next descriptor to be completed by hardware */
@@ -338,6 +332,10 @@ static int request_to_hw_fifo(struct eh_device *eh_dev,
 	unsigned int write_idx;
 	struct eh_completion *compl;
 
+	/* Check if the fifo is full locklessly first, to elide the lock */
+	if (fifo_full(eh_dev))
+		return -EBUSY;
+
 	spin_lock(&eh_dev->fifo_prod_lock);
 	if (fifo_full(eh_dev)) {
 		spin_unlock(&eh_dev->fifo_prod_lock);
@@ -351,9 +349,11 @@ static int request_to_hw_fifo(struct eh_device *eh_dev,
 	compl = &eh_dev->completions[write_idx];
 	compl->priv = cookie;
 
-	atomic_inc(&eh_dev->nr_request);
-
 	update_fifo_write_index(eh_dev);
+
+	/* Ensure nr_request is incremented after compression is kicked off */
+	smp_mb__before_atomic();
+	atomic_inc(&eh_dev->nr_request);
 	spin_unlock(&eh_dev->fifo_prod_lock);
 
 	/* spin_unlock() provides a barrier before waitqueue_active() */
@@ -520,6 +520,9 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 
 	/* set the descriptor back to IDLE */
 	desc->status = EH_CDESC_IDLE;
+
+	/* Ensure the fifo slot is all freed before decrementing nr_request */
+	smp_mb__before_atomic();
 	atomic_dec(&eh_dev->nr_request);
 
 	update_fifo_complete_index(eh_dev);
@@ -528,27 +531,36 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 
 static int eh_process_compress(struct eh_device *eh_dev)
 {
-	int ret = 0;
-	int nr_handled = 0;
-	unsigned int start = eh_dev->complete_index;
-	unsigned int end = fifo_next_complete_index(eh_dev);
-	unsigned int i, index;
+	unsigned int i = eh_dev->complete_index, end, index;
+	int ret;
 
-	for (i = start; i != end; i = (i + 1) & eh_dev->fifo_color_mask) {
-		index = i & eh_dev->fifo_index_mask;
-		ret = eh_process_completed_descriptor(eh_dev, index);
-		if (ret)
-			break;
-		nr_handled++;
-		/*
-		 * Since we have available space in hw_fifo, put the next
-		 * compression request immediately from sw_fifo to make
-		 * EH busy.
-		 */
+	/* Flush sw_fifo in case hw_fifo is empty */
+	if (!atomic_read(&eh_dev->nr_request))
 		refill_hw_fifo(eh_dev);
-	}
 
-	return ret < 0 ? ret : nr_handled;
+	do {
+		/* Poll until compression is complete */
+		while ((end = fifo_next_complete_index(eh_dev)) == i)
+			usleep_range(5, 10);
+
+		/* Process the completed compression requests */
+		do {
+			index = i & eh_dev->fifo_index_mask;
+			ret = eh_process_completed_descriptor(eh_dev, index);
+			if (ret)
+				return ret;
+			/*
+			 * Since we have available space in hw_fifo, put the
+			 * next compression request immediately from sw_fifo to
+			 * make EH busy.
+			 */
+			refill_hw_fifo(eh_dev);
+		} while ((i = (i + 1) & eh_dev->fifo_color_mask) != end);
+
+		/* Acquire barrier pairs with release on nr_request inc/dec */
+	} while (atomic_read_acquire(&eh_dev->nr_request));
+
+	return 0;
 }
 
 static void eh_abort_incomplete_descriptors(struct eh_device *eh_dev)
@@ -620,16 +632,6 @@ static int eh_comp_thread(void *data)
 			 */
 			WARN_ON(1);
 		}
-
-		/*
-		 * Take a little nap if EH didn't finish the compression yet
-		 * rather than CPU burn.
-		 */
-		if (ret == 0)
-			usleep_range(5, 10);
-
-		if (!fifo_full(eh_dev))
-			refill_hw_fifo(eh_dev);
 
 		nr_processed += ret;
 	}
