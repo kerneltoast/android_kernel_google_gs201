@@ -110,6 +110,7 @@ enum eh_cdesc_status {
 /* list of all unclaimed EH devices */
 static LIST_HEAD(eh_dev_list);
 static DEFINE_SPINLOCK(eh_dev_list_lock);
+static struct eh_device *eh_dev_g;
 
 static unsigned int eh_default_fifo_size = 512;
 
@@ -412,6 +413,17 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t eh_decompress_irq(int irq, void *data)
+{
+	struct eh_device *eh_dev = eh_dev_g;
+	int index = (int)(long)data;
+
+	/* Tell the waiter that this decompression engine completed its work */
+	writeq_relaxed(BIT(index), eh_dev->regs + EH_REG_INTRP_STS_DCMP);
+	complete(per_cpu_ptr(eh_dev->decomp_done, index));
+	return IRQ_HANDLED;
+}
+
 /*
  * Non-zero return vaulue means HW is broken so it couldn't operate any
  * longer.
@@ -620,19 +632,43 @@ static int eh_comp_thread(void *data)
 }
 
 /* Initialize SW related stuff */
-static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
+static int eh_sw_init(struct eh_device *eh_dev, const int *irqs, int nr_irqs)
 {
-	int ret;
+	int error_irq = irqs[0], i, ret;
 
 	spin_lock_init(&eh_dev->sw_fifo.lock);
 	INIT_LIST_HEAD(&eh_dev->sw_fifo.head);
+
+	/*
+	 * Use IRQ-signaled decompression completion on PREEMPT_RT as an
+	 * optimization to allow decompression waiters to sleep until
+	 * decompression is done. This is only possible on PREEMPT_RT because
+	 * the decompression context is only preemptible on PREEMPT_RT.
+	 */
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		/* Check that all IRQs are defined */
+		if (nr_irqs != (eh_dev->decompr_cmd_count + 2))
+			return -EINVAL;
+
+		/* Request one IRQ for each decompression engine */
+		for (i = 2; i < eh_dev->decompr_cmd_count + 2; i++) {
+			ret = request_irq(irqs[i], eh_decompress_irq,
+					  IRQF_NO_THREAD, "eh_decompress",
+					  (void *)(long)i - 2);
+			if (ret) {
+				pr_err("decomp irq %u request failed, ret %d\n",
+				       irqs[i], ret);
+				goto free_decomp_irqs;
+			}
+		}
+	}
 
 	/* the error interrupt */
 	ret = request_threaded_irq(error_irq, NULL, eh_error_irq, IRQF_ONESHOT,
 				   EH_ERR_IRQ, eh_dev);
 	if (ret) {
 		pr_err("unable to request irq %u ret %d\n", error_irq, ret);
-		return ret;
+		goto free_decomp_irqs;
 	}
 	eh_dev->error_irq = error_irq;
 
@@ -653,6 +689,11 @@ static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 
 free_irq:
 	free_irq(eh_dev->error_irq, eh_dev);
+free_decomp_irqs:
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		while (i-- > 2)
+			free_irq(irqs[i], (void *)(long)i - 2);
+	}
 	return ret;
 }
 
@@ -747,6 +788,7 @@ static void eh_deinit_decompression(struct eh_device *eh_dev)
 			*per_cpu_ptr(eh_dev->bounce_buffer, cpu) = 0;
 		}
 	}
+	free_percpu(eh_dev->decomp_done);
 	free_percpu(eh_dev->bounce_buffer);
 	eh_dev->bounce_buffer = NULL;
 }
@@ -759,6 +801,14 @@ static int eh_init_decompression(struct eh_device *eh_dev)
 	if (!eh_dev->bounce_buffer)
 		return -ENOMEM;
 
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		eh_dev->decomp_done = alloc_percpu(struct completion);
+		if (!eh_dev->decomp_done) {
+			free_percpu(eh_dev->bounce_buffer);
+			return -ENOMEM;
+		}
+	}
+
 	for_each_possible_cpu(cpu) {
 		unsigned long buf = __get_free_pages(GFP_KERNEL, 0);
 		if (!buf) {
@@ -766,6 +816,8 @@ static int eh_init_decompression(struct eh_device *eh_dev)
 			goto out_cleanup;
 		}
 		*per_cpu_ptr(eh_dev->bounce_buffer, cpu) = buf;
+		if (IS_ENABLED(CONFIG_PREEMPT_RT))
+			init_completion(per_cpu_ptr(eh_dev->decomp_done, cpu));
 	}
 
 	return ret;
@@ -846,6 +898,8 @@ static int eh_hw_init(struct eh_device *eh_dev, unsigned short fifo_size,
 
 	/* enable all the interrupts */
 	writeq(0, eh_dev->regs + EH_REG_INTRP_MASK_ERROR);
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		writeq(0, eh_dev->regs + EH_REG_INTRP_MASK_DCMP);
 
 	return 0;
 
@@ -908,8 +962,8 @@ static struct kobj_type eh_ktype = {
 
 /* EmeraldHill initialization entry */
 static int eh_init(struct device *device, struct eh_device *eh_dev,
-		   unsigned short fifo_size, phys_addr_t regs, int error_irq,
-		   unsigned short quirks)
+		   unsigned short fifo_size, phys_addr_t regs, const int *irqs,
+		   int nr_irqs, unsigned short quirks)
 {
 	int ret;
 
@@ -924,7 +978,7 @@ static int eh_init(struct device *device, struct eh_device *eh_dev,
 	if (ret)
 		return ret;
 
-	ret = eh_sw_init(eh_dev, error_irq);
+	ret = eh_sw_init(eh_dev, irqs, nr_irqs);
 	if (ret) {
 		eh_hw_deinit(eh_dev);
 		return ret;
@@ -999,6 +1053,8 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	dst_data = page_to_phys(dst_page);
 	dst_data |= ((unsigned long)EH_DCMD_PENDING)
 		    << EH_DCMD_DEST_STATUS_SHIFT;
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		dst_data |= 1UL << EH_DCMD_DEST_INTR_SHIFT;
 	writeq(dst_data, eh_dev->regs + EH_REG_DCMD_DEST(index));
 }
 
@@ -1033,10 +1089,15 @@ EXPORT_SYMBOL(eh_compress_page);
 int eh_decompress_page(struct eh_device *eh_dev, void *src,
 		       unsigned int slen, struct page *page)
 {
-	int ret = 0;
-	int index;
-	unsigned long timeout;
-	unsigned long status;
+	struct eh_decomp_llock {
+		local_lock_t l;
+	};
+	static DEFINE_PER_CPU(struct eh_decomp_llock, decomp_llock) = {
+		.l = INIT_LOCAL_LOCK(l)
+	};
+	struct completion *decomp_done;
+	unsigned long status, timeout;
+	int index, ret = 0;
 
 	/*
 	 * Since it uses per-cpu bounce buffer, it doesn't allow to be called
@@ -1044,23 +1105,36 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
 	 */
 	WARN_ON(in_interrupt());
 
-	index = get_cpu();
+	local_lock(&decomp_llock.l);
+	index = raw_smp_processor_id();
 	pr_devel("[%s]: submit: cpu %u slen %u\n", current->comm, index, slen);
 
-	/* program decompress register (no IRQ) */
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		decomp_done = per_cpu_ptr(eh_dev->decomp_done, index);
+		reinit_completion(decomp_done);
+	}
+
+	/* program decompress register (with IRQ on PREEMPT_RT) */
 	eh_setup_dcmd(eh_dev, index, src, slen, page);
 
-	timeout = jiffies + msecs_to_jiffies(EH_POLL_DELAY_MS);
-	do {
-		cpu_relax();
-		if (time_after(jiffies, timeout)) {
-			pr_err("poll timeout on decompression\n");
-			eh_dump_regs(eh_dev);
-			ret = -ETIME;
-			goto out;
-		}
+	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
+		/* Wait for the IRQ to signal decompression completion */
+		wait_for_completion(decomp_done);
 		status = eh_read_dcmd_status(eh_dev, index);
-	} while (status == EH_DCMD_PENDING);
+	} else {
+		/* Busy wait until decompression is complete */
+		timeout = jiffies + msecs_to_jiffies(EH_POLL_DELAY_MS);
+		do {
+			cpu_relax();
+			if (time_after(jiffies, timeout)) {
+				pr_err("poll timeout on decompression\n");
+				eh_dump_regs(eh_dev);
+				ret = -ETIME;
+				goto out;
+			}
+			status = eh_read_dcmd_status(eh_dev, index);
+		} while (status == EH_DCMD_PENDING);
+	}
 
 	pr_devel("dcmd [%u] status = %lu\n", index, status);
 
@@ -1071,7 +1145,7 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
 	}
 
 out:
-	put_cpu();
+	local_unlock(&decomp_llock.l);
 	return ret;
 }
 EXPORT_SYMBOL(eh_decompress_page);
@@ -1122,8 +1196,7 @@ static int eh_of_probe(struct platform_device *pdev)
 {
 	struct eh_device *eh_dev;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	int ret;
-	int error_irq = 0;
+	int irqs[EH_MAX_DCMD + 2], nr_irqs = 0, ret;
 	unsigned short quirks = 0;
 	struct clk *clk;
 	struct device *s2mpu = NULL;
@@ -1149,8 +1222,12 @@ static int eh_of_probe(struct platform_device *pdev)
 		goto disable_pm_runtime;
 	}
 
-	error_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	if (error_irq == 0) {
+	do {
+		irqs[nr_irqs] = irq_of_parse_and_map(pdev->dev.of_node, nr_irqs);
+	} while (irqs[nr_irqs] && ++nr_irqs < ARRAY_SIZE(irqs));
+
+	/* There should be at least one IRQ (error IRQ) */
+	if (!nr_irqs) {
 		ret = -EINVAL;
 		goto put_pm_runtime;
 	}
@@ -1174,9 +1251,10 @@ static int eh_of_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto put_disable_clk;
 	}
+	eh_dev_g = eh_dev;
 
 	ret = eh_init(&pdev->dev, eh_dev, eh_default_fifo_size, mem->start,
-		      error_irq, quirks);
+		      irqs, nr_irqs, quirks);
 	if (ret)
 		goto free_ehdev;
 
