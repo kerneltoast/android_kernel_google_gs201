@@ -69,6 +69,9 @@ struct eh_device {
 	/* Array of pre-allocated bounce buffers for decompression */
 	unsigned long __percpu *bounce_buffer;
 	struct completion __percpu *decomp_done;
+	struct swait_queue_head cirq_wq;
+	bool sync_comp_irq;
+	int comp_irq;
 
 	/* parent device */
 	struct device *dev;
