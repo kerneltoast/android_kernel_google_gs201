@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# BigOcean configuration
+#
+comment "BigOcean video codec"
+
+config BIGOCEAN
+	tristate "BigOcean video codec"
+	depends on EXYNOS_BTS
+	default n
+	select PM
+	help
+	Driver for BigOcean video codec
