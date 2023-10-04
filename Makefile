@@ -6,7 +6,7 @@ EXTRAVERSION =
 NAME = Dare mighty things
 
 ifeq ($(MAKECMDGOALS),)
-MAKECMDGOALS := Image.lz4 google/dtbo.img
+MAKECMDGOALS := Image.lz4 google/dtbo.img dtbs
 endif
 
 # *DOCUMENTATION*
