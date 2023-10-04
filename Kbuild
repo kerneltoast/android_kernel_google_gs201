@@ -1,0 +1,47 @@
+ifeq ($(CONFIG_CNSS_OUT_OF_TREE),y)
+KBUILD_CPPFLAGS += -DCONFIG_CNSS_OUT_OF_TREE
+endif
+
+ifeq ($(CONFIG_CNSS2_DEBUG),y)
+KBUILD_CPPFLAGS += -DCONFIG_CNSS2_DEBUG
+endif
+
+ifeq ($(CONFIG_CNSS2_QMI),y)
+KBUILD_CPPFLAGS += -DCONFIG_CNSS2_QMI
+endif
+
+# CONFIG_CNSS_PLAT_IPC_QMI_SVC should never be "y" here since it
+# can be only compiled as a module from out-of-kernel-tree source.
+ifeq ($(CONFIG_CNSS_PLAT_IPC_QMI_SVC),m)
+KBUILD_CPPFLAGS += -DCONFIG_CNSS_PLAT_IPC_QMI_SVC
+endif
+
+obj-$(CONFIG_CNSS2) += cnss2/
+obj-$(CONFIG_CNSS_GENL) += cnss_genl/
+obj-$(CONFIG_WCNSS_MEM_PRE_ALLOC) += cnss_prealloc/
+obj-y += cnss_utils/
+
+
+# MHI
+ifeq ($(CONFIG_MHI_BUS_MISC),y)
+KBUILD_CPPFLAGS += -DCONFIG_MHI_BUS_MISC
+endif
+
+ifeq ($(CONFIG_MHI_BUS_DEBUG),y)
+KBUILD_CPPFLAGS += -DCONFIG_MHI_BUS_DEBUG
+endif
+
+obj-$(CONFIG_MHI_BUS)		+= mhi/
+
+# QMI
+obj-$(CONFIG_QCOM_QMI_HELPERS)		+= qmi/
+
+# QRTR
+KBUILD_CPPFLAGS += -DCONFIG_QRTR_NODE_ID=$(CONFIG_QRTR_NODE_ID)
+KBUILD_CPPFLAGS += -DCONFIG_QRTR_WAKEUP_MS=$(CONFIG_QRTR_WAKEUP_MS)
+obj-$(CONFIG_QRTR)		+= qrtr/
+
+# WLAN_MAC
+obj-$(CONFIG_GOOGLE_WLAN_MAC) += wlan_mac/
+
+KBUILD_CPPFLAGS += -I$(WLAN_PLATFORM_ROOT)/inc
