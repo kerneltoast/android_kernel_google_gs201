@@ -1,0 +1,14 @@
+image: alpine
+
+pre-integration:
+  stage: deploy
+  variables:
+    CHILD_PROJECT_PATH: $CI_PROJECT_PATH
+    MR_BRANCH: $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
+    CHILDJOB: "1"
+  trigger:
+    project: qorvo/uwb-mobile/uwb-stack/release/ci
+    branch: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+    strategy: depend
+  only:
+    - merge_requests

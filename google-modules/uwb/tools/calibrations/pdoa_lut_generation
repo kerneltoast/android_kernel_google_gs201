@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import math
+import json
+from optparse import OptionParser
+
+# This defaulr value is sync with:
+# dw3000_calib.c:DW3000_CALIBRATION_PDOA_LUT_MAX
+DW3000_CALIBRATION_PDOA_LUT_MAX = 31
+
+usage="""%s [options]
+
+This script aims to dump a binary blob suitable for uwb-stack calibration file.
+It works in two modes :
+  1. Input JSON LUT
+  2. Antenna spacing and formula
+
+== Input JSON LUT ==
+It takes a JSON input on stdin and dumps the corresponding blob on stdout.
+The JSON input must be a list of either:
+  * lists containing 2 items of type float, 1st is assumed to be PDoA, 2nd AoA,
+  * maps containing 'aoa' and 'pdoa' keys, and corresponding values of type float.
+    float values are assumed to be in radian unit.
+
+== Antenna spacing and formula ==
+This mode uses the theorical math formula to compute AoA value from PDoA measurement.
+It also uses the antenna spacing parameter, please ensure to provide the right value.
+2 sub modes are possible:
+  * PDoA value are provided in list of float that matches the LUT size
+  * --no-json option is specified or empty input is provided, then the tool will
+    split the [-Pi, Pi] range in %d equal parts and use it as PDoA value list
+"""%(
+   os.path.basename(sys.argv[0]),
+   DW3000_CALIBRATION_PDOA_LUT_MAX,
+    )
+
+
+# ==== Fixed point / math utils ====
+
+Q = 11
+K = 2 ** Q
+S16_MAX = ((2 ** 15) - 1)
+S16_MIN = -(2 ** 15)
+
+speed_of_light_m_per_s = 299702547
+
+def freq_hz(chan):
+    if chan == 5:
+        return 6.5e9
+    elif chan == 9:
+        return 7.9872e9
+    else:
+        raise ValueError("Channel must be either 5 or 9")
+
+def sat_uf(x):
+    return min(S16_MAX, max(S16_MIN, x))
+
+def float_to_q11(x):
+    return sat_uf(round(x * K))
+
+pi_q = float_to_q11(math.pi)
+
+def pdoa_to_aoa_rad(x, chan, antenna_dist_m):
+    L_M = speed_of_light_m_per_s / freq_hz(chan)
+    phase_m = x * L_M / (2.0 * math.pi)
+    rad = phase_m / antenna_dist_m
+    rad = min(1.0, max(-1.0, rad))
+    return math.asin(rad)
+
+# ==================================
+
+def blob_item(pdoa, aoa, fmt, byteorder):
+    pdoa_q11 = float_to_q11(pdoa)
+    aoa_q11 = float_to_q11(aoa)
+    pdoa_bytes = pdoa_q11.to_bytes(2, byteorder=byteorder, signed=True)
+    aoa_bytes = aoa_q11.to_bytes(2, byteorder=byteorder, signed=True)
+    return fmt%(pdoa_bytes[0], pdoa_bytes[1], aoa_bytes[0], aoa_bytes[1])
+
+def input_json_lut(pdoa_lut, options):
+    print("Generating LUT using 'input JSON LUT' mode...")
+    print("LUT = %s"%str(pdoa_lut))
+    if not isinstance(pdoa_lut, list) \
+      or (options.size_check and (len(pdoa_lut) != options.lut_size)):
+        raise ValueError("input JSON must be list of size %d"
+                          %(str(options.lut_size)))
+
+    blob = ""
+    first_val = True
+    internal_pdoa_lut = []
+    for item in pdoa_lut:
+        if isinstance(item, list) and len(item) == 2:
+            pdoa = item[0]
+            aoa = item[1]
+        elif isinstance(item, dict):
+            # NB: exception raised if key not provided in input data
+            pdoa = item['pdoa']
+            aoa = item['aoa']
+        else:
+            raise ValueError("input JSON list item must of type list \
+[float, float] (PDoA then AoA) or map {'aoa':float, 'pdoa':float}")
+        internal_pdoa_lut.append((pdoa, aoa))
+
+    internal_pdoa_lut.sort(key=lambda x: x[0])
+
+    for item in internal_pdoa_lut:
+        pdoa = item[0]
+        aoa = item[1]
+        if first_val:
+            first_val = False
+        else:
+            blob += options.sep
+        blob += blob_item(pdoa, aoa, options.fmt, options.byteorder)
+
+    return blob
+
+def antenna_spacing_and_formula(pdoa_values, options):
+    print("Generating LUT using 'antenna spacing and formula' mode...")
+    print("PDoA values = %s"%(str(pdoa_values)))
+    print("Antenna spacing (mm) = %f"%(options.antenna_spacing / 1000.0))
+    if not isinstance(pdoa_values, list) \
+      or (options.size_check and (len(pdoa_values) != options.lut_size)):
+        raise ValueError("input JSON must be list of size %d"
+                          %(options.lut_size))
+    blob = ""
+    first_val = True
+
+    for value in pdoa_values:
+        pdoa = float(value) # would raise TypeError
+        aoa = pdoa_to_aoa_rad(pdoa, options.channel,
+                              options.antenna_spacing / 1000000.0)
+        print("\t%f\t=>\t%f"%(pdoa, aoa))
+        if first_val:
+            first_val = False
+        else:
+            blob += options.sep
+        blob += blob_item(pdoa, aoa, options.fmt, options.byteorder)
+    return blob
+
+def float_range(start, stop, step):
+    while start < stop:
+        yield float(start)
+        start += step
+
+if __name__ == "__main__":
+    parser = OptionParser(usage=usage)
+    parser.add_option("--channel", dest="channel", type="int", default=5,
+                      help="UWB Channel (5 or 9, default is 5)")
+    parser.add_option("--formula-mode", dest="formula_mode",
+                      action="store_true", default=False,
+                      help="selects formula mode")
+    parser.add_option("--antenna-spacing", dest="antenna_spacing",
+                      type="int", default=20800,
+                      help="sets the antenna pair spacing used in formula \
+                            mode, unit is micrometers (default value 20800 \
+                            matches Mona Lisa design).")
+    parser.add_option("--byteorder", dest="byteorder",
+                      type="string", default=sys.byteorder,
+                      help="Override byte order. Default is the system's \
+                            byteorder (%s)"%(sys.byteorder))
+    parser.add_option("--lut-size", dest="lut_size",
+                      type="int", default=DW3000_CALIBRATION_PDOA_LUT_MAX,
+                      help="Override default lut size (%d)"%(DW3000_CALIBRATION_PDOA_LUT_MAX))
+    parser.add_option("--no-size-check", dest="size_check",
+                      action="store_false", default=True,
+                      help="skips length of the input map.")
+    parser.add_option("--dump-c-array", dest="dump_c_array",
+                      action="store_true", default=False,
+                      help="Dumps a C array instead of calib blob")
+    parser.add_option("--no-input", dest="read_stdin",
+                      action="store_false", default=True,
+                      help="Skips reading input on stdin")
+    (options, args) = parser.parse_args()
+
+    if options.dump_c_array:
+        options.sep = ",\n"
+        options.fmt = "\t{ 0x%02x%02x, 0x%02x%02x }"
+        options.byteorder = 'big'
+    else:
+        options.sep = ":"
+        options.fmt = "%02x:%02x:%02x:%02x"
+
+    txt_input = ""
+    if options.read_stdin:
+        for line in sys.stdin:
+            txt_input += line
+
+    if options.formula_mode:
+        if txt_input:
+            pdoa_values = json.loads(txt_input)
+        else:
+            step = 2 * math.pi / (options.lut_size-1)
+            pdoa_values = list(float_range(-math.pi, math.pi, step))
+        blob = antenna_spacing_and_formula(pdoa_values, options)
+    else:
+        pdoa_lut = json.loads(txt_input)
+        blob = input_json_lut(pdoa_lut, options)
+
+    if options.dump_c_array:
+        print("const dw3000_pdoa_lut_t pdoa_lut = {\n" + blob + "\n};")
+    else:
+        print("antX.antY.chN.pdoa_lut " + blob)

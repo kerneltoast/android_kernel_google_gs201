@@ -1,0 +1,39 @@
+# Run with `make -f Recipes`.
+#
+# You can get help with `make -f Recipes help`.
+
+all:
+	ninja -C utest/build
+
+test: all
+	./utest/build/test_mac $(TESTFLAGS)
+
+cov:
+	ninja -C utest/build-cov test_mac_coverage
+
+cmake:
+	cmake -S utest -B utest/build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+	cmake -S utest -B utest/build-cov -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_TEST_COVERAGE=on
+
+clean:
+	test -d utest/build && ninja -C utest/build clean
+	test -d utest/build-cov && ninja -C utest/build-cov clean
+
+check: check_format check_doc
+
+check_format:
+	../tools/check-format . ../kernel/net ../kernel/include
+
+check_doc:
+	../deps/linux/linux-uwb/scripts/kernel-doc -Werror -none *.h *.c include/net/*.h ../kernel/include/net/*.h
+
+help:
+	@echo "cmake - run cmake to create the build tree, must be done once"
+	@echo "all   - build program"
+	@echo "test  - build and run tests"
+	@echo "cov   - build and run tests with coverage analysis"
+	@echo "clean - remove generated files"
+	@echo ""
+	@echo "check_format - run clang-format"
+	@echo "check_doc    - check kernel-doc comments"
+	@echo "check        - run all checks"
