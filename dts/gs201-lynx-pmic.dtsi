@@ -1,0 +1,131 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Lynx-specific PMIC settings
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+/* Mag sensor: 1v8 power source. */
+&m_ldo24_reg {
+	regulator-boot-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+	schematic-name = "L24M_SENSORS";
+	subsys-name = "Sensors";
+};
+
+/* Touch: touch controller requires 3.0v typ */
+&m_ldo25_reg {
+	/delete-property/ regulator-always-on;
+};
+
+&m_ldo26_reg {
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
+	/delete-property/ regulator-always-on;
+};
+
+/* Display: vci-supply voltage */
+&m_ldo27_reg {
+	regulator-min-microvolt = <3025000>;
+	regulator-max-microvolt = <3025000>;
+};
+
+&m_ldo23_reg {
+	schematic-name = "L23M_SPARE";
+	subsys-name = "Spare";
+};
+
+&m_ldo24_reg {
+	schematic-name = "L24M_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo4_reg {
+	schematic-name = "L4S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo6_reg {
+	schematic-name = "L6S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo7_reg {
+	schematic-name = "L7S_SENSORS";
+};
+
+&s_ldo8_reg {
+	schematic-name = "L8S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo12_reg {
+	schematic-name = "L12S_CAMIO";
+	subsys-name = "Multimedia";
+};
+
+&s_ldo14_reg {
+	schematic-name = "L14S_ALIVE";
+	subsys-name = "Alive";
+};
+
+&s_ldo15_reg {
+	schematic-name = "L15S_UDFPS_AVDD";
+};
+
+&s_ldo20_reg {
+	schematic-name = "L20S_DMIC2";
+	subsys-name = "DMIC";
+};
+
+&s_ldo22_reg {
+	schematic-name = "L22S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo26_reg {
+	schematic-name = "L26S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo27_reg {
+	schematic-name = "L27S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo28_reg {
+	schematic-name = "L28S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ext6_rail {
+	shunt-res-uohms = <5000>;
+	schematic-name = "VSYS_PWR_CAM";
+	subsys-name = "Multimedia";
+};
+
+&s_ldo16_reg {
+	schematic-name = "L16S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo17_reg {
+	schematic-name = "L17S_SPARE";
+	subsys-name = "Spare";
+};
+
+/* replace L9S_GNSS_CORE to VSYS_PWR_CAM */
+&ch15 {
+	rail-name = "VSEN_C6";
+};
+
+/* replace L2S_PLL_MIPI_UFS to S6S_LLDO2 */
+&ch23 {
+	rail-name = "BUCK6S";
+};
+
+/* replace L14S_ALIVE to S7S_MLDO */
+&ch24 {
+	rail-name = "BUCK7S";
+};
