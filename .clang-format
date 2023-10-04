@@ -1,0 +1,11 @@
+BasedOnStyle: Google
+
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+CommentPragmas: NOLINT:.*
+DerivePointerAlignment: false
+IndentWidth: 2
+PenaltyExcessCharacter: 32
+PointerAlignment: Right
+TabWidth: 2
+UseTab: Never
