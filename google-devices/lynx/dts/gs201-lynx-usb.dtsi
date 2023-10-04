@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google L10 USB device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+&usb_hs_tune {
+        status = "disabled";
+	hs_tune_cnt = <6>;
+
+	/* value = <device host> */
+	hs_tune1 {
+		tune_name = "tx_pre_emp";
+		tune_value = <0x1 0x1>;
+	};
+
+	hs_tune2 {
+		tune_name = "tx_vref";
+		tune_value = <0x8 0x8>;
+	};
+
+	hs_tune3 {
+		tune_name = "rx_sqrx";
+		tune_value = <0x5 0x5>;
+	};
+
+	hs_tune4 {
+		tune_name = "utmi_clk";
+		tune_value = <0x1 0x1>;
+	};
+
+	hs_tune5 {
+		tune_name = "compdis";
+		tune_value = <0x7 0x7>;
+	};
+
+	hs_tune6 {
+		tune_name = "tx_res";
+		tune_value = <0x3 0x3>;
+	};
+};

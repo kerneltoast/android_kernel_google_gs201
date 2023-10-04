@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+rel_path := ../google-modules
+
+ext_modules :=
+ext_modules += amplifiers/cs35l41
+ext_modules += amplifiers/cs35l45
+ext_modules += amplifiers/cs40l26
+ext_modules += amplifiers/drv2624
+ext_modules += amplifiers/audiometrics
+ext_modules += aoc
+ext_modules += aoc/alsa
+ext_modules += aoc/usb
+ext_modules += bluetooth/qcom
+ext_modules += bms
+ext_modules += display/samsung
+ext_modules += edgetpu/janeiro/drivers/edgetpu
+ext_modules += gpu/mali_kbase
+ext_modules += gpu/mali_pixel
+ext_modules += gxp/gs201
+ext_modules += lwis
+ext_modules += nfc
+ext_modules += power/reset
+ext_modules += touch/common
+ext_modules += touch/focaltech/ft3658
+ext_modules += touch/goodix
+ext_modules += wlan/wcn6740/cnss2
+ext_modules += wlan/wcn6740/wlan/qcacld-3.0
+ext_modules += video/gchips
+ext_modules += ../devices/google/lynx/display
+
+# Add any modules which have their own UAPI headers to this list.  This will
+# cause the build to run the module makefile with headers_install target.
+has_uapi_headers :=
+has_uapi_headers += touch/common
+has_uapi_headers += video/gchips
+
+install_uapi_headers_targets := $(has_uapi_headers:=_headers_install)
+
+ifneq ($(wildcard $(KERNEL_SRC)/$(rel_path)/uwb/kernel),)
+ext_modules += uwb/kernel
+endif
+
+.PHONY: $(ext_modules) $(install_uapi_headers_targets) depmod allmodules
+
+allmodules: $(ext_modules) $(install_uapi_headers_targets) depmod
+
+touch/focaltech/ft3658: | touch/common
+
+touch/goodix: | touch/common
+
+aoc/alsa: | aoc
+
+aoc/usb: | aoc/alsa aoc
+
+power/reset: | bms
+
+../devices/google/lynx/display: | display/samsung
+
+# amplifiers/cs35l45 and amplifiers/cs35l41 both build identical version of
+# snd-soc-wm-adsp.ko. To make sure the makefiles don't step on each other,
+# create this fake order only dependency
+# TODO(b/198105924): Identically named kernel modules: snd-soc-wm-adsp.ko
+amplifiers/cs35l45: | amplifiers/cs35l41
+
+gxp/gs201: | edgetpu/janeiro/drivers/edgetpu
+
+include $(KERNEL_SRC)/Makefile.ext_modules.include
