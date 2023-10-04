@@ -350,11 +350,9 @@ static int request_to_hw_fifo(struct eh_device *eh_dev,
 	compl = &eh_dev->completions[write_idx];
 	compl->priv = cookie;
 
-	update_fifo_write_index(eh_dev);
-
-	/* Ensure nr_request is incremented after compression is kicked off */
-	smp_mb__before_atomic();
 	atomic_inc(&eh_dev->nr_request);
+
+	update_fifo_write_index(eh_dev);
 	spin_unlock(&eh_dev->fifo_prod_lock);
 
 	/* spin_unlock() provides a barrier before waitqueue_active() */
