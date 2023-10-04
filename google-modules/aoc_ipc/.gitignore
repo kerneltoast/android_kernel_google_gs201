@@ -1,0 +1,19 @@
+# Ignore temporary objects
+
+# Temporary files
+*.swp
+.gdb_history
+
+# Visual Studio Code
+*.code-workspace
+.vscode/.browse*
+.vscode/settings.json
+.vscode/ipch/
+.vscode/tags
+**/.vscode/
+
+# Eclipse project
+.settings
+.project
+.cproject
+.pydevproject
