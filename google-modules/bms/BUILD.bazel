@@ -1,0 +1,45 @@
+# NOTE: THIS FILE IS EXPERIMENTAL FOR THE BAZEL MIGRATION AND NOT USED FOR
+# YOUR BUILDS CURRENTLY.
+#
+# It is not yet the source of truth for your build. If you're looking to modify
+# the build file, modify the Android.bp file instead. Do *not* modify this file
+# unless you have coordinated with the team managing the Soong to Bazel
+# migration.
+
+load("//build/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "*.h",
+    ]),
+    visibility = [
+        "//private/google-modules/power/reset:__subpackages__",
+    ],
+)
+
+kernel_module(
+    name = "bms.cloudripper",
+    outs = [
+        "google-battery.ko",
+        "google-bms.ko",
+        "google-charger.ko",
+        "google-cpm.ko",
+        "google_dock.ko",
+        "google_dual_batt_gauge.ko",
+        "max1720x-battery.ko",
+        "max20339.ko",
+        "max77729-pmic.ko",
+        "max77729_charger.ko",
+        "max77729_uic.ko",
+        "max77759_charger.ko",
+        "overheat_mitigation.ko",
+        "p9221.ko",
+        "pca9468.ko",
+    ],
+    kernel_build = "//private/gs-google:cloudripper",
+    visibility = [
+        "//private/google-modules/power/reset:__subpackages__",
+        "//private/gs-google:__pkg__",
+    ],
+)
