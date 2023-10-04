@@ -1,0 +1,34 @@
+package {
+    // See: http://go/android-license-faq
+    //   SPDX-license-identifier-BSD-2-Clause
+    default_applicable_licenses: ["external_dtc_libfdt_license"],
+}
+
+cc_library {
+    name: "libfdt",
+    host_supported: true,
+
+    cflags: [
+        "-Werror",
+        "-Wno-macro-redefined",
+        "-Wno-sign-compare",
+    ],
+    srcs: [
+        "fdt.c",
+        "fdt_check.c",
+        "fdt_ro.c",
+        "fdt_wip.c",
+        "fdt_sw.c",
+        "fdt_rw.c",
+        "fdt_strerror.c",
+        "fdt_empty_tree.c",
+        "fdt_addresses.c",
+        "fdt_overlay.c",
+        "acpi.c",
+    ],
+    export_include_dirs: ["."],
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.virt",
+    ],
+}
