@@ -1,0 +1,4 @@
+/dts-v1/;
+/plugin/;
+
+&c { prop2 =  <&b 0xff>; };
