@@ -77,7 +77,7 @@ GXP_PLATFORM ?= SILICON
 gxp-flags := -DCONFIG_GXP_$(GXP_PLATFORM) -DCONFIG_$(GXP_CHIP)=1 \
 	     -I$(M)/include -I$(M)/gcip-kernel-driver/include \
 	     -I$(srctree)/$(M)/include \
-	     -I$(srctree)/$(M)/gcip-kernel-driver/include \
+	     -I$(srctree)/$(src)/gcip-kernel-driver/include \
 	     -I$(srctree)/drivers/gxp/include
 ccflags-y += $(EXTRA_CFLAGS) $(gxp-flags)
 
