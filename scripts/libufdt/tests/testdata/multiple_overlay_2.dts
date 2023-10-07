@@ -1,0 +1,5 @@
+/dts-v1/;
+/plugin/;
+
+&a { prop1 = <0x02>; };
+&c { prop2 = <&a 0x02>; };

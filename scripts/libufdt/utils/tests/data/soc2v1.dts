@@ -1,0 +1,17 @@
+/dts-v1/;
+
+/ {
+  compatible = "soc_manufacturer,soc_model";
+  soc_id = <0x0 0x0 0x0 0x2>;
+  soc_rev = <0x1 0x0>;
+
+  deviceA: deviceA {
+    compatible = "deviceA_manufacturer,deviceA_model";
+    status = "disabled";
+  };
+
+  deviceB: deviceB {
+    compatible = "deviceB_manufacturer,deviceB_model";
+    status = "disabled";
+  };
+};
