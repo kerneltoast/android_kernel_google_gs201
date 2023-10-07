@@ -1,0 +1,28 @@
+# NOTE: THIS FILE IS EXPERIMENTAL FOR THE BAZEL MIGRATION AND NOT USED FOR
+# YOUR BUILDS CURRENTLY.
+#
+# It is not yet the source of truth for your build. If you're looking to modify
+# the build file, modify the Android.bp file instead. Do *not* modify this file
+# unless you have coordinated with the team managing the Soong to Bazel
+# migration.
+
+load("//build/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "mali_pixel.cloudripper",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+        "Kbuild",
+    ]) + [
+        "//private/google-modules/gpu/common:headers",
+    ],
+    outs = [
+        "mali_pixel.ko",
+    ],
+    kernel_build = "//private/gs-google:cloudripper",
+    visibility = [
+        "//private/google-modules/gpu/mali_kbase:__pkg__",
+        "//private/gs-google:__pkg__",
+    ],
+)
