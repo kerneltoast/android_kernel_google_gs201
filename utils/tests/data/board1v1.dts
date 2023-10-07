@@ -1,0 +1,15 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+  compatible = "board_manufacturer,board_model";
+  board_id = <0x00010000>;
+  board_rev = <0x00010000>;
+  /* optional, the soc used by the board */
+  soc_id = <0x00020000>;
+};
+
+&deviceB {
+  value = <0x1>;
+  status = "okay";
+};
