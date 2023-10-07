@@ -40,6 +40,7 @@ static bool gpu_uevent_check_valid(const struct gpu_uevent *evt)
         default:
             break;
         }
+        break;
     case GPU_UEVENT_TYPE_GPU_RESET:
         switch (evt->info) {
         case GPU_UEVENT_INFO_CSF_RESET_OK:
@@ -48,6 +49,7 @@ static bool gpu_uevent_check_valid(const struct gpu_uevent *evt)
         default:
             break;
         }
+        break;
     default:
         break;
     }
