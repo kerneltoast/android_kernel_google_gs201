@@ -1,0 +1,40 @@
+obj-$(CONFIG_MCPS_FAKE) += mcps802154_fake.o
+
+ccflags-$(CONFIG_DW3000_DEBUG) := -DDEBUG -g
+ccflags-$(CONFIG_MCPS802154_TESTMODE) += -DCONFIG_MCPS802154_TESTMODE
+
+dw3000-y := \
+		dw3000_nfcc_coex_core.o \
+		dw3000_nfcc_coex_buffer.o \
+		dw3000_nfcc_coex_msg.o \
+		dw3000_nfcc_coex_mcps.o \
+		dw3000_pctt_mcps.o \
+		dw3000_calib.o \
+		dw3000_chip_c0.o \
+		dw3000_chip_d0.o \
+		dw3000_chip_e0.o \
+		dw3000_core.o \
+		dw3000_mcps.o \
+		dw3000_spi.o \
+		dw3000_stm.o \
+		dw3000_debugfs.o \
+		dw3000_trc.o \
+		dw3000_txpower_adjustment.o
+
+dw3000-$(CONFIG_MCPS802154_TESTMODE) += dw3000_testmode.o
+
+dw3000-core-tests-$(CONFIG_KUNIT) += dw3000_core_tests.o
+
+CFLAGS_dw3000_trc.o := -I$(src) -I$(srctree)/$(src)
+ifneq ($(GITVERSION),)
+CFLAGS_dw3000_spi.o := -DGITVERSION='"$(GITVERSION)"'
+endif
+
+ifdef CONFIG_SPI_MASTER
+# Build dw3000.ko only if SPI supported on target kernel.
+obj-m += dw3000.o
+endif
+ifdef CONFIG_KUNIT
+# Build test suites if kunit enabled in target kernel config.
+obj-m += dw3000-core-tests.o
+endif

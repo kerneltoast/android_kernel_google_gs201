@@ -1,0 +1,78 @@
+// Device Tree overlay for dw3000 for Raspberry Pi 4
+// Using a DW3700 shield connected using an Waveshare ARPI600 HAT.
+
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,brcm2711";
+
+    /* Ensure spi0 is enabled */
+
+    fragment@0 {
+        target = <&spi0>;
+        __overlay__ {
+            status = "okay";
+        };
+    };
+
+    /* Disable spi-dev for spi0.0 & spi0.1 */
+
+    fragment@1 {
+        target = <&spidev0>;
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+
+    fragment@2 {
+        target = <&spidev1>;
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+
+    /* Configure additional GPIOs */
+    /* Check if wherre we wire it in driver */
+
+    fragment@3 {
+        target = <&gpio>;
+        __overlay__ {
+            dw3000_pins: dw3000_pins {
+                /* Wakeup, IRQ, RST on GPIO4, GPIO25 and GPIO24 */
+                brcm,pins = <4 25 24>;
+                brcm,function = <0x0 0x0 0x0>;
+                /* Pull up/down config: 0: disabled, 1: down, 2: up */
+                brcm,pull = <0 1 2>;
+            };
+        };
+    };
+
+    /* Add DW3000 device on spi0.0 */
+
+    fragment@4 {
+        target = <&spi0>;
+        __overlay__ {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            dw3000: dw3000@0 {
+                compatible = "decawave,dw3000";
+                reg = <0>; /* CE0 */
+                pinctrl-names = "default";
+                pinctrl-0 = <&dw3000_pins>;
+                interrupt-parent = <&gpio>;
+                interrupts = <25 4>; /*IRQ_TYPE_LEVEL_HIGH*/
+                spi-max-frequency = <20000000>;
+                reset-gpio = <&gpio 24 4>; /* OPEN_DRAIN */
+                decawave,eui64 = /bits/ 64 <0>;
+                decawave,panid = /bits/ 16 <0>;
+                status = "okay";
+            };
+        };
+    };
+
+    __overrides__ {
+        eui64 = <&dw3000>,"decawave,eui64#0";
+        panid = <&dw3000>,"decawave,panid;0";
+    };
+};
