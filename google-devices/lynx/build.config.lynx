@@ -1,0 +1,60 @@
+KERNEL_DIR=private/gs-google
+
+DEFCONFIG=lynx_gki_defconfig
+GKI_FRAGMENT_DEFCONFIG="${KERNEL_DIR}/arch/arm64/configs/cloudripper_gki.fragment ${ROOT_DIR}/private/devices/google/lynx/lynx_gki.fragment"
+VENDOR_RAMDISK_BINARY=${ROOT_DIR}/private/devices/google/lynx/vendor_ramdisk-lynx.img
+
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.gs101
+
+# Set BUILD_VENDOR_KERNEL_BOOT to 1 to build vendor_kernel_boot and remove vendor_boot
+# artifacts and arguments since we don't need to update vendor_boot anymore.
+BUILD_VENDOR_BOOT_IMG=""
+BUILD_VENDOR_KERNEL_BOOT=1
+KERNEL_VENDOR_CMDLINE=""
+VENDOR_BOOTCONFIG=""
+INITRAMFS_VENDOR_RAMDISK_FRAGMENT_NAME=""
+VENDOR_RAMDISK_BINARY=""
+GKI_RAMDISK_PREBUILT_BINARY=""
+
+MAKE_GOALS="$MAKE_GOALS
+modules
+google/devices/lynx/google-base/gs201-a0.dtb
+google/devices/lynx/google-base/gs201-b0.dtb
+google/devices/lynx/google-base/gs201-b0_v2-ipop.dtb
+google/devices/lynx/dtbo.img
+"
+
+FILES="
+arch/arm64/boot/dts/google/devices/lynx/google-base/gs201-a0.dtb
+arch/arm64/boot/dts/google/devices/lynx/google-base/gs201-b0.dtb
+arch/arm64/boot/dts/google/devices/lynx/google-base/gs201-b0_v2-ipop.dtb
+arch/arm64/boot/dts/google/devices/lynx/dtbo.img
+"
+
+if [ -z "$MIXED_BUILD" ]; then
+FILES="$FILES
+$DEVICE_KERNEL_FILES
+"
+fi
+
+# Concatenate vendor_kernel_boot_modules.gs201 (platform common) and vendor_kernel_boot_modules.lynx (device specified) into one file
+POST_KERNEL_BUILD_CMDS="concat_vendor_boot_modules"
+function concat_vendor_boot_modules() {
+  cat ${KERNEL_DIR}/vendor_kernel_boot_modules.gs201 \
+    private/devices/google/lynx/vendor_kernel_boot_modules.lynx > \
+    ${OUT_DIR}/vendor_kernel_boot_modules.concat
+  MODULES_LIST=${OUT_DIR}/vendor_kernel_boot_modules.concat
+}
+
+VENDOR_DLKM_MODULES_BLOCKLIST=${KERNEL_DIR}/vendor_dlkm.blocklist.cloudripper
+
+VENDOR_RAMDISK_CMDS="modify_vendor_ramdisk"
+function modify_vendor_ramdisk() {
+  ln -f init.recovery.gs201.rc init.recovery.lynx.rc
+}
+
+EXT_MODULES_MAKEFILE=private/devices/google/lynx/Makefile.ext_modules.lynx
+# Explicitly clear EXT_MODULES because build.config.gs101 might set it to
+# "private/google-modules/uwb/kernel" which we don't want because uwb/kernel is
+# already built by Makefile.ext_modules.lynx
+EXT_MODULES=""
