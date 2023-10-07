@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Makefile for the drm device driver.  This driver provides support for the
+# Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
+
+ccflags-y := -I$(srctree)/$(src)/cal_common
+
+ccflags-y += -I$(srctree)/$(src)/cal_9845
+exynos-drm-y += cal_9845/decon_reg.o
+exynos-drm-y += cal_9845/dsim_reg.o
+exynos-drm-y += cal_9845/dpp_reg.o
+exynos-drm-y += cal_9845/dqe_reg.o
+exynos-drm-y += cal_9845/hdr_reg.o
+
+ccflags-$(CONFIG_SOC_GS201) += -I$(srctree)/$(src)/cal_9855
+exynos-drm-$(CONFIG_SOC_GS201) += cal_9855/decon_reg.o
+exynos-drm-$(CONFIG_SOC_GS201) += cal_9855/dpp_reg.o
+exynos-drm-$(CONFIG_SOC_GS201) += cal_9855/dqe_reg.o
+
+exynos-drm-y += exynos_drm_drv.o
+exynos-drm-y += exynos_drm_crtc.o
+exynos-drm-y += exynos_drm_connector.o
+exynos-drm-y += exynos_drm_fb.o
+exynos-drm-y += exynos_drm_format.o
+exynos-drm-y += exynos_drm_gem.o
+exynos-drm-y += exynos_drm_plane.o
+
+exynos-drm-y += exynos_drm_debug.o
+exynos-drm-y += exynos_drm_dqe.o
+exynos-drm-y += exynos_drm_hibernation.o
+exynos-drm-y += exynos_drm_partial.o
+exynos-drm-y += exynos_drm_recovery.o
+
+exynos-drm-$(CONFIG_DRM_SAMSUNG_DECON)		+= exynos_drm_decon.o
+exynos-drm-$(CONFIG_DRM_SAMSUNG_DPP)		+= exynos_drm_dpp.o
+exynos-drm-$(CONFIG_DRM_SAMSUNG_DSI)		+= exynos_drm_dsim.o
+exynos-drm-$(CONFIG_DRM_SAMSUNG_TUI)		+= exynos_drm_tui.o
+exynos-drm-$(CONFIG_DRM_SAMSUNG_WB)			+= exynos_drm_writeback.o
+
+exynos-drm-$(CONFIG_EXYNOS_BTS)		+= exynos_drm_bts.o
+
+obj-$(CONFIG_DRM_SAMSUNG)		+= exynos-drm.o
+obj-y	+= panel/
