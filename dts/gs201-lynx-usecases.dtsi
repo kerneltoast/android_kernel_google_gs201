@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Usecases specific to the gs201 platform
+ *
+ * Copyright 2021-2022 Google,LLC
+ *
+ */
+
+/* system use cases */
+&max77759_chg {
+	/* external boost */
+	max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>; /* MW: OTG_BOOST_EN */
+	max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
+	max77759,extbst-mode = <&s2mpg12_gpio 4 GPIO_ACTIVE_HIGH>;
+	max77759,cpout-ctl =  <&p9xxx_gpio 3 GPIO_ACTIVE_HIGH>;
+
+	/* b/202526678 add inhibit pin */
+	max77759,cpout-en = <&p9xxx_gpio 1 GPIO_ACTIVE_HIGH>;
+	/* for OTG related usecase*/
+	max77759,rx-to-rx-otg-en; /* support RX -> RX+OTG */
+	max77759,ext-otg-only; /* use external OTG only */
+
+	max77759,wlc-otg-extbst-en; /* Only WLC+OTG to enable extbst mode */
+};

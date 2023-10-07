@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs201 camera lwis device tree for lynx
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+&sensor1 {
+	/* Power supplies */
+	s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+	gpio2-supply = <&slg51002_gpio2>;
+	ldo7-supply = <&slg51002_ldo7>;
+
+	/* Power up sequence */
+	power-up-seqs =
+		"s2mpg13_ldo12",
+		"gpio2",
+		"ldo7",
+		"reset",
+		"mclk_on";
+	power-up-seq-types =
+		"regulator",
+		"regulator",
+		"regulator",
+		"gpio",
+		"pinctrl";
+	power-up-seq-delays-us =
+		<1000
+		 1000
+		 1000
+		 1000
+		 1000>;
+
+	/* Power down sequence */
+	power-down-seqs =
+		"mclk_off",
+		"reset",
+		"ldo7",
+		"gpio2",
+		"s2mpg13_ldo12";
+	power-down-seq-types =
+		"pinctrl",
+		"gpio",
+		"regulator",
+		"regulator",
+		"regulator";
+	power-down-seq-delays-us =
+		<1000
+		 1000
+		 1000
+		 1000
+		 1000>;
+};

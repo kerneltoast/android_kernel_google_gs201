@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS201 wlan device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+&pinctrl_1 {
+	qc_wlan_host_wake: qc_wlan_host_wake {
+		samsung,pins = "gpa6-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&pinctrl_7 {
+	pinctrl_wlan: pinctrl-wlan {
+		cnss_wlan_en_active: cnss_wlan_en_active {
+			samsung,pins = "gph2-4";
+			samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-val = <1>;
+		};
+		cnss_wlan_en_sleep: cnss_wlan_en_sleep {
+			samsung,pins = "gph2-4";
+			samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-val = <0>;
+		};
+
+		cnss_wlan_buck: cnss_wlan_buck {
+			samsung,pins = "gph2-5";
+			samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+			samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+			samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+			samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+			samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+			samsung,pin-val = <1>;
+		};
+	};
+};
+
+/ {
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+
+			wlan: qcom,cnss-qca6490 {
+				compatible = "qcom,cnss-qca6490";
+				wlan-en-gpio = <&gph2 4 GPIO_ACTIVE_HIGH /* WLAN_EN */ >;
+				wlan-buck-gpio = <&gph2 5 0x1>;
+				pinctrl-names = "wlan_en_active", "wlan_en_sleep", "wlan_buck";
+				pinctrl-0 = <&cnss_wlan_en_active>;
+				pinctrl-1 = <&cnss_wlan_en_sleep>;
+				pinctrl-2 = <&cnss_wlan_buck>;
+				memory-region = <&wifi_memory>;
+				wlan-pci-wake-gpio = <&gpa6 1 0x1>;
+				qcom,wlan-rc-num = <1>;
+				qcom,wlan-ramdump-dynamic = <0x420000>;
+				qcom,wlan-cbc-enabled;
+				qcom,wlan;
+				use-pm-domain;
+				status = "okay";
+			};
+		};
+	};
+};
+
+&reserved_memory {
+	wifi_memory: wifi_region {
+		compatible = "shared-dma-pool";
+		alloc-ranges = <0x0 0x80000000 0x80000000>;
+		reusable;
+		alignment = <0 0x400000>;
+		size = <0x2800000>;
+	};
+};
+
+&pcie_1 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pcie1_clkreq &pcie1_perst &qc_wlan_host_wake>;
+	max-link-speed = <2>; //LINK_SPEED_GEN2
+	use-msi = "true";
+	ep-device-type = <EP_QC_WIFI>;
+	ep-device-name = "WIFI";
+};
+
