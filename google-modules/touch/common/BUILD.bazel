@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    visibility = [
+        "//private/google-modules/touch:__subpackages__",
+    ],
+)
+
+filegroup(
+    name = "touch.common.kconfig",
+    srcs = glob([
+        "Kconfig",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
+
+kernel_module(
+    name = "touch.common",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+        "Kbuild",
+    ]) + [
+        "//private/google-modules/aoc:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+        "//private/google-modules/display:headers",
+        "//private/google-modules/display/include:headers",
+    ],
+    outs = [
+        "goog_touch_interface.ko",
+        "heatmap.ko",
+        "touch_bus_negotiator.ko",
+        "touch_offload.ko",
+    ],
+    kernel_build = "//private/google-modules/soc/gs:gs_kernel_build",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+        "//private/google-modules/touch:__subpackages__",
+    ],
+    deps = [
+        "//private/google-modules/aoc",
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)
