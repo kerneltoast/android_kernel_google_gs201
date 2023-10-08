@@ -794,6 +794,12 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	if (ret != 1)
 		return -EINVAL;
 
+#if defined(CONFIG_SOC_GOOGLE) && !IS_ENABLED(CONFIG_VH_SCHED)
+	/* Use schedutil if sched_pixel is requested but not present */
+	if (!strcmp(str_governor, "sched_pixel"))
+		strcpy(str_governor, "schedutil");
+#endif
+
 	if (cpufreq_driver->setpolicy) {
 		unsigned int new_pol;
 
