@@ -1994,7 +1994,7 @@ static struct aoc_service_dev *create_service_device(struct aoc_prvdata *prvdata
 		return NULL;
 
 	memcpy_fromio(service_name, name, sizeof(service_name));
-	if (!strcmp(service_name, "logging"))
+	if (!strcmp(service_name, "logging") || !strcmp(service_name, "debug"))
 		return NULL;
 
 	dev = kzalloc(sizeof(struct aoc_service_dev), GFP_KERNEL);
