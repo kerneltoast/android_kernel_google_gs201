@@ -263,6 +263,8 @@ static void eh_setup_descriptor(struct eh_device *eh_dev, struct page *src_page,
 	eh_setup_src_addr(desc, src_page);
 	/* mark it as pend for hardware */
 	desc->status = EH_CDESC_PENDING;
+	/* Generate an interrupt upon completing a compression */
+	desc->intr_request = 1;
 	/*
 	 * Skip setting other fields of the descriptor for the performance
 	 * reason. It's doable since they are never changed once they are
@@ -443,6 +445,34 @@ static irqreturn_t eh_error_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void eh_clear_cintr_status(struct eh_device *eh_dev)
+{
+	/*
+	 * Loop until the interrupt status is fully cleared in hardware. The
+	 * writeq() can be relaxed since there is a control dependency on the
+	 * same address, plus readq() still executes a read barrier afterwards
+	 * which prevents any later loads from being hoisted before the readq().
+	 */
+	do {
+		writeq_relaxed(1, eh_dev->regs + EH_REG_INTRP_STS_CMP);
+	} while (readq(eh_dev->regs + EH_REG_INTRP_STS_CMP));
+}
+
+static irqreturn_t eh_compress_irq(int irq, void *data)
+{
+	struct eh_device *eh_dev = data;
+
+	/* Clear the interrupt status */
+	eh_clear_cintr_status(eh_dev);
+
+	/* Mask the interrupt and wake the compression thread if it's waiting */
+	if (swait_active(&eh_dev->cirq_wq)) {
+		writeq_relaxed(~0UL, eh_dev->regs + EH_REG_INTRP_MASK_CMP);
+		swake_up_one(&eh_dev->cirq_wq);
+	}
+	return IRQ_HANDLED;
+}
+
 /*
  * Non-zero return vaulue means HW is broken so it couldn't operate any
  * longer.
@@ -542,6 +572,80 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	return ret;
 }
 
+static unsigned int eh_wait_next_index(struct eh_device *eh_dev, unsigned int i)
+{
+	DECLARE_SWAITQUEUE(wait);
+	unsigned int end;
+
+	/* Check if there are compressions finished before attempting to wait */
+	if ((end = fifo_next_complete_index(eh_dev)) != i)
+		return end;
+
+	/*
+	 * We need to make sure the IRQ handler isn't running if we decided not
+	 * to wait for it to wake us up. This prevents a race where the IRQ
+	 * handler may be running the next time eh_wait_next_index() is called,
+	 * such that the IRQ handler masks the interrupt right after we unmask
+	 * it. This can lead to the compression thread sleeping forever waiting
+	 * for an interrupt that'll never come because the interrupt is masked.
+	 */
+	if (eh_dev->sync_comp_irq) {
+		eh_dev->sync_comp_irq = false;
+		synchronize_irq(eh_dev->comp_irq);
+	}
+
+	/*
+	 * In order to reduce the number of compression interrupts fired as much
+	 * as possible, the compression interrupt is only enabled on demand when
+	 * we observe that there aren't any compressions completed, and
+	 * therefore need to wait. This is extremely racy because we avoid doing
+	 * synchronization with the IRQ handler itself, though it is very fast
+	 * and efficient!
+	 *
+	 * Now, prepare to wait for the interrupt to signal compression
+	 * completion. We must recheck fifo_next_complete_index() _after_ the
+	 * interrupt is unmasked and _before_ sleeping to avoid a race:
+	 *
+	 *  1. fifo_next_complete_index() == i, need to wait for completion
+	 *  2. fifo_next_complete_index() changes but interrupt is masked
+	 *  3. interrupt is unmasked
+	 *  4. we sleep on cirq_wq and never receive an interrupt to wake up
+	 *
+	 * This can be avoided by checking fifo_next_complete_index() before
+	 * calling schedule() to sleep. This check must be done _after_
+	 * preparing to wait, so that swait_active() is true and therefore the
+	 * IRQ handler observes that we are waiting.
+	 */
+	prepare_to_swait_exclusive(&eh_dev->cirq_wq, &wait, TASK_IDLE);
+
+	/* Clear the interrupt status and then unmask the interrupt */
+	eh_clear_cintr_status(eh_dev);
+	writeq(0, eh_dev->regs + EH_REG_INTRP_MASK_CMP);
+
+	/*
+	 * The interrupt unmask must occur _before_ reading the next completed
+	 * index to avoid the race described above.
+	 */
+	__iomb();
+
+	/* Recheck the next completed index and sleep if nothing's ready */
+	if ((end = fifo_next_complete_index(eh_dev)) != i) {
+		/* Didn't need to wait for the interrupt, so mask it again */
+		writeq_relaxed(~0UL, eh_dev->regs + EH_REG_INTRP_MASK_CMP);
+		eh_dev->sync_comp_irq = true;
+	} else {
+		/*
+		 * Wait for the interrupt. No need to mask the interrupt
+		 * afterwards because it'll mask itself just before waking us.
+		 */
+		schedule();
+		end = fifo_next_complete_index(eh_dev);
+	}
+	finish_swait(&eh_dev->cirq_wq, &wait);
+
+	return end;
+}
+
 static int eh_process_compress(struct eh_device *eh_dev)
 {
 	unsigned int i = eh_dev->complete_index, end, index;
@@ -552,9 +656,8 @@ static int eh_process_compress(struct eh_device *eh_dev)
 		refill_hw_fifo(eh_dev);
 
 	do {
-		/* Poll until compression is complete */
-		while ((end = fifo_next_complete_index(eh_dev)) == i)
-			usleep_range(5, 10);
+		/* Wait for the next completed index */
+		end = eh_wait_next_index(eh_dev, i);
 
 		/* Process the completed compression requests */
 		do {
@@ -673,19 +776,29 @@ static int eh_comp_thread(void *data)
 }
 
 /* Initialize SW related stuff */
-static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
+static int eh_sw_init(struct eh_device *eh_dev, int error_irq, int comp_irq)
 {
 	int ret;
 
 	spin_lock_init(&eh_dev->sw_fifo.lock);
 	INIT_LIST_HEAD(&eh_dev->sw_fifo.head);
+	init_swait_queue_head(&eh_dev->cirq_wq);
+
+	/* Request the compression IRQ */
+	ret = request_irq(comp_irq, eh_compress_irq, IRQF_NO_THREAD,
+			  "eh_compress", eh_dev);
+	if (ret) {
+		pr_err("comp irq %u request failed, ret %d\n", comp_irq, ret);
+		return ret;
+	}
+	eh_dev->comp_irq = comp_irq;
 
 	/* the error interrupt */
 	ret = request_threaded_irq(error_irq, NULL, eh_error_irq, IRQF_ONESHOT,
 				   EH_ERR_IRQ, eh_dev);
 	if (ret) {
 		pr_err("unable to request irq %u ret %d\n", error_irq, ret);
-		return ret;
+		goto free_comp_irq;
 	}
 	eh_dev->error_irq = error_irq;
 
@@ -695,7 +808,7 @@ static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 	eh_dev->comp_thread = kthread_run(eh_comp_thread, eh_dev, "eh_comp_thread");
 	if (IS_ERR(eh_dev->comp_thread)) {
 		ret = PTR_ERR(eh_dev->comp_thread);
-		goto free_irq;
+		goto free_error_irq;
 	}
 
 	spin_lock(&eh_dev_list_lock);
@@ -704,8 +817,10 @@ static int eh_sw_init(struct eh_device *eh_dev, int error_irq)
 
 	return 0;
 
-free_irq:
+free_error_irq:
 	free_irq(eh_dev->error_irq, eh_dev);
+free_comp_irq:
+	free_irq(eh_dev->comp_irq, eh_dev);
 	return ret;
 }
 
@@ -844,6 +959,11 @@ static void eh_sw_deinit(struct eh_device *eh_dev)
 		eh_dev->error_irq = 0;
 	}
 
+	if (eh_dev->comp_irq) {
+		free_irq(eh_dev->comp_irq, eh_dev);
+		eh_dev->comp_irq = 0;
+	}
+
 	if (eh_dev->comp_thread) {
 		kthread_stop(eh_dev->comp_thread);
 		eh_dev->comp_thread = NULL;
@@ -962,7 +1082,7 @@ static struct kobj_type eh_ktype = {
 /* EmeraldHill initialization entry */
 static int eh_init(struct device *device, struct eh_device *eh_dev,
 		   unsigned short fifo_size, phys_addr_t regs, int error_irq,
-		   unsigned short quirks)
+		   int comp_irq, unsigned short quirks)
 {
 	int ret;
 
@@ -977,7 +1097,7 @@ static int eh_init(struct device *device, struct eh_device *eh_dev,
 	if (ret)
 		return ret;
 
-	ret = eh_sw_init(eh_dev, error_irq);
+	ret = eh_sw_init(eh_dev, error_irq, comp_irq);
 	if (ret) {
 		eh_hw_deinit(eh_dev);
 		return ret;
@@ -1157,8 +1277,7 @@ static int eh_of_probe(struct platform_device *pdev)
 {
 	struct eh_device *eh_dev;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	int ret = 0;
-	int error_irq = 0;
+	int irqs[2], nr_irqs = 0, ret = 0;
 	unsigned short quirks = 0;
 	struct clk *clk;
 
@@ -1183,8 +1302,12 @@ static int eh_of_probe(struct platform_device *pdev)
 		goto disable_pm_runtime;
 	}
 
-	error_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	if (error_irq == 0) {
+	do {
+		irqs[nr_irqs] = irq_of_parse_and_map(pdev->dev.of_node, nr_irqs);
+	} while (irqs[nr_irqs] && ++nr_irqs < ARRAY_SIZE(irqs));
+
+	/* There should be an error IRQ and a compression IRQ */
+	if (nr_irqs < ARRAY_SIZE(irqs)) {
 		ret = -EINVAL;
 		goto put_pm_runtime;
 	}
@@ -1210,7 +1333,7 @@ static int eh_of_probe(struct platform_device *pdev)
 	}
 
 	ret = eh_init(&pdev->dev, eh_dev, eh_default_fifo_size, mem->start,
-		      error_irq, quirks);
+		      irqs[0], irqs[1], quirks);
 	if (ret)
 		goto free_ehdev;
 #ifdef CONFIG_SOC_ZUMA
@@ -1268,7 +1391,6 @@ static int eh_suspend(struct device *dev)
 
 	/* disable all interrupts */
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, ~0UL);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, ~0UL);
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, ~0UL);
 
 	/* disable compression FIFO */
@@ -1295,7 +1417,6 @@ static int eh_resume(struct device *dev)
 
 	/* re-enable all interrupts */
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_ERROR, 0);
-	eh_write_register(eh_dev, EH_REG_INTRP_MASK_CMP, 0);
 	eh_write_register(eh_dev, EH_REG_INTRP_MASK_DCMP, 0);
 
 	dev_dbg(dev, "EH resumed\n");
