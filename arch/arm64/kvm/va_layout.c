@@ -27,7 +27,7 @@ static u64 va_mask;
 /*
  * Compute HYP VA by using the same computation as kern_hyp_va().
  */
-static u64 __early_kern_hyp_va(u64 addr)
+u64 __early_kern_hyp_va(u64 addr)
 {
 	addr &= va_mask;
 	addr |= tag_val << tag_lsb;

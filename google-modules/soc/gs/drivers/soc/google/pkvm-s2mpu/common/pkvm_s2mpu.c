@@ -427,11 +427,13 @@ static int s2mpu_driver_register(struct platform_driver *driver)
 	}
 
         if (is_protected_kvm_enabled()) {
+#ifdef CONFIG_MODULES
 		ret = pkvm_load_el2_module(__kvm_nvhe_s2mpu_hyp_init, &token);
 		if (ret) {
 			pr_err("Failed to load s2mpu el2 module: %d\n", ret);
 			return ret;
 		}
+#endif
 
 		ret = pkvm_iommu_s2mpu_init(token);
 		if (ret) {

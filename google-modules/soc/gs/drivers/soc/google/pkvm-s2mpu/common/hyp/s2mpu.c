@@ -20,12 +20,14 @@
 #include <nvhe/trap_handler.h>
 #include "io-mpt-s2mpu.h"
 
+#ifdef CONFIG_MODULES
 #ifdef memset
 #undef memset
 #endif
 
 #ifdef memcpy
 #undef memcpy
+#endif
 #endif
 
 #define PA_MAX				((phys_addr_t)SZ_1G * NR_GIGABYTES)
@@ -58,6 +60,8 @@ struct s2mpu_drv_data {
 };
 
 static const struct s2mpu_mpt_ops *mpt_ops;
+
+#ifdef CONFIG_MODULES
 static const struct pkvm_module_ops *mod_ops;
 
 /* Abstraction for function used from module ops. */
@@ -85,6 +89,9 @@ void *memcpy(void *dst, const void *src, size_t count)
 {
 	return CALL_FROM_OPS(memcpy, dst, src, count);
 }
+#else
+#define mod_ops NULL
+#endif
 
 static struct mpt host_mpt;
 
@@ -657,6 +664,7 @@ struct pkvm_iommu_driver pkvm_sysmmu_sync_driver = (struct pkvm_iommu_driver){
 	.ops = &pkvm_sysmmu_sync_ops,
 };
 
+#ifdef CONFIG_MODULES
 /* Validate that module ops used within this driver are not null. */
 static bool validate_mod_ops(const struct pkvm_module_ops *ops)
 {
@@ -682,4 +690,5 @@ int s2mpu_hyp_init(const struct pkvm_module_ops *ops)
 
 	return 0;
 }
+#endif
 

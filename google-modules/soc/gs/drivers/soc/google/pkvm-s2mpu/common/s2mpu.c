@@ -11,9 +11,14 @@
 
 /* Token of S2MPU driver, token is the load address of the module. */
 static u64 token;
+
+#ifdef CONFIG_MODULES
 /* For an nvhe symbol loaded as a module, get the hyp address of it. */
 #define ksym_ref_addr_nvhe(x)	((u64)(&kvm_nvhe_sym(x)) - \
 				 (u64)THIS_MODULE->arch.hyp.text.start + token)
+#else
+#define ksym_ref_addr_nvhe(x)	kvm_nvhe_ref_addr(&kvm_nvhe_sym(x))
+#endif
 
 
 extern struct pkvm_iommu_driver kvm_nvhe_sym(pkvm_sysmmu_sync_driver);

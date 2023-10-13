@@ -8,6 +8,7 @@
 #define SMPT_NUM_TO_BYTE(x)		((x) / SMPT_GRAN / SMPT_ELEMS_PER_BYTE(MPT_PROT_BITS))
 #define BYTE_TO_SMPT_INDEX(x)		((x) / SMPT_WORD_BYTE_RANGE(MPT_PROT_BITS))
 
+#ifdef CONFIG_MODULES
 #ifdef memset
 #undef memset
 #endif
@@ -29,6 +30,7 @@ static const struct pkvm_module_ops *mod_ops;
 #undef kvm_flush_dcache_to_poc
 #endif
 #define kvm_flush_dcache_to_poc(in, sz)	CALL_FROM_OPS(flush_dcache_to_poc, in, sz)
+#endif
 
 
 static inline int pte_from_addr_smpt(u32 *smpt, u64 addr)
@@ -286,6 +288,8 @@ static const struct s2mpu_mpt_ops this_ops = {
 
 const struct s2mpu_mpt_ops *s2mpu_get_mpt_ops(const struct pkvm_module_ops *in_mod_ops)
 {
+#ifdef CONFIG_MODULES
 	mod_ops = in_mod_ops;
+#endif
 	return &this_ops;
 }

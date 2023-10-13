@@ -12,5 +12,6 @@ clean-files := hyp/hyp.lds hyp/hyp-reloc.S
 pkvm-s2mpu-y := ../common/pkvm_s2mpu.o \
 		../common/s2mpu.o \
 		../common/exports.o \
-		../common/hyp/kvm_nvhe.o \
 		pkvm-s2mpu-faults.o
+
+pkvm-s2mpu-$(CONFIG_MODULES) += ../common/hyp/kvm_nvhe.o

@@ -211,7 +211,7 @@ static inline int __pkvm_register_el2_call(unsigned long hfn_hyp_va)
 
 int pkvm_load_early_modules(void);
 
-#ifdef MODULE
+#ifdef CONFIG_MODULES
 /*
  * Convert an EL2 module addr from the kernel VA to the hyp VA
  */
