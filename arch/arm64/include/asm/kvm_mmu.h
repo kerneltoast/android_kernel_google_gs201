@@ -304,5 +304,9 @@ static inline struct kvm *kvm_s2_mmu_to_kvm(struct kvm_s2_mmu *mmu)
 {
 	return container_of(mmu->arch, struct kvm, arch);
 }
+
+/* Convert an EL2 kernel address from the kernel VA to the hyp VA */
+#define kvm_nvhe_ref_addr(sym) __early_kern_hyp_va((u64)lm_alias(sym))
+u64 __early_kern_hyp_va(u64 addr);
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */
