@@ -18,11 +18,6 @@
 #include "pca9468_regs.h"
 #include "pca9468_charger.h"
 
-/* Logging ----------------------------------------------------------------- */
-
-int debug_printk_prlog = LOGLEVEL_INFO;
-int debug_no_logbuffer = 0;
-
 /* DC PPS integration ------------------------------------------------------ */
 
 static void p9468_chg_stats_set_apdo(struct p9468_chg_stats *chg_data, u32 apdo);
