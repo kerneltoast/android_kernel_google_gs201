@@ -22,21 +22,8 @@ struct eh_completion {
 
 #define EH_QUIRK_IGNORE_GCTRL_RESET BIT(0)
 
-struct eh_request {
-	struct page *page;
-	void *priv;
-	struct list_head list;
-};
-
-struct eh_request_pool {
-	struct list_head head;
-	int count;
-	spinlock_t lock;
-};
-
 struct eh_sw_fifo {
 	struct list_head head;
-	int count;
 	spinlock_t lock;
 };
 
@@ -53,9 +40,6 @@ struct eh_device {
 	unsigned short fifo_size;
 	unsigned short fifo_index_mask;
 	unsigned short fifo_color_mask;
-
-	/* SW fifo queue to keep pending requests */
-	unsigned int sw_fifo_size;
 
 	/* cached copy of HW write index */
 	unsigned int write_index;
@@ -115,13 +99,7 @@ struct eh_device {
 	/* how many times the EH thread was running */
 	unsigned long nr_run;
 
-	/*
-	 * eh_request pool to avoid memory allocation when EH's HW queue
-	 * is full.
-	 */
-	struct eh_request_pool pool;
 	/* keep pending request */
 	struct eh_sw_fifo sw_fifo;
-	atomic64_t nr_stall;
 };
 #endif
