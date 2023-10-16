@@ -684,12 +684,14 @@ static int __noreturn eh_comp_thread(void *data)
 
 	sched_set_fifo_low(current);
 	current->flags |= PF_MEMALLOC;
+	set_freezable();
 
 	while (1) {
 		int ret;
 
-		wait_event(eh_dev->comp_wq, atomic_read(&eh_dev->nr_request) ||
-					    !sw_fifo_empty(&eh_dev->sw_fifo));
+		wait_event_freezable(eh_dev->comp_wq,
+			atomic_read(&eh_dev->nr_request) ||
+			!sw_fifo_empty(&eh_dev->sw_fifo));
 
 		ret = eh_process_compress(eh_dev);
 		if (unlikely(ret < 0)) {
