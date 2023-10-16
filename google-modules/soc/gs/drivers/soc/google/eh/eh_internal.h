@@ -25,6 +25,7 @@ struct eh_completion {
 struct eh_sw_fifo {
 	struct list_head head;
 	spinlock_t lock;
+	bool has_reqs;
 };
 
 struct eh_device {
