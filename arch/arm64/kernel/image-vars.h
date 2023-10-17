@@ -125,6 +125,10 @@ KVM_NVHE_ALIAS(kvm_protected_mode_initialized);
 KVM_NVHE_ALIAS(pkvm_force_nc);
 #endif
 
+#ifdef CONFIG_TRACING
+KVM_NVHE_ALIAS(__lshrti3);
+#endif
+
 #endif /* CONFIG_KVM */
 
 #endif /* __ARM64_KERNEL_IMAGE_VARS_H */
