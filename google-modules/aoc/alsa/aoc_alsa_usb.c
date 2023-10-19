@@ -220,6 +220,5 @@ int aoc_usb_init(void)
 
 void aoc_usb_exit(void)
 {
-	unregister_trace_android_vh_audio_usb_offload_connect(audio_usb_offload_connect, NULL);
 }
 
