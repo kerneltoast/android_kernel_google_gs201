@@ -7,6 +7,15 @@ menu "Google SoC drivers"
 
 config SOC_GOOGLE
 	bool "Google SoC driver support"
+	# Force enable the GKI hack dependencies for tristate dependencies so
+	# that the dependencies are =y instead of =m, since they're expected to
+	# be =y. This lets us work correctly without needing to enable
+	# unnecessary cruft from the GKI hack configs.
+	select DRM_KMS_HELPER
+	select PHYLINK
+	select REGMAP_SPMI
+	select V4L2_MEM2MEM_DEV
+	select VIDEOBUF2_DMA_SG
 
 config SOC_GS101
 	bool "Google GS101"
