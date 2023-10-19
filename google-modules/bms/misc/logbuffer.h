@@ -9,6 +9,8 @@
 #include <linux/stdarg.h>
 
 struct logbuffer;
+
+#if IS_ENABLED(CONFIG_GOOGLE_LOGBUFFER)
 __printf(2, 3)
 void logbuffer_log(struct logbuffer *instance, const char *fmt, ...);
 
@@ -31,6 +33,34 @@ int dev_logbuffer_logk(struct device *dev, struct logbuffer *instance, int logle
 struct logbuffer *logbuffer_register(const char *name);
 
 void logbuffer_unregister(struct logbuffer *instance);
+#else
+static inline void logbuffer_log(struct logbuffer *instance, const char *fmt, ...)
+{
+}
+
+static inline void logbuffer_logk(struct logbuffer *instance, int loglevel, const char *fmt, ...)
+{
+}
+
+static inline void logbuffer_vlog(struct logbuffer *instance, const char *fmt, va_list args)
+{
+}
+
+static inline int dev_logbuffer_logk(struct device *dev, struct logbuffer *instance, int loglevel,
+				     const char *fmt, ...)
+{
+	return 0;
+}
+
+static inline struct logbuffer *logbuffer_register(const char *name)
+{
+	return NULL;
+}
+
+static inline void logbuffer_unregister(struct logbuffer *instance)
+{
+}
+#endif
 
 #endif /* __GOOGLE_LOGBUFFER_H_ */
 
