@@ -241,6 +241,7 @@ static void link_stats_log_pll_lock(struct exynos_pcie *pcie, u32 pll_lock_time)
 
 #define LCPLL_REF_CLK_SEL	(0x3 << 4)
 
+#if IS_ENABLED(CONFIG_GOOGLE_LOGBUFFER)
 static int check_exynos_pcie_reg_status(struct exynos_pcie *exynos_pcie,
 					void __iomem *base, int offset, int bit,
 					int *cnt)
@@ -272,6 +273,14 @@ static int check_exynos_pcie_reg_status(struct exynos_pcie *exynos_pcie,
 
 	return status;
 }
+#else
+static int check_exynos_pcie_reg_status(struct exynos_pcie *exynos_pcie,
+					void __iomem *base, int offset, int bit,
+					int *cnt)
+{
+	return 0;
+}
+#endif
 
 void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 {
