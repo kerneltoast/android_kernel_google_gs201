@@ -29,20 +29,6 @@
 #define GOOG_LOGW(gti, fmt, args...) GOOG_WARN(gti, "%s: "fmt, __func__, ##args)
 #define GOOG_LOGE(gti, fmt, args...) GOOG_ERR(gti, "%s: "fmt, __func__, ##args)
 #define MAX_SLOTS 10
-/*
- * GTI_DEBUG_HEALTHCHECK_KFIFO_LEN
- * Define the array length of struct gti_debug_healthcheck to track recent
- * touch interrupts information for debug.
- */
-#define GTI_DEBUG_HEALTHCHECK_KFIFO_LEN 32	/* must be power of 2. */
-#define GTI_DEBUG_HEALTHCHECK_LOGS_LEN 4
-/*
- * GTI_DEBUG_INPUT_KFIFO_LEN
- * Define the array length of struct gti_debug_input to track recent
- * touch input report for debug.
- */
-#define GTI_DEBUG_INPUT_KFIFO_LEN 16	/* must be power of 2. */
-#define GTI_DEBUG_INPUT_LOGS_LEN 4
 
 /*-----------------------------------------------------------------------------
  * Interactive calibration minimum and maximum state times.
@@ -980,16 +966,20 @@ struct goog_touch_interface {
 	int (*vendor_default_handler)(void *private_data,
 		enum gti_cmd_type cmd_type, struct gti_union_cmd_data *cmd);
 
+#ifdef GTI_DEBUG_INPUT_KFIFO_LEN
 	/* Debug used. */
 	u64 released_index;
 	int debug_warning_limit;
 	struct gti_debug_input debug_input[MAX_SLOTS];
 	struct gti_debug_input debug_input_history[GTI_DEBUG_INPUT_KFIFO_LEN];
 	DECLARE_KFIFO(debug_fifo_input, struct gti_debug_input, GTI_DEBUG_INPUT_KFIFO_LEN);
+#endif
+#ifdef GTI_DEBUG_HEALTHCHECK_KFIFO_LEN
 	struct gti_debug_healthcheck debug_healthcheck;
 	struct gti_debug_healthcheck debug_healthcheck_history[GTI_DEBUG_HEALTHCHECK_KFIFO_LEN];
 	DECLARE_KFIFO(debug_fifo_healthcheck, struct gti_debug_healthcheck,
 		GTI_DEBUG_HEALTHCHECK_KFIFO_LEN);
+#endif
 };
 
 /*-----------------------------------------------------------------------------
@@ -1054,8 +1044,18 @@ int goog_pm_unregister_notification(struct goog_touch_interface *gti);
 
 void goog_notify_fw_status_changed(struct goog_touch_interface *gti,
 		enum gti_fw_status status, struct gti_fw_status_data* data);
+#ifdef GTI_DEBUG_HEALTHCHECK_KFIFO_LEN
 void gti_debug_healthcheck_dump(struct goog_touch_interface *gti);
+#else
+static inline
+void gti_debug_healthcheck_dump(struct goog_touch_interface *gti) { }
+#endif
+#ifdef GTI_DEBUG_INPUT_KFIFO_LEN
 void gti_debug_input_dump(struct goog_touch_interface *gti);
+#else
+static inline
+void gti_debug_input_dump(struct goog_touch_interface *gti) { }
+#endif
 
 int goog_get_lptw_triggered(struct goog_touch_interface *gti);
 void goog_lptw_notifier_register(struct notifier_block *nb, bool reg);
