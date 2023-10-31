@@ -241,6 +241,7 @@ heatmap_process_err:
 
 static int goog_proc_dump_show(struct seq_file *m, void *v)
 {
+#ifdef GTI_DEBUG_INPUT_KFIFO_LEN
 	char trace_tag[128];
 	u64 i, hc_cnt, input_cnt;
 	int ret, slot;
@@ -324,6 +325,9 @@ static int goog_proc_dump_show(struct seq_file *m, void *v)
 	ATRACE_END();
 
 	return ret;
+#else
+	return 0;
+#endif
 }
 
 static int goog_proc_ms_base_show(struct seq_file *m, void *v)
@@ -2004,6 +2008,9 @@ void gti_debug_healthcheck_dump(struct goog_touch_interface *gti)
 			last_fifo[i].input_index, last_fifo[i].slot_bit_active);
 	}
 }
+#else
+static inline
+void gti_debug_healthcheck_update(struct goog_touch_interface *gti, bool from_top_half) { }
 #endif /* GTI_DEBUG_HEALTHCHECK_KFIFO_LEN */
 
 #ifdef GTI_DEBUG_INPUT_KFIFO_LEN
@@ -2128,6 +2135,9 @@ void gti_debug_input_dump(struct goog_touch_interface *gti)
 			gti->offload.coords[slot].pressure);
 	}
 }
+#else
+static inline
+void gti_debug_input_update(struct goog_touch_interface *gti) { }
 #endif /* GTI_DEBUG_INPUT_KFIFO_LEN */
 
 /*-----------------------------------------------------------------------------
@@ -3811,16 +3821,20 @@ int goog_input_process(struct goog_touch_interface *gti, bool reset_data)
 	if (gti->offload_enabled) {
 		ret = touch_offload_reserve_frame(&gti->offload, frame);
 		if (ret != 0 || frame == NULL) {
+#ifdef GTI_DEBUG_INPUT_KFIFO_LEN
 			if (gti->offload.offload_running && gti->debug_warning_limit) {
 				gti->debug_warning_limit--;
 				GOOG_WARN(gti, "offload: No buffers available, ret=%d IDX=%llu!\n",
 					ret, gti->frame_index);
 			}
+#endif
 			goog_offload_set_running(gti, false);
 			ret = -EBUSY;
 		} else {
+#ifdef GTI_DEBUG_INPUT_KFIFO_LEN
 			if (!gti->offload.offload_running)
 				gti->debug_warning_limit = TOUCH_OFFLOAD_BUFFER_NUM;
+#endif
 			goog_offload_set_running(gti, true);
 			goog_offload_populate_frame(gti, *frame, reset_data);
 			ret = touch_offload_queue_frame(&gti->offload, *frame);
@@ -4235,16 +4249,22 @@ static int goog_set_sensing_mode_nop(
 
 void goog_init_input(struct goog_touch_interface *gti)
 {
+#ifdef GTI_DEBUG_INPUT_KFIFO_LEN
 	int i;
+#endif
 
 	if (!gti)
 		return;
 
+#ifdef GTI_DEBUG_HEALTHCHECK_KFIFO_LEN
 	INIT_KFIFO(gti->debug_fifo_healthcheck);
+#endif
+#ifdef GTI_DEBUG_INPUT_KFIFO_LEN
 	INIT_KFIFO(gti->debug_fifo_input);
 	for (i = 0 ; i < MAX_SLOTS ; i++)
 		gti->debug_input[i].slot = i;
 	gti->debug_warning_limit = TOUCH_OFFLOAD_BUFFER_NUM;
+#endif
 
 	if (gti->vendor_dev && gti->vendor_input_dev) {
 		gti->abs_x_max = input_abs_get_max(gti->vendor_input_dev, ABS_MT_POSITION_X);
