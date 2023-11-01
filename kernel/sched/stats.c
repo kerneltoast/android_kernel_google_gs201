@@ -91,6 +91,7 @@ void __update_stats_enqueue_sleeper(struct rq *rq, struct task_struct *p,
 			}
 
 			trace_sched_stat_blocked(p, delta);
+			trace_sched_blocked_reason(p);
 
 			account_scheduler_latency(p, delta >> 10, 0);
 		}
