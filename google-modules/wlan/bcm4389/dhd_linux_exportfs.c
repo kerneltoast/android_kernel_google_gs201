@@ -2029,7 +2029,7 @@ dhd_debug_dump_stateinfo(struct dhd_info *dhd, char *buf)
 static struct dhd_attr dhd_attr_dhd_debug_data =
 __ATTR(dump_stateinfo, 0660, dhd_debug_dump_stateinfo, NULL);
 
-#ifdef WL_CFG80211
+#if defined(WL_CFG80211) && defined(DHD_DEBUG)
 #define SUBLOGLEVEL 20
 #define SUBLOGLEVELZ ((SUBLOGLEVEL) + (1))
 static const struct {
@@ -2133,7 +2133,7 @@ set_wl_debug_level(struct dhd_info *dhd, const char *buf, size_t count)
 
 static struct dhd_attr dhd_attr_wl_dbg_level =
 __ATTR(wl_dbg_level, 0660, show_wl_debug_level, set_wl_debug_level);
-#endif /* WL_CFG80211 */
+#endif /* WL_CFG80211 && DHD_DEBUG */
 
 #if defined(DHD_FILE_DUMP_EVENT) && defined(DHD_FW_COREDUMP)
 #define DUMP_TRIGGER	1
@@ -2282,9 +2282,9 @@ static struct attribute *default_file_attrs[] = {
 #ifdef PWRSTATS_SYSFS
 	&dhd_attr_pwrstats_path.attr,
 #endif /* PWRSTATS_SYSFS */
-#if defined(WL_CFG80211)
+#if defined(WL_CFG80211) && defined(DHD_DEBUG)
 	&dhd_attr_wl_dbg_level.attr,
-#endif /* WL_CFG80211 */
+#endif /* WL_CFG80211 && DHD_DEBUG */
 #if defined(DHD_FILE_DUMP_EVENT) && defined(DHD_FW_COREDUMP)
 	&dhd_attr_dump_in_progress.attr,
 #endif /* DHD_FILE_DUMP_EVENT && DHD_FW_COREDUMP */
