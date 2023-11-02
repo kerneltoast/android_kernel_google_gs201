@@ -4481,7 +4481,7 @@ static char **cs40l26_get_tuning_names(struct cs40l26_private *cs40l26, int *act
 	return coeff_files;
 
 err_free:
-	for (; i >= 0; i--)
+	while (i--)
 		kfree(coeff_files[i]);
 	kfree(coeff_files);
 	*actual_num_files = 0;
@@ -4520,6 +4520,8 @@ static int cs40l26_coeff_load(struct cs40l26_private *cs40l26, u32 tuning)
 		release_firmware(coeff);
 	}
 
+	for (i = 0; i < CS40L26_MAX_TUNING_FILES; i++)
+		kfree(coeff_files[i]);
 	kfree(coeff_files);
 
 	return 0;
