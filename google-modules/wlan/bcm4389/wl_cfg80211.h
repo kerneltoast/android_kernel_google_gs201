@@ -3554,8 +3554,13 @@ extern int wl_channel_to_frequency(u32 chan, chanspec_band_t band);
 extern int wl_cfg80211_config_rsnxe_ie(struct bcm_cfg80211 *cfg, struct net_device *dev,
 		const u8 *parse, u32 len);
 extern bool dhd_force_country_change(struct net_device *dev);
+#ifdef DHD_DEBUG
 extern u32 wl_dbg_level;
 extern u32 wl_log_level;
+#else
+#define wl_dbg_level (0)
+#define wl_log_level (0)
+#endif /* DHD_DEBUG */
 extern u32 wl_cfg80211_debug_data_dump(struct net_device *dev, u8 *buf, u32 buf_len);
 extern void wl_cfg80211_concurrent_roam(struct bcm_cfg80211 *cfg, int enable);
 
