@@ -2033,6 +2033,7 @@ static int __init pcie_iommu_init(void)
 			   LV2_GENPOOL_SIZE, -1);
 	if (ret)
 		return -ENOMEM;
+	kmemleak_ignore(gen_buff);
 #endif
 
 	ret = platform_driver_register(&exynos_sysmmu_driver);
