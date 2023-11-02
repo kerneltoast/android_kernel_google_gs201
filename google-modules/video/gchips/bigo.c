@@ -255,7 +255,11 @@ static int bigo_run_job(struct bigo_core *core, struct bigo_job *job)
 	bigo_push_regs(core, job->regs);
 	bigo_core_enable(core);
 	ret = wait_for_completion_timeout(&core->frame_done,
+#ifdef CONFIG_DEBUG_FS
 			msecs_to_jiffies(core->debugfs.timeout));
+#else
+			msecs_to_jiffies(JOB_COMPLETE_TIMEOUT_MS));
+#endif
 	if (!ret) {
 		pr_err("last rd addr: 0x%x, last_wr_addr: 0x%x\n",
 			bigo_core_readl(core, BIGO_REG_LAST_RD_AXI_ADDR),
