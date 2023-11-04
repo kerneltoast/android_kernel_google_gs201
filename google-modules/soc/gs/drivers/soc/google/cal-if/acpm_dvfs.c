@@ -17,10 +17,6 @@
 #include "acpm_dvfs.h"
 #include "cmucal.h"
 
-#if !IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
-#define PM_QOS_BUS_THROUGHPUT (11)
-#endif
-
 #define ASYNC_DVFS_UNAVAILABLE 0xFFFFFFFF
 
 static struct acpm_dvfs acpm_dvfs;
