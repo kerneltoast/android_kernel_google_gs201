@@ -31,8 +31,6 @@ else # ifeq ($(PROJECTS_BUILD),$(abspath $(KDIR)/../../../../..))
 ifneq ($(KERNEL_SRC),)
 # Compile Android external module in OUT directory
 # KERNEL_SRC = Kernel path
-$(info *** Building Android in $O/$M )
-
 KDIR := $(KERNEL_SRC)
 
 all:
