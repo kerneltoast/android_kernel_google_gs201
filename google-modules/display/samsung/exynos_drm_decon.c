@@ -1075,7 +1075,7 @@ static void decon_wait_earliest_process_time(
 		}
 		DPU_ATRACE_BEGIN("wait for earliest present time (vsync:%d, delay %dus)", te_freq,
 				 delay_until_process);
-		usleep_range(delay_until_process, delay_until_process + 10);
+		usleep_idle_range(delay_until_process, delay_until_process + 10);
 		DPU_ATRACE_END("wait for earliest process time");
 
 		if (ktime_to_us(ktime_sub(expected_present_time, ktime_get())) <
