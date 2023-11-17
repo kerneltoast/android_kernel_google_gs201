@@ -1832,7 +1832,7 @@ static void decon_wait_for_flip_done(struct exynos_drm_crtc *crtc,
 	if (old_crtc_state->active)
 		fps = min(fps, drm_mode_vrefresh(&old_crtc_state->mode));
 
-	if (!wait_for_completion_timeout(&commit->flip_done, fps_timeout(fps))) {
+	if (!wait_for_common(&commit->flip_done, fps_timeout(fps), TASK_IDLE)) {
 		unsigned long flags;
 		bool fs_irq_pending;
 
