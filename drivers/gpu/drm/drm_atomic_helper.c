@@ -1687,7 +1687,7 @@ void drm_atomic_helper_wait_for_flip_done(struct drm_device *dev,
 		if (!crtc || !commit)
 			continue;
 
-		ret = wait_for_completion_timeout(&commit->flip_done, 10 * HZ);
+		ret = wait_for_common(&commit->flip_done, 10 * HZ, TASK_IDLE);
 		if (ret == 0)
 			drm_err(dev, "[CRTC:%d:%s] flip_done timed out\n",
 				crtc->base.id, crtc->name);

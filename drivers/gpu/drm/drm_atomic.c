@@ -74,7 +74,7 @@ int drm_crtc_commit_wait(struct drm_crtc_commit *commit)
 	if (!commit)
 		return 0;
 
-	ret = wait_for_completion_timeout(&commit->hw_done, timeout);
+	ret = wait_for_common(&commit->hw_done, timeout, TASK_IDLE);
 	if (!ret) {
 		drm_err(commit->crtc->dev, "hw_done timed out\n");
 		return -ETIMEDOUT;
@@ -84,7 +84,7 @@ int drm_crtc_commit_wait(struct drm_crtc_commit *commit)
 	 * Currently no support for overwriting flips, hence
 	 * stall for previous one to execute completely.
 	 */
-	ret = wait_for_completion_timeout(&commit->flip_done, timeout);
+	ret = wait_for_common(&commit->flip_done, timeout, TASK_IDLE);
 	if (!ret) {
 		drm_err(commit->crtc->dev, "flip_done timed out\n");
 		return -ETIMEDOUT;
