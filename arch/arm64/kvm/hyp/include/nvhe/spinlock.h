@@ -49,16 +49,9 @@ static inline void hyp_spin_lock(hyp_spinlock_t *lock)
 	asm volatile(
 	/* Atomically increment the next ticket. */
 	ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
-"	prfm	pstl1strm, %3\n"
-"1:	ldaxr	%w0, %3\n"
-"	add	%w1, %w0, #(1 << 16)\n"
-"	stxr	%w2, %w1, %3\n"
-"	cbnz	%w2, 1b\n",
 	/* LSE atomics */
 "	mov	%w2, #(1 << 16)\n"
-"	ldadda	%w2, %w0, %3\n"
-	__nops(3))
+"	ldadda	%w2, %w0, %3\n")
 
 	/* Did we get the lock? */
 "	eor	%w1, %w0, %w0, ror #16\n"
@@ -85,14 +78,9 @@ static inline void hyp_spin_unlock(hyp_spinlock_t *lock)
 
 	asm volatile(
 	ARM64_LSE_ATOMIC_INSN(
-	/* LL/SC */
-	"	ldrh	%w1, %0\n"
-	"	add	%w1, %w1, #1\n"
-	"	stlrh	%w1, %0",
 	/* LSE atomics */
 	"	mov	%w1, #1\n"
-	"	staddlh	%w1, %0\n"
-	__nops(1))
+	"	staddlh	%w1, %0\n")
 	: "=Q" (lock->owner), "=&r" (tmp)
 	:
 	: "memory");
