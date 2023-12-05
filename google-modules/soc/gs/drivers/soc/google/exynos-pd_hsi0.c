@@ -97,7 +97,7 @@ int exynos_pd_hsi0_ldo_manual_control(bool on)
 {
 	struct exynos_pd_hsi0_data *hsi0_data;
 
-	pr_info("%s ldo = %d\n", __func__, on);
+	pr_debug("%s ldo = %d\n", __func__, on);
 
 	hsi0_data = exynos_pd_hsi0_get_struct();
 	if (!hsi0_data)
