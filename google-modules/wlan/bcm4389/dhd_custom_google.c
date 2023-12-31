@@ -792,6 +792,9 @@ void dhd_plat_report_bh_sched(void *plat_info, int resched)
 	uint64 curr_time_ns;
 	uint64 time_delta_ns;
 
+	if (IS_ENABLED(CONFIG_IRQ_SBALANCE))
+		return;
+
 	if (resched > 0) {
 		resched_streak++;
 		return;
