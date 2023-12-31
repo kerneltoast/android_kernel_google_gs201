@@ -402,5 +402,8 @@ int lwis_plaform_set_default_irq_affinity(unsigned int irq)
 {
 	const int cpu = 0x2;
 
+	if (IS_ENABLED(CONFIG_IRQ_SBALANCE))
+		return 0;
+
 	return irq_set_affinity_and_hint(irq, cpumask_of(cpu));
 }
