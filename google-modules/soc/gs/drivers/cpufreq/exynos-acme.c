@@ -229,6 +229,18 @@ static int get_freq_table_index(struct exynos_cpufreq_domain *domain, int ECT_in
 	return max(0, min(freq_index, freq_index_max));
 }
 
+int exynos_acme_ect_freq(int cpu, u8 cdev_index)
+{
+	struct exynos_cpufreq_domain *domain = find_domain(cpu);
+	int freq_index;
+
+	if (!domain)
+		return 0;
+
+	freq_index = get_freq_table_index(domain, cdev_index);
+	return domain->freq_table[freq_index].frequency;
+}
+
 /*
  * When device thermals throttle the CPUs, we notify the scheduler of
  * capacity change using this callback function

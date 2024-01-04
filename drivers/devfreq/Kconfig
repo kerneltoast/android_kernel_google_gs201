@@ -151,6 +151,29 @@ config ARM_SUN8I_A33_MBUS_DEVFREQ
 	  This adds the DEVFREQ driver for the MBUS controller in some
 	  Allwinner sun8i (A33 through H3) and sun50i (A64 and H5) SoCs.
 
+config ARM_TENSOR_AIO_DEVFREQ
+	bool "Google Tensor All-in-One DEVFREQ Driver"
+	depends on ANDROID_VENDOR_HOOKS
+	depends on SOC_GOOGLE
+	help
+	  This is an all-in-one DEVFREQ driver for the Google Tensor family of
+	  SoCs. It is a drop-in replacement for gs-devfreq, and also comes with
+	  a built-in governor, memperf, for automatically managing memory
+	  frequencies. The memperf governor is transparent and targets better
+	  system energy efficiency and interactivity.
+
+	  This tightly integrates into platform thermals to provide the
+	  scheduler with real-time information on the thermal capacity of each
+	  CPU, so that the scheduler can make better task placement decisions.
+
+	  This also enables Frequency Invariance Engine (FIE) support for CPUs
+	  which don't support it via the arch's implementation. FIE is used by
+	  the scheduler to better determine CPU load knowing that CPU frequency
+	  transitions aren't instantaneous. Tensor AIO achieves FIE support by
+	  using basic CPU cycle counters and deducting time spent in idle in
+	  order to compute the CPU's actual frequency.
+
+
 source "drivers/devfreq/event/Kconfig"
 
 endif # PM_DEVFREQ
