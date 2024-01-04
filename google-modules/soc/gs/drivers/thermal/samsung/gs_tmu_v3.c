@@ -225,6 +225,8 @@ static struct acpm_gov_common acpm_gov_common = {
 	.bulk_trace_buffer = NULL,
 };
 
+static DEFINE_PER_CPU(struct gs_tmu_data *, pcpu_tmu_data);
+
 static const char * const trace_suffix[] = {
 	[CPU_THROTTLE] = "cpu_throttle",
 	[HARD_LIMIT] = "hard_limit",
@@ -301,6 +303,25 @@ static bool get_bulk_mode_curr_state_buffer(void __iomem *base,
 	} else {
 		return false;
 	}
+}
+
+static u8 get_therm_press(struct gs_tmu_data *data)
+{
+	int thermal_state_offset = offsetof(struct gov_trace_data_struct, thermal_state);
+	int therm_press_offset = offsetof(struct thermal_state, therm_press[data->pressure_index]);
+
+	return readb(acpm_gov_common.sm_base + thermal_state_offset + therm_press_offset);
+}
+
+int exynos_acme_ect_freq(int cpu, u8 cdev_index);
+unsigned int gs_tmu_throt_freq(int cpu)
+{
+	struct gs_tmu_data *data = READ_ONCE(per_cpu(pcpu_tmu_data, cpu));
+
+	if (!data)
+		return 0;
+
+	return exynos_acme_ect_freq(cpu, get_therm_press(data));
 }
 
 static bool get_curr_state_from_acpm(void __iomem *base, int id, struct curr_state *curr_state)
@@ -5387,7 +5408,7 @@ static int parse_acpm_gov_common_dt(void)
 static int gs_tmu_probe(struct platform_device *pdev)
 {
 	struct gs_tmu_data *data;
-	int ret;
+	int cpu, ret;
 	bool is_first = false;
 #if IS_ENABLED(CONFIG_PIXEL_METRICS)
 	int val;
@@ -5457,7 +5478,8 @@ static int gs_tmu_probe(struct platform_device *pdev)
 				goto err_dtm_dev_list;
 
 			/* If the buffer version doesn't match, thermal pressure functionality is unavailable */
-			acpm_gov_common.thermal_pressure.enabled = (ACPM_BUF_VER == EXPECT_BUF_VER);
+			if (!IS_ENABLED(CONFIG_ARM_TENSOR_AIO_DEVFREQ))
+				acpm_gov_common.thermal_pressure.enabled = (ACPM_BUF_VER == EXPECT_BUF_VER);
 		}
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 		exynos_acpm_tmu_init();
@@ -5688,6 +5710,9 @@ static int gs_tmu_probe(struct platform_device *pdev)
 	devm_thermal_of_cooling_device_register(
 			&pdev->dev, pdev->dev.of_node, cdev_buf, data,
 			&tmu_tj_cooling_ops);
+
+	for_each_cpu(cpu, &data->mapped_cpus)
+		WRITE_ONCE(per_cpu(pcpu_tmu_data, cpu), data);
 
 	return 0;
 err_dtm_dev_list:
