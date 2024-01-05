@@ -395,11 +395,15 @@ int lwis_client_enrolled_buffers_clear(struct lwis_client *lwis_client)
 	/* Iterate over the entire hash table */
 	hash_for_each_safe(lwis_client->enrolled_buffers, i, n, enrollment_list, node) {
 		list_for_each_safe(it_enrollment, it_enrollment_tmp, &enrollment_list->list) {
+			bool done = list_is_singular(&enrollment_list->list);
 			buffer = list_entry(it_enrollment, struct lwis_enrolled_buffer, list_node);
 			/* Disenroll the buffer */
 			lwis_buffer_disenroll(lwis_client, buffer);
 			/* Free the object */
 			kfree(buffer);
+			/* Stop now if enrollment_list->list was freed */
+			if (done)
+				break;
 		}
 	}
 
