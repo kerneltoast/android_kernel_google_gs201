@@ -1993,6 +1993,7 @@ static int brl_flash_read(struct goodix_ts_core *cd, u32 addr, u8 *buf, int len)
 	ret = 0;
 read_end:
 	goodix_flash_cmd(cd, 0x0C, 0, 0);
+	kfree(tmp_buf);
 	return ret;
 }
 
