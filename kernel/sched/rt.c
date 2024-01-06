@@ -2795,6 +2795,7 @@ static unsigned int get_rr_interval_rt(struct rq *rq, struct task_struct *task)
 		return 0;
 }
 
+#include "cass_rt.h"
 DEFINE_SCHED_CLASS(rt) = {
 
 	.enqueue_task		= enqueue_task_rt,
