@@ -86,10 +86,12 @@ struct edgetpu_mobile_platform_dev {
 	struct device *gsa_dev;
 	/* Virtual address of the SSMT block for this chip. */
 	void __iomem *ssmt_base;
+#if IS_ENABLED(CONFIG_EDGETPU_TELEMETRY_TRACE)
 	/* Coherent log buffer */
 	struct edgetpu_coherent_mem *log_mem;
 	/* Coherent trace buffer */
 	struct edgetpu_coherent_mem *trace_mem;
+#endif
 #if IS_ENABLED(CONFIG_GOOGLE_BCL)
 	struct bcl_device *bcl_dev;
 #endif
