@@ -32,6 +32,7 @@ static struct edgetpu_dev *edgetpu_debug_pointer;
 	((EDGETPU_TELEMETRY_LOG_BUFFER_SIZE + EDGETPU_TELEMETRY_TRACE_BUFFER_SIZE) *               \
 	 EDGETPU_NUM_CORES)
 
+#if IS_ENABLED(CONFIG_EDGETPU_TELEMETRY_TRACE)
 static void get_telemetry_mem(struct edgetpu_mobile_platform_dev *etmdev,
 			      enum edgetpu_telemetry_type type, struct edgetpu_coherent_mem *mem)
 {
@@ -54,6 +55,7 @@ static void edgetpu_mobile_get_telemetry_mem(struct edgetpu_mobile_platform_dev 
 	get_telemetry_mem(etmdev, EDGETPU_TELEMETRY_LOG, etmdev->log_mem);
 	get_telemetry_mem(etmdev, EDGETPU_TELEMETRY_TRACE, etmdev->trace_mem);
 }
+#endif
 
 static int edgetpu_platform_setup_fw_region(struct edgetpu_mobile_platform_dev *etmdev)
 {
@@ -426,25 +428,25 @@ static int edgetpu_mobile_platform_probe(struct platform_device *pdev,
 
 	edgetpu_platform_parse_pmu(etmdev);
 
+#if IS_ENABLED(CONFIG_EDGETPU_TELEMETRY_TRACE)
 	etmdev->log_mem = devm_kcalloc(dev, etdev->num_cores, sizeof(*etmdev->log_mem), GFP_KERNEL);
 	if (!etmdev->log_mem) {
 		ret = -ENOMEM;
 		goto out_remove_irq;
 	}
 
-#if IS_ENABLED(CONFIG_EDGETPU_TELEMETRY_TRACE)
 	etmdev->trace_mem =
 		devm_kcalloc(dev, etdev->num_cores, sizeof(*etmdev->log_mem), GFP_KERNEL);
 	if (!etmdev->trace_mem) {
 		ret = -ENOMEM;
 		goto out_remove_irq;
 	}
-#endif
 
 	edgetpu_mobile_get_telemetry_mem(etmdev);
 	ret = edgetpu_telemetry_init(etdev, etmdev->log_mem, etmdev->trace_mem);
 	if (ret)
 		goto out_remove_irq;
+#endif
 
 	ret = edgetpu_mobile_firmware_create(etdev);
 	if (ret) {
@@ -474,8 +476,10 @@ static int edgetpu_mobile_platform_probe(struct platform_device *pdev,
 out_destroy_fw:
 	edgetpu_mobile_firmware_destroy(etdev);
 out_tel_exit:
+#if IS_ENABLED(CONFIG_EDGETPU_TELEMETRY_TRACE)
 	edgetpu_telemetry_exit(etdev);
 out_remove_irq:
+#endif
 	edgetpu_platform_remove_irq(etmdev);
 out_remove_device:
 	edgetpu_device_remove(etdev);
