@@ -118,7 +118,7 @@ struct exynos_pm_qos_constraints {
 	s32 default_value;
 	s32 no_constraint_value;
 	enum exynos_pm_qos_type type;
-	struct blocking_notifier_head *notifiers;
+	struct srcu_notifier_head *notifiers;
 	spinlock_t lock;	/* protect plist */
 };
 
