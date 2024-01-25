@@ -657,10 +657,10 @@ const struct pkvm_iommu_ops pkvm_s2mpu_ops = (struct pkvm_iommu_ops){
 const struct pkvm_iommu_ops pkvm_sysmmu_sync_ops = (struct pkvm_iommu_ops){
 	.validate = sysmmu_sync_validate,
 };
-struct pkvm_iommu_driver pkvm_s2mpu_driver = (struct pkvm_iommu_driver){
+__visible struct pkvm_iommu_driver pkvm_s2mpu_driver = (struct pkvm_iommu_driver){
 	.ops = &pkvm_s2mpu_ops,
 };
-struct pkvm_iommu_driver pkvm_sysmmu_sync_driver = (struct pkvm_iommu_driver){
+__visible struct pkvm_iommu_driver pkvm_sysmmu_sync_driver = (struct pkvm_iommu_driver){
 	.ops = &pkvm_sysmmu_sync_ops,
 };
 
