@@ -22,8 +22,8 @@
 struct kvm_pgtable pkvm_pgtable;
 hyp_spinlock_t pkvm_pgd_lock;
 
-struct memblock_region hyp_memory[HYP_MEMBLOCK_REGIONS];
-unsigned int hyp_memblock_nr;
+__visible struct memblock_region hyp_memory[HYP_MEMBLOCK_REGIONS];
+__visible unsigned int hyp_memblock_nr;
 
 static u64 __private_range_base;
 static u64 __private_range_cur;
