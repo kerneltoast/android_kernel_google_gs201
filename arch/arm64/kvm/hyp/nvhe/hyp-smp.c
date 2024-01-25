@@ -8,7 +8,7 @@
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 
-DEFINE_PER_CPU(int, hyp_cpu_number);
+__visible DEFINE_PER_CPU(int, hyp_cpu_number);
 
 /*
  * nVHE copy of data structures tracking available CPU cores.
@@ -16,7 +16,7 @@ DEFINE_PER_CPU(int, hyp_cpu_number);
  * Other CPUs should not be allowed to boot because their features were
  * not checked against the finalized system capabilities.
  */
-u64 __ro_after_init hyp_cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
+__visible u64 __ro_after_init hyp_cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
 
 u64 cpu_logical_map(unsigned int cpu)
 {
@@ -25,7 +25,7 @@ u64 cpu_logical_map(unsigned int cpu)
 	return hyp_cpu_logical_map[cpu];
 }
 
-unsigned long __ro_after_init kvm_arm_hyp_percpu_base[NR_CPUS];
+__visible unsigned long __ro_after_init kvm_arm_hyp_percpu_base[NR_CPUS];
 
 unsigned long __hyp_per_cpu_offset(unsigned int cpu)
 {

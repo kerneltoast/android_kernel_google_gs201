@@ -23,8 +23,8 @@
 
 unsigned long hyp_nr_cpus;
 
-phys_addr_t pvmfw_base;
-phys_addr_t pvmfw_size;
+__visible phys_addr_t pvmfw_base;
+__visible phys_addr_t pvmfw_size;
 
 #define hyp_percpu_size ((unsigned long)__per_cpu_end - \
 			 (unsigned long)__per_cpu_start)

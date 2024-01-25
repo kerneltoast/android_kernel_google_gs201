@@ -30,7 +30,7 @@
 
 #include "../../sys_regs.h"
 
-DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
+__visible DEFINE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 
 void __kvm_hyp_host_forward_smc(struct kvm_cpu_context *host_ctxt);
 

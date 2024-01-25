@@ -18,15 +18,15 @@
 /*
  * Copies of the host's CPU features registers holding sanitized values at hyp.
  */
-u64 id_aa64pfr0_el1_sys_val;
-u64 id_aa64pfr1_el1_sys_val;
-u64 id_aa64isar0_el1_sys_val;
-u64 id_aa64isar1_el1_sys_val;
-u64 id_aa64isar2_el1_sys_val;
-u64 id_aa64mmfr0_el1_sys_val;
-u64 id_aa64mmfr1_el1_sys_val;
-u64 id_aa64mmfr2_el1_sys_val;
-u64 id_aa64smfr0_el1_sys_val;
+__visible u64 id_aa64pfr0_el1_sys_val;
+__visible u64 id_aa64pfr1_el1_sys_val;
+__visible u64 id_aa64isar0_el1_sys_val;
+__visible u64 id_aa64isar1_el1_sys_val;
+__visible u64 id_aa64isar2_el1_sys_val;
+__visible u64 id_aa64mmfr0_el1_sys_val;
+__visible u64 id_aa64mmfr1_el1_sys_val;
+__visible u64 id_aa64mmfr2_el1_sys_val;
+__visible u64 id_aa64smfr0_el1_sys_val;
 
 /*
  * Inject an unknown/undefined exception to an AArch64 guest while most of its
