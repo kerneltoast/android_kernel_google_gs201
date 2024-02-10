@@ -184,6 +184,9 @@ void acpm_ipc_set_waiting_mode(bool mode)
 
 void acpm_fw_set_log_level(unsigned int level)
 {
+	if (!IS_ENABLED(CONFIG_ACPM_ENABLE_LOGGING))
+		return;
+
 	acpm_debug->debug_log_level = level;
 
 	if (!level)
@@ -252,7 +255,7 @@ static void acpm_log_print_helper(unsigned int head, unsigned int arg0,
 	}
 }
 
-void acpm_log_print_buff(struct acpm_log_buff *buffer)
+static void acpm_log_print_buff(struct acpm_log_buff *buffer)
 {
 	unsigned int front, rear;
 	unsigned int head, arg0, arg1, arg2;
@@ -288,6 +291,9 @@ void acpm_log_print_buff(struct acpm_log_buff *buffer)
 
 static void acpm_log_print(void)
 {
+	if (!IS_ENABLED(CONFIG_ACPM_ENABLE_LOGGING))
+		return;
+
 	mutex_lock(&print_log_mutex);
 	if (acpm_debug->debug_log_level >= 2)
 		acpm_log_print_buff(&acpm_debug->normal);
