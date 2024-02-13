@@ -12,6 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/nmi.h>
 #include <linux/init_task.h>
 #include <linux/reboot.h>
