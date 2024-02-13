@@ -91,6 +91,34 @@ static const struct kernel_param_ops build_info_op = {
 module_param_cb(build_info, &build_info_op, NULL, 0200);
 MODULE_PARM_DESC(build_info, "Write build info to field 'build_info' of debug kinfo.");
 
+static void debug_kinfo_add_uts(struct kernel_info *info)
+{
+	static const char *const month[] = {
+		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+	};
+	char uts[__NEW_UTS_LEN + 1], *key, *kend = uts;
+	int i;
+
+	/*
+	 * Pack in the UTS version, but since last_uts_release space is tight,
+	 * cut down the UTS version to only include the date portion.
+	 */
+	strcpy(uts, init_utsname()->version);
+	while ((key = strsep(&kend, " "))) {
+		for (i = 0; i < ARRAY_SIZE(month); i++) {
+			if (!strncmp(key, month[i], 3)) {
+				key[3] = ' ';
+				goto done;
+			}
+		}
+	}
+	key = init_utsname()->version;
+done:
+	snprintf(info->last_uts_release, sizeof(info->last_uts_release),
+		 "%s %s", init_utsname()->release, key);
+}
+
 static int debug_kinfo_probe(struct platform_device *pdev)
 {
 	struct device_node *mem_region;
@@ -160,7 +188,7 @@ static int debug_kinfo_probe(struct platform_device *pdev)
 	info->_markers_pa = (u64)__pa_symbol((volatile void *)kallsyms_markers);
 	info->thread_size = THREAD_SIZE;
 	info->swapper_pg_dir_pa = (u64)__pa_symbol(swapper_pg_dir);
-	strlcpy(info->last_uts_release, init_utsname()->release, sizeof(info->last_uts_release));
+	debug_kinfo_add_uts(info);
 #ifdef CONFIG_MODULES
 	info->enabled_modules_tree_lookup = IS_ENABLED(CONFIG_MODULES_TREE_LOOKUP);
 	info->mod_core_layout_offset = offsetof(struct module, core_layout);
