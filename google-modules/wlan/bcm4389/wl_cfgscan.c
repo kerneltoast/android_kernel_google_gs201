@@ -4223,7 +4223,8 @@ static void wl_scan_timeout(unsigned long data)
 	dhd_bus_intr_count_dump(dhdp);
 #endif /* BCMDONGLEHOST */
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)) && !defined(CONFIG_MODULES)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)) && \
+    (LINUX_VERSION_CODE <= KERNEL_VERSION(5, 15, 110)) && !defined(CONFIG_MODULES)
 	/* Print WQ states. Enable only for in-built drivers as the symbol is not exported  */
 	show_workqueue_state();
 #endif /* LINUX_VER >= 4.1 && !CONFIG_MODULES */
