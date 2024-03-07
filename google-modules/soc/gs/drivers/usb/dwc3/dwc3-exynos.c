@@ -1258,13 +1258,13 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	ret = dwc3_exynos_get_properties(exynos);
 	if (ret) {
 		dev_err(dev, "couldn't get properties.\n");
-		goto extcon_unregister;
+		goto phys_unregister;
 	}
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
-		goto extcon_unregister;
+		goto phys_unregister;
 
 	pm_runtime_forbid(dev);
 
@@ -1272,7 +1272,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	if (!dwc3_np) {
 		dev_err(dev, "failed to find dwc3 core child!\n");
 		ret = -EEXIST;
-		goto extcon_unregister;
+		goto pm_runtime_undo;
 	}
 
 	exynos_usbdrd_s2mpu_manual_control(1);
@@ -1299,7 +1299,7 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	ret = dma_set_mask_and_coherent(exynos->dwc->dev, DMA_BIT_MASK(36));
 	if (ret) {
 		dev_err(dev, "dwc3 core dma_set_mask returned FAIL!(%d)\n", ret);
-		goto populate_err;
+		goto dma_mask_err;
 	}
 	exynos->dwc->gadget->sg_supported = false;
 	exynos->dwc->imod_interval = 100;
@@ -1340,7 +1340,14 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 
 	return 0;
 
+dma_mask_err:
+	pm_runtime_forbid(exynos->dwc->dev);
 populate_err:
+pm_runtime_undo:
+	pm_runtime_allow(dev);
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
+phys_unregister:
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
 extcon_unregister:
@@ -1351,8 +1358,6 @@ extcon_unregister:
 vdd33_err:
 	dwc3_exynos_clk_disable_unprepare(exynos);
 	exynos_update_ip_idle_status(exynos->idle_ip_index, 1);
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 	dev_err(dev, "%s err = %d\n", __func__, ret);
 
 	return ret;
