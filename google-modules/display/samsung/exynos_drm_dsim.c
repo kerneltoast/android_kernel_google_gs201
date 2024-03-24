@@ -2043,24 +2043,14 @@ err:
 }
 
 
-#if IS_ENABLED(CONFIG_ARM_EXYNOS_DEVFREQ)
 static void dsim_underrun_info(struct dsim_device *dsim, u32 underrun_cnt)
 {
-	printk_ratelimited("underrun irq occurs(%u): MIF(%lu, %d), INT(%lu, %d), DISP(%lu, %d)\n",
+	pr_err("underrun irq occurs(%u): MIF(%d), INT(%d), DISP(%d)\n",
 			underrun_cnt,
-			exynos_devfreq_get_domain_freq(DEVFREQ_MIF),
 			exynos_pm_qos_request(PM_QOS_BUS_THROUGHPUT),
-			exynos_devfreq_get_domain_freq(DEVFREQ_INT),
 			exynos_pm_qos_request(PM_QOS_DEVICE_THROUGHPUT),
-			exynos_devfreq_get_domain_freq(DEVFREQ_DISP),
 			exynos_pm_qos_request(PM_QOS_DISPLAY_THROUGHPUT));
 }
-#else
-static void dsim_underrun_info(struct dsim_device *dsim, u32 underrun_cnt)
-{
-	printk_ratelimited("underrun irq occurs(%u)\n", underrun_cnt);
-}
-#endif
 
 static irqreturn_t dsim_irq_handler(int irq, void *dev_id)
 {
