@@ -10716,7 +10716,7 @@ wl_cfgvendor_twt_setup(struct wiphy *wiphy,
 				if (nla_get_u8(iter) == 1) {
 					val.desc.flow_flags |= WL_TWT_FLOW_FLAG_TRIGGER;
 				}
-				BCM_FALLTHROUGH;
+				break;
 			case ANDR_TWT_ATTR_WAKE_DURATION:
 				/* Wake Duration */
 				val.desc.wake_dur = nla_get_u32(iter);
