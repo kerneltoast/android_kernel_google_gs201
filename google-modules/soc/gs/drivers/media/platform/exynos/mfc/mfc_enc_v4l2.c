@@ -2084,7 +2084,7 @@ static int __mfc_enc_set_param(struct mfc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_MPEG_MFC_HEVC_SUB_GOP_ENABLE:
 		p->codec.hevc.sub_gop_enable = ctrl->value;
-		fallthrough;
+		break;
 	case V4L2_CID_MPEG_MFC_QPE_TWO_PASS_ENABLE:
 		p->qpe_two_pass_enable = ctrl->value;
 		enc->nal_q_disable_for_qpe_two_pass = ctrl->value;
