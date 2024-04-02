@@ -295,6 +295,10 @@ config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 
 	  If unsure, say N.
 
+endif
+
+if (MODULES || INTEGRATE_MODULES)
+
 config MODPROBE_PATH
 	string "Path to modprobe binary"
 	default "/sbin/modprobe"
@@ -306,6 +310,10 @@ config MODPROBE_PATH
 	  /proc/sys/kernel/modprobe. Setting this to the empty string
 	  removes the kernel's ability to request modules (but
 	  userspace can still load modules explicitly).
+
+endif
+
+if MODULES
 
 config TRIM_UNUSED_KSYMS
 	bool "Trim unused exported kernel symbols" if EXPERT
