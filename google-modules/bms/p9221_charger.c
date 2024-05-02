@@ -3302,7 +3302,7 @@ int p9xxx_sw_ramp_icl(struct p9221_charger_data *charger, const int icl_target)
 		dev_dbg(&charger->client->dev, "%s: Voting ICL %duA (t=%d)\n", __func__, icl_now, icl_target);
 
 		gvotable_cast_int_vote(charger->dc_icl_votable, P9221_RAMP_VOTER, icl_now, true);
-		usleep_range(100 * USEC_PER_MSEC, 120 * USEC_PER_MSEC);
+		msleep(500);
 	}
 
 	mutex_unlock(&charger->icl_lock);
