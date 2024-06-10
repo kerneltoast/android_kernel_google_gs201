@@ -34,9 +34,6 @@
 /* Poll memperfd about every 10 ms */
 #define MEMPERFD_POLL_HZ (HZ / 100)
 
-/* The number of memperfd poll intervals to delay voting down */
-#define MEMPERFD_DOWN_VOTE_DELAY 1
-
 /*
  * The percentage of the previous MIF frequency that MIF should be set to when
  * a memory-invariant workload is detected. This controls how fast the MIF
@@ -112,7 +109,6 @@ struct exynos_devfreq_data {
 	u32 dfs_id;
 	u32 devfreq_type;
 	u32 ipc_chan_id;
-	u32 down_vote_cnt;
 	bool use_acpm;
 	bool suspended;
 };
@@ -832,16 +828,6 @@ static u32 mif_ppc_vote(u32 cur_mif_khz, u32 *bus2_mif)
 /* Returns true if this device isn't voted to its lowest frequency */
 static bool memperf_set_vote(struct exynos_devfreq_data *data, u32 new)
 {
-	u32 old = data->min_req.node.prio;
-
-	/*
-	 * Delay voting down, otherwise constantly voting down significantly
-	 * hurts both performance and power consumption.
-	 */
-	if (new < old && data->down_vote_cnt++ < MEMPERFD_DOWN_VOTE_DELAY)
-		return true;
-
-	data->down_vote_cnt = 0;
 	update_qos_req(&data->min_req, new);
 	return data->min_req.node.prio > data->tbl[data->nr_freqs - 1];
 }
