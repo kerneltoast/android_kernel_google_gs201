@@ -27,11 +27,6 @@ config PIXEL_METRICS
         depends on VH_KERNEL
         default n
 
-config CPUIDLE_METRICS
-	bool "Use cpu idle metrics module"
-	depends on PIXEL_METRICS
-	default y
-
 config VH_FS
 	tristate "Vendor hooks for filesystem"
 	depends on VH_KERNEL
