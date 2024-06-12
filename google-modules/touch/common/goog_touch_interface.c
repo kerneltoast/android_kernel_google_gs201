@@ -3015,15 +3015,17 @@ exit:
 void goog_offload_populate_frame(struct goog_touch_interface *gti,
 		struct touch_offload_frame *frame, bool reset_data)
 {
-	char trace_tag[128];
 	u32 channel_type;
 	int i;
 	int ret;
 	struct gti_sensor_data_cmd *cmd = &gti->cmd.sensor_data_cmd;
+#if IS_ENABLED(CONFIG_VH_SYSTRACE)
+	char trace_tag[128];
 
 	scnprintf(trace_tag, sizeof(trace_tag), "%s: IDX=%llu IN_TS=%lld.\n",
 		__func__, gti->frame_index, gti->input_timestamp);
 	ATRACE_BEGIN(trace_tag);
+#endif
 
 	frame->header.index = gti->frame_index;
 	frame->header.timestamp = gti->input_timestamp;
@@ -3344,6 +3346,7 @@ void goog_offload_input_report(void *handle,
 	int error;
 	unsigned long slot_bit_active = 0;
 	unsigned long slot_bit_cancel = 0;
+#if IS_ENABLED(CONFIG_VH_SYSTRACE)
 	char trace_tag[128];
 	ktime_t ktime = ktime_get();
 
@@ -3353,6 +3356,7 @@ void goog_offload_input_report(void *handle,
 		ktime_to_ns(report->timestamp), ktime_to_ns(ktime),
 		ktime_to_ns(ktime_sub(ktime, report->timestamp)));
 	ATRACE_BEGIN(trace_tag);
+#endif
 
 	if (gti->lptw_suppress_coords_enabled && gti->lptw_track_finger)
 		cancel_delayed_work_sync(&gti->lptw_cancel_delayed_work);
