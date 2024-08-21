@@ -50,11 +50,6 @@ struct sugov_cpu {
 
 	unsigned long		util;
 	unsigned long		bw_min;
-
-	/* The field below is for single-CPU policies only: */
-#ifdef CONFIG_NO_HZ_COMMON
-	unsigned long		saved_idle_calls;
-#endif
 };
 
 static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
@@ -333,19 +328,6 @@ static unsigned long sugov_iowait_apply(struct sugov_cpu *sg_cpu, u64 time,
 	return (sg_cpu->iowait_boost * max_cap) >> SCHED_CAPACITY_SHIFT;
 }
 
-#ifdef CONFIG_NO_HZ_COMMON
-static bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu)
-{
-	unsigned long idle_calls = tick_nohz_get_idle_calls_cpu(sg_cpu->cpu);
-	bool ret = idle_calls == sg_cpu->saved_idle_calls;
-
-	sg_cpu->saved_idle_calls = idle_calls;
-	return ret;
-}
-#else
-static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
-#endif /* CONFIG_NO_HZ_COMMON */
-
 /*
  * Make sugov_should_update_freq() ignore the rate limit when DL
  * has increased the utilization.
@@ -381,7 +363,6 @@ static void sugov_update_single_freq(struct update_util_data *hook, u64 time,
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
-	unsigned int cached_freq = sg_policy->cached_raw_freq;
 	unsigned long max_cap;
 	unsigned int next_f;
 
@@ -391,20 +372,6 @@ static void sugov_update_single_freq(struct update_util_data *hook, u64 time,
 		return;
 
 	next_f = get_next_freq(sg_policy, sg_cpu->util, max_cap);
-	/*
-	 * Do not reduce the frequency if the CPU has not been idle
-	 * recently, as the reduction is likely to be premature then.
-	 *
-	 * Except when the rq is capped by uclamp_max.
-	 */
-	if (!uclamp_rq_is_capped(cpu_rq(sg_cpu->cpu)) &&
-	    sugov_cpu_is_busy(sg_cpu) && next_f < sg_policy->next_freq &&
-	    !sg_policy->need_freq_update) {
-		next_f = sg_policy->next_freq;
-
-		/* Restore cached freq as next_freq has changed */
-		sg_policy->cached_raw_freq = cached_freq;
-	}
 
 	if (!sugov_update_next_freq(sg_policy, time, next_f))
 		return;
@@ -427,7 +394,6 @@ static void sugov_update_single_perf(struct update_util_data *hook, u64 time,
 				     unsigned int flags)
 {
 	struct sugov_cpu *sg_cpu = container_of(hook, struct sugov_cpu, update_util);
-	unsigned long prev_util = sg_cpu->util;
 	unsigned long max_cap;
 
 	/*
@@ -444,16 +410,6 @@ static void sugov_update_single_perf(struct update_util_data *hook, u64 time,
 
 	if (!sugov_update_single_common(sg_cpu, time, max_cap, flags))
 		return;
-
-	/*
-	 * Do not reduce the target performance level if the CPU has not been
-	 * idle recently, as the reduction is likely to be premature then.
-	 *
-	 * Except when the rq is capped by uclamp_max.
-	 */
-	if (!uclamp_rq_is_capped(cpu_rq(sg_cpu->cpu)) &&
-	    sugov_cpu_is_busy(sg_cpu) && sg_cpu->util < prev_util)
-		sg_cpu->util = prev_util;
 
 	cpufreq_driver_adjust_perf(sg_cpu->cpu, sg_cpu->bw_min,
 				   sg_cpu->util, max_cap);
