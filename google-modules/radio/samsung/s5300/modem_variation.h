@@ -34,12 +34,12 @@
 
 
 #define DECLARE_LINK_INIT()						\
-	struct link_device *create_link_device(				\
+	struct link_device *s5400_create_link_device(			\
 				struct platform_device *pdev,		\
 				u32 link_type)
 
 #define DECLARE_LINK_INIT_DUMMY()					\
-	struct link_device *dummy_create_link_device(			\
+	struct link_device *s5400_dummy_create_link_device(		\
 				struct platform_device *pdev,		\
 				u32 link_type)				\
 	{ return NULL; }
@@ -48,8 +48,8 @@
 
 #define MODEM_UNINIT_CALL(type) type ## _uninit_modemctl_device
 
-#define LINK_INIT_CALL()	create_link_device
-#define LINK_INIT_CALL_DUMMY()	dummy_create_link_device
+#define LINK_INIT_CALL()	s5400_create_link_device
+#define LINK_INIT_CALL_DUMMY()	s5400_dummy_create_link_device
 
 
 /**

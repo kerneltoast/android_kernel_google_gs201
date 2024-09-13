@@ -4098,7 +4098,7 @@ static int parse_ect_tables(struct platform_device *pdev,
 	return 0;
 }
 
-struct link_device *create_link_device(struct platform_device *pdev, u32 link_type)
+struct link_device *s5400_create_link_device(struct platform_device *pdev, u32 link_type)
 {
 	struct modem_data *modem;
 	struct mem_link_device *mld;
