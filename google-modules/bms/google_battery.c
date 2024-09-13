@@ -10713,7 +10713,7 @@ static enum batt_paired_state batt_check_pairing_state(struct batt_drv *batt_drv
 		}
 
 	/* recycled battery */
-	} else if (strncmp(dev_info, dev_info_check, strlen(dev_info_check))) {
+	} else if (strncmp(dev_info, dev_info_check, GBMS_DINF_LEN)) {
 		pr_warn("Battery paired to a different device\n");
 
 		return BATT_PAIRING_MISMATCH;
