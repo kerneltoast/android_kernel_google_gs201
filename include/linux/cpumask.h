@@ -35,7 +35,7 @@ typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
  */
 #define cpumask_pr_args(maskp)		nr_cpu_ids, cpumask_bits(maskp)
 
-#if (NR_CPUS == 1) || defined(CONFIG_FORCE_NR_CPUS)
+#if (NR_CPUS == 1) || (NR_CPUS <= BITS_PER_LONG) || defined(CONFIG_FORCE_NR_CPUS)
 #define nr_cpu_ids ((unsigned int)NR_CPUS)
 #else
 extern unsigned int nr_cpu_ids;
@@ -43,7 +43,7 @@ extern unsigned int nr_cpu_ids;
 
 static inline void set_nr_cpu_ids(unsigned int nr)
 {
-#if (NR_CPUS == 1) || defined(CONFIG_FORCE_NR_CPUS)
+#if (NR_CPUS == 1) || (NR_CPUS <= BITS_PER_LONG) || defined(CONFIG_FORCE_NR_CPUS)
 	WARN_ON(nr != nr_cpu_ids);
 #else
 	nr_cpu_ids = nr;
@@ -118,6 +118,7 @@ static __always_inline unsigned int cpumask_check(unsigned int cpu)
 	return cpu;
 }
 
+#if NR_CPUS > BITS_PER_LONG
 /**
  * cpumask_first - get the first cpu in a cpumask
  * @srcp: the cpumask pointer
@@ -194,6 +195,7 @@ static inline unsigned int cpumask_next_zero(int n, const struct cpumask *srcp)
 		cpumask_check(n);
 	return find_next_zero_bit(cpumask_bits(srcp), nr_cpumask_bits, n+1);
 }
+#endif /* NR_CPUS > BITS_PER_LONG */
 
 #if NR_CPUS == 1
 /* Uniprocessor: there is only one valid CPU */
@@ -219,6 +221,116 @@ unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
 unsigned int cpumask_any_distribute(const struct cpumask *srcp);
 #endif /* NR_CPUS */
 
+#if NR_CPUS <= BITS_PER_LONG
+static inline unsigned int cpumask_first(const struct cpumask *srcp)
+{
+	unsigned int nr = __builtin_ffsl(*cpumask_bits(srcp)) - 1;
+
+	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
+}
+
+static inline unsigned int cpumask_first_zero(const struct cpumask *srcp)
+{
+	unsigned long bits = *cpumask_bits(srcp);
+	unsigned int nr;
+
+	if (unlikely(bits == ULONG_MAX))
+		return nr_cpumask_bits;
+
+	nr = ffz(bits);
+	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
+}
+
+static inline unsigned int cpumask_first_and(const struct cpumask *src1p,
+					     const struct cpumask *src2p)
+{
+	unsigned long bits = *cpumask_bits(src1p) & *cpumask_bits(src2p);
+	unsigned int nr = __builtin_ffsl(bits) - 1;
+
+	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
+}
+
+static inline unsigned int cpumask_last(const struct cpumask *srcp)
+{
+	unsigned long bits = *cpumask_bits(srcp);
+	unsigned int nr;
+
+	if (unlikely(!bits))
+		return nr_cpumask_bits;
+
+	nr = BITS_PER_LONG - 1 - __builtin_clzl(bits);
+	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
+}
+
+static inline unsigned int cpumask_next(int n, const struct cpumask *srcp)
+{
+	unsigned int nr, shift;
+	unsigned long bits;
+
+	/* -1 is a legal arg here. */
+	if (n != -1)
+		cpumask_check(n);
+
+	shift = n + 1;
+	if (unlikely(shift >= nr_cpumask_bits))
+		return nr_cpumask_bits;
+
+	bits = *cpumask_bits(srcp);
+	nr = __builtin_ffsl((bits >> shift) << shift) - 1;
+	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
+}
+
+static inline unsigned int cpumask_next_zero(int n, const struct cpumask *srcp)
+{
+	unsigned int nr, shift;
+	unsigned long bits;
+
+	/* -1 is a legal arg here. */
+	if (n != -1)
+		cpumask_check(n);
+
+	shift = n + 1;
+	if (unlikely(shift >= nr_cpumask_bits))
+		return nr_cpumask_bits;
+
+	bits = ~*cpumask_bits(srcp);
+	nr = __builtin_ffsl((bits >> shift) << shift) - 1;
+	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
+}
+
+static inline int cpumask_next_and(int n, const struct cpumask *src1p,
+				   const struct cpumask *src2p)
+{
+	unsigned int nr, shift;
+	unsigned long bits;
+
+	/* -1 is a legal arg here. */
+	if (n != -1)
+		cpumask_check(n);
+
+	shift = n + 1;
+	if (unlikely(shift >= nr_cpumask_bits))
+		return nr_cpumask_bits;
+
+	bits = *cpumask_bits(src1p) & *cpumask_bits(src2p);
+	nr = __builtin_ffsl((bits >> shift) << shift) - 1;
+	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
+}
+
+static inline int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
+{
+	unsigned long bits = *cpumask_bits(mask);
+	unsigned int nr;
+
+	cpumask_check(cpu);
+	if (likely(cpu < nr_cpumask_bits))
+		bits &= ~BIT(cpu);
+
+	nr = __builtin_ffsl(bits) - 1;
+	return nr > nr_cpumask_bits ? nr_cpumask_bits : nr;
+}
+#endif /* NR_CPUS <= BITS_PER_LONG */
+
 /**
  * cpumask_next_and - get the next cpu in *src1p & *src2p
  * @n: the cpu prior to the place to search (ie. return will be > @n)
@@ -227,6 +339,7 @@ unsigned int cpumask_any_distribute(const struct cpumask *srcp);
  *
  * Returns >= nr_cpu_ids if no further cpus set in both.
  */
+#if NR_CPUS > BITS_PER_LONG
 static inline
 unsigned int cpumask_next_and(int n, const struct cpumask *src1p,
 		     const struct cpumask *src2p)
@@ -237,6 +350,7 @@ unsigned int cpumask_next_and(int n, const struct cpumask *src1p,
 	return find_next_and_bit(cpumask_bits(src1p), cpumask_bits(src2p),
 		nr_cpumask_bits, n + 1);
 }
+#endif /* NR_CPUS > BITS_PER_LONG */
 
 /**
  * for_each_cpu - iterate over every cpu in a mask
@@ -335,6 +449,7 @@ unsigned int __pure cpumask_next_wrap(int n, const struct cpumask *mask, int sta
  * Often used to find any cpu but smp_processor_id() in a mask.
  * Returns >= nr_cpu_ids if no cpus set.
  */
+#if NR_CPUS > BITS_PER_LONG
 static inline
 unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
 {
@@ -346,6 +461,7 @@ unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
 			break;
 	return i;
 }
+#endif /* NR_CPUS > BITS_PER_LONG */
 
 /**
  * cpumask_nth - get the first cpu in a cpumask
@@ -478,7 +594,12 @@ static __always_inline bool cpumask_test_and_clear_cpu(int cpu, struct cpumask *
  */
 static inline void cpumask_setall(struct cpumask *dstp)
 {
+	/* bitmap_fill() isn't optimized for compile-time constants */
+#if NR_CPUS <= BITS_PER_LONG
+	*cpumask_bits(dstp) = BIT(NR_CPUS) - 1;
+#else
 	bitmap_fill(cpumask_bits(dstp), nr_cpumask_bits);
+#endif
 }
 
 /**
@@ -487,7 +608,12 @@ static inline void cpumask_setall(struct cpumask *dstp)
  */
 static inline void cpumask_clear(struct cpumask *dstp)
 {
+	/* bitmap_zero() isn't optimized for compile-time constants */
+#if NR_CPUS <= BITS_PER_LONG
+	*cpumask_bits(dstp) = 0;
+#else
 	bitmap_zero(cpumask_bits(dstp), nr_cpumask_bits);
+#endif
 }
 
 /**
@@ -685,7 +811,12 @@ static inline void cpumask_shift_left(struct cpumask *dstp,
 static inline void cpumask_copy(struct cpumask *dstp,
 				const struct cpumask *srcp)
 {
+	/* bitmap_copy() isn't optimized for compile-time constants */
+#if NR_CPUS <= BITS_PER_LONG
+	*cpumask_bits(dstp) = *cpumask_bits(srcp);
+#else
 	bitmap_copy(cpumask_bits(dstp), cpumask_bits(srcp), nr_cpumask_bits);
+#endif
 }
 
 /**

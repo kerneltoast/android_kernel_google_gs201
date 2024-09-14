@@ -1074,6 +1074,7 @@ static int __init nosmp(char *str)
 
 early_param("nosmp", nosmp);
 
+#if NR_CPUS > BITS_PER_LONG
 /* this is hard limit */
 static int __init nrcpus(char *str)
 {
@@ -1086,6 +1087,7 @@ static int __init nrcpus(char *str)
 }
 
 early_param("nr_cpus", nrcpus);
+#endif
 
 static int __init maxcpus(char *str)
 {
@@ -1098,7 +1100,7 @@ static int __init maxcpus(char *str)
 
 early_param("maxcpus", maxcpus);
 
-#if (NR_CPUS > 1) && !defined(CONFIG_FORCE_NR_CPUS)
+#if (NR_CPUS > BITS_PER_LONG) && !defined(CONFIG_FORCE_NR_CPUS)
 /* Setup number of possible processor ids */
 unsigned int nr_cpu_ids __read_mostly = NR_CPUS;
 EXPORT_SYMBOL(nr_cpu_ids);
