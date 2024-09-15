@@ -14,7 +14,14 @@ struct meminfo {
 };
 
 void rvh_meminfo_proc_show(void *data, struct seq_file *m);
+#ifdef CONFIG_PIXEL_STAT
 void register_meminfo(struct meminfo *meminfo);
 void unregister_meminfo(struct meminfo *meminfo);
+#else
+static inline
+void register_meminfo(struct meminfo *meminfo) { }
+static inline
+void unregister_meminfo(struct meminfo *meminfo) { }
+#endif
 
 #endif
