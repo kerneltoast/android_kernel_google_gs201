@@ -1602,8 +1602,14 @@ int gs_dsi_panel_common_remove(struct mipi_dsi_device *dsi);
  * Creates a debugfs entry for the given cmdset, which will allow its contents
  * to be read for debugging purposes.
  */
+#ifdef CONFIG_DEBUG_FS
 void gs_panel_debugfs_create_cmdset(struct dentry *parent, const struct gs_dsi_cmdset *cmdset,
 				    const char *name);
+#else
+static inline
+void gs_panel_debugfs_create_cmdset(struct dentry *parent, const struct gs_dsi_cmdset *cmdset,
+				    const char *name) { }
+#endif
 
 #define GS_VREFRESH_TO_PERIOD_USEC(rate) DIV_ROUND_UP(USEC_PER_SEC, (rate) ? (rate) : 60)
 
