@@ -9,6 +9,7 @@
 #include <linux/cpuhotplug.h>
 #include <linux/suspend.h>
 #include <linux/sched/clock.h>
+#include <linux/sched/debug.h>
 #include <linux/preempt.h>
 #include <uapi/linux/sched/types.h>
 
