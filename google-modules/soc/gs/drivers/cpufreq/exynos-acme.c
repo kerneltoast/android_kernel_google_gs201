@@ -197,17 +197,24 @@ static void apply_thermal_pressure(struct exynos_cpufreq_domain *domain,
 {
 	cpumask_t *maskp;
 	unsigned long arch_capped_freq;
+	bool changed = false;
 
-	if (!domain || (domain->capped_freq[thermal_actor] == capped_freq))
+	if (!domain)
 		return;
 
 	maskp = &domain->cpus;
 
 	spin_lock(&domain->thermal_update_lock);
-	domain->capped_freq[thermal_actor] = capped_freq;
-	arch_capped_freq = min(domain->capped_freq[TJ], domain->capped_freq[TSKIN]);
-	arch_update_thermal_pressure(maskp, arch_capped_freq);
+	if (domain->capped_freq[thermal_actor] != capped_freq) {
+		domain->capped_freq[thermal_actor] = capped_freq;
+		arch_capped_freq = min(domain->capped_freq[TJ], domain->capped_freq[TSKIN]);
+		arch_update_thermal_pressure(maskp, arch_capped_freq);
+		changed = true;
+	}
 	spin_unlock(&domain->thermal_update_lock);
+
+	if (!changed)
+		return;
 
 	if (unlikely(trace_clock_set_rate_enabled()))
 		trace_clock_set_rate(domain->capped_freq_name[thermal_actor],
