@@ -258,8 +258,19 @@ extern void platform_driver_unregister(struct platform_driver *);
 /* non-hotpluggable platform devices may use this so that probe() and
  * its support may live in __init sections, conserving runtime memory.
  */
+#if defined(MODULE) && defined(CONFIG_INTEGRATE_MODULES)
+/* Force deferred probing for all integrated modules */
+#define platform_driver_probe(_drv, _probe) \
+({						\
+	struct platform_driver *__drv = (_drv);	\
+						\
+	__drv->probe = (_probe);		\
+	platform_driver_register(__drv);	\
+})
+#else /* !MODULE || !CONFIG_INTEGRATE_MODULES */
 #define platform_driver_probe(drv, probe) \
 	__platform_driver_probe(drv, probe, THIS_MODULE)
+#endif /* MODULE && CONFIG_INTEGRATE_MODULES */
 extern int __platform_driver_probe(struct platform_driver *driver,
 		int (*probe)(struct platform_device *), struct module *module);
 
