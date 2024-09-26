@@ -812,6 +812,10 @@ void __noreturn do_exit(long code)
 	struct task_struct *tsk = current;
 	int group_dead;
 
+	/* Trigger probing of device drivers when, e.g., modprobe exits */
+	if (IS_ENABLED(CONFIG_INTEGRATE_MODULES))
+		integrated_module_load_end();
+
 	WARN_ON(irqs_disabled());
 
 	synchronize_group_exit(tsk, code);

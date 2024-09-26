@@ -2783,6 +2783,71 @@ static int integrated_module_param_cb(char *param, char *val,
 	return 0;
 }
 
+#include "../../drivers/base/base.h" /* To block/unblock probing */
+struct modload_proc {
+	struct task_struct *tsk;
+	struct list_head node;
+};
+static LIST_HEAD(modloader_list);
+static DEFINE_MUTEX(modloader_lock);
+
+static struct modload_proc *find_modload_proc(void)
+{
+	struct modload_proc *mp;
+
+	list_for_each_entry(mp, &modloader_list, node) {
+		if (mp->tsk == current)
+			return mp;
+	}
+
+	return NULL;
+}
+
+static void integrated_module_load_begin(void)
+{
+	struct modload_proc *mp;
+
+	/*
+	 * Don't defer probing for pKVM modules. They are loaded
+	 * deterministically anyway via usermode helper.
+	 */
+	if (system_state < SYSTEM_RUNNING)
+		return;
+
+	mutex_lock(&modloader_lock);
+	/* Defer device probing until this batch of modules is loaded */
+	if (list_empty(&modloader_list))
+		device_block_probing();
+	if (!find_modload_proc()) {
+		mp = kmalloc(sizeof(*mp), GFP_KERNEL | __GFP_NOFAIL);
+		mp->tsk = current;
+		list_add(&mp->node, &modloader_list);
+	}
+	mutex_unlock(&modloader_lock);
+}
+
+void integrated_module_load_end(void)
+{
+	struct modload_proc *mp;
+
+	/* Lockless check since this is called from process exit code */
+	if (likely(list_empty_careful(&modloader_list)))
+		return;
+
+	mutex_lock(&modloader_lock);
+	mp = find_modload_proc();
+	if (mp) {
+		list_del_init_careful(&mp->node);
+		kfree(mp);
+		/* Probe all devices now, in a deterministic order */
+		if (list_empty(&modloader_list)) {
+			device_unblock_probing();
+			wait_for_device_probe();
+		}
+	}
+	mutex_unlock(&modloader_lock);
+}
+
 static int load_integrated_module(const char *modname, const char __user *uargs)
 {
 	char *args, kmod[MODULE_NAME_LEN + 20];
@@ -2833,6 +2898,8 @@ static int load_integrated_module(const char *modname, const char __user *uargs)
 
 		/* Run the module's initcall if it has one */
 		if (entry) {
+			/* Begin tracking for device drivers with probes */
+			integrated_module_load_begin();
 			ret = do_one_initcall(initcall_from_entry(entry));
 			if (ret)
 				pr_info("%s: module '%s' init returned %d\n",

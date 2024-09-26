@@ -39,6 +39,17 @@ static int __init copy_xbc_key_value_list(char *dst, size_t size)
 		ret = xbc_node_compose_key(leaf, key, XBC_KEYLEN_MAX);
 		if (ret < 0)
 			break;
+#ifdef CONFIG_INTEGRATE_MODULES
+		/*
+		 * Block parallel module loading for deterministic load order.
+		 * This also makes it easier to detect when a batch of modules
+		 * is done loading because it will be done by a single thread
+		 * instead of multiple threads each loading a single module.
+		 */
+		if (!strncmp(key, "androidboot.load_modules_parallel",
+			     XBC_KEYLEN_MAX))
+			continue;
+#endif
 		ret = snprintf(dst, rest(dst, end), "%s = ", key);
 		if (ret < 0)
 			break;
