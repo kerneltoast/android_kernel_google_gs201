@@ -1541,47 +1541,10 @@ int dhdpcie_pci_suspend_resume(dhd_bus_t *bus, bool state)
 	return rc;
 }
 
-static int dhdpcie_device_scan(struct device *dev, void *data)
-{
-	struct pci_dev *pcidev;
-	int *cnt = data;
-
-	GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
-	pcidev = container_of(dev, struct pci_dev, dev);
-	GCC_DIAGNOSTIC_POP();
-
-	if (pcidev->vendor != 0x14e4)
-		return 0;
-
-	DHD_INFO(("Found Broadcom PCI device 0x%04x\n", pcidev->device));
-	*cnt += 1;
-	if (pcidev->driver && strcmp(pcidev->driver->name, dhdpcie_driver.name))
-		DHD_ERROR(("Broadcom PCI Device 0x%04x has allocated with driver %s\n",
-			pcidev->device, pcidev->driver->name));
-
-	return 0;
-}
-
 int
 dhdpcie_bus_register(void)
 {
-	int error = 0;
-
-	if (!(error = pci_register_driver(&dhdpcie_driver))) {
-		bus_for_each_dev(dhdpcie_driver.driver.bus, NULL, &error, dhdpcie_device_scan);
-		if (!error) {
-			DHD_ERROR(("No Broadcom PCI device enumerated!\n"));
-		} else if (!dhdpcie_init_succeeded) {
-			DHD_ERROR(("%s: dhdpcie initialize failed.\n", __FUNCTION__));
-		} else {
-			return 0;
-		}
-
-		pci_unregister_driver(&dhdpcie_driver);
-		error = BCME_ERROR;
-	}
-
-	return error;
+	return pci_register_driver(&dhdpcie_driver);
 }
 
 void
