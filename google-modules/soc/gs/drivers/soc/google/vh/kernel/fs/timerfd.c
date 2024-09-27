@@ -25,5 +25,5 @@ void vh_timerfd_create_mod(void *data, char *file_name_buf, int len)
 
     instance = atomic_inc_return(&instance_count);
     get_task_comm(task_comm_buf, current);
-    snprintf(file_name_buf, len, "[timerfd%d:%s]", instance, task_comm_buf);
+    snprintf(file_name_buf, len, "[timerfd%d:pid_%d:%s]", instance, current->pid, task_comm_buf);
 }
