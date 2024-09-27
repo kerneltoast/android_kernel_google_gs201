@@ -1146,6 +1146,7 @@ wl_cellavoid_apply_txpwrcap(struct bcm_cfg80211 *cfg, wl_cellavoid_info_t *cella
 		WL_ERR(("fail to set txpwrcap ret : %d\n", ret));
 	}
 
+	MFREE(cfg->osh, iov_buf, total_size);
 	return ret;
 }
 
