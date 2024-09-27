@@ -126,6 +126,9 @@ static void __mfc_deinit_dec_ctx(struct mfc_ctx *ctx)
 	if (dec->ref_info)
 		vfree(dec->ref_info);
 
+	if (dec->hdr10_plus_full)
+		vfree(dec->hdr10_plus_full);
+
 	if (dec->hdr10_plus_info)
 		vfree(dec->hdr10_plus_info);
 
