@@ -448,7 +448,7 @@ static int ttf_cstr(char *buff, int size, const struct ttf_soc_stats *soc_stats,
 
 	for (i = start; i <= end; i++) {
 		if (i % split == 0 || i == start) {
-			len += scnprintf(&buff[len], size - len, &type);
+			len += scnprintf(&buff[len], size - len, "%c", type);
 			if (split == 10)
 				len += scnprintf(&buff[len], size - len, "%d", i / 10);
 			len += scnprintf(&buff[len], size - len, ":");
