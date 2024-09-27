@@ -1204,8 +1204,7 @@ static int max77729_charger_probe(struct i2c_client *client,
 		goto exit;
 	}
 
-	ret = dbg_init_fs(data);
-	if (ret)
+	if (dbg_init_fs(data))
 		dev_err(dev, "Failed to initialize debug fs\n");
 
 	if (max77729_init_irq(client) < 0) {
