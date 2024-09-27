@@ -2145,7 +2145,12 @@ dhdpcie_dongle_attach(dhd_bus_t *bus)
 	dhd_init_backplane_access_lock(bus);
 
 	bus->alp_only = TRUE;
-	bus->sih = NULL;
+
+	/* Clean up after the last bus attachment */
+	if (bus->sih) {
+		si_detach(bus->sih);
+		bus->sih = NULL;
+	}
 
 	/* Checking PCIe bus status with reading configuration space */
 	val = OSL_PCI_READ_CONFIG(osh, PCI_CFG_VID, sizeof(uint32));
