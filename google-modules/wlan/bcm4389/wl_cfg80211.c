@@ -21990,7 +21990,7 @@ wl_cfg80211_recv_nbr_resp(struct net_device *dev, uint8 *body, uint body_len)
 	wl_roam_channel_list_t channel_list;
 	char iobuf[WLC_IOCTL_SMLEN];
 
-	if (body_len < DOT11_RM_ACTION_LEN) {
+	if (body_len < DOT11_RM_ACTION_LEN + BCM_TLV_HDR_SIZE + DOT11_NEIGHBOR_REP_IE_FIXED_LEN) {
 		WL_ERR(("Received Neighbor Report frame with incorrect length %d\n",
 			body_len));
 		return BCME_ERROR;
