@@ -48,9 +48,8 @@ quiet_cmd_ld_vmlinux.o = LD      $@
       cmd_ld_vmlinux.o = \
 	$(LDFINAL) ${KBUILD_LDFLAGS} -r -o $@ \
 	$(addprefix -T , $(initcalls-lds)) \
-	--whole-archive vmlinux.a init/version-timestamp.o --no-whole-archive \
-	--start-group $(KBUILD_VMLINUX_LIBS) --end-group \
-	$(cmd_objtool)
+	--whole-archive vmlinux.a init/version-timestamp.o \
+	$(KBUILD_VMLINUX_LIBS) $(cmd_objtool)
 
 define rule_ld_vmlinux.o
 	$(call cmd_and_savecmd,ld_vmlinux.o)
