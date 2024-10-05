@@ -8,6 +8,7 @@ ccflags-y += -DCONFIG_OPTION_REGION=\"$(PROJECT_REGION)\"
 # This gives the drivers access to the logbuffer interface
 subdir-ccflags-y += -I$(KERNEL_SRC)/../private/google-modules/bms
 subdir-ccflags-y += -I$(srctree)/$(src)
+include $(srctree)/google-modules/soc/gs/Makefile.include
 
 obj-$(CONFIG_MCU_IPC) += mcu_ipc.o
 obj-$(CONFIG_SHM_IPC) += shm_ipc.o
