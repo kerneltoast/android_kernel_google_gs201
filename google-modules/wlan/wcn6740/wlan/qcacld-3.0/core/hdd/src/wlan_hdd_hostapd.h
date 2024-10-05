@@ -138,7 +138,7 @@ QDF_STATUS wlan_hdd_get_channel_for_sap_restart(
  *
  * Return: QDF_STATUS_SUCCESS if successful
  */
-uint32_t
+QDF_STATUS
 wlan_get_sap_acs_band(struct wlan_objmgr_psoc *psoc, uint8_t vdev_id,
 		      uint32_t *acs_band);
 

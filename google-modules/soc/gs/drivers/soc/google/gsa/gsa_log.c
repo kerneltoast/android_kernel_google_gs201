@@ -12,7 +12,7 @@
 
 #include "gsa_log.h"
 
-#define GSA_LOG_MAGIC 'GSAL'
+#define GSA_LOG_MAGIC 0x4c415347 /* 'GSAL' */
 #define GSA_LOG_SIZE  0x800
 
 /*

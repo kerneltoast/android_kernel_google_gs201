@@ -437,8 +437,10 @@ int exynos_atomic_exit_tui(void);
 
 enum lhbm_hist_weight_grp { LHBM_CIRCLE_WEIGHT = 0, LHBM_FSCREEN_WEIGHT, LHBM_WEIGHT_MAX };
 
-static struct histogram_weights lhbm_hist_weight[LHBM_WEIGHT_MAX] = { { 341, 341, 341 },
-								      { 218, 732, 74 } };
+#define lhbm_hist_weight \
+	(struct histogram_weights [LHBM_WEIGHT_MAX]){	\
+		{ 341, 341, 341 }, { 218, 732, 74 }	\
+	}
 
 int exynos_drm_drv_set_lhbm_hist(struct exynos_drm_connector *conn, int x, int y, int w, int h);
 /**

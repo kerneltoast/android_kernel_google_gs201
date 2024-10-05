@@ -12610,10 +12610,7 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 #if defined(DHD_BLOB_EXISTENCE_CHECK)
 		dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(net);
 #endif /* DHD_BLOB_EXISTENCE_CHECK */
-		if ((rev_info_delim) &&
-			(strnicmp(rev_info_delim, CMD_COUNTRY_DELIMITER,
-			strlen(CMD_COUNTRY_DELIMITER)) == 0) &&
-			(rev_info_delim + 1)) {
+		if (*rev_info_delim == *CMD_COUNTRY_DELIMITER) {
 			revinfo  = bcm_atoi(rev_info_delim + 1);
 		} else {
 			revinfo = 0;

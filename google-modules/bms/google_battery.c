@@ -5055,7 +5055,7 @@ static int batt_init_aafv_profile(struct batt_drv *batt_drv)
 
 	/* NOTE: might need to be BRID specific */
 	ret = of_property_read_u32(node, "google,aafv-config",
-				   &batt_drv->aafv_state);
+				   (u32 *)&batt_drv->aafv_state);
 	if (ret < 0)
 		batt_drv->aafv_state = profile->aafv_nb_limits ?
 			BATT_AAFV_DISABLED : BATT_AAFV_UNKNOWN;
@@ -6119,7 +6119,7 @@ static int batt_init_chg_profile(struct batt_drv *batt_drv, struct device_node *
 	 */
 
 	ret = of_property_read_u32(node, "google,aacr-config",
-				   &batt_drv->aacr_state);
+				   (u32 *)&batt_drv->aacr_state);
 	if (ret < 0)
 		batt_drv->aacr_state = profile->aacr_nb_limits ?
 			BATT_AACR_DISABLED : BATT_AACR_UNKNOWN;
@@ -12770,7 +12770,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	/* TODO: b/403865140 refactor AACT to batt_init_aact_profile() */
 	/* NOTE: might need to have a device and batteryID configs */
 	ret = of_property_read_u32(pdev->dev.of_node, "google,aact-config",
-				   &batt_drv->aact_state);
+				   (u32 *)&batt_drv->aact_state);
 	if (ret < 0)
 		batt_drv->aact_state = BATT_AACT_UNKNOWN;
 

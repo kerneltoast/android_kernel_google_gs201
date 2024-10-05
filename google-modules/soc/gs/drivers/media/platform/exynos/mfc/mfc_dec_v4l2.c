@@ -1495,7 +1495,7 @@ static void __mfc_dec_update_disp_res(struct mfc_ctx *ctx, struct v4l2_selection
 	dec->disp_drc.disp_res_change--;
 	mfc_debug(3, "[DRC] disp_res_change[%d] count %d\n",
 			dec->disp_drc.pop_idx, dec->disp_drc.disp_res_change);
-	dec->disp_drc.pop_idx = ++dec->disp_drc.pop_idx % MFC_MAX_DRC_FRAME;
+	dec->disp_drc.pop_idx = (dec->disp_drc.pop_idx + 1) % MFC_MAX_DRC_FRAME;
 
 	if (!dec->disp_drc.disp_res_change) {
 		dec->disp_drc.push_idx = 0;

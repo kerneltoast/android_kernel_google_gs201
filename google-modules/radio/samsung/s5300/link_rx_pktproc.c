@@ -373,8 +373,8 @@ static int pktproc_fill_data_addr(struct pktproc_queue *q)
 			desc[fore].control |= (1 << 3);	/* RINGEND */
 
 		if (unlikely(desc[fore].reserved0 != 0)) { /* W/A to detect mem poison */
-			mif_err("mem poison:0x%llX r0:%d c:%d s:%d l%d cl%d r1:%d\n",
-					desc[fore].cp_data_paddr, desc[fore].reserved0,
+			mif_err("mem poison:0x%lX r0:%d c:%d s:%d l%d cl%d r1:%d\n",
+					(unsigned long)desc[fore].cp_data_paddr, desc[fore].reserved0,
 					desc[fore].control, desc[fore].status,
 					desc[fore].lro, desc[fore].clat, desc[fore].reserved1);
 			panic("memory poison\n");

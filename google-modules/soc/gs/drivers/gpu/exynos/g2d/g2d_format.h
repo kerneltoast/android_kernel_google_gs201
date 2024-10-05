@@ -19,8 +19,8 @@
 #define G2D_YUVORDER_MASK	(0x3 << 24)
 
 #define G2D_YUV_UV		(BIT(24) | G2D_SWZ_ARGB)
-#define G2D_YUV_VU		(!BIT(24) | G2D_SWZ_ARGB)
-#define G2D_YUV_YC		!BIT(25)
+#define G2D_YUV_VU		G2D_SWZ_ARGB
+#define G2D_YUV_YC		0
 #define G2D_YUV_CY		BIT(25)
 
 #define G2D_DATAFMT_SHIFT	16

@@ -11,9 +11,8 @@
 // it under the terms of the GNU General Public License version 2 as
 // published by the Free Software Foundation.
 
-#include "cs40l26.h"
-
 #ifdef CONFIG_DEBUG_FS
+#include "cs40l26.h"
 
 static ssize_t cs40l26_wseq_format_string(struct cs40l26_private *cs40l26,
 		struct cs40l26_wseq_params *wseq_params, char **wseq_str)

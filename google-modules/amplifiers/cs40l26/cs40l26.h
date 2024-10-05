@@ -1320,7 +1320,6 @@ int cs40l26_wseq_write(struct cs40l26_private *cs40l26, u32 addr, u32 data,
 int cs40l26_copy_f0_est_to_dvl(struct cs40l26_private *cs40l26);
 int cs40l26_rom_wt_init(struct cs40l26_private *cs40l26);
 
-static int cs40l26_probed_retry_count[CS40L26_MAX_DEVICES];
 void cs40l26_add_codec_devices(struct device *dev);
 
 /* external tables */

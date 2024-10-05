@@ -605,10 +605,10 @@ void mfc_core_get_img_size(struct mfc_core *core, struct mfc_ctx *ctx,
 	if (img_size == MFC_GET_RESOL_SIZE) {
 		dec->disp_drc.width[dec->disp_drc.push_idx] = ctx->img_width;
 		dec->disp_drc.height[dec->disp_drc.push_idx] = ctx->img_height;
-		dec->disp_drc.disp_res_change = ++dec->disp_drc.disp_res_change % MFC_MAX_DRC_FRAME;
+		dec->disp_drc.disp_res_change = (dec->disp_drc.disp_res_change + 1) % MFC_MAX_DRC_FRAME;
 		mfc_debug(3, "[DRC] disp_res_change[%d] count %d\n",
 				dec->disp_drc.push_idx, dec->disp_drc.disp_res_change);
-		dec->disp_drc.push_idx = ++dec->disp_drc.push_idx % MFC_MAX_DRC_FRAME;
+		dec->disp_drc.push_idx = (dec->disp_drc.push_idx + 1) % MFC_MAX_DRC_FRAME;
 	} else if (img_size == MFC_GET_RESOL_DPB_SIZE) {
 		ctx->scratch_buf_size = mfc_core_get_scratch_size();
 		for (i = 0; i < ctx->dst_fmt->num_planes; i++) {

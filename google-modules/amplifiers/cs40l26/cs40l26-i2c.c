@@ -12,6 +12,8 @@
 
 #include "cs40l26.h"
 
+static int cs40l26_probed_retry_count[CS40L26_MAX_DEVICES];
+
 static const struct i2c_device_id cs40l26_id_i2c[] = {
 	{"cs40l26a", 0},
 	{"cs40l26b", 1},
