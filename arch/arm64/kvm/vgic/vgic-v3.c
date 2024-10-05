@@ -573,7 +573,7 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	return 0;
 }
 
-DEFINE_STATIC_KEY_FALSE(vgic_v3_cpuif_trap);
+__visible DEFINE_STATIC_KEY_FALSE(vgic_v3_cpuif_trap);
 
 static int __init early_group0_trap_cfg(char *buf)
 {

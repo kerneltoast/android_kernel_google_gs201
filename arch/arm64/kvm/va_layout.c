@@ -175,7 +175,7 @@ static u32 compute_instruction(int n, u32 rd, u32 rn)
 	return insn;
 }
 
-void __init kvm_update_va_mask(struct alt_instr *alt,
+void __init __visible kvm_update_va_mask(struct alt_instr *alt,
 			       __le32 *origptr, __le32 *updptr, int nr_inst)
 {
 	int i;
@@ -308,13 +308,13 @@ static void generate_mov_q(u64 val, __le32 *origptr, __le32 *updptr, int nr_inst
 	*updptr++ = cpu_to_le32(insn);
 }
 
-void kvm_get_kimage_voffset(struct alt_instr *alt,
+void __visible kvm_get_kimage_voffset(struct alt_instr *alt,
 			    __le32 *origptr, __le32 *updptr, int nr_inst)
 {
 	generate_mov_q(kimage_voffset, origptr, updptr, nr_inst);
 }
 
-void kvm_compute_final_ctr_el0(struct alt_instr *alt,
+void __visible kvm_compute_final_ctr_el0(struct alt_instr *alt,
 			       __le32 *origptr, __le32 *updptr, int nr_inst)
 {
 	generate_mov_q(read_sanitised_ftr_reg(SYS_CTR_EL0),
