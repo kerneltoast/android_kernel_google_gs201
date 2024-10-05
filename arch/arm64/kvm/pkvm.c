@@ -29,7 +29,7 @@
 
 #include "hyp_constants.h"
 
-DEFINE_STATIC_KEY_FALSE(kvm_protected_mode_initialized);
+__visible DEFINE_STATIC_KEY_FALSE(kvm_protected_mode_initialized);
 
 static struct reserved_mem *pkvm_firmware_mem;
 static phys_addr_t *pvmfw_base = &kvm_nvhe_sym(pvmfw_base);
