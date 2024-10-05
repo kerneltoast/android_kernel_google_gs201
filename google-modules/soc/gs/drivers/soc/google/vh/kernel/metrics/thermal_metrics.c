@@ -69,6 +69,11 @@ static struct kobject *tr_by_group_kobj;
 static struct attribute_group temp_residency_all_attr_group,
 				temp_abnormality_all_attr_group;
 
+#if !defined(CONFIG_MODULES) || !defined(MODULE)
+static struct kobject pixel_metrics_kobj;
+#endif
+static struct kobject *mod_uevent_kobj __read_mostly;
+
 /*********************************************************************
  *                          HELPER FUNCTIONS                         *
  *********************************************************************/
@@ -248,7 +253,6 @@ int report_thermal_abnormal_uevent(tr_handle instance, enum abnormality_type typ
 					 int temp)
 {
 	time64_t now = ktime_get_seconds();
-	struct kobject mod_kobj = (((struct module *)(THIS_MODULE))->mkobj).kobj;
 	char env_abnormality_type[64], env_abnormality_info[64];
 	char *envp[] = {env_abnormality_type, env_abnormality_info, NULL};
 	const char *sensor;
@@ -270,7 +274,7 @@ int report_thermal_abnormal_uevent(tr_handle instance, enum abnormality_type typ
 		"THERMAL_ABNORMAL_TYPE=%s", abnormality_type_str[type]);
 	snprintf(env_abnormality_info, sizeof(env_abnormality_info),
 		"THERMAL_ABNORMAL_INFO=name:%s,val:%d", sensor, temp);
-	kobject_uevent_env(&mod_kobj, KOBJ_CHANGE, envp);
+	kobject_uevent_env(mod_uevent_kobj, KOBJ_CHANGE, envp);
 	last_abnormal_uevent_time[instance][type] = now;
 	return 0;
 }
@@ -1125,6 +1129,18 @@ int thermal_metrics_init(struct kobject *metrics_kobj)
 	struct kobject *secondary_sysfs_folder;
 	int err = 0;
 
+#if defined(CONFIG_MODULES) && defined(MODULE)
+	mod_uevent_kobj = (((struct module *)(THIS_MODULE))->mkobj).kobj;
+#else
+	pixel_metrics_kobj.kset = module_kset;
+	err = kobject_init_and_add(&pixel_metrics_kobj, &module_ktype, NULL,
+				   "pixel_metrics");
+	if (err) {
+		pr_err("Failed to init pixel_metrics_kobj\n");
+		return err;
+	}
+	mod_uevent_kobj = &pixel_metrics_kobj;
+#endif
 	designated_handle = -1;
 	if (!metrics_kobj) {
 		pr_err("metrics_kobj is not initialized\n");
