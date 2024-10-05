@@ -28,9 +28,6 @@ ifeq ($(KERNEL_SRC),)
  else
   BCMDHD_ROOT=$(srctree)/$(src)
  endif
- $(warning : ** Regular in-tree build BCMDHD_ROOT=$(BCMDHD_ROOT)**)
-else
- $(warning : ** out-of-tree Kbuild BCMDHD_ROOT=$(BCMDHD_ROOT)**)
 endif
 
 # For pixel build, unset SOC related configs which are defined in DHD
@@ -105,7 +102,7 @@ ifneq ($(CONFIG_DEBUG_KMEMLEAK),)
 endif
 
 DHDCFLAGS += -DBCMUTILS_ERR_CODES -DUSE_NEW_RSPEC_DEFS
-DHDCFLAGS += -Wall -Werror -Wstrict-prototypes -Wno-parentheses-equality -Dlinux -DLINUX -DBCMDRIVER \
+DHDCFLAGS += -Wall -Werror -Wstrict-prototypes -Dlinux -DLINUX -DBCMDRIVER \
 	-DBCMDONGLEHOST -DBCMDMA32 -DBCMFILEIMAGE \
 	-DDHDTHREAD -DSHOW_EVENTS -DWLP2P \
 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT \

@@ -677,7 +677,7 @@ static irqreturn_t cs40l26_handle_mbox_buffer(int irq, void *data)
 	irqreturn_t irq_status = IRQ_HANDLED;
 	struct device *dev = cs40l26->dev;
 	u32 val = 0;
-	int error;
+	int __maybe_unused error;
 
 	mutex_lock(&cs40l26->lock);
 

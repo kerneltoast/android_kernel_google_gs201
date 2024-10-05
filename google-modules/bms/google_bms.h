@@ -106,31 +106,6 @@ typedef struct {
     char *cc_limits[GBMS_AACT_NB_LIMITS_MAX];
 } aact_limits_profiles_t;
 
-/* the number should be the same as GBMS_AACT_NB_LIMITS_MAX */
-static aact_limits_profiles_t aact_all_limits = {
-    .temp_limits = {
-        "google,aact-temp-limits",
-        "google,aact-temp-limits-1",
-        "google,aact-temp-limits-2",
-        "google,aact-temp-limits-3",
-        "google,aact-temp-limits-4"
-    },
-    .cv_limits = {
-        "google,aact-cv-limits",
-        "google,aact-cv-limits-1",
-        "google,aact-cv-limits-2",
-        "google,aact-cv-limits-3",
-        "google,aact-cv-limits-4"
-    },
-    .cc_limits = {
-        "google,aact-cc-limits",
-        "google,aact-cc-limits-1",
-        "google,aact-cc-limits-2",
-        "google,aact-cc-limits-3",
-        "google,aact-cc-limits-4"
-    }
-};
-
 #define WLC_BPP_THRESHOLD_UV	7000000
 #define WLC_EPP_THRESHOLD_UV	11000000
 

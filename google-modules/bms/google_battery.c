@@ -4173,7 +4173,7 @@ static int batt_init_aacr_profile(struct batt_drv *batt_drv)
 	 */
 
 	ret = of_property_read_u32(node, "google,aacr-config",
-				   &batt_drv->aacr_state);
+				   (u32 *)&batt_drv->aacr_state);
 	if (ret < 0)
 		batt_drv->aacr_state = profile->aacr_nb_limits ?
 			BATT_AACR_DISABLED : BATT_AACR_UNKNOWN;
@@ -5182,7 +5182,7 @@ static int batt_init_aafv_profile(struct batt_drv *batt_drv)
 
 	/* NOTE: might need to be BRID specific */
 	ret = of_property_read_u32(node, "google,aafv-config",
-				   &batt_drv->aafv_state);
+				   (u32 *)&batt_drv->aafv_state);
 	if (ret < 0)
 		batt_drv->aafv_state = profile->aafv_nb_limits ?
 			BATT_AAFV_DISABLED : BATT_AAFV_UNKNOWN;
@@ -5794,11 +5794,11 @@ static int batt_init_aact_profile(struct batt_drv *batt_drv)
 	int ret;
 
 	ret = of_property_read_u32(gbms_batt_id_node(node), "google,aact-config",
-				   &batt_drv->aact_state);
+				   (u32 *)&batt_drv->aact_state);
 	/* google,aact-config does not exist in the child_node */
 	if (ret < 0)
 		ret = of_property_read_u32(node, "google,aact-config",
-					   &batt_drv->aact_state);
+					   (u32 *)&batt_drv->aact_state);
 	if (ret < 0)
 		batt_drv->aact_state = BATT_AACT_UNKNOWN;
 

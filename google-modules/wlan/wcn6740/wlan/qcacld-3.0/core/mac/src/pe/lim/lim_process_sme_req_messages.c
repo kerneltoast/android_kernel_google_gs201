@@ -7817,10 +7817,8 @@ bool lim_process_sme_req_messages(struct mac_context *mac,
 		break;
 
 	case eWNI_SME_ASSOC_CNF:
-		if (pMsg->type == eWNI_SME_ASSOC_CNF)
-			pe_debug("Received ASSOC_CNF message");
-			__lim_process_sme_assoc_cnf_new(mac, pMsg->type,
-							msg_buf);
+		pe_debug("Received ASSOC_CNF message");
+		__lim_process_sme_assoc_cnf_new(mac, pMsg->type, msg_buf);
 		break;
 
 	case eWNI_SME_ADDTS_REQ:

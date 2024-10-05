@@ -48,6 +48,31 @@
 #define GBMS_STORAGE_READ_DELAY_MS	1000
 #define GBMS_STORAGE_READ_RETRIES	20
 
+/* the number should be the same as GBMS_AACT_NB_LIMITS_MAX */
+static aact_limits_profiles_t aact_all_limits = {
+    .temp_limits = {
+        "google,aact-temp-limits",
+        "google,aact-temp-limits-1",
+        "google,aact-temp-limits-2",
+        "google,aact-temp-limits-3",
+        "google,aact-temp-limits-4"
+    },
+    .cv_limits = {
+        "google,aact-cv-limits",
+        "google,aact-cv-limits-1",
+        "google,aact-cv-limits-2",
+        "google,aact-cv-limits-3",
+        "google,aact-cv-limits-4"
+    },
+    .cc_limits = {
+        "google,aact-cc-limits",
+        "google,aact-cc-limits-1",
+        "google,aact-cc-limits-2",
+        "google,aact-cc-limits-3",
+        "google,aact-cc-limits-4"
+    }
+};
+
 /* same as POWER_SUPPLY_CHARGE_TYPE_TEXT */
 static const char *psy_chgt_str[] = {
 	[POWER_SUPPLY_CHARGE_TYPE_UNKNOWN]	= "Unknown",

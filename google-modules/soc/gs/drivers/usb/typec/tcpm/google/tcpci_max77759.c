@@ -855,7 +855,7 @@ static void max77759_init_regs(struct regmap *regmap, struct logbuffer *log)
 
 static int post_process_pd_message(struct max77759_plat *chip, struct pd_message msg)
 {
-	enum pd_ctrl_msg_type pd_type = pd_header_type_le(msg.header);
+	enum pd_data_msg_type pd_type = pd_header_type_le(msg.header);
 
 	if (pd_type == PD_DATA_VENDOR_DEF) {
 		u32 payload[2];

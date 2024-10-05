@@ -20,8 +20,6 @@ struct gnss_spi {
 	struct mutex lock;
 };
 
-static struct gnss_spi gnss_if;
-
 extern int gnss_spi_send(char *buff, unsigned int size, char *recv_buff);
 extern int gnss_spi_recv(char *buff, unsigned int size);
 

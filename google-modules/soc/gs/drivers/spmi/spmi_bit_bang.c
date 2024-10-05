@@ -207,7 +207,7 @@ static bool spmi_cmd_seq_extended_register_write(struct spmi_bb_info *info,
 	u8 sid, u8 reg, const u8 *val, u8 bytes)
 {
 	u32 i;
-	u8 command = SPMI_CMD_EXT_WRITE | (bytes - 1 & 0x0f);
+	u8 command = SPMI_CMD_EXT_WRITE | ((bytes - 1) & 0x0f);
 
 	spmi_send_ssc(info);
 	spmi_send_command_frame(info, sid, command);
@@ -223,7 +223,7 @@ static bool spmi_cmd_seq_extended_register_read(struct spmi_bb_info *info,
 {
 	bool ret = true;
 	u32 i;
-	u8 command = SPMI_CMD_EXT_READ | (bytes - 1 & 0x0f);
+	u8 command = SPMI_CMD_EXT_READ | ((bytes - 1) & 0x0f);
 
 	spmi_send_ssc(info);
 	spmi_send_command_frame(info, sid, command);

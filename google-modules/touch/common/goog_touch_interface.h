@@ -407,39 +407,6 @@ enum gti_ical_state : u32 {
 };
 
 /*-----------------------------------------------------------------------------
- * const char.
- */
-
-const static char *gesture_params_list[GTI_GESTURE_PARAMS_MAX] = {
-	"sttw_min_x",
-	"sttw_max_x",
-	"sttw_min_y",
-	"sttw_max_y",
-	"sttw_min_frame",
-	"sttw_max_frame",
-	"sttw_jitter",
-	"sttw_max_touch_size",
-	"lptw_min_x",
-	"lptw_max_x",
-	"lptw_min_y",
-	"lptw_max_y",
-	"lptw_min_frame",
-	"lptw_jitter",
-	"lptw_max_touch_size",
-	"lptw_marginal_min_x",
-	"lptw_marginal_max_x",
-	"lptw_marginal_min_y",
-	"lptw_marginal_max_y",
-	"lptw_monitor_ch_min_tx",
-	"lptw_monitor_ch_max_tx",
-	"lptw_monitor_ch_min_rx",
-	"lptw_monitor_ch_max_rx",
-	"lptw_node_count_min",
-	"lptw_motion_boundary",
-	"gesture_type",
-};
-
-/*-----------------------------------------------------------------------------
  * Structures.
  */
 

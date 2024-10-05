@@ -1606,7 +1606,7 @@ static int gcpm_pps_wlc_dc_restart_default(struct gcpm_drv *gcpm)
 	ret = gcpm_enable_default(gcpm);
 	if (ret < 0) {
 		pr_err("%s: fail 2 restart default, dc_state=%d pps_done=%d (%d)\n",
-		       __func__, gcpm->dc_state, pps_done >= 0 ? : pps_done, ret);
+		       __func__, gcpm->dc_state, pps_done >= 0 ? 1 : pps_done, ret);
 		return -EAGAIN;
 	}
 
