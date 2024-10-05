@@ -292,7 +292,7 @@ void apply_alternatives_module(void *start, size_t length)
 }
 #endif
 
-noinstr void alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
+noinstr void __visible alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
 			       __le32 *updptr, int nr_inst)
 {
 	for (int i = 0; i < nr_inst; i++)

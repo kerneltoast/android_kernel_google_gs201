@@ -1088,7 +1088,7 @@ void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 }
 
 /* Patched to NOP when enabled */
-void noinstr spectre_bhb_patch_loop_mitigation_enable(struct alt_instr *alt,
+void noinstr __visible spectre_bhb_patch_loop_mitigation_enable(struct alt_instr *alt,
 						     __le32 *origptr,
 						      __le32 *updptr, int nr_inst)
 {
@@ -1110,7 +1110,7 @@ void noinstr spectre_bhb_patch_fw_mitigation_enabled(struct alt_instr *alt,
 }
 
 /* Patched to correct the immediate */
-void noinstr spectre_bhb_patch_loop_iter(struct alt_instr *alt,
+void noinstr __visible spectre_bhb_patch_loop_iter(struct alt_instr *alt,
 				   __le32 *origptr, __le32 *updptr, int nr_inst)
 {
 	u8 rd;
@@ -1157,7 +1157,7 @@ void noinstr spectre_bhb_patch_wa3(struct alt_instr *alt,
 }
 
 /* Patched to NOP when not supported */
-void __init spectre_bhb_patch_clearbhb(struct alt_instr *alt,
+void __init __visible spectre_bhb_patch_clearbhb(struct alt_instr *alt,
 				   __le32 *origptr, __le32 *updptr, int nr_inst)
 {
 	BUG_ON(nr_inst != 2);
