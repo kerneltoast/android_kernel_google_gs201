@@ -25,7 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/component.h>
 #include <linux/irq.h>
-#include <linux/videodev2_exynos_media.h>
+#include <uapi/linux/videodev2_exynos_media.h>
 #include <linux/dma-buf.h>
 #include <linux/soc/samsung/exynos-smc.h>
 #include <linux/dma-heap.h>
