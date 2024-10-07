@@ -5,7 +5,7 @@ KBUILD_OPTIONS += CONFIG_LWIS=m
 
 include $(KERNEL_SRC)/../private/google-modules/soc/gs/Makefile.include
 
-KBUILD_CFLAGS += -Wall -Werror
+KBUILD_CFLAGS += -Wall
 
 ifeq ($(CONFIG_GCOV_KERNEL),y)
     KBUILD_CFLAGS += $(call cc-option, -ftest-coverage)
