@@ -277,8 +277,6 @@ static void do_idle(void)
 	tick_nohz_idle_enter();
 
 	while (!need_resched()) {
-		rmb();
-
 		local_irq_disable();
 
 		if (cpu_is_offline(cpu)) {
