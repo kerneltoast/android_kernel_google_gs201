@@ -924,8 +924,6 @@ static void nop_work_func(struct trusty_work *tw)
 		if (kthread_should_park())
 			kthread_parkme();
 
-		preempt_disable();
-
 		if (tw != this_cpu_ptr(s->nop_works)) {
 			dev_warn_ratelimited(s->dev,
 					     "trusty-nop-%d ran on wrong cpu, %u\n",
@@ -954,8 +952,6 @@ static void nop_work_func(struct trusty_work *tw)
 				do_nop = true;
 			}
 		}
-
-		preempt_enable();
 	}
 	dev_dbg(s->dev, "%s: done\n", __func__);
 }
