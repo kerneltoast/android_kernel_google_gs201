@@ -788,7 +788,7 @@ CC_FLAGS_LTO	:= -flto=jobserver -fipa-pta -fno-fat-lto-objects \
 KBUILD_CFLAGS	+= $(CC_FLAGS_LTO)
 LTO_LDFLAGS	:= $(CC_FLAGS_LTO) -Wno-lto-type-mismatch -Wno-psabi \
 		   -Wno-stringop-overflow -Wno-stringop-overread \
-		   -flinker-output=nolto-rel
+		   -Wno-alloc-size-larger-than -flinker-output=nolto-rel
 LDFINAL		:= $(CONFIG_SHELL) $(srctree)/scripts/gcc-ld $(LTO_LDFLAGS)
 AR		:= $(CROSS_COMPILE)gcc-ar
 NM		:= $(CROSS_COMPILE)gcc-nm
