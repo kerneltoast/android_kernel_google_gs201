@@ -2826,12 +2826,17 @@ static void integrated_module_load_begin(void)
 	mutex_unlock(&modloader_lock);
 }
 
+bool integrated_module_load_in_progress(void)
+{
+	/* Lockless check since this is called from process exit code */
+	return !list_empty_careful(&modloader_list);
+}
+
 void integrated_module_load_end(void)
 {
 	struct modload_proc *mp;
 
-	/* Lockless check since this is called from process exit code */
-	if (likely(list_empty_careful(&modloader_list)))
+	if (likely(!integrated_module_load_in_progress()))
 		return;
 
 	mutex_lock(&modloader_lock);

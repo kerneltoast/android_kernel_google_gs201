@@ -654,22 +654,11 @@ int devkmsg_emit(int facility, int level, const char *fmt, ...)
 	return r;
 }
 
-static void check_modules_init_done(const char *line)
+static bool module_init_done_msg(const char *line, const char *match_str)
 {
-	static const char *const match_str = "init: Loaded # modules from";
-	static bool init_done;
 	const char *c;
 	int matched;
 
-	if (likely(init_done || !is_global_init(current)))
-		return;
-
-	/*
-	 * Android emits, e.g., "init: Loaded 195 modules from /lib/modules"
-	 * after its finished loading all modules. For integrated modules, use
-	 * this as a signal to know when the big pile of modules is finished
-	 * loading in order to kick off probing all of those modules' drivers.
-	 */
 	for (c = line, matched = 0; *c && match_str[matched]; c++) {
 		if (match_str[matched] == '#') {
 			if (*c >= '0' && *c <= '9')
@@ -678,19 +667,41 @@ static void check_modules_init_done(const char *line)
 		}
 
 		if (*c != match_str[matched++])
-			return;
+			return false;
 	}
 
 	/* Check that the whole string was matched */
-	if (match_str[matched])
+	return !match_str[matched];
+}
+
+static void check_modules_init_done(const char *line)
+{
+	static const char *const init_done_msgs[] = {
+		"init: Loaded # modules from",
+		"init: Loaded # kernel modules took"
+	};
+	int i;
+
+	/*
+	 * Android emits, e.g., "init: Loaded 195 modules from /lib/modules"
+	 * after its finished loading all modules. For integrated modules, use
+	 * this as a signal to know when the big pile of modules is finished
+	 * loading in order to kick off probing all of those modules' drivers.
+	 */
+	for (i = 0; i < ARRAY_SIZE(init_done_msgs); i++) {
+		if (module_init_done_msg(line, init_done_msgs[i]))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(init_done_msgs))
 		return;
 
-	init_done = true;
 	integrated_module_load_end();
 }
 
 static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 {
+	bool check_integrated_modules = false;
 	char *buf, *line;
 	int level = default_message_loglevel;
 	int facility = 1;	/* LOG_USER */
@@ -703,8 +714,11 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 		return -EINVAL;
 
 	/* We need to see Android's message that it's done loading modules */
-	if (IS_ENABLED(CONFIG_INTEGRATE_MODULES) && is_global_init(current))
+	if (IS_ENABLED(CONFIG_INTEGRATE_MODULES) && is_global_init(current) &&
+	    integrated_module_load_in_progress()) {
+		check_integrated_modules = true;
 		goto skip_checks;
+	}
 
 	/* Ignore when user logging is disabled. */
 	if (devkmsg_log & DEVKMSG_LOG_MASK_OFF)
@@ -751,7 +765,7 @@ skip_checks:
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_INTEGRATE_MODULES))
+	if (unlikely(check_integrated_modules))
 		check_modules_init_done(line);
 
 	devkmsg_emit(facility, level, "%s", line);
