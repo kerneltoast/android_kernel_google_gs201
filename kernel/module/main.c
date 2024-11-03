@@ -2783,7 +2783,6 @@ static int integrated_module_param_cb(char *param, char *val,
 	return 0;
 }
 
-#include "../../drivers/base/base.h" /* To block/unblock probing */
 struct modload_proc {
 	struct task_struct *tsk;
 	struct list_head node;
@@ -2807,17 +2806,8 @@ static void integrated_module_load_begin(void)
 {
 	struct modload_proc *mp;
 
-	/*
-	 * Don't defer probing for pKVM modules. They are loaded
-	 * deterministically anyway via usermode helper.
-	 */
-	if (system_state < SYSTEM_RUNNING)
-		return;
-
+	/* Track the current process that is loading modules */
 	mutex_lock(&modloader_lock);
-	/* Defer device probing until this batch of modules is loaded */
-	if (list_empty(&modloader_list))
-		device_block_probing();
 	if (!find_modload_proc()) {
 		mp = kmalloc(sizeof(*mp), GFP_KERNEL | __GFP_NOFAIL);
 		mp->tsk = current;
@@ -2844,11 +2834,13 @@ void integrated_module_load_end(void)
 	if (mp) {
 		list_del_init_careful(&mp->node);
 		kfree(mp);
-		/* Probe all devices now, in a deterministic order */
-		if (list_empty(&modloader_list)) {
-			device_unblock_probing();
+		/*
+		 * Wait for all deferred devices to finish probing now. Thus,
+		 * the process loading modules cannot continue or exit until the
+		 * modules it loaded are actually probed.
+		 */
+		if (list_empty(&modloader_list))
 			wait_for_device_probe();
-		}
 	}
 	mutex_unlock(&modloader_lock);
 }
