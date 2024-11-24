@@ -221,7 +221,12 @@ static int create_perf_events(int cpu)
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_RAW,
 		.size = sizeof(attr),
-		.pinned = 1
+		.pinned = 1,
+		/*
+		 * Request a long counter (i.e., 64-bit instead of 32-bit) by
+		 * setting bit 0 in config1. See armv8pmu_event_is_64bit().
+		 */
+		.config1 = 0x1
 	};
 	int i;
 
