@@ -19,7 +19,6 @@
 #include <trace/hooks/cpuidle.h>
 #include <trace/hooks/sched.h>
 #include <sched.h>
-#include <pelt.h>
 #include "governor.h"
 
 /* SoC-specific ACPM constant definitions */
@@ -348,7 +347,7 @@ static void update_thermal_pressure(void)
 #endif
 }
 
-static void update_freq_scale(bool tick)
+static void update_freq_scale(void)
 {
 	int cpu = raw_smp_processor_id();
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
@@ -380,9 +379,6 @@ static void update_freq_scale(bool tick)
 		per_cpu(arch_freq_scale, cpu) =
 			SCHED_CAPACITY_SCALE * freq / max_freq;
 		sfd->cpu_cyc = sfd->ns = 0;
-	} else if (tick) {
-		/* Reset the accumulated sfd stats on every scheduler tick */
-		sfd->cpu_cyc = sfd->ns = 0;
 	}
 }
 
@@ -397,7 +393,7 @@ static void update_freq_scale(bool tick)
 static void tensor_aio_tick(void)
 {
 	update_thermal_pressure();
-	update_freq_scale(true);
+	update_freq_scale();
 	kick_memperfd();
 }
 
@@ -405,37 +401,6 @@ static struct scale_freq_data tensor_aio_sfd = {
 	.source = SCALE_FREQ_SOURCE_ARCH,
 	.set_freq_scale = tensor_aio_tick
 };
-
-/*
- * try_to_wake_up() is probed in order to poll the TMU more often to update the
- * thermal pressure, as well as measure CPU frequency more finely. Otherwise, a
- * stale thermal pressure or CPU frequency measurement result from the scheduler
- * tick could take up to one jiffy to correct itself, which is unacceptably long
- * and results in poor scheduling decisions in the meantime. This probes TTWU
- * just before it tries to select a runqueue, updating the thermal load average
- * and CPU frequency scale right before select_task_rq() so that it can make a
- * more informed scheduling decision.
- */
-static void tensor_aio_ttwu(void *data, struct task_struct *p)
-{
-	int cpu = raw_smp_processor_id();
-	struct rq *rq = cpu_rq(cpu);
-	struct rq_flags rf;
-
-	/* Don't race with CPU hotplug or reboot */
-	if (unlikely(in_reboot || !cpu_active(cpu)))
-		return;
-
-	update_thermal_pressure();
-	update_freq_scale(false);
-
-	/* Update the thermal load average tracked by PELT */
-	rq_lock(rq, &rf);
-	update_rq_clock(rq);
-	update_thermal_load_avg(rq_clock_thermal(rq), rq,
-				arch_scale_thermal_pressure(cpu));
-	rq_unlock(rq, &rf);
-}
 
 static void tensor_aio_idle_enter(void *data, int *state,
 				  struct cpuidle_device *dev)
@@ -641,13 +606,6 @@ static void memperfd_init(void)
 							NULL));
 	BUG_ON(register_trace_android_vh_cpu_idle_exit(tensor_aio_idle_exit,
 						       NULL));
-
-	/*
-	 * Register a TTWU callback as well to update thermal pressure right
-	 * before select_task_rq() checks the thermal pressure.
-	 */
-	BUG_ON(register_trace_android_rvh_try_to_wake_up(tensor_aio_ttwu,
-							 NULL));
 
 	/* Initialize and start the PPCs */
 	ppc_write_regs(ppc_init_cmd, ARRAY_SIZE(ppc_init_cmd));
@@ -1438,12 +1396,11 @@ static int memperf_reboot(struct notifier_block *notifier, unsigned long val,
 	 * register access after kvm_reboot() runs. PMU registers must not be
 	 * accessed after kvm_reboot() finishes; attempting to do so will fault.
 	 *
-	 * This also needs to kick all CPUs to ensure that tensor_aio_ttwu() and
-	 * the cpuidle hooks aren't running anymore. kick_all_cpus_sync()
-	 * executes a full memory barrier before kicking all CPUs; after it
-	 * finishes, it's guaranteed that tensor_aio_ttwu() and the cpuidle
-	 * hooks will observe `is_reboot == true` and thus won't attempt to read
-	 * PMU registers anymore.
+	 * This also needs to kick all CPUs to ensure that the cpuidle hooks
+	 * aren't running anymore. kick_all_cpus_sync() executes a full memory
+	 * barrier before kicking all CPUs; after it finishes, it's guaranteed
+	 * that the cpuidle hooks will observe `is_reboot == true` and thus
+	 * won't attempt to read PMU registers anymore.
 	 */
 	in_reboot = true;
 	kick_all_cpus_sync();
