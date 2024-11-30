@@ -189,7 +189,7 @@ int max77759_external_reg_read(struct device *dev, uint8_t reg, uint8_t *val)
 	if (max77759_resume_check(data))
 		return -EAGAIN;
 
-	if (max77759_readn(data->regmap, reg, val, 2) < 0)
+	if (max77759_reg_read(data->regmap, reg, val) < 0)
 		return -EINVAL;
 
 	return 0;
