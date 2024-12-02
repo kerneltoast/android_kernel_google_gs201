@@ -40,10 +40,12 @@
 #define MEMPERFD_DOWN_PCT 65
 
 /*
- * The minimum sample time required to measure the cycle counters. This should
- * take into account the time needed to read the monotonic clock.
+ * The minimum sample time required to measure the performance counters. This
+ * should take into account the resolution of the system timer. At Tensor's
+ * timer rate of 24576000 Hz, a sample window of 3 us provides an error margin
+ * of ~1.4%.
  */
-static u64 cpu_min_sample_cntpct __read_mostly = 100 * NSEC_PER_USEC;
+static u64 cpu_min_sample_cntpct __read_mostly = 3 * NSEC_PER_USEC;
 
 /* The name of our governor exposed to devfreq */
 #define DEVFREQ_GOV_TENSOR_AIO "tensor_aio"
