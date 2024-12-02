@@ -336,6 +336,20 @@ static void pmu_get_stats(struct pmu_stat *stat)
 	stat->mem_cyc = read_perf_event(STALL_BACKEND_MEM);
 }
 
+static __always_inline void pmu_update_stats(struct cpu_pmu *pmu,
+					     struct pmu_stat *cur,
+					     struct pmu_stat *prev)
+{
+	/* Provide the previous stats if requested */
+	if (prev)
+		*prev = pmu->cur;
+
+	pmu_get_stats(cur);
+	raw_spin_lock(&pmu->lock);
+	pmu->cur = *cur;
+	raw_spin_unlock(&pmu->lock);
+}
+
 static void kick_memperfd(void)
 {
 	unsigned long prev, now = jiffies;
@@ -380,20 +394,27 @@ static void update_thermal_pressure(void)
 #endif
 }
 
+static void reset_sfd_data(struct pmu_stat *sfd)
+{
+	sfd->cpu_cyc = sfd->cntpct = 0;
+}
+
+static void add_sfd_data(struct pmu_stat *sfd, const struct pmu_stat *cur,
+			 const struct pmu_stat *prev)
+{
+	/* Accumulate data for calculating the CPU's frequency */
+	sfd->cpu_cyc += cur->cpu_cyc - prev->cpu_cyc;
+	sfd->cntpct += cur->cntpct - prev->cntpct;
+}
+
 static void update_freq_scale(void)
 {
 	int cpu = raw_smp_processor_id();
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
-	struct pmu_stat cur, prev = pmu->cur, *sfd = &pmu->sfd;
+	struct pmu_stat cur, prev, *sfd = &pmu->sfd;
 
-	pmu_get_stats(&cur);
-	raw_spin_lock(&pmu->lock);
-	pmu->cur = cur;
-	raw_spin_unlock(&pmu->lock);
-
-	/* Accumulate data for calculating the CPU's frequency */
-	sfd->cpu_cyc += cur.cpu_cyc - prev.cpu_cyc;
-	sfd->cntpct += cur.cntpct - prev.cntpct;
+	pmu_update_stats(pmu, &cur, &prev);
+	add_sfd_data(sfd, &cur, &prev);
 
 	/*
 	 * Set the CPU frequency scale measured via counters if enough data is
@@ -409,7 +430,7 @@ static void update_freq_scale(void)
 		freq = min(max_freq, USEC_PER_SEC * sfd->cpu_cyc / ns);
 		per_cpu(arch_freq_scale, cpu) =
 			SCHED_CAPACITY_SCALE * freq / max_freq;
-		sfd->cpu_cyc = sfd->cntpct = 0;
+		reset_sfd_data(sfd);
 	}
 }
 
@@ -449,15 +470,10 @@ static void tensor_aio_cpu_idle(int cpu, bool idle)
 
 	if (idle) {
 		/* Update the current counters one last time before idling */
-		prev = pmu->cur;
-		pmu_get_stats(&cur);
-		raw_spin_lock(&pmu->lock);
-		pmu->cur = cur;
-		raw_spin_unlock(&pmu->lock);
+		pmu_update_stats(pmu, &cur, &prev);
 
 		/* Accumulate data for calculating the CPU's frequency */
-		sfd->cpu_cyc += cur.cpu_cyc - prev.cpu_cyc;
-		sfd->cntpct += cur.cntpct - prev.cntpct;
+		add_sfd_data(sfd, &cur, &prev);
 	} else {
 		/*
 		 * Update the counters upon exiting idle without accumulating
@@ -466,10 +482,7 @@ static void tensor_aio_cpu_idle(int cpu, bool idle)
 		 * timer keeps incrementing while the CPU is idle, while the
 		 * cycle counter doesn't because the CPU clock is gated in idle.
 		 */
-		pmu_get_stats(&cur);
-		raw_spin_lock(&pmu->lock);
-		pmu->cur = cur;
-		raw_spin_unlock(&pmu->lock);
+		pmu_update_stats(pmu, &cur, NULL);
 	}
 }
 
@@ -488,6 +501,7 @@ static void tensor_aio_idle_exit(void *data, int state,
 static int memperf_cpuhp_up(unsigned int cpu)
 {
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
+	struct pmu_stat *sfd = &pmu->sfd;
 	int ret;
 
 	ret = create_perf_events(cpu);
@@ -503,9 +517,7 @@ static int memperf_cpuhp_up(unsigned int cpu)
 	pmu_get_stats(&pmu->cur);
 	pmu->prev = pmu->cur;
 	raw_spin_unlock(&pmu->lock);
-
-	/* Reset the sfd statistics */
-	pmu->sfd.cpu_cyc = pmu->sfd.cntpct = 0;
+	reset_sfd_data(sfd);
 
 	/* Install tensor_aio_tick() */
 	topology_set_scale_freq_source(&tensor_aio_sfd, cpumask_of(cpu));
