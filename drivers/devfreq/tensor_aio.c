@@ -329,16 +329,11 @@ static u64 read_perf_event(enum pmu_events evt)
 	return value;
 }
 
-static void pmu_read_events(struct pmu_stat *stat)
-{
-	stat->cpu_cyc = read_perf_event(CPU_CYCLES);
-	stat->mem_cyc = read_perf_event(STALL_BACKEND_MEM);
-}
-
 static void pmu_get_stats(struct pmu_stat *stat)
 {
-	pmu_read_events(stat);
 	stat->cntpct = __arch_counter_get_cntpct();
+	stat->cpu_cyc = read_perf_event(CPU_CYCLES);
+	stat->mem_cyc = read_perf_event(STALL_BACKEND_MEM);
 }
 
 static void kick_memperfd(void)
@@ -391,19 +386,14 @@ static void update_freq_scale(void)
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
 	struct pmu_stat cur, prev = pmu->cur, *sfd = &pmu->sfd;
 
-	/* Check if enough time has passed to take a new sample */
-	cur.cntpct = __arch_counter_get_cntpct();
-	if ((cur.cntpct - prev.cntpct) >= cpu_min_sample_cntpct) {
-		/* Update the PMU counters without rereading the current time */
-		pmu_read_events(&cur);
-		raw_spin_lock(&pmu->lock);
-		pmu->cur = cur;
-		raw_spin_unlock(&pmu->lock);
+	pmu_get_stats(&cur);
+	raw_spin_lock(&pmu->lock);
+	pmu->cur = cur;
+	raw_spin_unlock(&pmu->lock);
 
-		/* Accumulate more data for calculating the CPU's frequency */
-		sfd->cpu_cyc += cur.cpu_cyc - prev.cpu_cyc;
-		sfd->cntpct += cur.cntpct - prev.cntpct;
-	}
+	/* Accumulate data for calculating the CPU's frequency */
+	sfd->cpu_cyc += cur.cpu_cyc - prev.cpu_cyc;
+	sfd->cntpct += cur.cntpct - prev.cntpct;
 
 	/*
 	 * Set the CPU frequency scale measured via counters if enough data is
