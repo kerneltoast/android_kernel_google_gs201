@@ -10,7 +10,6 @@
 #include <linux/perf/arm_pmuv3.h>
 #include <linux/reboot.h>
 #include <linux/units.h>
-#include <linux/sched/clock.h>
 #include <linux/sched/cputime.h>
 #include <soc/google/acpm/acpm_ipc.h>
 #include <soc/google/cal-if.h>
@@ -44,7 +43,7 @@
  * The minimum sample time required to measure the cycle counters. This should
  * take into account the time needed to read the monotonic clock.
  */
-#define CPU_MIN_SAMPLE_NS (100 * NSEC_PER_USEC)
+static u64 cpu_min_sample_cntpct __read_mostly = 100 * NSEC_PER_USEC;
 
 /* The name of our governor exposed to devfreq */
 #define DEVFREQ_GOV_TENSOR_AIO "tensor_aio"
@@ -53,7 +52,7 @@
 struct pmu_stat {
 	u64 cpu_cyc;
 	u64 mem_cyc;
-	u64 ns;
+	u64 cntpct;
 };
 
 struct cpu_pmu {
@@ -179,6 +178,51 @@ static unsigned int dsu_scale_factor __read_mostly __maybe_unused;
 static bool in_reboot __read_mostly;
 static int cpuhp_state;
 
+/*
+ * CNTPCT_EL0 arithmetic helpers to avoid overflowing a u64 when converting
+ * between ticks and nanoseconds. This avoids needing mult_frac() in a hot path.
+ */
+static u64 cntpct_mult __read_mostly;
+static u64 cntpct_div __read_mostly;
+static u64 cntpct_rate __read_mostly;
+
+static u64 cntpct_to_ns(u64 cntpct)
+{
+	return cntpct * cntpct_mult / cntpct_div;
+}
+
+static u64 ns_to_cntpct(u64 ns)
+{
+	return DIV_ROUND_UP_ULL(ns * cntpct_div, cntpct_mult);
+}
+
+static u64 cyc_per_cntpct_to_hz(u64 cyc, u64 cntpct)
+{
+	return mult_frac(cyc, cntpct_rate, cntpct);
+}
+
+static void calc_cntpct_arith(void)
+{
+	int cd;
+
+	/*
+	 * Calculate lossless arithmetic to convert between timer ticks and
+	 * nanoseconds, extracting all common denominators up through 10.
+	 */
+	cntpct_rate = arch_timer_get_rate();
+	cntpct_mult = NSEC_PER_SEC;
+	cntpct_div = cntpct_rate;
+	for (cd = 10; cd > 1; cd--) {
+		while (!(cntpct_mult % cd) && !(cntpct_div % cd)) {
+			cntpct_div /= cd;
+			cntpct_mult /= cd;
+		}
+	}
+
+	/* Compute all nanosecond time intervals in terms of CNTPCT_EL0 ticks */
+	cpu_min_sample_cntpct = ns_to_cntpct(cpu_min_sample_cntpct);
+}
+
 enum pmu_events {
 	CPU_CYCLES,
 	STALL_BACKEND_MEM,
@@ -285,12 +329,6 @@ static u64 read_perf_event(enum pmu_events evt)
 	return value;
 }
 
-static inline u64 get_time_ns(void)
-{
-	/* sched_clock() is fine so long as times aren't compared across CPUs */
-	return sched_clock();
-}
-
 static void pmu_read_events(struct pmu_stat *stat)
 {
 	stat->cpu_cyc = read_perf_event(CPU_CYCLES);
@@ -300,7 +338,7 @@ static void pmu_read_events(struct pmu_stat *stat)
 static void pmu_get_stats(struct pmu_stat *stat)
 {
 	pmu_read_events(stat);
-	stat->ns = get_time_ns();
+	stat->cntpct = __arch_counter_get_cntpct();
 }
 
 static void kick_memperfd(void)
@@ -352,11 +390,10 @@ static void update_freq_scale(void)
 	int cpu = raw_smp_processor_id();
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
 	struct pmu_stat cur, prev = pmu->cur, *sfd = &pmu->sfd;
-	u64 freq, max_freq;
 
 	/* Check if enough time has passed to take a new sample */
-	cur.ns = get_time_ns();
-	if ((cur.ns - prev.ns) >= CPU_MIN_SAMPLE_NS) {
+	cur.cntpct = __arch_counter_get_cntpct();
+	if ((cur.cntpct - prev.cntpct) >= cpu_min_sample_cntpct) {
 		/* Update the PMU counters without rereading the current time */
 		pmu_read_events(&cur);
 		raw_spin_lock(&pmu->lock);
@@ -365,20 +402,24 @@ static void update_freq_scale(void)
 
 		/* Accumulate more data for calculating the CPU's frequency */
 		sfd->cpu_cyc += cur.cpu_cyc - prev.cpu_cyc;
-		sfd->ns += cur.ns - prev.ns;
+		sfd->cntpct += cur.cntpct - prev.cntpct;
 	}
 
 	/*
 	 * Set the CPU frequency scale measured via counters if enough data is
 	 * present. This excludes idle time because although the cycle counter
-	 * stops incrementing while the CPU idles, the monotonic clock doesn't.
+	 * stops incrementing while the CPU idles, the system timer doesn't.
 	 */
-	if (sfd->ns >= CPU_MIN_SAMPLE_NS) {
-		max_freq = per_cpu(cached_pol, cpu).cpuinfo.max_freq;
-		freq = min(max_freq, USEC_PER_SEC * sfd->cpu_cyc / sfd->ns);
+	if (sfd->cntpct >= cpu_min_sample_cntpct) {
+		struct cpufreq_policy *pol = &per_cpu(cached_pol, cpu);
+		u64 freq, max_freq = pol->cpuinfo.max_freq;
+		u64 ns = cntpct_to_ns(sfd->cntpct);
+
+		/* Report the measured frequency and reset the stats */
+		freq = min(max_freq, USEC_PER_SEC * sfd->cpu_cyc / ns);
 		per_cpu(arch_freq_scale, cpu) =
 			SCHED_CAPACITY_SCALE * freq / max_freq;
-		sfd->cpu_cyc = sfd->ns = 0;
+		sfd->cpu_cyc = sfd->cntpct = 0;
 	}
 }
 
@@ -419,9 +460,9 @@ static void tensor_aio_idle_enter(void *data, int *state,
 	pmu->cur = cur;
 	raw_spin_unlock(&pmu->lock);
 
-	/* Accumulate the cycles/ns for calculating the CPU's frequency */
+	/* Accumulate data for calculating the CPU's frequency */
 	pmu->sfd.cpu_cyc += cur.cpu_cyc - prev.cpu_cyc;
-	pmu->sfd.ns += cur.ns - prev.ns;
+	pmu->sfd.cntpct += cur.cntpct - prev.cntpct;
 }
 
 static void tensor_aio_idle_exit(void *data, int state,
@@ -434,7 +475,7 @@ static void tensor_aio_idle_exit(void *data, int state,
 	/* Don't race with CPU hotplug or reboot */
 	if (unlikely(in_reboot || !cpu_active(cpu))) {
 		/* Reset the sfd statistics since they'll be wrong */
-		pmu->sfd.cpu_cyc = pmu->sfd.ns = 0;
+		pmu->sfd.cpu_cyc = pmu->sfd.cntpct = 0;
 		return;
 	}
 
@@ -465,7 +506,7 @@ static int memperf_cpuhp_up(unsigned int cpu)
 	raw_spin_unlock(&pmu->lock);
 
 	/* Reset the sfd statistics */
-	pmu->sfd.cpu_cyc = pmu->sfd.ns = 0;
+	pmu->sfd.cpu_cyc = pmu->sfd.cntpct = 0;
 
 	/* Install tensor_aio_tick() */
 	topology_set_scale_freq_source(&tensor_aio_sfd, cpumask_of(cpu));
@@ -598,6 +639,9 @@ static void memperfd_init(void)
 					memperf_cpuhp_up, memperf_cpuhp_down);
 	BUG_ON(cpuhp_state <= 0);
 
+	/* Precompute arithmetic to convert between ticks and nanoseconds */
+	calc_cntpct_arith();
+
 	/*
 	 * Register the cpuidle callback for frequency-invariant counting needed
 	 * to set the CPU frequency scale correctly in update_freq_scale().
@@ -630,7 +674,7 @@ static u32 mif_cpu_vote(struct pmu_stat *stat, int cpu, u32 cur, u32 *dsu_vote)
 	 * on memory stalls. And if the CPU is under heavy load, it won't have
 	 * much idle time and thus MIF will be scaled up accordingly anyway.
 	 */
-	cpu_hz = NSEC_PER_SEC * stat->cpu_cyc / stat->ns;
+	cpu_hz = cyc_per_cntpct_to_hz(stat->cpu_cyc, stat->cntpct);
 
 	/* Now translate the estimation into the closest actual CPU frequency */
 	cpu_khz = find_cpu_freq(pol, cpu_hz / HZ_PER_KHZ, CPUFREQ_RELATION_L);
@@ -644,7 +688,7 @@ static u32 mif_cpu_vote(struct pmu_stat *stat, int cpu, u32 cur, u32 *dsu_vote)
 		return mif->nr_freqs - 1;
 
 	/* Calculate the Hz lost to memory stalls */
-	mem_hz = NSEC_PER_SEC * stat->mem_cyc / stat->ns;
+	mem_hz = cyc_per_cntpct_to_hz(stat->mem_cyc, stat->cntpct);
 
 	/* Estimate the CPU's new kHz for a given MIF frequency index */
 #define est_cpu_khz(idx, r) \
@@ -799,7 +843,6 @@ static bool memperf_set_vote(struct exynos_devfreq_data *data, u32 new)
 static bool memperf_work(void)
 {
 	u32 vote = mif->nr_freqs - 1, cur, dsu_vote = 0, bus2_mif;
-	struct cpu_pmu *pmu;
 	bool ret = false;
 	cpumask_t cpus;
 	int cpu;
@@ -812,15 +855,17 @@ static bool memperf_work(void)
 
 	/* Gather updated memory stall statistics for all active CPUs */
 	for_each_cpu(cpu, &cpus) {
+		struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
 		struct pmu_stat stat;
+		u64 delta_cntpct;
 
 		/* Calculate the delta for each statistic */
-		pmu = &per_cpu(cpu_pmu_evs, cpu);
 		raw_spin_lock_irq(&pmu->lock);
-		if ((pmu->cur.ns - pmu->prev.ns) >= CPU_MIN_SAMPLE_NS) {
+		delta_cntpct = pmu->cur.cntpct - pmu->prev.cntpct;
+		if (delta_cntpct >= cpu_min_sample_cntpct) {
 			stat.mem_cyc = pmu->cur.mem_cyc - pmu->prev.mem_cyc;
 			stat.cpu_cyc = pmu->cur.cpu_cyc - pmu->prev.cpu_cyc;
-			stat.ns = pmu->cur.ns - pmu->prev.ns;
+			stat.cntpct = delta_cntpct;
 		} else {
 			/* Indicate that this CPU should be skipped */
 			stat.cpu_cyc = 0;
@@ -831,7 +876,7 @@ static bool memperf_work(void)
 		 * Skip CPUs with incomplete statistics, like CPUs that have
 		 * been idle for a while and thus have had their tick suspended.
 		 */
-		if (!stat.cpu_cyc || !stat.mem_cyc || !stat.ns)
+		if (!stat.cpu_cyc || !stat.mem_cyc || !stat.cntpct)
 			continue;
 
 		/* Find the highest MIF freq step required among all the CPUs */
@@ -859,7 +904,8 @@ static bool memperf_work(void)
 	 * sample window to the current counter values.
 	 */
 	for_each_cpu(cpu, &cpus) {
-		pmu = &per_cpu(cpu_pmu_evs, cpu);
+		struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
+
 		raw_spin_lock_irq(&pmu->lock);
 		pmu->prev = pmu->cur;
 		raw_spin_unlock_irq(&pmu->lock);
