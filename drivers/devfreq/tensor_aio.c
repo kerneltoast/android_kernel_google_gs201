@@ -443,47 +443,56 @@ static struct scale_freq_data tensor_aio_sfd = {
 	.set_freq_scale = tensor_aio_tick
 };
 
+static void tensor_aio_cpu_idle(int cpu, bool idle)
+{
+	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
+	struct pmu_stat *sfd = &pmu->sfd;
+	struct pmu_stat cur, prev;
+
+	/* Don't race with reboot */
+	if (unlikely(in_reboot))
+		return;
+
+	/* Don't race with CPU hotplug */
+	if (unlikely(!cpu_active(cpu)))
+		return;
+
+	if (idle) {
+		/* Update the current counters one last time before idling */
+		prev = pmu->cur;
+		pmu_get_stats(&cur);
+		raw_spin_lock(&pmu->lock);
+		pmu->cur = cur;
+		raw_spin_unlock(&pmu->lock);
+
+		/* Accumulate data for calculating the CPU's frequency */
+		sfd->cpu_cyc += cur.cpu_cyc - prev.cpu_cyc;
+		sfd->cntpct += cur.cntpct - prev.cntpct;
+	} else {
+		/*
+		 * Update the counters upon exiting idle without accumulating
+		 * frequency data, in order to disregard all statistics from the
+		 * period when the CPU was idle. This is because the system
+		 * timer keeps incrementing while the CPU is idle, while the
+		 * cycle counter doesn't because the CPU clock is gated in idle.
+		 */
+		pmu_get_stats(&cur);
+		raw_spin_lock(&pmu->lock);
+		pmu->cur = cur;
+		raw_spin_unlock(&pmu->lock);
+	}
+}
+
 static void tensor_aio_idle_enter(void *data, int *state,
 				  struct cpuidle_device *dev)
 {
-	int cpu = raw_smp_processor_id();
-	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
-	struct pmu_stat cur, prev = pmu->cur;
-
-	/* Don't race with CPU hotplug which creates/destroys the perf events */
-	if (unlikely(in_reboot || !cpu_active(cpu)))
-		return;
-
-	/* Update the current counters one last time before idling */
-	pmu_get_stats(&cur);
-	raw_spin_lock(&pmu->lock);
-	pmu->cur = cur;
-	raw_spin_unlock(&pmu->lock);
-
-	/* Accumulate data for calculating the CPU's frequency */
-	pmu->sfd.cpu_cyc += cur.cpu_cyc - prev.cpu_cyc;
-	pmu->sfd.cntpct += cur.cntpct - prev.cntpct;
+	tensor_aio_cpu_idle(raw_smp_processor_id(), true);
 }
 
 static void tensor_aio_idle_exit(void *data, int state,
 				 struct cpuidle_device *dev)
 {
-	int cpu = raw_smp_processor_id();
-	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
-	struct pmu_stat cur;
-
-	/* Don't race with CPU hotplug or reboot */
-	if (unlikely(in_reboot || !cpu_active(cpu))) {
-		/* Reset the sfd statistics since they'll be wrong */
-		pmu->sfd.cpu_cyc = pmu->sfd.cntpct = 0;
-		return;
-	}
-
-	/* Update the current counters without updating sfd (scale_freq_data) */
-	pmu_get_stats(&cur);
-	raw_spin_lock(&pmu->lock);
-	pmu->cur = cur;
-	raw_spin_unlock(&pmu->lock);
+	tensor_aio_cpu_idle(raw_smp_processor_id(), false);
 }
 
 static int memperf_cpuhp_up(unsigned int cpu)
