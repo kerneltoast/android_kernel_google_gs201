@@ -912,7 +912,14 @@ static bool memperf_work(void)
 
 	/*
 	 * Reset the statistics for all CPUs by setting the start of the next
-	 * sample window to the current counter values.
+	 * sample window to the current counter values. This is done after all
+	 * voting takes place to ensure that all future measurements occur with
+	 * the updated votes; i.e., so that there isn't any stale data from
+	 * before memperfd altered the MIF frequency. This intentionally
+	 * discards any measurements that may have occurred between when the
+	 * statistics were read in the loop above and now. Although this is a
+	 * somewhat costly way of resetting all statistics, it is better than
+	 * adding additional code to the hot path where statistics are gathered.
 	 */
 	for_each_cpu(cpu, &cpus) {
 		struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
