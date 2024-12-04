@@ -175,7 +175,7 @@ static atomic_long_t last_run_jiffies = ATOMIC_INIT(0);
 static DECLARE_SWAIT_QUEUE_HEAD(memperfd_waitq);
 static DEFINE_PER_CPU_READ_MOSTLY(struct cpufreq_policy, cached_pol);
 static unsigned int dsu_scale_factor __read_mostly __maybe_unused;
-static bool in_reboot __read_mostly;
+static DEFINE_STATIC_KEY_FALSE(system_rebooting);
 static int cpuhp_state;
 
 /*
@@ -461,7 +461,7 @@ static void tensor_aio_cpu_idle(int cpu, bool idle)
 	struct pmu_stat cur, prev;
 
 	/* Don't race with reboot */
-	if (unlikely(in_reboot))
+	if (static_branch_unlikely(&system_rebooting))
 		return;
 
 	/* Don't race with CPU hotplug */
@@ -1465,10 +1465,10 @@ static int memperf_reboot(struct notifier_block *notifier, unsigned long val,
 	 * This also needs to kick all CPUs to ensure that the cpuidle hooks
 	 * aren't running anymore. kick_all_cpus_sync() executes a full memory
 	 * barrier before kicking all CPUs; after it finishes, it's guaranteed
-	 * that the cpuidle hooks will observe `is_reboot == true` and thus
-	 * won't attempt to read PMU registers anymore.
+	 * that the cpuidle hooks will observe `system_rebooting == true` and
+	 * thus won't attempt to read PMU registers anymore.
 	 */
-	in_reboot = true;
+	static_branch_enable(&system_rebooting);
 	kick_all_cpus_sync();
 	topology_clear_scale_freq_source(SCALE_FREQ_SOURCE_ARCH,
 					 cpu_possible_mask);
