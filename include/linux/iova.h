@@ -40,6 +40,10 @@ struct iova_domain {
 	struct iova_rcache	*rcaches;
 	struct hlist_node	cpuhp_dead;
 
+#if IS_ENABLED(CONFIG_IOVAD_VENDOR_HOOKS)
+	u64		val;
+#endif
+
 	ANDROID_VENDOR_DATA(1);
 };
 

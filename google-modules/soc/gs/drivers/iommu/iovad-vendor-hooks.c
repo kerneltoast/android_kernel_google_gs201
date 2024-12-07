@@ -28,7 +28,7 @@ static void iommu_limit_align_shift(void *unused, struct iova_domain *iovad, uns
 	unsigned long max_align_shift;
 	union iovad_vendor_hooks iovad_hooks;
 
-	iovad_hooks.val = iovad->android_vendor_data1;
+	iovad_hooks.val = iovad->val;
 	// if not set "iommu-max-align-shift", keep *shift untouched and return
 	if (!iovad_hooks.enable_max_align)
 		return;
@@ -142,7 +142,7 @@ static void iommu_alloc_insert_iova(void *unused, struct iova_domain *iovad, uns
 	if (!iovad || !ret)
 		return;
 
-	iovad_hooks.val = iovad->android_vendor_data1;
+	iovad_hooks.val = iovad->val;
 	if (!iovad_hooks.enable_best_fit) {
 		// use default
 		*ret = 1;
@@ -169,7 +169,7 @@ static void iommu_iovad_init_alloc_algo(void *unused, struct device *dev, struct
 		dev_info(dev, "IOVA max alignment shift %u\n", iovad_hooks.max_align_shift);
 	}
 
-	iovad->android_vendor_data1 = iovad_hooks.val;
+	iovad->val = iovad_hooks.val;
 }
 
 static int __init iovad_vendor_hooks_init(void)
