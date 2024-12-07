@@ -113,7 +113,7 @@ static void iommu_alloc_insert_iova(void *unused, struct iova_domain *iovad, uns
 	if (!iovad || !ret)
 		return;
 
-	if (iovad->android_vendor_data1 == 0) {
+	if (!iovad->best_fit) {
 		// use default
 		*ret = 1;
 		return;
@@ -126,7 +126,7 @@ static void iommu_iovad_init_alloc_algo(void *unused, struct device *dev, struct
 {
 	if (of_property_read_bool(dev->of_node, "iommu-best-fit-algo") ||
 	    of_property_read_bool(dev->of_node, "lwis,iommu-best-fit-algo")) {
-		iovad->android_vendor_data1 = 1;
+		iovad->best_fit = true;
 		dev_info(dev, "using IOVA best fit algorithm.");
 	}
 }
