@@ -21,6 +21,7 @@
 #include <linux/pm_opp.h>
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
+#include <linux/tensor_aio.h>
 
 #include <soc/google/cal-if.h>
 #include <soc/google/ect_parser.h>
@@ -203,6 +204,11 @@ static void apply_thermal_pressure(struct exynos_cpufreq_domain *domain,
 		return;
 
 	maskp = &domain->cpus;
+
+	if (IS_ENABLED(CONFIG_ARM_TENSOR_AIO_DEVFREQ)) {
+		tensor_aio_cpufreq_pressure(cpumask_any(maskp), capped_freq);
+		return;
+	}
 
 	spin_lock(&domain->thermal_update_lock);
 	if (domain->capped_freq[thermal_actor] != capped_freq) {
