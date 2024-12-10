@@ -11,6 +11,7 @@
 #include <linux/reboot.h>
 #include <linux/units.h>
 #include <linux/sched/cputime.h>
+#include <cpufreq/exynos-acme.h>
 #include <soc/google/acpm/acpm_ipc.h>
 #include <soc/google/cal-if.h>
 #include <soc/google/ect_parser.h>
@@ -231,6 +232,31 @@ static void calc_cntpct_arith(void)
 	/* Compute all nanosecond time intervals in terms of CNTPCT_EL0 ticks */
 	cpu_min_sample_cntpct = ns_to_cntpct(cpu_min_sample_cntpct);
 }
+
+enum cpu_throttle_src {
+	CPU_CPUFREQ_THROTTLE,
+#ifdef CONFIG_SOC_ZUMA
+	CPU_TMU_THROTTLE,
+#endif
+	MAX_CPU_THROTTLE_SRCS
+};
+
+struct throt_data {
+	struct list_head node;
+	raw_spinlock_t throt_lock;
+	struct exynos_cpufreq_domain *domain;
+	unsigned int cap[MAX_CPU_THROTTLE_SRCS];
+	int cpu;
+};
+
+/*
+ * domain_throt_data is guaranteed to be initialized for all CPUs before Tensor
+ * AIO starts because tensor_aio_init_cpu_domain() is called during cpufreq init
+ * in exynos-acme, and the cache_cpu_policy() check in our probe routine forces
+ * probing to be deferred until all CPUs are registered with cpufreq.
+ */
+static DEFINE_PER_CPU_READ_MOSTLY(struct throt_data *, domain_throt_data);
+static LIST_HEAD(domain_throt_list);
 
 enum pmu_events {
 	CPU_CYCLES,
@@ -539,22 +565,99 @@ static u32 find_cpu_freq(struct cpufreq_policy *pol, u64 khz, u32 relation)
 	return tbl[idx].frequency;
 }
 
-static void update_thermal_pressure(void)
+void tensor_aio_init_cpu_domain(struct exynos_cpufreq_domain *domain)
 {
-#ifdef CONFIG_SOC_ZUMA
-	unsigned int gs_tmu_throt_freq(int cpu);
-	int cpu = raw_smp_processor_id();
-	struct cpufreq_policy *pol = cpufreq_cpu_get_raw(cpu);
-	unsigned long capped_freq;
+	struct throt_data *t;
+	int cpu;
 
-	if (unlikely(!pol))
+	t = kmalloc(sizeof(*t), GFP_KERNEL | __GFP_NOFAIL);
+	memset32(t->cap, UINT_MAX, ARRAY_SIZE(t->cap));
+	raw_spin_lock_init(&t->throt_lock);
+	t->cpu = cpumask_first(&domain->cpus);
+	t->domain = domain;
+
+	/*
+	 * Store a pointer to the clock domain's throttle data for each CPU for
+	 * quick translation from a CPU number to its domain.
+	 */
+	for_each_cpu(cpu, &domain->cpus)
+		per_cpu(domain_throt_data, cpu) = t;
+
+	/* Make a list so each CPU can refresh the TMU throttle for all CPUs */
+	list_add_tail(&t->node, &domain_throt_list);
+}
+
+/* Must be called with t->throt_lock held */
+static void update_thermal_pressure(struct throt_data *t,
+				    enum cpu_throttle_src src, unsigned int cap)
+{
+	unsigned int capped_freq = UINT_MAX;
+	int i;
+
+	/*
+	 * Update the thermal pressure for the designated source if it's
+	 * different, and then aggregate the thermal pressure applied by all
+	 * sources. This updates all CPUs within the same clock domain.
+	 */
+	if (t->cap[src] == cap)
 		return;
 
-	/* Refresh the thermal pressure with the TMU's current throttle freq */
-	capped_freq = min(gs_tmu_throt_freq(cpu), pol->max);
-	arch_update_thermal_pressure(cpumask_of(cpu), capped_freq);
-#endif
+	t->cap[src] = cap;
+	for (i = 0; i < ARRAY_SIZE(t->cap); i++) {
+		if (t->cap[i] < capped_freq)
+			capped_freq = t->cap[i];
+	}
+	arch_update_thermal_pressure(&t->domain->cpus, capped_freq);
 }
+
+void tensor_aio_cpufreq_pressure(int cpu, unsigned int cap)
+{
+	struct throt_data *t = per_cpu(domain_throt_data, cpu);
+	unsigned long flags;
+
+	/* Update the throttle set via cpufreq policy (e.g., via sysfs) */
+	raw_spin_lock_irqsave(&t->throt_lock, flags);
+	update_thermal_pressure(t, CPU_CPUFREQ_THROTTLE, cap);
+	raw_spin_unlock_irqrestore(&t->throt_lock, flags);
+}
+
+#ifdef CONFIG_SOC_ZUMA
+/* Must be called with t->throt_lock held */
+static void update_tmu_throttle(struct throt_data *t)
+{
+	unsigned int gs_tmu_throt_freq(int cpu);
+	unsigned int freq = gs_tmu_throt_freq(t->cpu);
+	struct cpufreq_policy *pol = &per_cpu(cached_pol, t->cpu);
+
+	/*
+	 * Get the throttle reported by TMU under the domain lock to report the
+	 * latest TMU throttle for all CPUs in the domain. Let freq be UINT_MAX
+	 * when there's no throttling at all.
+	 */
+	if (freq >= pol->cpuinfo.max_freq)
+		freq = UINT_MAX;
+
+	update_thermal_pressure(t, CPU_TMU_THROTTLE, freq);
+}
+
+static void update_tmu_throttle_all(void)
+{
+	struct throt_data *t;
+
+	/*
+	 * Update the TMU throttle for all CPU domains. This is helpful for when
+	 * all CPUs in a domain are idle and thus cannot do the update
+	 * themselves, which can potentially leave the entire domain with a
+	 * stale thermal pressure. As a result, the scheduler may not prefer
+	 * waking such CPUs out of idle if it sees that they're throttled.
+	 */
+	list_for_each_entry(t, &domain_throt_list, node) {
+		raw_spin_lock(&t->throt_lock);
+		update_tmu_throttle(t);
+		raw_spin_unlock(&t->throt_lock);
+	}
+}
+#endif
 
 /* The sfd helpers must be called with sfd->lock held */
 static void reset_sfd_data(struct sfd_data *sfd)
@@ -685,7 +788,15 @@ void tensor_aio_update_rq_clock(struct rq *rq)
  */
 static void tensor_aio_tick(void)
 {
-	update_thermal_pressure();
+#ifdef CONFIG_SOC_ZUMA
+	/*
+	 * Update the TMU throttle for all CPU domains, so they don't get stuck
+	 * appearing to the scheduler as throttled when they're all idle.
+	 */
+	update_tmu_throttle_all();
+#endif
+
+	/* Kick memperfd if it's time for it to run */
 	kick_memperfd();
 }
 
