@@ -37,6 +37,19 @@ struct exynos_cpufreq_file_operations {
 	unsigned int			default_value;
 };
 
+#ifdef CONFIG_ARM_TENSOR_AIO_DEVFREQ
+struct exynos_acme_rate {
+	u64 set_time;
+	unsigned int freq;
+};
+
+struct exynos_cpufreq_domain;
+void exynos_acme_rate_info(struct exynos_cpufreq_domain *domain,
+			   struct exynos_acme_rate *r);
+void exynos_acme_rate_latched(struct exynos_cpufreq_domain *domain,
+			      const struct exynos_acme_rate *cookie);
+#endif
+
 enum thermal_actors {
 	TJ = 0,
 	TSKIN = 1
@@ -97,6 +110,11 @@ struct exynos_cpufreq_domain {
 	unsigned long capped_freq[NR_THERMAL_ACTORS];
 	char capped_freq_name[NR_THERMAL_ACTORS][THERMAL_PRESSURE_STR_LEN];
 	unsigned int ect_table_offset;
+
+#ifdef CONFIG_ARM_TENSOR_AIO_DEVFREQ
+	struct exynos_acme_rate rate_info;
+	rwlock_t rate_info_lock;
+#endif
 };
 
 /*
