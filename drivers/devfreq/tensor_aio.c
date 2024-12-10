@@ -63,13 +63,16 @@ struct cpu_pmu {
 	struct pmu_stat cur;
 	struct pmu_stat prev;
 	struct sfd_data {
+		raw_spinlock_t lock;
 		u64 cpu_cyc;
 		u64 const_cyc;
+		bool stale;
 	} sfd; /* Scale Frequency Data */
 };
 
 static DEFINE_PER_CPU(struct cpu_pmu, cpu_pmu_evs) = {
-	.lock = __RAW_SPIN_LOCK_UNLOCKED(cpu_pmu_evs.lock)
+	.lock = __RAW_SPIN_LOCK_UNLOCKED(cpu_pmu_evs.lock),
+	.sfd.lock = __RAW_SPIN_LOCK_UNLOCKED(cpu_pmu_evs.sfd.lock)
 };
 
 enum exynos_dev {
@@ -181,7 +184,7 @@ static atomic_long_t last_run_jiffies = ATOMIC_INIT(0);
 static DECLARE_SWAIT_QUEUE_HEAD(memperfd_waitq);
 static DEFINE_PER_CPU_READ_MOSTLY(struct cpufreq_policy, cached_pol);
 static unsigned int dsu_scale_factor __read_mostly __maybe_unused;
-static DEFINE_STATIC_KEY_FALSE(system_rebooting);
+static DEFINE_STATIC_KEY_FALSE(system_ready);
 static int cpuhp_state;
 
 /*
@@ -553,59 +556,136 @@ static void update_thermal_pressure(void)
 #endif
 }
 
+/* The sfd helpers must be called with sfd->lock held */
 static void reset_sfd_data(struct sfd_data *sfd)
 {
-	sfd->cpu_cyc = sfd->const_cyc = 0;
+	sfd->cpu_cyc = sfd->const_cyc = sfd->stale = 0;
 }
 
 static void add_sfd_data(struct sfd_data *sfd, const struct pmu_stat *cur,
 			 const struct pmu_stat *prev)
 {
+	u64 delta_const_cyc = cur->const_cyc - prev->const_cyc;
+
+	/*
+	 * Check the delta since the last reading and ditch any stale readings
+	 * if this sample window is sufficiently large.
+	 */
+	if (sfd->stale && delta_const_cyc >= cpu_min_sample_cntpct)
+		reset_sfd_data(sfd);
+
 	/* Accumulate data for calculating the CPU's frequency */
 	sfd->cpu_cyc += cur->cpu_cyc - prev->cpu_cyc;
-	sfd->const_cyc += cur->const_cyc - prev->const_cyc;
+	sfd->const_cyc += delta_const_cyc;
 }
 
-static void update_freq_scale(void)
+static void update_freq_scale(int cpu, struct rq *rq, bool local_cpu)
 {
-	int cpu = raw_smp_processor_id();
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
 	struct sfd_data *sfd = &pmu->sfd;
 	struct pmu_stat cur, prev;
 
-	pmu_update_stats(pmu, &cur, &prev);
-	add_sfd_data(sfd, &cur, &prev);
+	if (local_cpu)
+		pmu_update_stats(pmu, &cur, &prev);
+
+	/*
+	 * Don't race with remote CPUs which may update the current CPU's
+	 * runqueue clock and thus access sfd in parallel, and vice versa.
+	 */
+	raw_spin_lock(&sfd->lock);
+	if (local_cpu)
+		add_sfd_data(sfd, &cur, &prev);
 
 	/*
 	 * Set the CPU frequency scale measured via counters if enough data is
-	 * present. This excludes idle time because although the cycle counter
-	 * stops incrementing while the CPU idles, the system timer doesn't.
+	 * present for the runqueue that's getting its clock updated (and thus
+	 * about to use the frequency scale). This excludes idle time because
+	 * although the cycle counter stops incrementing while the CPU idles,
+	 * the system timer doesn't.
 	 */
-	if (sfd->const_cyc >= cpu_min_sample_cntpct) {
-		struct cpufreq_policy *pol = &per_cpu(cached_pol, cpu);
-		u64 freq, max_freq = pol->cpuinfo.max_freq;
-		u64 ns = cntpct_to_ns(sfd->const_cyc);
+	if (rq->cpu == cpu) {
+		if (sfd->const_cyc >= cpu_min_sample_cntpct) {
+			struct cpufreq_policy *pol = &per_cpu(cached_pol, cpu);
+			u64 freq, max_freq = pol->cpuinfo.max_freq;
+			u64 ns = cntpct_to_ns(sfd->const_cyc);
 
-		/* Report the measured frequency and reset the stats */
-		freq = min(max_freq, USEC_PER_SEC * sfd->cpu_cyc / ns);
-		per_cpu(arch_freq_scale, cpu) =
-			SCHED_CAPACITY_SCALE * freq / max_freq;
-		reset_sfd_data(sfd);
+			/* Report the measured frequency and reset the stats */
+			freq = min(max_freq, USEC_PER_SEC * sfd->cpu_cyc / ns);
+			per_cpu(arch_freq_scale, cpu) =
+				SCHED_CAPACITY_SCALE * freq / max_freq;
+			reset_sfd_data(sfd);
+		} else if (sfd->const_cyc) {
+			/*
+			 * Track that the sfd statistics now contain stale data,
+			 * since the frequency measurement won't perfectly
+			 * correlate to the runqueue clock update window
+			 * anymore. Keeping stale data for a previous window
+			 * technically perpetuates this inaccuracy, but it is
+			 * better than being unable to update the CPU frequency
+			 * scale due to not having accumulated enough data. The
+			 * stale data won't be used if the next window is long
+			 * enough to compute the CPU's frequency.
+			 */
+			sfd->stale = true;
+		}
 	}
+	raw_spin_unlock(&sfd->lock);
+
+	/*
+	 * Update the frequency scale data for the remote CPU when the updated
+	 * runqueue doesn't belong to this CPU. This recursion is bounded.
+	 */
+	if (rq->cpu != cpu)
+		update_freq_scale(rq->cpu, rq, false);
 }
 
 /*
- * The scheduler tick is used as a passive way to collect statistics on all
- * CPUs. Collecting statistics with per-CPU timers would result in the cpuidle
- * governor predicting imminent wakeups and thus selecting a shallower idle
- * state, to the detriment of power consumption. When CPUs aren't active,
- * there's no need to collect any statistics, so memperfd is designed to only
- * run when there's CPU activity.
+ * Called from update_rq_clock(), just before update_rq_clock_task(). This way,
+ * the CPU's frequency scale info has a chance to get updated just before it is
+ * used by update_rq_clock_pelt() for computing load.
+ */
+void tensor_aio_update_rq_clock(struct rq *rq)
+{
+	int cpu = raw_smp_processor_id();
+
+	/* Don't race with reboot or probe, since this isn't a vendor hook */
+	if (!static_branch_unlikely(&system_ready))
+		return;
+
+	/* Don't race with CPU hotplug for this CPU or the runqueue's CPU */
+	if (unlikely(!cpu_active(cpu) || !cpu_active(rq->cpu)))
+		return;
+
+	/*
+	 * Update the local CPU's frequency scale info, even if the runqueue in
+	 * question doesn't belong to the current CPU. This way, any runqueue
+	 * clock updates for remote CPUs will have fresh counter data, for when
+	 * the current CPU's runqueue is the one being updated remotely.
+	 *
+	 * This also handles updating the frequency scale info for the remote
+	 * CPU if the runqueue is indeed remote.
+	 *
+	 * Although the measured CPU frequency is ignored by PELT for the idle
+	 * task, measurements are still allowed inside the idle task so that IRQ
+	 * load average can still be tracked accurately for interrupts which
+	 * fire while the idle task runs. There is otherwise no point to
+	 * measuring CPU frequency within the idle task. PELT only cares about
+	 * precisely tracking non-idle tasks' runtime, which it does in terms of
+	 * time a task consumed relative to CPU frequency, so that the scheduler
+	 * can accurately calculate the load of each actual task.
+	 */
+	update_freq_scale(cpu, rq, true);
+}
+
+/*
+ * The scheduler tick is used to kick memperfd to evaluate statistics gathered
+ * through the callback installed in update_rq_clock(). There's no scheduler
+ * tick when CPUs aren't active, so memperfd is designed to only run when
+ * there's CPU activity.
  */
 static void tensor_aio_tick(void)
 {
 	update_thermal_pressure();
-	update_freq_scale();
 	kick_memperfd();
 }
 
@@ -621,7 +701,7 @@ static void tensor_aio_cpu_idle(int cpu, bool idle)
 	struct pmu_stat cur, prev;
 
 	/* Don't race with reboot */
-	if (static_branch_unlikely(&system_rebooting))
+	if (!static_branch_unlikely(&system_ready))
 		return;
 
 	/* Don't race with CPU hotplug */
@@ -633,7 +713,9 @@ static void tensor_aio_cpu_idle(int cpu, bool idle)
 		pmu_update_stats(pmu, &cur, &prev);
 
 		/* Accumulate data for calculating the CPU's frequency */
+		raw_spin_lock(&sfd->lock);
 		add_sfd_data(sfd, &cur, &prev);
+		raw_spin_unlock(&sfd->lock);
 	} else {
 		/*
 		 * For CPUs which don't support AMU const cycles: update the
@@ -674,13 +756,16 @@ static int memperf_cpuhp_up(unsigned int cpu)
 
 	/*
 	 * Update and reset the statistics for this CPU as it comes online. No
-	 * need to disable interrupts since tensor_aio_tick() isn't running yet,
-	 * so pmu->lock can't be acquired from hard IRQ context right now.
+	 * need to take any locks since `cpu_active(cpu) == false` (except in
+	 * memperfd_init()), so no shared data can be accessed concurrently with
+	 * the hotplug handler. Disabling IRQs when reading the PMU statistics
+	 * is needed to prevent interrupts from firing during the measurement
+	 * and thus skewing the data.
 	 */
-	raw_spin_lock(&pmu->lock);
+	local_irq_disable();
 	pmu_get_stats(&pmu->cur);
+	local_irq_enable();
 	pmu->prev = pmu->cur;
-	raw_spin_unlock(&pmu->lock);
 	reset_sfd_data(sfd);
 
 	/* Install tensor_aio_tick() */
@@ -828,6 +913,9 @@ static void memperfd_init(void)
 							NULL));
 	BUG_ON(register_trace_android_vh_cpu_idle_exit(tensor_aio_idle_exit,
 						       NULL));
+
+	/* Begin updating CPU scheduler statistics from update_rq_clock() */
+	static_branch_enable(&system_ready);
 
 	/* Initialize and start the PPCs */
 	ppc_write_regs(ppc_init_cmd, ARRAY_SIZE(ppc_init_cmd));
@@ -1051,10 +1139,7 @@ static bool memperf_work(void)
 		}
 		raw_spin_unlock_irq(&pmu->lock);
 
-		/*
-		 * Skip CPUs with incomplete statistics, like CPUs that have
-		 * been idle for a while and thus have had their tick suspended.
-		 */
+		/* Skip CPUs that have been idle for a while */
 		if (!stat.cpu_cyc || !stat.mem_cyc || !stat.cntpct)
 			continue;
 
@@ -1625,20 +1710,23 @@ static int memperf_reboot(struct notifier_block *notifier, unsigned long val,
 			  void *cmd)
 {
 	/*
-	 * Unregister tensor_aio_tick() on all CPUs in order to prevent PMU
-	 * register access after kvm_reboot() runs. PMU registers must not be
-	 * accessed after kvm_reboot() finishes; attempting to do so will fault.
+	 * Kill tensor_aio_tick() on all CPUs to stop kicking memperfd, and
+	 * disable `system_ready` to prevent further PMU register access
+	 * after this. PMU registers must not be accessed after kvm_reboot()
+	 * finishes; attempting to do so will fault.
 	 *
-	 * This also needs to kick all CPUs to ensure that the cpuidle hooks
-	 * aren't running anymore. kick_all_cpus_sync() executes a full memory
-	 * barrier before kicking all CPUs; after it finishes, it's guaranteed
-	 * that the cpuidle hooks will observe `system_rebooting == true` and
-	 * thus won't attempt to read PMU registers anymore.
+	 * This also needs to kick all CPUs to ensure that the scheduler and
+	 * cpuidle hooks aren't running anymore. This works because the hooks
+	 * themselves are always called from IRQs-disabled context, so when the
+	 * IPI kick goes through it means that all in-flight IRQs-disabled
+	 * contexts are done executing. Thus, once kick_all_cpus_sync() returns,
+	 * it is guaranteed that all hooks which may read PMU registers will
+	 * observe `system_ready == false`.
 	 */
-	static_branch_enable(&system_rebooting);
-	kick_all_cpus_sync();
 	topology_clear_scale_freq_source(SCALE_FREQ_SOURCE_ARCH,
 					 cpu_possible_mask);
+	static_branch_disable(&system_ready);
+	kick_all_cpus_sync();
 	cpuhp_remove_state_nocalls(cpuhp_state);
 	return NOTIFY_OK;
 }
