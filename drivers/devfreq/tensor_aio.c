@@ -48,18 +48,22 @@ static u64 cpu_min_sample_cntpct __read_mostly = 100 * NSEC_PER_USEC;
 /* The name of our governor exposed to devfreq */
 #define DEVFREQ_GOV_TENSOR_AIO "tensor_aio"
 
-/* The PMU (Performance Monitor Unit) event statistics */
+/* The PMU/AMU event stats. Order is assumed by the *pmu_read() functions. */
 struct pmu_stat {
+	u64 cntpct;
+	u64 const_cyc;
 	u64 cpu_cyc;
 	u64 mem_cyc;
-	u64 cntpct;
 };
 
 struct cpu_pmu {
 	raw_spinlock_t lock;
 	struct pmu_stat cur;
 	struct pmu_stat prev;
-	struct pmu_stat sfd;
+	struct sfd_data {
+		u64 cpu_cyc;
+		u64 const_cyc;
+	} sfd; /* Scale Frequency Data */
 };
 
 static DEFINE_PER_CPU(struct cpu_pmu, cpu_pmu_evs) = {
@@ -240,6 +244,43 @@ struct cpu_pmu_evt {
 
 static DEFINE_PER_CPU(struct cpu_pmu_evt, pevt_pcpu);
 
+static __always_inline bool cpu_cortex_a55_or_a76(int cpu)
+{
+	return (IS_ENABLED(CONFIG_SOC_GS201) && cpu < 4) ||
+	       (IS_ENABLED(CONFIG_SOC_GS101) && cpu < 6);
+}
+
+static __always_inline bool cpu_supports_amu_const(int cpu)
+{
+	/*
+	 * Zumapro supports AMU const cycles on all cores, while
+	 * zuma supports AMU const cycles on all but the Cortex-A510 cores due
+	 * to ARM erratum 2457168.
+	 */
+	return IS_ENABLED(CONFIG_SOC_ZUMAPRO) ? true : cpu > 4;
+}
+
+static __always_inline unsigned long cpu_pmu_evt_en_mask(int cpu)
+{
+	/* Zumapro has fully-functioning AMU events */
+	if (IS_ENABLED(CONFIG_SOC_ZUMAPRO))
+		return 0;
+
+	/*
+	 * Zuma can read STALL_BACKEND_MEM via AMU but on the Cortex-X3 core
+	 * there is a quirk where the AMU event always returns zero after a
+	 * hotplug. This can be worked around by creating a perf event
+	 * specifically for the STALL_BACKEND_MEM counter on the Cortex-X3. The
+	 * perf event must be created and released across Cortex-X3 hotplugs,
+	 * and then the AMU event will work correctly.
+	 */
+	if (IS_ENABLED(CONFIG_SOC_ZUMA))
+		return cpu == 8 ? BIT(STALL_BACKEND_MEM) : 0;
+
+	/* Gsx01 doesn't support AMU events at all */
+	return BIT(CPU_CYCLES) | BIT(STALL_BACKEND_MEM);
+}
+
 static struct perf_event *create_pev(struct perf_event_attr *attr, int cpu)
 {
 	return perf_event_create_kernel_counter(attr, cpu, NULL, NULL, NULL);
@@ -248,9 +289,10 @@ static struct perf_event *create_pev(struct perf_event_attr *attr, int cpu)
 static void release_perf_events(int cpu)
 {
 	struct cpu_pmu_evt *cpev = &per_cpu(pevt_pcpu, cpu);
+	unsigned long en_mask = cpu_pmu_evt_en_mask(cpu);
 	int i;
 
-	for (i = 0; i < PMU_EVT_MAX; i++) {
+	for_each_set_bit(i, &en_mask, PMU_EVT_MAX) {
 		if (IS_ERR(cpev->pev[i]))
 			break;
 
@@ -271,20 +313,20 @@ static int create_perf_events(int cpu)
 		 */
 		.config1 = 0x1
 	};
+	unsigned long en_mask = cpu_pmu_evt_en_mask(cpu);
 	int i;
 
-	for (i = 0; i < PMU_EVT_MAX; i++) {
-		attr.config = pmu_evt_id[i];
+	for_each_set_bit(i, &en_mask, PMU_EVT_MAX) {
 		/*
 		 * Cortex-A55 and Cortex-A76 don't support STALL_BACKEND_MEM, so
-		 * use STALL_BACKEND as a poor man's alternative. We divide this
-		 * value by two in read_perf_event() in order to get a close
-		 * guess of how many stalled cycles are due to memory.
+		 * use STALL_BACKEND as a poor man's alternative. The value from
+		 * STALL_BACKEND is divided by two in gsx01_pmu_read() to get a
+		 * close guess of how many stalled cycles are due to memory.
 		 */
-		if (i == STALL_BACKEND_MEM &&
-		    ((IS_ENABLED(CONFIG_SOC_GS101) && cpu < 6) ||
-		     (IS_ENABLED(CONFIG_SOC_GS201) && cpu < 4)))
+		if (i == STALL_BACKEND_MEM && cpu_cortex_a55_or_a76(cpu))
 			attr.config = ARMV8_PMUV3_PERFCTR_STALL_BACKEND;
+		else
+			attr.config = pmu_evt_id[i];
 		cpev->pev[i] = create_pev(&attr, cpu);
 		if (WARN_ON(IS_ERR(cpev->pev[i])))
 			goto release_pevs;
@@ -297,43 +339,158 @@ release_pevs:
 	return PTR_ERR(cpev->pev[i]);
 }
 
-static u64 read_perf_event(enum pmu_events evt)
+/*
+ * These are the optimized functions for reading the PMU/AMU event counters for
+ * each supported SoC.
+ *
+ * The generic timer counter (CNTPCT_EL0) is read directly for the lowest
+ * possible latency incurred from reading the current time, as well as the
+ * greatest precision since we can convert the number of ticks into nanoseconds
+ * without sched_clock()'s approximation that aims to do the conversion as
+ * quickly as possible at a loss of precision. The preceeding ISB prevents
+ * speculative reads of the counter register, though is unnecessary when
+ * CNTPCTSS_EL0 is available (which is indicated at runtime via ARM64_HAS_ECV).
+ *
+ * Next, the constant cycles counter is read. On CPUs which don't support the
+ * AMU constant cycles event, the value from the generic timer counter is used
+ * instead. The AMU constant cycles event is useful because it always stops
+ * incrementing when the CPU is in WFE/WFI, which can be entered from a number
+ * of places in the kernel besides cpuidle, such as __delay(). CPUs which don't
+ * support AMU constant cycles only account for WFI from cpuidle; as a result,
+ * the CPU frequency calculation for such CPUs may be lower than expected. This
+ * is because of unaccounted WFE/WFI activity, since the generic timer counter
+ * doesn't stop incrementing in WFE/WFI. This isn't typically a huge problem,
+ * but it's worth noting.
+ *
+ * Then, the CPU cycles and memory stall cycles are read from AMU event counters
+ * on CPUs which support AMU. On gsx01 where this isn't the case, these values
+ * are read directly from the PMU event counter registers configured by the
+ * PMUv3 driver. This is done directly in assembly rather than using the perf
+ * event API in order to achieve the best possible accuracy, since any delays
+ * between the counter reads injects inaccuracy into later calculations
+ * performed on these values.
+ *
+ * A succeeding ISB ensures all counter register reads are complete before the
+ * CPU proceeds. Any instruction reordering within the ISBs is of negligible
+ * consequence, so no barriers are used in between the counter reads.
+ *
+ * These functions must be noinline in order to force the compiler to align them
+ * to an L1 cache line. The goal is to fit all of the MRS instructions in each
+ * function into the same cache line, to avoid timing discrepancies between one
+ * MRS and another. A stall due to a cache line fill to get the next MRS can
+ * influence calculations using these readings; e.g., if the current time is
+ * read first and then the current number of CPU cycles is read next after a
+ * stall due to fetching the instruction from beyond L1, the resulting CPU
+ * frequency calculation from these figures would produce a higher result than
+ * expected.
+ *
+ * None of these functions have stack-allocated variables. Therefore, the
+ * prologue of each function may consist of up to two instructions: BTI and
+ * PACIASP, from CONFIG_ARM64_BTI_KERNEL and CONFIG_ARM64_PTR_AUTH_KERNEL,
+ * respectively. This leaves room for six instructions to be guaranteed to fit
+ * within the same cache line as the prologue, which is enough to cover all MRS
+ * instruction sequences for every SoC, including ISBs.
+ *
+ * The resulting counter values are stored into a `struct pmu_stat` using a
+ * compound literal to encourage the compiler to reorder or coalesce the stores
+ * as it sees fit, without being constrained by any explicit store ordering
+ * declared at compile time (e.g., `stat->foo = foo; stat->bar = bar; ...`).
+ */
+static noinline void __aligned(L1_CACHE_BYTES)
+zumapro_pmu_read(struct pmu_stat *stat)
 {
-	struct cpu_pmu_evt *cpev = this_cpu_ptr(&pevt_pcpu);
-	struct perf_event *event = cpev->pev[evt];
-	u64 value;
+	register u64 cntpct, const_cyc, cpu_cyc, mem_cyc;
 
-#ifdef CONFIG_SOC_ZUMA
-	/* Read the AMU registers directly for better speed and precision */
-	switch (evt) {
-	case CPU_CYCLES:
-		return read_sysreg_s(SYS_AMEVCNTR0_CORE_EL0);
-	case STALL_BACKEND_MEM:
-		return read_sysreg_s(SYS_AMEVCNTR0_MEM_STALL);
-	default:
-		break;
-	}
-#endif
+	asm volatile("mrs %0, cntpctss_el0\n\t"
+		     "mrs %1, amevcntr01_el0\n\t"
+		     "mrs %2, amevcntr00_el0\n\t"
+		     "mrs %3, amevcntr03_el0\n\t"
+		     "isb"
+		     : "=r" (cntpct), "=r" (const_cyc), "=r" (cpu_cyc),
+		       "=r" (mem_cyc));
 
-	/* Do a raw read of the PMU event to go as fast as possible */
-	event->pmu->read(event);
-	value = local64_read(&event->count);
-#if defined(CONFIG_SOC_GS101) || defined(CONFIG_SOC_GS201)
+	*stat = (typeof(*stat)){ cntpct, const_cyc, cpu_cyc, mem_cyc };
+}
+
+static noinline void __aligned(L1_CACHE_BYTES)
+zuma_with_const_pmu_read(struct pmu_stat *stat)
+{
+	register u64 cntpct, const_cyc, cpu_cyc, mem_cyc;
+
+	asm volatile("isb\n\t"
+		     "mrs %0, cntpct_el0\n\t"
+		     "mrs %1, amevcntr01_el0\n\t"
+		     "mrs %2, amevcntr00_el0\n\t"
+		     "mrs %3, amevcntr03_el0\n\t"
+		     "isb"
+		     : "=r" (cntpct), "=r" (const_cyc), "=r" (cpu_cyc),
+		       "=r" (mem_cyc));
+
+	*stat = (typeof(*stat)){ cntpct, const_cyc, cpu_cyc, mem_cyc };
+}
+
+static noinline void __aligned(L1_CACHE_BYTES)
+zuma_no_const_pmu_read(struct pmu_stat *stat)
+{
+	register u64 cntpct, cpu_cyc, mem_cyc;
+
+	asm volatile("isb\n\t"
+		     "mrs %0, cntpct_el0\n\t"
+		     "mrs %1, amevcntr00_el0\n\t"
+		     "mrs %2, amevcntr03_el0\n\t"
+		     "isb"
+		     : "=r" (cntpct), "=r" (cpu_cyc), "=r" (mem_cyc));
+
+	*stat = (typeof(*stat)){ cntpct, cntpct, cpu_cyc, mem_cyc };
+}
+
+static noinline void __aligned(L1_CACHE_BYTES)
+gsx01_pmu_read(struct pmu_stat *stat)
+{
+	register u64 cntpct, cpu_cyc, mem_cyc_h, mem_cyc_l;
+
 	/*
-	 * Divide STALL_BACKEND by two for Cortex-A55 and Cortex-A76 since it's
-	 * an overshoot of stalled cycles due to memory.
+	 * Since the perf event is registered on CPU hotplug, we always claim
+	 * the first two PMU registers (PMEVCNTR0_EL0 and PMEVCNTR1_EL0), so we
+	 * can safely assume these are always the correct registers for the
+	 * STALL_BACKEND{_MEM} event. The PMU event count registers are 32 bits
+	 * wide on gsx01, so the STALL_BACKEND{_MEM} event ends up being chained
+	 * using two PMU registers because create_perf_events() requests a
+	 * 64-bit count. The PMUv3 driver configures the PMU to store the lower
+	 * 32 bits in PMEVCNTR0_EL0 and the upper 32 bits in PMEVCNTR1_EL0.
 	 */
-	if (event->attr.config == ARMV8_PMUV3_PERFCTR_STALL_BACKEND)
-		value /= 2;
-#endif
-	return value;
+	asm volatile("isb\n\t"
+		     "mrs %0, cntpct_el0\n\t"
+		     "mrs %1, pmccntr_el0\n\t"
+		     "mrs %2, pmevcntr0_el0\n\t"
+		     "mrs %3, pmevcntr1_el0\n\t"
+		     "isb"
+		     : "=r" (cntpct), "=r" (cpu_cyc), "=r" (mem_cyc_l),
+		       "=r" (mem_cyc_h));
+
+	/*
+	 * Combine the lower and upper bits of STALL_BACKEND{_MEM} together and
+	 * then divide it by two for Cortex-A55 and Cortex-A76 since the
+	 * STALL_BACKEND event is a superset of STALL_BACKEND_MEM.
+	 */
+	mem_cyc_l |= mem_cyc_h << 32;
+	mem_cyc_l >>= cpu_cortex_a55_or_a76(raw_smp_processor_id());
+	*stat = (typeof(*stat)){ cntpct, cntpct, cpu_cyc, mem_cyc_l };
 }
 
 static void pmu_get_stats(struct pmu_stat *stat)
 {
-	stat->cntpct = __arch_counter_get_cntpct();
-	stat->cpu_cyc = read_perf_event(CPU_CYCLES);
-	stat->mem_cyc = read_perf_event(STALL_BACKEND_MEM);
+	/* Read the stats using the matching assembly function */
+	if (IS_ENABLED(CONFIG_SOC_ZUMAPRO)) {
+		zumapro_pmu_read(stat);
+	} else if (IS_ENABLED(CONFIG_SOC_ZUMA)) {
+		if (cpu_supports_amu_const(raw_smp_processor_id()))
+			zuma_with_const_pmu_read(stat);
+		else
+			zuma_no_const_pmu_read(stat);
+	} else {
+		gsx01_pmu_read(stat);
+	}
 }
 
 static __always_inline void pmu_update_stats(struct cpu_pmu *pmu,
@@ -394,24 +551,25 @@ static void update_thermal_pressure(void)
 #endif
 }
 
-static void reset_sfd_data(struct pmu_stat *sfd)
+static void reset_sfd_data(struct sfd_data *sfd)
 {
-	sfd->cpu_cyc = sfd->cntpct = 0;
+	sfd->cpu_cyc = sfd->const_cyc = 0;
 }
 
-static void add_sfd_data(struct pmu_stat *sfd, const struct pmu_stat *cur,
+static void add_sfd_data(struct sfd_data *sfd, const struct pmu_stat *cur,
 			 const struct pmu_stat *prev)
 {
 	/* Accumulate data for calculating the CPU's frequency */
 	sfd->cpu_cyc += cur->cpu_cyc - prev->cpu_cyc;
-	sfd->cntpct += cur->cntpct - prev->cntpct;
+	sfd->const_cyc += cur->const_cyc - prev->const_cyc;
 }
 
 static void update_freq_scale(void)
 {
 	int cpu = raw_smp_processor_id();
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
-	struct pmu_stat cur, prev, *sfd = &pmu->sfd;
+	struct sfd_data *sfd = &pmu->sfd;
+	struct pmu_stat cur, prev;
 
 	pmu_update_stats(pmu, &cur, &prev);
 	add_sfd_data(sfd, &cur, &prev);
@@ -421,10 +579,10 @@ static void update_freq_scale(void)
 	 * present. This excludes idle time because although the cycle counter
 	 * stops incrementing while the CPU idles, the system timer doesn't.
 	 */
-	if (sfd->cntpct >= cpu_min_sample_cntpct) {
+	if (sfd->const_cyc >= cpu_min_sample_cntpct) {
 		struct cpufreq_policy *pol = &per_cpu(cached_pol, cpu);
 		u64 freq, max_freq = pol->cpuinfo.max_freq;
-		u64 ns = cntpct_to_ns(sfd->cntpct);
+		u64 ns = cntpct_to_ns(sfd->const_cyc);
 
 		/* Report the measured frequency and reset the stats */
 		freq = min(max_freq, USEC_PER_SEC * sfd->cpu_cyc / ns);
@@ -457,7 +615,7 @@ static struct scale_freq_data tensor_aio_sfd = {
 static void tensor_aio_cpu_idle(int cpu, bool idle)
 {
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
-	struct pmu_stat *sfd = &pmu->sfd;
+	struct sfd_data *sfd = &pmu->sfd;
 	struct pmu_stat cur, prev;
 
 	/* Don't race with reboot */
@@ -476,13 +634,17 @@ static void tensor_aio_cpu_idle(int cpu, bool idle)
 		add_sfd_data(sfd, &cur, &prev);
 	} else {
 		/*
-		 * Update the counters upon exiting idle without accumulating
-		 * frequency data, in order to disregard all statistics from the
-		 * period when the CPU was idle. This is because the system
-		 * timer keeps incrementing while the CPU is idle, while the
-		 * cycle counter doesn't because the CPU clock is gated in idle.
+		 * For CPUs which don't support AMU const cycles: update the
+		 * counters upon exiting idle without accumulating frequency
+		 * data, in order to disregard all statistics from the period
+		 * when the CPU was idle. This is because the system timer keeps
+		 * incrementing while the CPU is idle, while the cycle counter
+		 * doesn't because the CPU clock is gated in idle. This isn't a
+		 * problem for AMU const cycles because it *does* stop
+		 * incrementing while the CPU is idle.
 		 */
-		pmu_update_stats(pmu, &cur, NULL);
+		if (!cpu_supports_amu_const(cpu))
+			pmu_update_stats(pmu, &cur, NULL);
 	}
 }
 
@@ -501,7 +663,7 @@ static void tensor_aio_idle_exit(void *data, int state,
 static int memperf_cpuhp_up(unsigned int cpu)
 {
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
-	struct pmu_stat *sfd = &pmu->sfd;
+	struct sfd_data *sfd = &pmu->sfd;
 	int ret;
 
 	ret = create_perf_events(cpu);
@@ -638,9 +800,12 @@ static void memperfd_init(void)
 	 * Delete the arch's scale_freq_data callback to get rid of the
 	 * duplicated work by the arch's callback, since we read the same
 	 * values. This also lets the frequency invariance engine work on cores
-	 * with an erratum that breaks the const cycles PMU counter, since we
-	 * don't use const cycles. A new scale_freq_data callback is installed
-	 * in memperf_cpuhp_up().
+	 * that lack the AMU const cycles counter, since we use a workaround for
+	 * such CPUs by using cpuidle callbacks to deduct time spent in WFE/WFI,
+	 * which is good enough despite not tracking WFE/WFI usage outside of
+	 * cpuidle (such as WFE/WFI usage in __delay()).
+	 *
+	 * A new scale_freq_data callback is installed in memperf_cpuhp_up().
 	 */
 	topology_clear_scale_freq_source(SCALE_FREQ_SOURCE_ARCH,
 					 cpu_possible_mask);
