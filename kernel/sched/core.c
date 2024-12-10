@@ -64,6 +64,7 @@
 #include <linux/vtime.h>
 #include <linux/wait_api.h>
 #include <linux/workqueue_api.h>
+#include <linux/tensor_aio.h>
 
 #ifdef CONFIG_PREEMPT_DYNAMIC
 # ifdef CONFIG_GENERIC_ENTRY
@@ -749,6 +750,7 @@ void update_rq_clock(struct rq *rq)
 	delta = sched_clock_cpu(cpu_of(rq)) - rq->clock;
 	if (delta < 0)
 		return;
+	tensor_aio_update_rq_clock(rq);
 	rq->clock += delta;
 	update_rq_clock_task(rq, delta);
 }
