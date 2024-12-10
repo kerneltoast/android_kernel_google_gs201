@@ -122,6 +122,66 @@ static unsigned int get_freq(struct exynos_cpufreq_domain *domain)
 	return freq;
 }
 
+#ifdef CONFIG_ARM_TENSOR_AIO_DEVFREQ
+void exynos_acme_rate_info(struct exynos_cpufreq_domain *domain,
+			   struct exynos_acme_rate *r)
+{
+	lockdep_assert_irqs_disabled();
+
+	/* Copy out info about the last rate change for this domain */
+	read_lock(&domain->rate_info_lock);
+	*r = domain->rate_info;
+	read_unlock(&domain->rate_info_lock);
+}
+
+void exynos_acme_rate_latched(struct exynos_cpufreq_domain *domain,
+			      const struct exynos_acme_rate *cookie)
+{
+	lockdep_assert_irqs_disabled();
+
+	/* Clear out the transition info if the last target rate latched */
+	write_lock(&domain->rate_info_lock);
+	if (domain->rate_info.set_time == cookie->set_time &&
+	    domain->rate_info.freq == cookie->freq)
+		domain->rate_info.set_time = 0;
+	write_unlock(&domain->rate_info_lock);
+}
+
+static int domain_set_rate(struct exynos_cpufreq_domain *domain,
+			   unsigned long rate)
+{
+	unsigned long flags;
+	int ret;
+
+	/*
+	 * Set the new rate and update the transition info if it succeeds. This
+	 * is done with IRQs disabled so that an interrupt cannot fire after
+	 * cal_dfs_set_rate() and mess up the recorded transition time.
+	 */
+	local_irq_save(flags);
+	ret = cal_dfs_set_rate(domain->cal_id, rate);
+	if (!ret) {
+		u64 now = __arch_counter_get_cntpct();
+
+		write_lock(&domain->rate_info_lock);
+		/* Only update the time if the previous rate switch latched */
+		if (!domain->rate_info.set_time)
+			domain->rate_info.set_time = now;
+		domain->rate_info.freq = rate;
+		write_unlock(&domain->rate_info_lock);
+	}
+	local_irq_restore(flags);
+
+	return ret;
+}
+#else
+static int domain_set_rate(struct exynos_cpufreq_domain *domain,
+			   unsigned long rate)
+{
+	return cal_dfs_set_rate(domain->cal_id, rate);
+}
+#endif
+
 static int set_freq(struct exynos_cpufreq_domain *domain,
 		    unsigned int target_freq)
 {
@@ -133,7 +193,7 @@ static int set_freq(struct exynos_cpufreq_domain *domain,
 	if (domain->need_awake)
 		disable_power_mode(cpumask_any(&domain->cpus), POWERMODE_TYPE_CLUSTER);
 
-	err = cal_dfs_set_rate(domain->cal_id, target_freq);
+	err = domain_set_rate(domain, target_freq);
 	if (err < 0) {
 		pr_err("failed to scale frequency of domain%d (%d -> %d)\n",
 		       domain->id, domain->old, target_freq);
@@ -304,6 +364,13 @@ static int exynos_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = TRANSITION_LATENCY;
 	policy->dvfs_possible_from_any_cpu = true;
 	cpumask_copy(policy->cpus, &domain->cpus);
+
+#ifdef CONFIG_ARM_TENSOR_AIO_DEVFREQ
+	/* rate_info_lock would need to be a raw lock on RT */
+	BUILD_BUG_ON(IS_ENABLED(CONFIG_PREEMPT_RT));
+	rwlock_init(&domain->rate_info_lock);
+	tensor_aio_init_cpu_domain(domain);
+#endif
 
 	pr_info("CPUFREQ domain%d registered\n", domain->id);
 

@@ -48,6 +48,23 @@
  */
 static u64 cpu_min_sample_cntpct __read_mostly = 3 * NSEC_PER_USEC;
 
+/*
+ * The maximum amount of time allowed for a CPU frequency ramp up to latch
+ * before reporting the entire CPU domain as throttled to the scheduler. This
+ * helps recover performance lost due to the scheduler's lack of awareness of
+ * varying transition latency, which can exceed 10 ms in some cases.
+ */
+static u64 cpu_ramp_up_lat_cntpct __read_mostly = 500 * NSEC_PER_USEC;
+
+/*
+ * Compare two CPU frequencies to see if they are sufficiently close, within ~5%
+ * of each other by default. This mimics capacity_greater() in sched/fair.c,
+ * with the intent being that if the real CPU frequency is close enough to the
+ * target frequency then there's no need to inform the scheduler about it.
+ */
+#define cpu_freqs_similar(lower_freq, higher_freq) \
+	((u64)(lower_freq) * 1078 >= (u64)(higher_freq) * 1024)
+
 /* The name of our governor exposed to devfreq */
 #define DEVFREQ_GOV_TENSOR_AIO "tensor_aio"
 
@@ -69,6 +86,11 @@ struct cpu_pmu {
 		u64 const_cyc;
 		bool stale;
 	} sfd; /* Scale Frequency Data */
+	struct htd_data {
+		u64 start;
+		u64 cpu_cyc;
+		u64 const_cyc;
+	} htd; /* Hardware Throttle Data */
 };
 
 static DEFINE_PER_CPU(struct cpu_pmu, cpu_pmu_evs) = {
@@ -231,10 +253,12 @@ static void calc_cntpct_arith(void)
 
 	/* Compute all nanosecond time intervals in terms of CNTPCT_EL0 ticks */
 	cpu_min_sample_cntpct = ns_to_cntpct(cpu_min_sample_cntpct);
+	cpu_ramp_up_lat_cntpct = ns_to_cntpct(cpu_ramp_up_lat_cntpct);
 }
 
 enum cpu_throttle_src {
 	CPU_CPUFREQ_THROTTLE,
+	CPU_HW_THROTTLE,
 #ifdef CONFIG_SOC_ZUMA
 	CPU_TMU_THROTTLE,
 #endif
@@ -244,8 +268,11 @@ enum cpu_throttle_src {
 struct throt_data {
 	struct list_head node;
 	raw_spinlock_t throt_lock;
+	raw_spinlock_t idle_cpu_lock;
 	struct exynos_cpufreq_domain *domain;
 	unsigned int cap[MAX_CPU_THROTTLE_SRCS];
+	cpumask_t idle_cpus;
+	u64 last_htd_cntpct;
 	int cpu;
 };
 
@@ -573,8 +600,11 @@ void tensor_aio_init_cpu_domain(struct exynos_cpufreq_domain *domain)
 	t = kmalloc(sizeof(*t), GFP_KERNEL | __GFP_NOFAIL);
 	memset32(t->cap, UINT_MAX, ARRAY_SIZE(t->cap));
 	raw_spin_lock_init(&t->throt_lock);
+	raw_spin_lock_init(&t->idle_cpu_lock);
+	cpumask_clear(&t->idle_cpus);
 	t->cpu = cpumask_first(&domain->cpus);
 	t->domain = domain;
+	t->last_htd_cntpct = 0;
 
 	/*
 	 * Store a pointer to the clock domain's throttle data for each CPU for
@@ -621,6 +651,23 @@ void tensor_aio_cpufreq_pressure(int cpu, unsigned int cap)
 	raw_spin_unlock_irqrestore(&t->throt_lock, flags);
 }
 
+static void reset_htd_data(struct htd_data *htd)
+{
+	htd->cpu_cyc = htd->const_cyc = htd->start = 0;
+}
+
+static void add_htd_data(struct htd_data *htd, const struct pmu_stat *cur,
+			 const struct pmu_stat *prev)
+{
+	/* Record the starting time of this sample window */
+	if (!htd->start)
+		htd->start = cur->cntpct;
+
+	/* Accumulate data for calculating the CPU's frequency */
+	htd->cpu_cyc += cur->cpu_cyc - prev->cpu_cyc;
+	htd->const_cyc += cur->const_cyc - prev->const_cyc;
+}
+
 #ifdef CONFIG_SOC_ZUMA
 /* Must be called with t->throt_lock held */
 static void update_tmu_throttle(struct throt_data *t)
@@ -659,6 +706,124 @@ static void update_tmu_throttle_all(void)
 }
 #endif
 
+static void update_cpu_hw_throttle(void)
+{
+	int cpu = raw_smp_processor_id();
+	struct throt_data *t = per_cpu(domain_throt_data, cpu);
+	struct cpufreq_policy *pol = &per_cpu(cached_pol, cpu);
+	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
+	struct htd_data *htd = &pmu->htd;
+	struct exynos_acme_rate rate_info;
+	u64 freq, max_freq, ns;
+
+	/*
+	 * Check that enough time has passed to measure the CPU's frequency. If
+	 * not, it means that the CPU spent so much time idle during this jiffy
+	 * that checking for hardware throttling is pointless; as such, the
+	 * stats should be reset so that stale data is not carried forward.
+	 */
+	if (htd->const_cyc < cpu_min_sample_cntpct)
+		goto reset_stats;
+
+	/* Calculate the measured frequency */
+	max_freq = pol->cpuinfo.max_freq;
+	ns = cntpct_to_ns(htd->const_cyc);
+	freq = min(max_freq, USEC_PER_SEC * htd->cpu_cyc / ns);
+
+	/*
+	 * It may take a while for a CPU frequency change to latch, or the
+	 * hardware may have other intentions and opaquely refuse to switch a
+	 * CPU domain to the governor's desired target frequency due to hardware
+	 * throttling. This is evident by observing the real CPU frequency
+	 * measured via the cycle counter: sometimes it takes several
+	 * milliseconds for a frequency switch to latch, while other times under
+	 * heavy load the target frequency won't latch indefinitely due to
+	 * hardware throttling.
+	 *
+	 * Although the TMU does report its current throttle for a CPU domain,
+	 * there is still some hardware throttle mechanism which isn't reported
+	 * by the TMU. This unknown hardware throttling can only be detected by
+	 * comparing the real CPU frequency to the CPU's target frequency.
+	 *
+	 * Therefore, when a CPU frequency switch to a higher frequency exceeds
+	 * a specified latency threshold, tell the scheduler to assume that the
+	 * respective CPU domain is throttled to the actual measured frequency.
+	 * This helps mitigate misguided scheduling decisions from hurting
+	 * performance, since the scheduler would be otherwise unaware that a
+	 * CPU domain is throttled.
+	 */
+	exynos_acme_rate_info(t->domain, &rate_info);
+
+	/*
+	 * Assume the raw measured frequency is the same as the set frequency
+	 * if they are either sufficiently close or the measured frequency is
+	 * greater than the set frequency. Otherwide, round the measured
+	 * frequency to the closest frequency step.
+	 */
+	if (cpu_freqs_similar(freq, rate_info.freq))
+		freq = rate_info.freq;
+	else
+		freq = find_cpu_freq(pol, freq, CPUFREQ_RELATION_C);
+
+	if (freq < rate_info.freq) {
+		/*
+		 * If the measured frequency is below the target frequency, it
+		 * can be due to two reasons: unknown hardware throttling or
+		 * high transition latency to the requested frequency. In the
+		 * case of high transition latency, give the transition at least
+		 * cpu_ramp_up_lat_cntpct timer ticks to latch before telling
+		 * the scheduler that this CPU domain is throttled. This is done
+		 * by blocking new throttle reports for sample windows that are
+		 * older than the frequency latch deadline.
+		 *
+		 * As for unknown hardware throttling: the CPU is throttled
+		 * extremely often depending on the instructions executed,
+		 * possibly due to MPMM (Maximum Power Mitigation Mechanism).
+		 * This throttling isn't reflected by the TMU's shared ACPM
+		 * data, so the only way to detect it is by measuring the CPU's
+		 * real frequency.
+		 *
+		 * Therefore, a measured frequency below the latched target
+		 * frequency is reported to the scheduler as a throttle, which
+		 * neatly covers slow frequency transitions unknown hardware
+		 * throttling.
+		 */
+		if (htd->start < rate_info.set_time + cpu_ramp_up_lat_cntpct)
+			goto reset_stats;
+	} else {
+		/* Reject sample windows older than the last rate switch */
+		if (htd->start < rate_info.set_time)
+			goto reset_stats;
+
+		/*
+		 * Notify exynos-acme that the requested rate is now "latched";
+		 * i.e., that the measured frequency is either at or above the
+		 * target frequency. This is done even if the measurement is
+		 * higher than the target because we only care about knowing
+		 * when the CPU is throttled.
+		 */
+		if (rate_info.set_time)
+			exynos_acme_rate_latched(t->domain, &rate_info);
+
+		/* Indicate there's no hardware throttle detected */
+		freq = UINT_MAX;
+	}
+
+	/*
+	 * Report the throttle detected by measuring the real frequency, unless
+	 * there's a newer frequency measurement from another CPU in the domain.
+	 */
+	raw_spin_lock(&t->throt_lock);
+	if (htd->start > t->last_htd_cntpct) {
+		t->last_htd_cntpct = htd->start;
+		update_thermal_pressure(t, CPU_HW_THROTTLE, freq);
+	}
+	raw_spin_unlock(&t->throt_lock);
+
+reset_stats:
+	reset_htd_data(htd);
+}
+
 /* The sfd helpers must be called with sfd->lock held */
 static void reset_sfd_data(struct sfd_data *sfd)
 {
@@ -686,10 +851,13 @@ static void update_freq_scale(int cpu, struct rq *rq, bool local_cpu)
 {
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
 	struct sfd_data *sfd = &pmu->sfd;
+	struct htd_data *htd = &pmu->htd;
 	struct pmu_stat cur, prev;
 
-	if (local_cpu)
+	if (local_cpu) {
 		pmu_update_stats(pmu, &cur, &prev);
+		add_htd_data(htd, &cur, &prev);
+	}
 
 	/*
 	 * Don't race with remote CPUs which may update the current CPU's
@@ -781,6 +949,18 @@ void tensor_aio_update_rq_clock(struct rq *rq)
 }
 
 /*
+ * Called from scheduler_tick() just before it updates the thermal load average.
+ * Updates the measured hardware throttle of this CPU domain just before that
+ * happens. update_cpu_hw_throttle() checks the starting time of the sample
+ * window to ensure that only the latest measurements from a CPU in a CPU domain
+ * are used.
+ */
+static void tensor_aio_tick_entry(void *data, struct rq *rq)
+{
+	update_cpu_hw_throttle();
+}
+
+/*
  * The scheduler tick is used to kick memperfd to evaluate statistics gathered
  * through the callback installed in update_rq_clock(). There's no scheduler
  * tick when CPUs aren't active, so memperfd is designed to only run when
@@ -805,10 +985,34 @@ static struct scale_freq_data tensor_aio_sfd = {
 	.set_freq_scale = tensor_aio_tick
 };
 
+static void set_cpu_hw_throttle_idle(int cpu, bool idle)
+{
+	struct throt_data *t = per_cpu(domain_throt_data, cpu);
+
+	raw_spin_lock(&t->idle_cpu_lock);
+	if (idle) {
+		cpumask_set_cpu(cpu, &t->idle_cpus);
+
+		/*
+		 * Clear the measured hardware throttle for the CPU domain when
+		 * all CPUs in the domain are idle.
+		 */
+		if (cpumask_equal(&t->idle_cpus, &t->domain->cpus)) {
+			raw_spin_lock(&t->throt_lock);
+			update_thermal_pressure(t, CPU_HW_THROTTLE, UINT_MAX);
+			raw_spin_unlock(&t->throt_lock);
+		}
+	} else {
+		cpumask_clear_cpu(cpu, &t->idle_cpus);
+	}
+	raw_spin_unlock(&t->idle_cpu_lock);
+}
+
 static void tensor_aio_cpu_idle(int cpu, bool idle)
 {
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
 	struct sfd_data *sfd = &pmu->sfd;
+	struct htd_data *htd = &pmu->htd;
 	struct pmu_stat cur, prev;
 
 	/* Don't race with reboot */
@@ -818,6 +1022,8 @@ static void tensor_aio_cpu_idle(int cpu, bool idle)
 	/* Don't race with CPU hotplug */
 	if (unlikely(!cpu_active(cpu)))
 		return;
+
+	set_cpu_hw_throttle_idle(cpu, idle);
 
 	if (idle) {
 		/* Update the current counters one last time before idling */
@@ -840,6 +1046,9 @@ static void tensor_aio_cpu_idle(int cpu, bool idle)
 		 */
 		if (!cpu_supports_amu_const(cpu))
 			pmu_update_stats(pmu, &cur, NULL);
+
+		/* Discard stale hardware throttle detection data */
+		reset_htd_data(htd);
 	}
 }
 
@@ -859,6 +1068,7 @@ static int memperf_cpuhp_up(unsigned int cpu)
 {
 	struct cpu_pmu *pmu = &per_cpu(cpu_pmu_evs, cpu);
 	struct sfd_data *sfd = &pmu->sfd;
+	struct htd_data *htd = &pmu->htd;
 	int ret;
 
 	ret = create_perf_events(cpu);
@@ -878,9 +1088,13 @@ static int memperf_cpuhp_up(unsigned int cpu)
 	local_irq_enable();
 	pmu->prev = pmu->cur;
 	reset_sfd_data(sfd);
+	reset_htd_data(htd);
 
 	/* Install tensor_aio_tick() */
 	topology_set_scale_freq_source(&tensor_aio_sfd, cpumask_of(cpu));
+
+	/* Clear the hardware throttle idle flag for this CPU */
+	set_cpu_hw_throttle_idle(cpu, false);
 	return 0;
 }
 
@@ -890,6 +1104,17 @@ static int memperf_cpuhp_down(unsigned int cpu)
 	topology_clear_scale_freq_source(SCALE_FREQ_SOURCE_ARCH,
 					 cpumask_of(cpu));
 	release_perf_events(cpu);
+
+	/*
+	 * Set the hardware throttle idle flag for this CPU, so this CPU is
+	 * considered idle insofar as the hardware throttle detection is
+	 * concerned. IRQs must be disabled around set_cpu_hw_throttle_idle()
+	 * because this may be the last non-idle CPU in the domain, in which
+	 * case t->throt_lock would be taken, requiring IRQs to be disabled.
+	 */
+	local_irq_disable();
+	set_cpu_hw_throttle_idle(cpu, true);
+	local_irq_enable();
 	return 0;
 }
 
@@ -1030,6 +1255,10 @@ static void memperfd_init(void)
 
 	/* Initialize and start the PPCs */
 	ppc_write_regs(ppc_init_cmd, ARRAY_SIZE(ppc_init_cmd));
+
+	/* Install the scheduler tick entry hook to detect CPU HW throttling */
+	BUG_ON(register_trace_android_rvh_tick_entry(tensor_aio_tick_entry,
+						     NULL));
 }
 
 static u32 mif_cpu_vote(struct pmu_stat *stat, int cpu, u32 cur, u32 *dsu_vote)
