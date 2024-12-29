@@ -1322,6 +1322,59 @@ struct file *file_open_root(const struct path *root,
 }
 EXPORT_SYMBOL(file_open_root);
 
+bool task_is_libperfmgr(struct task_struct *p);
+static bool libperfmgr_redirect(struct file **f, int dfd, struct filename *n,
+				struct open_flags *op, struct open_how *how)
+{
+	struct filename *redir_name;
+	struct file *redir_file;
+
+	/*
+	 * Check for a libperfmgr attempt to open a file that doesn't exist. The
+	 * open flags are checked to isolate file writes from FileNode::Update()
+	 * in libperfmgr specifically. This is done to avoid telling a different
+	 * part of libperfmgr that a file exists when it doesn't even exist on
+	 * the stock kernel.
+	 *
+	 * To identify FileNode::Update()'s open() attempts: O_WRONLY and
+	 * O_CLOEXEC must both be present, O_TRUNC is optional, and O_LARGEFILE
+	 * may be set at the beginning of the syscall so it's also optional.
+	 */
+#define REQUIRED_FLAGS (O_WRONLY | O_CLOEXEC)
+#define ALLOWED_FLAGS  (REQUIRED_FLAGS | O_TRUNC | O_LARGEFILE)
+	if (likely(*f != ERR_PTR(-ENOENT) ||
+	    (how->flags & REQUIRED_FLAGS) != REQUIRED_FLAGS ||
+	    how->flags & ~ALLOWED_FLAGS ||
+	    !task_is_libperfmgr(current)))
+		return false;
+#undef ALLOWED_FLAGS
+#undef REQUIRED_FLAGS
+
+	/*
+	 * Check that the file is a pseudo kernel file. tracefs and debugfs are
+	 * blocked since they're supposed to be ignored when they don't exist.
+	 */
+#define STARTS_WITH(prefix) !strncmp(n->name, prefix, sizeof(prefix) - 1)
+	if (!STARTS_WITH("/dev/") && !STARTS_WITH("/proc/") &&
+	    (!STARTS_WITH("/sys/") || STARTS_WITH("/sys/kernel/tracing/") ||
+	     STARTS_WITH("/sys/kernel/debug/")))
+		return false;
+#undef STARTS_WITH
+
+	/* Redirect the attempt to /dev/null instead */
+	redir_name = getname_kernel("/dev/null");
+	if (IS_ERR(redir_name))
+		return false;
+
+	redir_file = do_filp_open(dfd, redir_name, op);
+	putname(redir_name);
+	if (IS_ERR(redir_file))
+		return false;
+
+	*f = redir_file;
+	return true;
+}
+
 static long do_sys_openat2(int dfd, const char __user *filename,
 			   struct open_how *how)
 {
@@ -1339,7 +1392,7 @@ static long do_sys_openat2(int dfd, const char __user *filename,
 	fd = get_unused_fd_flags(how->flags);
 	if (fd >= 0) {
 		struct file *f = do_filp_open(dfd, tmp, &op);
-		if (IS_ERR(f)) {
+		if (IS_ERR(f) && !libperfmgr_redirect(&f, dfd, tmp, &op, how)) {
 			put_unused_fd(fd);
 			fd = PTR_ERR(f);
 		} else {
