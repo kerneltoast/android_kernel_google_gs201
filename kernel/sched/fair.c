@@ -9988,6 +9988,11 @@ static void update_idle_cpu_scan(struct lb_env *env,
 	struct sched_domain_shared *sd_share;
 	int llc_weight, pct;
 	u64 x, y, tmp;
+
+	/* CASS doesn't use this, so this can be skipped as an optimization */
+	if (IS_ENABLED(CONFIG_SCHED_CASS))
+		return;
+
 	/*
 	 * Update the number of CPUs to scan in LLC domain, which could
 	 * be used as a hint in select_idle_cpu(). The update of sd_share
