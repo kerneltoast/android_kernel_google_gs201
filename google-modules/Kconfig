@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config GOOGLE_MODULES
+	def_bool y
+	select DRM_MIPI_DSI
+	select GPIOLIB_IRQCHIP
+	select REGMAP_IRQ
+	select SND_SOC_COMPRESS
+	select VIDEOMODE_HELPERS
