@@ -50,76 +50,6 @@
 #include <soc/google/exynos_pm_qos.h>
 #include "cal-if/acpm_dvfs.h"
 
-# define plist_check_head(h)	do { } while (0)
-/**
- * plist_add - add @node to @head
- *
- * @node:	&struct plist_node pointer
- * @head:	&struct plist_head pointer
- */
-void exynos_plist_add(struct plist_node *node, struct plist_head *head)
-{
-	struct plist_node *first, *iter, *prev = NULL;
-	struct list_head *node_next = &head->node_list;
-
-	plist_check_head(head);
-	WARN_ON(!plist_node_empty(node));
-	WARN_ON(!list_empty(&node->prio_list));
-
-	if (plist_head_empty(head))
-		goto ins_node;
-
-	iter = plist_first(head);
-	first = iter;
-
-	do {
-		if (node->prio < iter->prio) {
-			node_next = &iter->node_list;
-			break;
-		}
-
-		prev = iter;
-		iter = list_entry(iter->prio_list.next,
-				  struct plist_node, prio_list);
-	} while (iter != first);
-
-	if (!prev || prev->prio != node->prio)
-		list_add_tail(&node->prio_list, &iter->prio_list);
-ins_node:
-	list_add_tail(&node->node_list, node_next);
-
-	plist_check_head(head);
-}
-
-/**
- * plist_del - Remove a @node from plist.
- *
- * @node:	&struct plist_node pointer - entry to be removed
- * @head:	&struct plist_head pointer - list head
- */
-void exynos_plist_del(struct plist_node *node, struct plist_head *head)
-{
-	plist_check_head(head);
-
-	if (!list_empty(&node->prio_list)) {
-		if (node->node_list.next != &head->node_list) {
-			struct plist_node *next;
-
-			next = list_entry(node->node_list.next,
-					  struct plist_node, node_list);
-
-			/* add the next plist_node into prio_list */
-			if (list_empty(&next->prio_list))
-				list_add(&next->prio_list, &node->prio_list);
-		}
-		list_del_init(&node->prio_list);
-	}
-
-	list_del_init(&node->node_list);
-
-	plist_check_head(head);
-}
-
 struct exynos_pm_qos_object {
 	struct exynos_pm_qos_constraints *constraints;
 	char *name;
@@ -702,7 +632,7 @@ int exynos_pm_qos_update_target(struct exynos_pm_qos_constraints *c, struct plis
 
 	switch (action) {
 	case EXYNOS_PM_QOS_REMOVE_REQ:
-		exynos_plist_del(node, &c->list);
+		plist_del(node, &c->list);
 		break;
 	case EXYNOS_PM_QOS_UPDATE_REQ:
 		/*
@@ -710,11 +640,11 @@ int exynos_pm_qos_update_target(struct exynos_pm_qos_constraints *c, struct plis
 		 * with new value and add, then see if the extremal
 		 * changed
 		 */
-		exynos_plist_del(node, &c->list);
+		plist_del(node, &c->list);
 		fallthrough;
 	case EXYNOS_PM_QOS_ADD_REQ:
 		plist_node_init(node, new_value);
-		exynos_plist_add(node, &c->list);
+		plist_add(node, &c->list);
 		break;
 	default:
 		/* no action */
