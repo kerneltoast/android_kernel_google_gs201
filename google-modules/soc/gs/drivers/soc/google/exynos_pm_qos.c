@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/rwlock.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/fs.h>
@@ -121,17 +120,10 @@ void exynos_plist_del(struct plist_node *node, struct plist_head *head)
 	plist_check_head(head);
 }
 
-/*
- * locking rule: all changes to constraints or notifiers lists
- * or exynos_pm_qos_object list and exynos_pm_qos_objects need to happen with exynos_pm_qos_lock
- * held, taken with _irqsave.  One lock to rule them all
- */
 struct exynos_pm_qos_object {
 	struct exynos_pm_qos_constraints *constraints;
 	char *name;
 };
-
-static DEFINE_RWLOCK(exynos_pm_qos_lock);
 
 static struct exynos_pm_qos_object null_exynos_pm_qos;
 
@@ -665,21 +657,15 @@ s32 exynos_pm_qos_read_value(struct exynos_pm_qos_constraints *c)
 int exynos_pm_qos_read_req_value(int pm_qos_class, struct exynos_pm_qos_request *req)
 {
 	struct plist_node *p;
-	unsigned long flags;
-
-	read_lock_irqsave(&exynos_pm_qos_lock, flags);
 
 	spin_lock(&exynos_pm_qos_array[pm_qos_class]->constraints->lock);
 	plist_for_each(p, &exynos_pm_qos_array[pm_qos_class]->constraints->list) {
 		if (req == container_of(p, struct exynos_pm_qos_request, node)) {
 			spin_unlock(&exynos_pm_qos_array[pm_qos_class]->constraints->lock);
-			read_unlock_irqrestore(&exynos_pm_qos_lock, flags);
 			return p->prio;
 		}
 	}
 	spin_unlock(&exynos_pm_qos_array[pm_qos_class]->constraints->lock);
-
-	read_unlock_irqrestore(&exynos_pm_qos_lock, flags);
 
 	return -ENODATA;
 }
@@ -689,71 +675,6 @@ static inline void exynos_pm_qos_set_value(struct exynos_pm_qos_constraints *c, 
 {
 	c->target_value = value;
 }
-
-static int exynos_pm_qos_debug_show(struct seq_file *s, void *unused)
-{
-	struct exynos_pm_qos_object *qos = (struct exynos_pm_qos_object *)s->private;
-	struct exynos_pm_qos_constraints *c;
-	struct exynos_pm_qos_request *req;
-	char *type;
-	unsigned long flags;
-	int tot_reqs = 0;
-	int active_reqs = 0;
-
-	if (IS_ERR_OR_NULL(qos)) {
-		pr_err("%s: bad qos param!\n", __func__);
-		return -EINVAL;
-	}
-	c = qos->constraints;
-	if (IS_ERR_OR_NULL(c)) {
-		pr_err("%s: Bad constraints on qos?\n", __func__);
-		return -EINVAL;
-	}
-
-	/* Lock to ensure we have a snapshot */
-	write_lock_irqsave(&exynos_pm_qos_lock, flags);
-	if (plist_head_empty(&c->list)) {
-		seq_puts(s, "Empty!\n");
-		goto out;
-	}
-
-	switch (c->type) {
-	case EXYNOS_PM_QOS_MIN:
-		type = "Minimum";
-		break;
-	case EXYNOS_PM_QOS_MAX:
-		type = "Maximum";
-		break;
-	case EXYNOS_PM_QOS_SUM:
-		type = "Sum";
-		break;
-	default:
-		type = "Unknown";
-	}
-
-	plist_for_each_entry(req, &c->list, node) {
-		char *state = "Default";
-
-		if (req->node.prio != c->default_value) {
-			active_reqs++;
-			state = "Active";
-		}
-		tot_reqs++;
-		seq_printf(s, "%d: %d: %s(%s:%d)\n", tot_reqs,
-			   (req->node).prio, state,
-			   req->func,
-			   req->line);
-	}
-
-	seq_printf(s, "Type=%s, Value=%d, Requests: active=%d / total=%d\n",
-		   type, exynos_pm_qos_get_value(c), active_reqs, tot_reqs);
-
-out:
-	write_unlock_irqrestore(&exynos_pm_qos_lock, flags);
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(exynos_pm_qos_debug);
 
 /**
  * exynos_pm_qos_update_target - manages the constraints list and calls the notifiers
@@ -769,11 +690,9 @@ DEFINE_SHOW_ATTRIBUTE(exynos_pm_qos_debug);
 int exynos_pm_qos_update_target(struct exynos_pm_qos_constraints *c, struct plist_node *node,
 				enum exynos_pm_qos_req_action action, int value)
 {
-	unsigned long flags;
 	int prev_value, curr_value, new_value;
 	int ret;
 
-	read_lock_irqsave(&exynos_pm_qos_lock, flags);
 	spin_lock(&c->lock);
 	prev_value = exynos_pm_qos_get_value(c);
 	if (value == EXYNOS_PM_QOS_DEFAULT_VALUE)
@@ -806,7 +725,6 @@ int exynos_pm_qos_update_target(struct exynos_pm_qos_constraints *c, struct plis
 	exynos_pm_qos_set_value(c, curr_value);
 
 	spin_unlock(&c->lock);
-	read_unlock_irqrestore(&exynos_pm_qos_lock, flags);
 
 	if (prev_value != curr_value) {
 		ret = 1;
@@ -818,69 +736,6 @@ int exynos_pm_qos_update_target(struct exynos_pm_qos_constraints *c, struct plis
 		ret = 0;
 	}
 	return ret;
-}
-
-/**
- * exynos_pm_qos_flags_remove_req - Remove device PM QoS flags request.
- * @pqf: Device PM QoS flags set to remove the request from.
- * @req: Request to remove from the set.
- */
-static void exynos_pm_qos_flags_remove_req(struct exynos_pm_qos_flags *pqf,
-					   struct exynos_pm_qos_flags_request *req)
-{
-	s32 val = 0;
-
-	list_del(&req->node);
-	list_for_each_entry(req, &pqf->list, node)
-		val |= req->flags;
-
-	pqf->effective_flags = val;
-}
-
-/**
- * exynos_pm_qos_update_flags - Update a set of PM QoS flags.
- * @pqf: Set of flags to update.
- * @req: Request to add to the set, to modify, or to remove from the set.
- * @action: Action to take on the set.
- * @val: Value of the request to add or modify.
- *
- * Update the given set of PM QoS flags and call notifiers if the aggregate
- * value has changed.  Returns 1 if the aggregate constraint value has changed,
- * 0 otherwise.
- */
-bool exynos_pm_qos_update_flags(struct exynos_pm_qos_flags *pqf,
-				struct exynos_pm_qos_flags_request *req,
-				enum exynos_pm_qos_req_action action, s32 val)
-{
-	unsigned long irqflags;
-	s32 prev_value, curr_value;
-
-	read_lock_irqsave(&exynos_pm_qos_lock, irqflags);
-
-	prev_value = list_empty(&pqf->list) ? 0 : pqf->effective_flags;
-
-	switch (action) {
-	case EXYNOS_PM_QOS_REMOVE_REQ:
-		exynos_pm_qos_flags_remove_req(pqf, req);
-		break;
-	case EXYNOS_PM_QOS_UPDATE_REQ:
-		exynos_pm_qos_flags_remove_req(pqf, req);
-		fallthrough;
-	case EXYNOS_PM_QOS_ADD_REQ:
-		req->flags = val;
-		INIT_LIST_HEAD(&req->node);
-		list_add_tail(&req->node, &pqf->list);
-		pqf->effective_flags |= val;
-		break;
-	default:
-		break;
-	}
-
-	curr_value = list_empty(&pqf->list) ? 0 : pqf->effective_flags;
-
-	read_unlock_irqrestore(&exynos_pm_qos_lock, irqflags);
-
-	return prev_value != curr_value;
 }
 
 /**
@@ -1094,19 +949,7 @@ EXPORT_SYMBOL_GPL(exynos_pm_qos_remove_notifier);
 
 static int exynos_pm_qos_power_init(void)
 {
-	int ret = 0;
-	int i;
-	struct dentry *d;
-
 	BUILD_BUG_ON(ARRAY_SIZE(exynos_pm_qos_array) != EXYNOS_PM_QOS_NUM_CLASSES);
-
-	d = debugfs_create_dir("exynos_pm_qos", NULL);
-
-	for (i = PM_QOS_CLUSTER0_FREQ_MIN; i < EXYNOS_PM_QOS_NUM_CLASSES; i++) {
-		debugfs_create_file(exynos_pm_qos_array[i]->name, 0444, d,
-				    (void *)exynos_pm_qos_array[i],
-				    &exynos_pm_qos_debug_fops);
-	}
 
 	if (!async_vote_wq)
 		async_vote_wq = alloc_workqueue("async_vote_wq",
@@ -1117,7 +960,7 @@ static int exynos_pm_qos_power_init(void)
 		pr_err("%s: Couldn't create async_vote_wq workqueue!\n", __func__);
 	}
 
-	return ret;
+	return 0;
 }
 late_initcall(exynos_pm_qos_power_init);
 

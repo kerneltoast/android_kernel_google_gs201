@@ -44,13 +44,6 @@ enum {
 	EXYNOS_PM_QOS_NUM_CLASSES,
 };
 
-enum exynos_pm_qos_flags_status {
-	EXYNOS_PM_QOS_FLAGS_UNDEFINED = -1,
-	EXYNOS_PM_QOS_FLAGS_NONE,
-	EXYNOS_PM_QOS_FLAGS_SOME,
-	EXYNOS_PM_QOS_FLAGS_ALL,
-};
-
 #define EXYNOS_PM_QOS_DEFAULT_VALUE	(-1)
 
 #define PM_QOS_DEVICE_THROUGHPUT_DEFAULT_VALUE	0
@@ -95,11 +88,6 @@ struct exynos_pm_qos_request {
 	struct exynos_pm_asynchronous_vote async_vote;
 };
 
-struct exynos_pm_qos_flags_request {
-	struct list_head node;
-	s32 flags;	/* Do not change to 64 bit */
-};
-
 enum exynos_pm_qos_type {
 	EXYNOS_PM_QOS_UNINITIALIZED,
 	EXYNOS_PM_QOS_MAX,		/* return the largest value */
@@ -109,8 +97,8 @@ enum exynos_pm_qos_type {
 
 /*
  * Note: The lockless read path depends on the CPU accessing target_value
- * or effective_flags atomically.  Atomic access is only guaranteed on all CPU
- * types linux supports for 32 bit quantites
+ * atomically.  Atomic access is only guaranteed on all CPU types linux supports
+ * for 32 bit quantites
  */
 struct exynos_pm_qos_constraints {
 	struct plist_head list;
@@ -120,11 +108,6 @@ struct exynos_pm_qos_constraints {
 	enum exynos_pm_qos_type type;
 	struct srcu_notifier_head *notifiers;
 	spinlock_t lock;	/* protect plist */
-};
-
-struct exynos_pm_qos_flags {
-	struct list_head list;
-	s32 effective_flags;	/* Do not change to 64 bit */
 };
 
 /* Action requested to exynos_pm_qos_update_target */
@@ -140,9 +123,6 @@ enum exynos_pm_qos_req_action {
 
 int exynos_pm_qos_update_target(struct exynos_pm_qos_constraints *c, struct plist_node *node,
 				enum exynos_pm_qos_req_action action, int value);
-bool exynos_pm_qos_update_flags(struct exynos_pm_qos_flags *pqf,
-				struct exynos_pm_qos_flags_request *req,
-				enum exynos_pm_qos_req_action action, s32 val);
 void exynos_pm_qos_add_request_trace(const char *func, unsigned int line,
 				     struct exynos_pm_qos_request *req,
 				     int exynos_pm_qos_class,
