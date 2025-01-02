@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2024 Sultan Alsawaf <sultan@kerneltoast.com>.
+ * Copyright (C) 2024-2025 Sultan Alsawaf <sultan@kerneltoast.com>.
  */
 
 #include <linux/cpufreq.h>
@@ -9,6 +9,7 @@
 #include <linux/of_platform.h>
 #include <linux/perf/arm_pmuv3.h>
 #include <linux/reboot.h>
+#include <linux/rtmutex.h>
 #include <linux/units.h>
 #include <linux/sched/cputime.h>
 #include <cpufreq/exynos-acme.h>
@@ -124,9 +125,9 @@ struct exynos_devfreq_data {
 	struct devfreq *df;
 	struct notifier_block min_nb;
 	struct notifier_block max_nb;
-	struct mutex min_nb_lock;
-	struct mutex max_nb_lock;
-	struct mutex nb_lock;
+	struct rt_mutex min_nb_lock;
+	struct rt_mutex max_nb_lock;
+	struct rt_mutex nb_lock;
 	/* The table is `unsigned long` just for devfreq; it's actually u32 */
 	unsigned long *tbl;
 	int qmin;
@@ -1592,7 +1593,7 @@ static void exynos_qos_notify(struct exynos_devfreq_data *data)
 	u32 freq;
 
 	/* Set the frequency to the floor of the current limits */
-	mutex_lock(&data->nb_lock);
+	rt_mutex_lock(&data->nb_lock);
 	freq = min(data->min_freq, data->max_freq);
 	if (freq != data->cur_freq) {
 		/* Pairs with memperfd and exynos_df_get_cur_freq() */
@@ -1606,7 +1607,7 @@ static void exynos_qos_notify(struct exynos_devfreq_data *data)
 			update_qos_req(&bci->min_req, find_freq_c(bci, freq));
 #endif
 	}
-	mutex_unlock(&data->nb_lock);
+	rt_mutex_unlock(&data->nb_lock);
 }
 
 static int exynos_qos_min_notifier(struct notifier_block *nb,
@@ -1616,10 +1617,10 @@ static int exynos_qos_min_notifier(struct notifier_block *nb,
 		container_of(nb, typeof(*data), min_nb);
 	u32 freq = find_freq_l(data, value);
 
-	mutex_lock(&data->min_nb_lock);
+	rt_mutex_lock(&data->min_nb_lock);
 	data->min_freq = freq;
 	exynos_qos_notify(data);
-	mutex_unlock(&data->min_nb_lock);
+	rt_mutex_unlock(&data->min_nb_lock);
 	return NOTIFY_OK;
 }
 
@@ -1630,10 +1631,10 @@ static int exynos_qos_max_notifier(struct notifier_block *nb,
 		container_of(nb, typeof(*data), max_nb);
 	u32 freq = find_freq_h(data, value);
 
-	mutex_lock(&data->max_nb_lock);
+	rt_mutex_lock(&data->max_nb_lock);
 	data->max_freq = freq;
 	exynos_qos_notify(data);
-	mutex_unlock(&data->max_nb_lock);
+	rt_mutex_unlock(&data->max_nb_lock);
 	return NOTIFY_OK;
 }
 
@@ -1685,7 +1686,7 @@ static int exynos_devfreq_pm(struct device *dev, bool resume)
 	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
 	int ret = 0;
 
-	mutex_lock(&data->nb_lock);
+	rt_mutex_lock(&data->nb_lock);
 	if (data->use_acpm) {
 		ret = exynos_acpm_pm(data, resume);
 		if (WARN_ON(ret))
@@ -1704,7 +1705,7 @@ static int exynos_devfreq_pm(struct device *dev, bool resume)
 				 resume ? data->cur_freq : data->suspend_freq);
 	data->suspended = !resume;
 unlock:
-	mutex_unlock(&data->nb_lock);
+	rt_mutex_unlock(&data->nb_lock);
 	return ret;
 }
 
@@ -1926,9 +1927,9 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 	     of_property_read_u32(np, "acpm-ipc-channel", &data->ipc_chan_id)))
 		return -ENODEV;
 
-	mutex_init(&data->min_nb_lock);
-	mutex_init(&data->max_nb_lock);
-	mutex_init(&data->nb_lock);
+	rt_mutex_init(&data->min_nb_lock);
+	rt_mutex_init(&data->max_nb_lock);
+	rt_mutex_init(&data->nb_lock);
 	platform_set_drvdata(pdev, data);
 
 	/* Add notifiers to propagate frequency updates to hardware */
