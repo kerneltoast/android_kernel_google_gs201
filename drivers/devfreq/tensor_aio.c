@@ -200,7 +200,9 @@ struct um_group {
 };
 
 struct mif_um_ppc {
+	void __iomem **all_regs;
 	struct um_group *grp;
+	u32 all_regs_cnt;
 	u32 grp_cnt;
 } static mif_um;
 
@@ -1202,20 +1204,15 @@ static inline u32 find_freq_l(struct exynos_devfreq_data *data, u32 target)
 static void ppc_write_regs(const struct ppc_reg *reg, size_t cnt)
 {
 	struct mif_um_ppc *um = &mif_um;
-	int i, j, k;
+	int i, j;
 
-	for (i = 0; i < um->grp_cnt; i++) {
-		struct um_group *ug = &um->grp[i];
-
-		for (j = 0; j < ug->cnt; j++) {
-			for (k = 0; k < cnt; k++)
-				__raw_writel(reg[k].val,
-					     ug->va_base[j] + reg[k].off);
-		}
+	for (i = 0; i < um->all_regs_cnt; i++) {
+		for (j = 0; j < cnt; j++)
+			__raw_writel(reg[j].val, um->all_regs[i] + reg[j].off);
 	}
 
 	/* Ensure all of the register writes finish before continuing */
-	mb();
+	__iomb();
 }
 
 static void memperfd_init(void)
@@ -1428,6 +1425,9 @@ static u32 mif_ppc_vote(u32 cur_mif_khz, u32 *bus2_mif)
 		if (vote > h_vote)
 			h_vote = vote;
 	}
+
+	/* Ensure all of the PPC register reads finish before they're reset */
+	__iomb();
 
 	/* Reset and restart all of the PPCs */
 	ppc_write_regs(ppc_start_cmd, ARRAY_SIZE(ppc_start_cmd));
@@ -1834,6 +1834,21 @@ static int exynos_ppc_init(struct device *dev, struct device_node *np)
 			of_property_read_u32_index(np, "um_list", k++, &pa);
 			ug->va_base[j] = ioremap(pa, SZ_4K);
 		}
+
+		um->all_regs_cnt += ug->cnt;
+	}
+
+	/* Store all register addresses in a single array for fast lookup */
+	um->all_regs = kmalloc_array(um->all_regs_cnt, sizeof(*um->all_regs),
+				     GFP_KERNEL);
+	if (!um->all_regs)
+		goto free_mem;
+
+	for (i = 0, k = 0; i < um->grp_cnt; i++) {
+		struct um_group *ug = &um->grp[i];
+
+		for (j = 0; j < ug->cnt; j++)
+			um->all_regs[k++] = ug->va_base[j];
 	}
 
 	return 0;
