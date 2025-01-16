@@ -151,29 +151,17 @@ static void do_nothing(void *unused) { }
 /******************************************************************************
  *                                    Notifier                                *
  ******************************************************************************/
-static DEFINE_RWLOCK(notifier_lock);
-static RAW_NOTIFIER_HEAD(notifier_chain);
+static ATOMIC_NOTIFIER_HEAD(notifier_chain);
 
 int exynos_sicd_notifier_register(struct notifier_block *nb)
 {
-	unsigned long flags;
-	int ret;
-
-	write_lock_irqsave(&notifier_lock, flags);
-	ret = raw_notifier_chain_register(&notifier_chain, nb);
-	write_unlock_irqrestore(&notifier_lock, flags);
-
-	return ret;
+	return atomic_notifier_chain_register(&notifier_chain, nb);
 }
 EXPORT_SYMBOL_GPL(exynos_sicd_notifier_register);
 
 static int exynos_sicd_notify(int event, int v)
 {
-	int ret;
-
-	read_lock(&notifier_lock);
-	ret = raw_notifier_call_chain(&notifier_chain, event, &v);
-	read_unlock(&notifier_lock);
+	int ret = atomic_notifier_call_chain(&notifier_chain, event, &v);
 
 	return notifier_to_errno(ret);
 }
