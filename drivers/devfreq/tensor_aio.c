@@ -136,6 +136,17 @@ enum exynos_dev {
 	MAX_DEV
 };
 
+/*
+ * A raw spin lock is used for some domains which don't require sleeping for a
+ * frequency transition (i.e., to wait for a response from ACPM). This allows
+ * exynos_pm_qos_update_request() to be called from atomic contexts for such
+ * atomic-capable domains.
+ */
+union nb_lock_type {
+	struct rt_mutex rt_mutex;
+	raw_spinlock_t raw_spinlock;
+};
+
 struct exynos_devfreq_data {
 	struct exynos_pm_qos_request min_req;
 	struct exynos_pm_qos_request umin_req;
@@ -144,9 +155,11 @@ struct exynos_devfreq_data {
 	struct devfreq *df;
 	struct notifier_block min_nb;
 	struct notifier_block max_nb;
-	struct rt_mutex min_nb_lock;
-	struct rt_mutex max_nb_lock;
-	struct rt_mutex nb_lock;
+	void (*nb_lock_fn)(void *);
+	void (*nb_unlock_fn)(void *);
+	union nb_lock_type min_nb_lock;
+	union nb_lock_type max_nb_lock;
+	union nb_lock_type nb_lock;
 	/* The table is `unsigned long` just for devfreq; it's actually u32 */
 	unsigned long *tbl;
 	int qmin;
@@ -169,6 +182,26 @@ static struct exynos_devfreq_data *const bci = &df_data[BCI];
 static struct exynos_devfreq_data *const dsu = &df_data[DSU];
 #endif
 static struct exynos_devfreq_data *const mif = &df_data[MIF];
+
+/* Domains which are governed by memperfd, to be voted down upon quiescence */
+static struct exynos_devfreq_data *const memperfd_domains[] = {
+#ifdef CONFIG_SOC_ZUMA
+	&df_data[DSU], /* DSU sets BCI indirectly */
+#endif
+	&df_data[INT],
+	&df_data[MIF]
+};
+
+/*
+ * Domains governed by memperfd which perform DVFS fast and atomically, so that
+ * they can be voted down from atomic context (in schedule()) upon memperfd
+ * quiescence.
+ */
+#ifdef CONFIG_SOC_ZUMA
+#define domain_has_fast_dvfs(d) (d == BCI || d == DSU || d == INT || d == MIF)
+#else
+#define domain_has_fast_dvfs(d) (d == INT || d == MIF)
+#endif
 
 struct {
 	u32 mif_freq;
@@ -225,6 +258,9 @@ struct mif_um_ppc {
 	u32 grp_cnt;
 } static mif_um;
 
+static bool memperfd_quiescent;
+static unsigned int idle_task_cpus;
+static DEFINE_RAW_SPINLOCK(idle_task_lock);
 static atomic_long_t last_run_jiffies = ATOMIC_INIT(0);
 static DECLARE_SWAIT_QUEUE_HEAD(memperfd_waitq);
 static DEFINE_PER_CPU_READ_MOSTLY(struct cpufreq_policy, cached_pol);
@@ -713,6 +749,14 @@ static __always_inline void pmu_update_stats(int cpu, struct cpu_pmu *pmu,
 static void kick_memperfd(void)
 {
 	unsigned long prev, now = jiffies;
+
+	/* Do not kick memperfd when it's quiescent */
+	if (memperfd_quiescent)
+		return;
+
+	/* Do not kick memperfd for idle CPUs */
+	if (is_idle_task(current))
+		return;
 
 	prev = atomic_long_read(&last_run_jiffies);
 	if (time_before(now, prev + MEMPERFD_POLL_HZ))
@@ -1274,6 +1318,75 @@ static void update_qos_req(struct exynos_pm_qos_request *req, int value)
 		exynos_pm_qos_update_request(req, value);
 }
 
+static void memperfd_quiesce(void)
+{
+	int i;
+
+	/*
+	 * Clear out all of memperfd's votes for the domains it governs. This is
+	 * safe from atomic context because all of memperfd's domains have fast,
+	 * atomic DVFS, and therefore use raw spin locks in their exynos_pm_qos
+	 * notifier callbacks.
+	 */
+	for (i = 0; i < ARRAY_SIZE(memperfd_domains); i++) {
+		struct exynos_devfreq_data *data = memperfd_domains[i];
+
+		update_qos_req(&data->min_req, data->tbl[data->nr_freqs - 1]);
+	}
+	memperfd_quiescent = true;
+}
+
+static void memperfd_unquiesce(void)
+{
+	atomic_set(&stats_avail_cpus, 0);
+	atomic_long_set(&last_run_jiffies, jiffies);
+	memperfd_quiescent = false;
+}
+
+static void tensor_aio_idle_task_switch(bool entering)
+{
+	/*
+	 * Track the number of CPUs within the idle task. When all CPUs enter
+	 * the idle task, quiesce memperfd to save power. Once a CPU becomes
+	 * active again, reset memperfd so it runs with fresh statistics.
+	 */
+	raw_spin_lock(&idle_task_lock);
+	if (entering) {
+		if (++idle_task_cpus == num_online_cpus())
+			memperfd_quiesce();
+	} else {
+		if (idle_task_cpus-- == num_online_cpus())
+			memperfd_unquiesce();
+	}
+	raw_spin_unlock(&idle_task_lock);
+}
+
+static void tensor_aio_schedule(void *data, unsigned int sched_mode,
+				struct task_struct *prev_tsk,
+				struct task_struct *next_tsk, struct rq *rq)
+{
+	/* Don't race with reboot */
+	if (!static_branch_unlikely(&system_ready))
+		return;
+
+	/* Do nothing when there isn't a task switch */
+	if (prev_tsk == next_tsk)
+		return;
+
+	/* Track transitions to/from the idle task */
+	if (is_idle_task(next_tsk))
+		tensor_aio_idle_task_switch(true);
+	else if (is_idle_task(prev_tsk))
+		tensor_aio_idle_task_switch(false);
+}
+
+static int tensor_aio_idle_init(void *unused)
+{
+	/* All CPUs are guaranteed to not be in the idle task right now */
+	idle_task_cpus = 0;
+	return 0;
+}
+
 /* This closely mimics cpufreq_table_find_index_dh() */
 static inline u32 find_freq_h(struct exynos_devfreq_data *data, u32 target)
 {
@@ -1403,6 +1516,14 @@ static void memperfd_init(void)
 	/* Install the scheduler tick entry hook to detect CPU HW throttling */
 	BUG_ON(register_trace_android_rvh_tick_entry(tensor_aio_tick_entry,
 						     NULL));
+
+	/*
+	 * Stop all online CPUs in order to register the idle-task CPUs tracker,
+	 * so that it starts out with all CPUs non-idle and thus can keep an
+	 * accurate count of the number of CPUs inside the idle task.
+	 */
+	BUG_ON(register_trace_android_rvh_schedule(tensor_aio_schedule, NULL));
+	BUG_ON(stop_machine(tensor_aio_idle_init, NULL, NULL));
 }
 
 static u32 mif_cpu_vote(struct pmu_stat *stat, int cpu, u32 cur, u32 *dsu_vote)
@@ -1418,11 +1539,11 @@ static u32 mif_cpu_vote(struct pmu_stat *stat, int cpu, u32 cur, u32 *dsu_vote)
 	 * monotonic time source doesn't. Therefore, the CPU's time spent in
 	 * idle while its clock is gated at 0 Hz is included in the measurement.
 	 * For MIF voting, this attribute is helpful because MIF doesn't idle
-	 * while the CPU is idle (unless SICD is entered), so scaling MIF up in
-	 * order to satisfy the CPU's frequency-invariant load would cause MIF
-	 * to burn more power than just letting the CPU burn a few extra cycles
-	 * on memory stalls. And if the CPU is under heavy load, it won't have
-	 * much idle time and thus MIF will be scaled up accordingly anyway.
+	 * while the CPU is idle, so scaling MIF up in order to satisfy the
+	 * CPU's frequency-invariant load would cause MIF to burn more power
+	 * than just letting the CPU burn a few extra cycles on memory stalls.
+	 * And if the CPU is under heavy load, it won't have much idle time and
+	 * thus MIF will be scaled up accordingly anyway.
 	 */
 	cpu_hz = cyc_per_cntpct_to_hz(stat->cpu_cyc, stat->cntpct);
 
@@ -1585,19 +1706,10 @@ static u32 mif_ppc_vote(u32 cur_mif_khz, u32 *bus2_mif)
 	return h_vote;
 }
 
-/* Returns true if this device isn't voted to its lowest frequency */
-static bool memperf_set_vote(struct exynos_devfreq_data *data, u32 new)
-{
-	update_qos_req(&data->min_req, new);
-	return data->min_req.node.prio > data->tbl[data->nr_freqs - 1];
-}
-
-/* Returns true if memperfd should arm a timeout to vote down upon inactivity */
-static bool memperf_work(void)
+static void memperfd_work(void)
 {
 	u32 vote = mif->nr_freqs - 1, cur, dsu_vote = 0, bus2_mif;
 	unsigned long cpus;
-	bool ret = false;
 	int cpu;
 
 	/* Get the current MIF freq, since something else could've raised it */
@@ -1633,18 +1745,18 @@ static bool memperf_work(void)
 
 	/* Find the highest PPC MIF vote and set the higher of the MIF votes */
 	vote = max((u32)mif->tbl[vote], mif_ppc_vote(mif->tbl[cur], &bus2_mif));
-	ret |= memperf_set_vote(mif, vote);
+	update_qos_req(&mif->min_req, vote);
 
 	/* Set the new INT vote using BUS2's MIF requirement */
 	for (vote = mif_int_cnt - 1; vote > 0; vote--) {
 		if (bus2_mif <= mif_int_map[vote].mif_freq)
 			break;
 	}
-	ret |= memperf_set_vote(&df_data[INT], mif_int_map[vote].int_freq);
+	update_qos_req(&df_data[INT].min_req, mif_int_map[vote].int_freq);
 
 #ifdef CONFIG_SOC_ZUMA
 	/* Set the new DSU vote */
-	ret |= memperf_set_vote(dsu, dsu_vote);
+	update_qos_req(&dsu->min_req, dsu_vote);
 #endif
 
 	/*
@@ -1656,39 +1768,9 @@ static bool memperf_work(void)
 	 * read in the loop above and now.
 	 */
 	atomic_set_release(&stats_avail_cpus, 0);
-
-	return ret;
 }
 
-static void memperfd_timeout(struct timer_list *t)
-{
-	/*
-	 * Wake up memperfd so it can vote down to the lowest state. This is
-	 * done in order to prevent MIF from staying at a higher frequency than
-	 * necessary and never getting a chance to vote down just because there
-	 * aren't any scheduler ticks, which is how memperfd is normally driven.
-	 */
-	kick_memperfd();
-}
-
-static void memperfd_wait_timeout(void)
-{
-	struct timer_list timer;
-
-	/*
-	 * Open code freezable_schedule_timeout_interruptible() in order to
-	 * make the timer deferrable, so that it doesn't kick CPUs out of idle.
-	 * Also, add the timer onto CPU0 since it's usually the least idle.
-	 */
-	timer_setup_on_stack(&timer, memperfd_timeout, TIMER_DEFERRABLE);
-	timer.expires = jiffies + MEMPERFD_POLL_HZ + 1;
-	add_timer_on(&timer, 0);
-	schedule();
-	del_singleshot_timer_sync(&timer);
-	destroy_timer_on_stack(&timer);
-}
-
-static void memperfd_wait_for_kick(bool timeout)
+static void memperfd_wait_for_kick(void)
 {
 	unsigned long prev_jiffies = jiffies;
 	DECLARE_SWAITQUEUE(wait);
@@ -1704,10 +1786,7 @@ static void memperfd_wait_for_kick(bool timeout)
 					   TASK_IDLE | TASK_FREEZABLE);
 		if (atomic_long_read(&last_run_jiffies) != prev_jiffies)
 			break;
-		if (timeout)
-			memperfd_wait_timeout();
-		else
-			schedule();
+		schedule();
 	}
 	finish_swait(&memperfd_waitq, &wait);
 }
@@ -1717,8 +1796,10 @@ static int __noreturn memperf_thread(void *data)
 	sched_set_fifo(current);
 	memperfd_init();
 	set_freezable();
-	while (1)
-		memperfd_wait_for_kick(memperf_work());
+	while (1) {
+		memperfd_wait_for_kick();
+		memperfd_work();
+	}
 }
 
 static void exynos_qos_notify(struct exynos_devfreq_data *data)
@@ -1726,7 +1807,7 @@ static void exynos_qos_notify(struct exynos_devfreq_data *data)
 	u32 freq;
 
 	/* Set the frequency to the floor of the current limits */
-	rt_mutex_lock(&data->nb_lock);
+	data->nb_lock_fn(&data->nb_lock);
 	freq = min(data->min_freq, data->max_freq);
 	if (freq != data->cur_freq) {
 		/* Pairs with memperfd and exynos_df_get_cur_freq() */
@@ -1740,7 +1821,7 @@ static void exynos_qos_notify(struct exynos_devfreq_data *data)
 			update_qos_req(&bci->min_req, find_freq_c(bci, freq));
 #endif
 	}
-	rt_mutex_unlock(&data->nb_lock);
+	data->nb_unlock_fn(&data->nb_lock);
 }
 
 static int exynos_qos_min_notifier(struct notifier_block *nb,
@@ -1750,10 +1831,10 @@ static int exynos_qos_min_notifier(struct notifier_block *nb,
 		container_of(nb, typeof(*data), min_nb);
 	u32 freq = find_freq_l(data, value);
 
-	rt_mutex_lock(&data->min_nb_lock);
+	data->nb_lock_fn(&data->min_nb_lock);
 	data->min_freq = freq;
 	exynos_qos_notify(data);
-	rt_mutex_unlock(&data->min_nb_lock);
+	data->nb_unlock_fn(&data->min_nb_lock);
 	return NOTIFY_OK;
 }
 
@@ -1764,10 +1845,10 @@ static int exynos_qos_max_notifier(struct notifier_block *nb,
 		container_of(nb, typeof(*data), max_nb);
 	u32 freq = find_freq_h(data, value);
 
-	rt_mutex_lock(&data->max_nb_lock);
+	data->nb_lock_fn(&data->max_nb_lock);
 	data->max_freq = freq;
 	exynos_qos_notify(data);
-	rt_mutex_unlock(&data->max_nb_lock);
+	data->nb_unlock_fn(&data->max_nb_lock);
 	return NOTIFY_OK;
 }
 
@@ -1819,7 +1900,7 @@ static int exynos_devfreq_pm(struct device *dev, bool resume)
 	struct exynos_devfreq_data *data = platform_get_drvdata(pdev);
 	int ret = 0;
 
-	rt_mutex_lock(&data->nb_lock);
+	data->nb_lock_fn(&data->nb_lock);
 	if (data->use_acpm) {
 		ret = exynos_acpm_pm(data, resume);
 		if (WARN_ON(ret))
@@ -1838,7 +1919,7 @@ static int exynos_devfreq_pm(struct device *dev, bool resume)
 				 resume ? data->cur_freq : data->suspend_freq);
 	data->suspended = !resume;
 unlock:
-	rt_mutex_unlock(&data->nb_lock);
+	data->nb_unlock_fn(&data->nb_lock);
 	return ret;
 }
 
@@ -2075,9 +2156,19 @@ static int exynos_devfreq_probe(struct platform_device *pdev)
 	     of_property_read_u32(np, "acpm-ipc-channel", &data->ipc_chan_id)))
 		return -ENODEV;
 
-	rt_mutex_init(&data->min_nb_lock);
-	rt_mutex_init(&data->max_nb_lock);
-	rt_mutex_init(&data->nb_lock);
+	if (domain_has_fast_dvfs(edev)) {
+		raw_spin_lock_init(&data->min_nb_lock.raw_spinlock);
+		raw_spin_lock_init(&data->max_nb_lock.raw_spinlock);
+		raw_spin_lock_init(&data->nb_lock.raw_spinlock);
+		data->nb_lock_fn = (void *)_raw_spin_lock;
+		data->nb_unlock_fn = (void *)_raw_spin_unlock;
+	} else {
+		rt_mutex_init(&data->min_nb_lock.rt_mutex);
+		rt_mutex_init(&data->max_nb_lock.rt_mutex);
+		rt_mutex_init(&data->nb_lock.rt_mutex);
+		data->nb_lock_fn = (void *)rt_mutex_lock;
+		data->nb_unlock_fn = (void *)rt_mutex_unlock;
+	}
 	platform_set_drvdata(pdev, data);
 
 	/* Add notifiers to propagate frequency updates to hardware */
