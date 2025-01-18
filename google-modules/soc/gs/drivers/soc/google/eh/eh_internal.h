@@ -10,6 +10,7 @@
 
 #include <linux/eh.h>
 #include "eh_regs.h"
+#include <linux/pm_qos.h>
 #include <linux/spinlock_types.h>
 #include <linux/wait.h>
 
@@ -98,5 +99,7 @@ struct eh_device {
 #ifdef CONFIG_SOC_ZUMA
 	int ip_index;
 #endif
+
+	struct pm_qos_request pm_qos_req;
 };
 #endif
