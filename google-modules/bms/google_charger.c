@@ -3474,12 +3474,13 @@ bd_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct chg_drv *chg_drv = dev_get_drvdata(dev);
 	struct bd_data *bd_state = &chg_drv->bd_state;
-	long long temp_avg;
+	long long temp_avg = 0;
 	ssize_t len;
 
 	mutex_lock(&chg_drv->bd_lock);
 
-	temp_avg = div64_s64(bd_state->temp_sum, bd_state->time_sum);
+	if (bd_state->time_sum)
+		temp_avg = div64_s64(bd_state->temp_sum, bd_state->time_sum);
 	len = scnprintf(buf, PAGE_SIZE,
 		       "t_sum=%lld, time_sum=%lld t_avg=%lld lst_v=%d lst_t=%d lst_u=%lld, dt=%lld, t=%d e=%d\n",
 		       bd_state->temp_sum, bd_state->time_sum, temp_avg,
