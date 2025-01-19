@@ -1940,9 +1940,10 @@ static int cs35l41_otp_unpack(void *data)
 			bit_offset += otp_map[i].size - 32;
 		} else {
 
-			otp_val = (otp_mem[word_offset] &
-				GENMASK(bit_offset + otp_map[i].size - 1,
-					bit_offset)) >>	bit_offset;
+			if (otp_map[i].reg != 0)
+				otp_val = (otp_mem[word_offset] &
+					GENMASK(bit_offset + otp_map[i].size - 1,
+						bit_offset)) >>	bit_offset;
 			bit_offset += otp_map[i].size;
 		}
 		bit_sum += otp_map[i].size;
