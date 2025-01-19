@@ -1390,14 +1390,14 @@ static int tensor_aio_idle_init(void *unused)
 /* This closely mimics cpufreq_table_find_index_dh() */
 static inline u32 find_freq_h(struct exynos_devfreq_data *data, u32 target)
 {
-	u32 best = -1, i;
+	u32 best = -1, i = 0;
 
-	for (i = 0; i < data->nr_freqs; i++) {
+	do {
 		if (data->tbl[i] <= target)
 			return data->tbl[i];
 
 		best = data->tbl[i];
-	}
+	} while (++i < data->nr_freqs);
 
 	return best;
 }
@@ -1405,9 +1405,9 @@ static inline u32 find_freq_h(struct exynos_devfreq_data *data, u32 target)
 /* This closely mimics cpufreq_table_find_index_dc() */
 static inline u32 find_freq_c(struct exynos_devfreq_data *data, u32 target)
 {
-	u32 best = -1, i;
+	u32 best = -1, i = 0;
 
-	for (i = 0; i < data->nr_freqs; i++) {
+	do {
 		if (data->tbl[i] == target)
 			return target;
 
@@ -1425,7 +1425,7 @@ static inline u32 find_freq_c(struct exynos_devfreq_data *data, u32 target)
 			return data->tbl[i];
 
 		return best;
-	}
+	} while (++i < data->nr_freqs);
 
 	return best;
 }
@@ -1433,9 +1433,9 @@ static inline u32 find_freq_c(struct exynos_devfreq_data *data, u32 target)
 /* This closely mimics cpufreq_table_find_index_dl() */
 static inline u32 find_index_l(struct exynos_devfreq_data *data, u32 target)
 {
-	u32 best = -1, i;
+	u32 best = -1, i = 0;
 
-	for (i = 0; i < data->nr_freqs; i++) {
+	do {
 		if (data->tbl[i] == target)
 			return i;
 
@@ -1449,7 +1449,7 @@ static inline u32 find_index_l(struct exynos_devfreq_data *data, u32 target)
 			return i;
 
 		return best;
-	}
+	} while (++i < data->nr_freqs);
 
 	return best;
 }
@@ -1463,12 +1463,12 @@ static inline u32 find_freq_l(struct exynos_devfreq_data *data, u32 target)
 static void ppc_write_regs(const struct ppc_reg *reg, size_t cnt)
 {
 	struct mif_um_ppc *um = &mif_um;
-	int i, j;
+	int i = 0, j;
 
-	for (i = 0; i < um->all_regs_cnt; i++) {
+	do {
 		for (j = 0; j < cnt; j++)
 			__raw_writel(reg[j].val, um->all_regs[i] + reg[j].off);
-	}
+	} while (++i < um->all_regs_cnt);
 
 	/* Ensure all of the register writes finish before continuing */
 	__iomb();
@@ -1651,28 +1651,28 @@ static u32 mif_ppc_vote(u32 cur_mif_khz, u32 *bus2_mif)
 {
 	struct mif_um_ppc *um = &mif_um;
 	u32 h_vote = 0, vote;
-	int i, j;
+	int i = 0;
 
 	/* Stop all of the PPCs first */
 	ppc_write_regs(ppc_stop_cmd, ARRAY_SIZE(ppc_stop_cmd));
 
 	/* Iterate over each group and its counters */
-	for (i = 0; i < um->grp_cnt; i++) {
+	do {
 		struct um_group *ug = &um->grp[i];
 		u32 ccnt, h_pmcnt1 = 0, pmcnt1;
-		int h;
+		int h, j = 0;
 
 		/* Set this group's vote to zero in case there's no BUS2 vote */
 		vote = 0;
 
 		/* Find the highest PMCNT1 (busy time) among the group's PPCs */
-		for (j = 0; j < ug->cnt; j++) {
+		do {
 			pmcnt1 = __raw_readl(ug->va_base[j] + PPC_PMCNT1);
 			if (pmcnt1 > h_pmcnt1) {
 				h_pmcnt1 = pmcnt1;
 				h = j;
 			}
-		}
+		} while (++j < ug->cnt);
 
 		/* Check if there was any busy time at all */
 		if (!h_pmcnt1)
@@ -1691,7 +1691,7 @@ static u32 mif_ppc_vote(u32 cur_mif_khz, u32 *bus2_mif)
 		       ((u64)ccnt * ug->target_load);
 		if (vote > h_vote)
 			h_vote = vote;
-	}
+	} while (++i < um->grp_cnt);
 
 	/* Ensure all of the PPC register reads finish before they're reset */
 	__iomb();
