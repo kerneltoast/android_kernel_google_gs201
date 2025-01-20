@@ -333,7 +333,8 @@ struct throt_data {
 	raw_spinlock_t idle_cpu_lock;
 	struct exynos_cpufreq_domain *domain;
 	unsigned int cap[MAX_CPU_THROTTLE_SRCS];
-	cpumask_t idle_cpus;
+	unsigned int idle_cpus;
+	unsigned int nr_domain_cpus;
 	u64 last_htd_cntpct;
 	int cpu;
 };
@@ -790,10 +791,10 @@ void tensor_aio_init_cpu_domain(struct exynos_cpufreq_domain *domain)
 	memset32(t->cap, UINT_MAX, ARRAY_SIZE(t->cap));
 	raw_spin_lock_init(&t->throt_lock);
 	raw_spin_lock_init(&t->idle_cpu_lock);
-	cpumask_clear(&t->idle_cpus);
 	t->cpu = cpumask_first(&domain->cpus);
+	t->nr_domain_cpus = cpumask_weight(&domain->cpus);
 	t->domain = domain;
-	t->last_htd_cntpct = 0;
+	t->idle_cpus = t->last_htd_cntpct = 0;
 
 	/*
 	 * Store a pointer to the clock domain's throttle data for each CPU for
@@ -1180,19 +1181,17 @@ static void set_cpu_hw_throttle_idle(int cpu, bool idle)
 
 	raw_spin_lock(&t->idle_cpu_lock);
 	if (idle) {
-		cpumask_set_cpu(cpu, &t->idle_cpus);
-
 		/*
 		 * Clear the measured hardware throttle for the CPU domain when
 		 * all CPUs in the domain are idle.
 		 */
-		if (cpumask_equal(&t->idle_cpus, &t->domain->cpus)) {
+		if (++t->idle_cpus == t->nr_domain_cpus) {
 			raw_spin_lock(&t->throt_lock);
 			update_thermal_pressure(t, CPU_HW_THROTTLE, UINT_MAX);
 			raw_spin_unlock(&t->throt_lock);
 		}
 	} else {
-		cpumask_clear_cpu(cpu, &t->idle_cpus);
+		t->idle_cpus--;
 	}
 	raw_spin_unlock(&t->idle_cpu_lock);
 }
@@ -1382,8 +1381,16 @@ static void tensor_aio_schedule(void *data, unsigned int sched_mode,
 
 static int tensor_aio_idle_init(void *unused)
 {
-	/* All CPUs are guaranteed to not be in the idle task right now */
+	struct throt_data *t;
+
+	/*
+	 * All CPUs are guaranteed to not be in the idle task right now. Reset
+	 * the counts for the number of idle CPUs since they may be overflowed.
+	 */
 	idle_task_cpus = 0;
+	list_for_each_entry(t, &domain_throt_list, node)
+		t->idle_cpus = 0;
+
 	return 0;
 }
 
@@ -1517,12 +1524,15 @@ static void memperfd_init(void)
 	BUG_ON(register_trace_android_rvh_tick_entry(tensor_aio_tick_entry,
 						     NULL));
 
-	/*
-	 * Stop all online CPUs in order to register the idle-task CPUs tracker,
-	 * so that it starts out with all CPUs non-idle and thus can keep an
-	 * accurate count of the number of CPUs inside the idle task.
-	 */
+	/* Register the idle-task CPUs tracker for quiescing memperfd */
 	BUG_ON(register_trace_android_rvh_schedule(tensor_aio_schedule, NULL));
+
+	/*
+	 * Stop all online CPUs in order to initialize the idle-task CPUs
+	 * tracker and thermal throttle domain idle CPUs tracker with the
+	 * correct number of idle CPUs. When tensor_aio_idle_init() runs, it
+	 * runs with all CPUs guaranteed to not be running inside the idle task.
+	 */
 	BUG_ON(stop_machine(tensor_aio_idle_init, NULL, NULL));
 }
 
