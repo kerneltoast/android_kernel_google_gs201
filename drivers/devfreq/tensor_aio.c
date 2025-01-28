@@ -1347,10 +1347,10 @@ static void tensor_aio_idle_task_switch(bool entering)
 	 */
 	raw_spin_lock(&idle_task_lock);
 	if (entering) {
-		if (++idle_task_cpus == num_online_cpus())
+		if (++idle_task_cpus == nr_cpu_ids)
 			memperfd_quiesce();
 	} else {
-		if (idle_task_cpus-- == num_online_cpus())
+		if (idle_task_cpus-- == nr_cpu_ids)
 			memperfd_unquiesce();
 	}
 	raw_spin_unlock(&idle_task_lock);
