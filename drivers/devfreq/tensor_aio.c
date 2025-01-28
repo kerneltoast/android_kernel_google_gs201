@@ -719,8 +719,8 @@ static __always_inline void pmu_update_stats(int cpu, struct cpu_pmu *pmu,
 		 * Since we only need to read the latest stats, and we are the
 		 * only producer of new stats, no synchronization is needed. But
 		 * the latest stat pointer may have been taken by memperfd, in
-		 * which we can still find it knowing that it's not the pointer
-		 * stored in ptr2.
+		 * which case we can still find it knowing that it's not the
+		 * pointer stored in ptr2.
 		 */
 		pmu_read_cur_ptrs(pmu, ptr1, ptr2);
 		if (!ptr1)
@@ -946,14 +946,10 @@ static void update_cpu_hw_throttle(void)
 
 	/*
 	 * Assume the raw measured frequency is the same as the set frequency
-	 * if they are either sufficiently close or the measured frequency is
-	 * greater than the set frequency. Otherwide, round the measured
-	 * frequency to the closest frequency step.
+	 * if they are sufficiently close to each other.
 	 */
 	if (cpu_freqs_similar(freq, rate_info.freq))
 		freq = rate_info.freq;
-	else
-		freq = find_cpu_freq(pol, freq, CPUFREQ_RELATION_C);
 
 	if (freq < rate_info.freq) {
 		/*
@@ -975,7 +971,7 @@ static void update_cpu_hw_throttle(void)
 		 *
 		 * Therefore, a measured frequency below the latched target
 		 * frequency is reported to the scheduler as a throttle, which
-		 * neatly covers slow frequency transitions unknown hardware
+		 * neatly covers slow frequency transitions and unknown hardware
 		 * throttling.
 		 */
 		if (htd->start < rate_info.set_time + cpu_ramp_up_lat_cntpct)
