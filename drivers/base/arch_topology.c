@@ -162,6 +162,24 @@ void topology_set_freq_scale(const struct cpumask *cpus, unsigned long cur_freq,
 		per_cpu(arch_freq_scale, i) = scale;
 }
 
+DEFINE_PER_CPU(unsigned long, arch_min_freq_scale);
+EXPORT_PER_CPU_SYMBOL_GPL(arch_min_freq_scale);
+
+void topology_set_min_freq_scale(const struct cpumask *cpus,
+				 unsigned long min_freq, unsigned long max_freq)
+{
+	unsigned long scale;
+	int i;
+
+	if (WARN_ON_ONCE(!max_freq))
+		return;
+
+	scale = (min_freq * per_cpu(cpu_scale, cpumask_any(cpus))) / max_freq;
+
+	for_each_cpu(i, cpus)
+		per_cpu(arch_min_freq_scale, i) = scale;
+}
+
 DEFINE_PER_CPU(unsigned long, cpu_scale) = SCHED_CAPACITY_SCALE;
 EXPORT_PER_CPU_SYMBOL_GPL(cpu_scale);
 
