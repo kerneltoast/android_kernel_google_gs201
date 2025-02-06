@@ -37,6 +37,16 @@ static inline unsigned long topology_get_freq_scale(int cpu)
 
 void topology_set_freq_scale(const struct cpumask *cpus, unsigned long cur_freq,
 			     unsigned long max_freq);
+
+DECLARE_PER_CPU(unsigned long, arch_min_freq_scale);
+
+static inline unsigned long topology_get_min_freq_scale(int cpu)
+{
+	return per_cpu(arch_min_freq_scale, cpu);
+}
+
+void topology_set_min_freq_scale(const struct cpumask *cpus,
+				 unsigned long min_freq, unsigned long max_freq);
 bool topology_scale_freq_invariant(void);
 
 enum scale_freq_source {

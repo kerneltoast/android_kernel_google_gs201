@@ -2536,6 +2536,14 @@ unsigned long arch_scale_freq_capacity(int cpu)
 }
 #endif
 
+#ifndef arch_scale_min_freq_capacity
+static __always_inline
+unsigned long arch_scale_min_freq_capacity(int cpu)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_SCHED_DEBUG
 /*
  * In double_lock_balance()/double_rq_lock(), we use raw_spin_rq_lock() to
