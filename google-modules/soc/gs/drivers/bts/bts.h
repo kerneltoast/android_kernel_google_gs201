@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/rtmutex.h>
 #include <dt-bindings/soc/google/gs-bts.h>
 #include <soc/google/exynos-pd.h>
 #include <soc/google/bts.h>
@@ -90,7 +91,7 @@ struct bts_device {
 	/* bts spinlock */
 	spinlock_t lock;
 	/* mutex-lock to protect accessing setting DVFS */
-	struct mutex mutex_lock;
+	struct rt_mutex mutex_lock;
 
 	unsigned int num_bts;
 	unsigned int num_scen;
