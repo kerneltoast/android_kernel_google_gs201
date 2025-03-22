@@ -32,4 +32,4 @@ source "lib/Kconfig.debug"
 source "Documentation/Kconfig"
 
 # ANDROID: Set KCONFIG_EXT_PREFIX to decend into an external project.
-source "$(KCONFIG_EXT_PREFIX)Kconfig.ext"
+source "$(KCONFIG_EXT_PREFIX)Kconfig.ext$(KCONFIG_EXT_SUFFIX)"
