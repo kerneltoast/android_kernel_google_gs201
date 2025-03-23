@@ -4634,11 +4634,6 @@ static ssize_t enable_br_stats_store(struct device *dev, struct device_attribute
 
 static DEVICE_ATTR_RW(enable_br_stats);
 
-static ssize_t trigger_br_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "");
-}
-
 static ssize_t trigger_br_stats_store(struct device *dev, struct device_attribute *attr,
 				                          const char *buf, size_t size)
 {
@@ -4658,7 +4653,7 @@ static ssize_t trigger_br_stats_store(struct device *dev, struct device_attribut
 	return size;
 }
 
-static DEVICE_ATTR_RW(trigger_br_stats);
+static DEVICE_ATTR_WO(trigger_br_stats);
 
 static ssize_t meter_channels_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
