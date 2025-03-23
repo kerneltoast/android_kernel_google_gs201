@@ -16,6 +16,9 @@
 
 #include "xhci-goog-dma.h"
 
+static struct xhci_goog_dma_coherent_mem **(*get_dma_coherent_mem)(struct device *dev);
+static void (*put_dma_coherent_mem)(struct device *dev);
+
 static inline dma_addr_t xhci_goog_dma_get_device_base(struct device *dev,
 						       struct xhci_goog_dma_coherent_mem *mem)
 {

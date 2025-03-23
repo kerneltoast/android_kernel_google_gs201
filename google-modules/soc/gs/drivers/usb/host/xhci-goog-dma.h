@@ -23,9 +23,6 @@ struct xhci_goog_dma_coherent_mem {
 	bool			use_dev_dma_pfn_offset;
 };
 
-struct xhci_goog_dma_coherent_mem **(*get_dma_coherent_mem)(struct device *dev);
-void (*put_dma_coherent_mem)(struct device *dev);
-
 int xhci_goog_rmem_setup_latecall(struct device *dev);
 void xhci_goog_setup_dma_ops(struct device *dev);
 void xhci_goog_restore_dma_ops(struct device *dev);
