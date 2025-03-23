@@ -93,7 +93,7 @@
  * This macro checks drm clock value is divisible by 1000, and returns (drm clock value/1000).
  */
 #define CALC_DRM_CLOCK_K_HZ(CLOCK) \
-	(CHECK_DRM_CLOCK_DIVISIBLE_1000(CLOCK) + (CLOCK / 1000))
+	(CLOCK / 1000)
 
 /**
  * DRM_MODE_TIMING() - fills in timing parameters in struct drm_display_mode
