@@ -56,10 +56,15 @@ static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
 
 /************************ Governor internals ***********************/
 
+static bool sugov_should_rate_limit(struct sugov_policy *sg_policy, u64 time)
+{
+	s64 delta_ns = time - sg_policy->last_freq_update_time;
+
+	return delta_ns < sg_policy->freq_update_delay_ns;
+}
+
 static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 {
-	s64 delta_ns;
-
 	/*
 	 * Since cpufreq_update_util() is called with rq->lock held for
 	 * the @target_cpu, our per-CPU data is fully serialized.
@@ -84,13 +89,20 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 		return true;
 	}
 
+	/*
+	 * When frequency-invariant utilization tracking is present, there's no
+	 * rate limit when increasing frequency. Therefore, the next frequency
+	 * must be determined before a decision can be made to rate limit the
+	 * frequency change, hence the rate limit check is bypassed here.
+	 */
+	if (arch_scale_freq_invariant())
+		return true;
+
 	/* If the last frequency wasn't set yet then we can still amend it */
 	if (sg_policy->work_in_progress)
 		return true;
 
-	delta_ns = time - sg_policy->last_freq_update_time;
-
-	return delta_ns >= sg_policy->freq_update_delay_ns;
+	return !sugov_should_rate_limit(sg_policy, time);
 }
 
 static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
@@ -106,13 +118,27 @@ static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 		 * specifically wants that to happen on every update of the
 		 * policy limits.
 		 */
-		if (sg_policy->next_freq == next_freq &&
-		    !cpufreq_driver_test_flags(CPUFREQ_NEED_UPDATE_LIMITS))
-			return false;
-	} else if (sg_policy->next_freq == next_freq) {
-		return false;
+		if (cpufreq_driver_test_flags(CPUFREQ_NEED_UPDATE_LIMITS))
+			goto must_update;
 	}
 
+	/*
+	 * When a frequency update isn't mandatory (!need_freq_update), the rate
+	 * limit is checked again upon frequency reduction because systems with
+	 * frequency-invariant utilization bypass the rate limit check entirely
+	 * in sugov_should_update_freq(). This is done so that the rate limit
+	 * can be applied only for frequency reduction when frequency-invariant
+	 * utilization is present. Now that the next frequency is known, the
+	 * rate limit can be selectively applied to frequency reduction on such
+	 * systems. A check for arch_scale_freq_invariant() is omitted here
+	 * because unconditionally rechecking the rate limit is cheaper.
+	 */
+	if (next_freq == sg_policy->next_freq ||
+	    (next_freq < sg_policy->next_freq &&
+	     sugov_should_rate_limit(sg_policy, time)))
+		return false;
+
+must_update:
 	sg_policy->next_freq = next_freq;
 	sg_policy->last_freq_update_time = time;
 
