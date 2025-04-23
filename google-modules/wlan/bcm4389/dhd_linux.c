@@ -4918,16 +4918,6 @@ dhd_dpc_thread(void *data)
 	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
 	dhd_info_t *dhd = (dhd_info_t *)tsk->parent;
 
-	/* This thread doesn't need any user-level access,
-	 * so get rid of all our resources
-	 */
-	if (dhd_dpc_prio > 0)
-	{
-		struct sched_param param;
-		param.sched_priority = (dhd_dpc_prio < MAX_RT_PRIO)?dhd_dpc_prio:(MAX_RT_PRIO-1);
-		setScheduler(current, SCHED_FIFO, &param);
-	}
-
 #ifdef CUSTOM_DPC_CPUCORE
 	set_cpus_allowed_ptr(current, cpumask_of(CUSTOM_DPC_CPUCORE));
 #endif
