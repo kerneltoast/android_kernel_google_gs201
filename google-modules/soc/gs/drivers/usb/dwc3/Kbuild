@@ -13,7 +13,7 @@
 ##
 
 ccflags-y				+= -I$(srctree)/drivers/usb
-ccflags-y				+= -I$(srctree)/../private/google-modules/soc/gs/drivers/usb/host
+ccflags-y				+= -I$(srctree)/google-modules/soc/gs/drivers/usb/host
 
 obj-$(CONFIG_USB_DWC3_EXYNOS_GS)	+= dwc3-exynos-usb.o
 dwc3-exynos-usb-y			+= dwc3-exynos.o

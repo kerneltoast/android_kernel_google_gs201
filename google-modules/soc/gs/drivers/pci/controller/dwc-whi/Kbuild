@@ -9,4 +9,4 @@ obj-$(CONFIG_PCI_EXYNOS_CAL_GS201) += pcie-exynos-gs201-rc-cal.o
 ccflags-y += -I$(srctree)/drivers/pci/controller/dwc
 
 # This gives the drivers access to the logbuffer.h header
-subdir-ccflags-y += -I$(srctree)/../private/google-modules/bms
+subdir-ccflags-y += -I$(srctree)/google-modules/bms
