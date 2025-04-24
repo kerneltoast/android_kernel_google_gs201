@@ -59,7 +59,7 @@ exynos-drm-$(CONFIG_DRM_SAMSUNG_TUI)		+= exynos_drm_tui.o
 exynos-drm-$(CONFIG_DRM_SAMSUNG_WB)		+= exynos_drm_writeback.o
 
 ccflags-$(CONFIG_DRM_SAMSUNG_DP)		+= -I$(srctree)/drivers/usb
-ccflags-$(CONFIG_DRM_SAMSUNG_DP)		+= -I$(srctree)/../private/google-modules/soc/gs/include
+ccflags-$(CONFIG_DRM_SAMSUNG_DP)		+= -I$(srctree)/google-modules/soc/gs/include
 
 ifeq ($(CONFIG_SOC_ZUMA),y)
 exynos-drm-$(CONFIG_DRM_SAMSUNG_DP)		+= exynos_drm_dp.o
@@ -69,7 +69,7 @@ endif
 
 exynos-drm-$(CONFIG_EXYNOS_BTS)			+= exynos_drm_bts.o
 
-ccflags-$(CONFIG_DRM_SAMSUNG_DP_AUDIO) += -I$(srctree)/../private/google-modules/aoc/alsa
+ccflags-$(CONFIG_DRM_SAMSUNG_DP_AUDIO) += -I$(srctree)/google-modules/aoc/alsa
 exynos-drm-audio-$(CONFIG_DRM_SAMSUNG_DP_AUDIO)	+= dp_audio/dp_dma.o
 
 obj-$(CONFIG_DRM_SAMSUNG)			+= exynos-drm.o

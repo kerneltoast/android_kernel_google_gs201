@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ccflags-y += -I$(srctree)/../private/google-modules/display
-ccflags-y += -I$(srctree)/../private/google-modules/display/include/uapi
-ccflags-y += -I$(srctree)/../private/google-modules/touch/common
-ccflags-y += -I$(srctree)/../private/google-modules/touch/common/include
+ccflags-y += -I$(srctree)/google-modules/display
+ccflags-y += -I$(srctree)/google-modules/display/include/uapi
+ccflags-y += -I$(srctree)/google-modules/touch/common
+ccflags-y += -I$(srctree)/google-modules/touch/common/include
 
 obj-$(CONFIG_TOUCHSCREEN_GOODIX_BRL) = goodix_brl_touch.o
 goodix_brl_touch-objs += \
