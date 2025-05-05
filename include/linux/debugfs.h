@@ -184,7 +184,7 @@ ssize_t debugfs_read_file_str(struct file *file, char __user *user_buf,
 static inline struct dentry *debugfs_lookup(const char *name,
 					    struct dentry *parent)
 {
-	return ERR_PTR(-ENODEV);
+	return NULL;
 }
 
 static inline struct dentry *debugfs_create_file(const char *name, umode_t mode,
