@@ -87,7 +87,6 @@ endif
 ifeq ($(CONFIG_MALI_CSF_SUPPORT),y)
     MALI_JIT_PRESSURE_LIMIT_BASE = 0
     MALI_USE_CSF = 1
-    ccflags-y += -DCONFIG_MALI_PIXEL_GPU_SSCD
 else
     MALI_JIT_PRESSURE_LIMIT_BASE ?= 1
 endif
