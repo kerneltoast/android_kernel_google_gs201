@@ -40,11 +40,6 @@ mali_kbase-$(CONFIG_MALI_PIXEL_GPU_QOS) += \
 mali_kbase-$(CONFIG_MALI_PIXEL_GPU_THERMAL) += \
 	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_tmu.o
 
-ifneq ($(filter -DCONFIG_MALI_PIXEL_GPU_SSCD, $(ccflags-y)),)
-mali_kbase-y += \
-	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_sscd.o
-endif
-
 ifeq ($(CONFIG_MALI_PIXEL_GPU_SLC),y)
 	mali_kbase-y += \
 		platform/$(MALI_PLATFORM_DIR)/pixel_gpu_slc.o
@@ -54,5 +49,10 @@ ifeq ($(CONFIG_MALI_PIXEL_GPU_SLC),y)
 	endif
 endif
 
+ifneq ($(filter -DCONFIG_MALI_PIXEL_GPU_SSCD, $(ccflags-y)),)
+mali_kbase-y += \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_sscd.o
+
 mali_kbase-$(CONFIG_MALI_CSF_SUPPORT) += \
 	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_debug.o
+endif
