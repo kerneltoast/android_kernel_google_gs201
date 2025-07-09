@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Cheetah touch device tree source.
+ *
+ * Copyright 2021 Google Inc.
+ *
+ */
+
+#include <arm64/exynos/exynos-pinctrl.h>
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+
+&m_ldo25_reg {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	/delete-property/ regulator-always-on;
+};
+
+&m_ldo26_reg {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	/delete-property/ regulator-always-on;
+};
+
+&spi_0 {
+	cs-gpios = <&gpp20 3 GPIO_ACTIVE_LOW>;
+	num-cs = <1>;
+};
+
+&spitouch {
+	status = "ok";
+
+	compatible = "synaptics,tcm-spi";
+	reg = <0>;
+	spi-max-frequency = <10000000>;
+	synaptics,avdd-name = "avdd";
+	synaptics,vdd-name = "vdd";
+	synaptics,power-delay-ms = <200>;
+	synaptics,irq-gpio = <&gpa7 0 0x2008>; /* IRQF_ONESHOT | IRQF_TRIGGER_LOW */
+	synaptics,irq-on-state = <0>;
+	synaptics,reset-gpio = <&gpp23 2 0>;
+	synaptics,reset-on-state = <0>;
+	synaptics,reset-active-ms = <20>;
+	synaptics,reset-delay-ms = <200>;
+	synaptics,spi-mode = <0>;
+	synaptics,spi-byte-delay-us = <0>;
+	synaptics,spi-block-delay-us = <0>;
+	synaptics,pixels-per-mm = <20>;
+	synaptics,compression-threshold = <15>;
+	synaptics,grip-delta-threshold = <50>;
+	synaptics,grip-border-threshold = <50>;
+	synaptics,panel_map = <&sdc_s6e3hc3_c10>,
+			      <&sdc_s6e3hc4>,
+			      <&boe_nt37290>;
+	synaptics,firmware_names = "synaptics.img",
+				   "synaptics.img",
+				   "synaptics_b.img";
+	synaptics,touch_offload_id = /bits/ 8 <'c' '1' '0' '0'>;
+	synaptics,udfps-coords = <720 2360>;
+	synaptics,dynamic-report-rate;
+
+	controller-data {
+		samsung,spi-feedback-delay = <0>;
+		samsung,spi-chip-select-mode = <0>;
+		cs-clock-delay = <2>;
+	};
+};

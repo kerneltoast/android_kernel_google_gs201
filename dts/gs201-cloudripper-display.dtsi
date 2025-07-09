@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Display nodes for slider-related boards.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+#include "gs201-cheetah-display-constants.dtsi"
+
+&drmdsim0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	panel@0 {
+		compatible = "samsung,s6e3hc2-fhd";
+		label = "samsung-s6e3hc2-fhd";
+		channel = <0>;
+		touch = <&spitouch>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo27_reg>;
+		vddi-supply = <&m_ldo24_reg>;
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&drmdsim1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "samsung,s6e3hc3";
+		label = "samsung-s6e3hc3";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		vddd-supply = <&m_ldo28_reg>;
+		vddd-normal-microvolt = <RAVEN_VDD_NORMAL_MICROVOLT>;
+		vddd-lp-microvolt = <RAVEN_VDD_LP_MICROVOLT>;
+		vci-supply = <&s_ldo6_reg>;
+		vddi-supply = <&s_bucka_reg>;
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+	};
+	panel@2 {
+		compatible = "samsung,s6e3fc3-p10";
+		label = "sdc-s6e3fc3-p10";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&s_ldo6_reg>;
+		vddi-supply = <&s_bucka_reg>;
+	};
+	panel@3 {
+		compatible = "samsung,s6e3hc3-c10";
+		label = "sdc-s6e3hc3-c10";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		vddd-normal-microvolt = <CHEETAH_VDDD_NORMAL_MICROVOLT>;
+		vddd-lp-microvolt = <CHEETAH_VDDD_LP_MICROVOLT>;
+		vci-supply = <&s_ldo6_reg>;
+		vddi-supply = <&s_bucka_reg>;
+	};
+	panel@4 {
+		compatible = "samsung,s6e3hc4";
+		label = "sdc-s6e3hc4";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		vddd-normal-microvolt = <CHEETAH_3HC4_VDDD_NORMAL_MICROVOLT>;
+		vddd-lp-microvolt = <CHEETAH_VDDD_LP_MICROVOLT>;
+		vci-supply = <&s_ldo6_reg>;
+		vddi-supply = <&s_bucka_reg>;
+	};
+	panel@5 {
+		compatible = "boe,nt37290";
+		label = "boe-nt37290";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpp23 0 GPIO_ACTIVE_HIGH>;
+		vddd-normal-microvolt = <CHEETAH_3HC4_VDDD_NORMAL_MICROVOLT>;
+		vddd-lp-microvolt = <CHEETAH_VDDD_LP_MICROVOLT>;
+		vci-supply = <&s_ldo6_reg>;
+		vddi-supply = <&s_bucka_reg>;
+	};
+};

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Panther-specific PMIC settings
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+/* Touch: Panther touch controller requires 3.0v typ */
+&m_ldo26_reg {
+	regulator-max-microvolt = <3000000>;
+};
+
+/* Display: vci-supply voltage */
+&m_ldo27_reg {
+	regulator-min-microvolt = <3025000>;
+	regulator-max-microvolt = <3025000>;
+};

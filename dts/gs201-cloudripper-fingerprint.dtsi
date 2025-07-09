@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Goodix fps device tree source
+ *
+ * Copyright 2021 Google,LLC.
+ */
+
+&odm {
+	goodixfp {
+		status = "okay";
+		compatible = "goodix,fingerprint";
+		interrupt-parent = <&gpa8>;
+		interrupts = <7 0>;
+		spi-max-frequency = <1000000>;
+		pinctrl-names = "default";
+		fp-gpio-irq = <&gpa8 7 GPIO_ACTIVE_HIGH>;
+		fp-gpio-reset = <&gpp1 1 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&s_ldo15_reg {
+	regulator-always-on;
+};

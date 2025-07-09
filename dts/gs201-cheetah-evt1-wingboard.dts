@@ -1,0 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Cheetah device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "gs201-cheetah-common.dtsi"
+#include "gs201-pantah-pmic-odpm-1.dtsi"
+
+/ {
+	board_id = <0x30303>;
+	board_rev = <0x10002>;
+	fragment@boardbase {
+		target-path="/";
+		__overlay__ {
+			model = "GS201 CHEETAH EVT 1.0 Wingboard based on GS201";
+			compatible = "google,GS201 CHEETAH", "google,GS201";
+		};
+	};
+};
+
+&serial_0 {
+	status = "okay";
+};

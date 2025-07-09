@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS201 Ravenclaw Type-C device tree
+ *
+ * Copyright (c) 2021 Google, LLC
+ *
+ */
+
+&max77759tcpc {
+	ovp-present;
+	in-switch-gpio = <&max777x9_gpio 5 GPIO_ACTIVE_LOW>;
+};

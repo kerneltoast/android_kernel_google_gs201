@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs201 pmic odpm device tree source
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+&s_ext6_rail {
+	schematic-name = "VSYS_PWR_CAM";
+	subsys-name = "Camera";
+};
+
+/* replace L9S_GNSS_CORE to VSYS_PWR_CAM */
+&ch15 {
+	rail-name = "VSEN_C6";
+};

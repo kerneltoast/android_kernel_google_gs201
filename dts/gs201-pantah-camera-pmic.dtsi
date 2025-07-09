@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs201 camera PMIC device tree for pantah
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+#include <arm64/exynos/exynos-pinctrl.h>
+
+&hsi2c_8 {
+	/* SLG51002 */
+	status = "ok";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	slg51002: slg51002@75 {
+		compatible = "dlg,slg51002";
+		reg = <0x75>;
+		status = "ok";
+		dlg,buck-gpios = <&s2mpg13_gpio 3 GPIO_ACTIVE_HIGH>;
+		dlg,bb-gpios = <&s2mpg13_gpio 1 GPIO_ACTIVE_HIGH>;
+		dlg,cs-gpios = <&s2mpg13_gpio 0 GPIO_ACTIVE_HIGH>;
+		dlg,reg-init-cells = <2>;
+
+		regulators {
+			slg51002_ldo1: ldo1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51002_ldo2: ldo2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51002_ldo3: ldo3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51002_ldo4: ldo4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51002_ldo5: ldo5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51002_ldo6: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1675000>;
+			};
+
+			slg51002_ldo7: ldo7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1675000>;
+			};
+
+			slg51002_ldo8: ldo8 {
+				regulator-name = "ldo8";
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1675000>;
+			};
+
+			slg51002_gpio1: gpio1 {
+				regulator-name = "gpio1";
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1675000>;
+			};
+
+			slg51002_gpio2: gpio2 {
+				regulator-name = "gpio2";
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1675000>;
+			};
+
+			slg51002_gpio3: gpio3 {
+				regulator-name = "gpio3";
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1675000>;
+			};
+
+			slg51002_gpio4: gpio4 {
+				regulator-name = "gpio4";
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1675000>;
+			};
+		};
+
+		slg51002_gpio: slg51002_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+			gpio-ranges = <&slg51002_pinctrl 0 0 8>;
+		};
+
+		slg51002_pinctrl: slg51002_pinctrl {
+		};
+	};
+};

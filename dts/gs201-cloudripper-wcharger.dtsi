@@ -1,0 +1,78 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Wireless Charger device tree entries.
+ *
+ * Copyright 2020 Google Inc.
+ */
+
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs201/gs101-pinctrl.h"
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	fragment@wlc {
+		target-path = "/";
+		__overlay__ {
+			google,charger {
+				google,wlc-power-supply = "wireless";
+			};
+		};
+	};
+};
+
+&pinctrl_0 {
+	/* XIENT_25 P9412 Wireless Charger Interrupt */
+	wc_irq: wc_irq {
+		samsung,pins = "gpa9-5"; /* QI_INT_R */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_4 {
+	/* XAPC_GPIO0 P9412 Wireless Charger Enable */
+	wc_en: wc_en {
+		samsung,pins = "gpp0-0"; /* QI_EN_L */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_OUT0>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&hsi2c_15 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	p9412@3c {
+		compatible = "idt,p9412";
+		reg = <0x3c>;
+		status = "ok";
+
+		idt,has_rtx = <1>;
+		/* Granvilla GPIO 2~4 */
+		idt,gpio_ben = <&s2mpg12_gpio 4 GPIO_ACTIVE_HIGH>;
+		idt,gpio_switch = <&s2mpg12_gpio 3 GPIO_ACTIVE_HIGH>;
+		idt,gpio_extben = <&s2mpg12_gpio 2 GPIO_ACTIVE_HIGH>;
+
+		/* WLCDC */
+		idt,gpio_dc_switch = <&s2mpg12_gpio 0 GPIO_ACTIVE_HIGH>;
+		idt,max_vout_mv = <19500>;
+		idt,has_wlc_dc = <0>;
+
+		idt,gpio_qi_vbus_en = <&gpp0 0 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wc_irq &wc_en>;
+
+		idt,gpio_qien = <&gpp0 0 GPIO_ACTIVE_HIGH>;
+		idt,irq_gpio = <&gpa9 5 GPIO_ACTIVE_LOW>;
+
+		p9xxx_gpio: p9xxx_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+		};
+
+	};
+};
