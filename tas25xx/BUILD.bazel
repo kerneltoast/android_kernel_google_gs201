@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "tas25xx",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+        "inc/*.h",
+        "algo/**/*.c",
+        "algo/**/*.h",
+    ]) + [
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        "snd-soc-tas25xx.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+    ],
+)

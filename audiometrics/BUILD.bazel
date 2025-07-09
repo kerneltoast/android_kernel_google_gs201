@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "uapi/*.h",
+        "*.h",
+    ]),
+    visibility = [
+        "//private/google-modules/aoc/alsa:__pkg__",
+    ],
+)
+
+kernel_module(
+    name = "audiometrics",
+    outs = [
+        "audiometrics.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/aoc/alsa:__pkg__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)

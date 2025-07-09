@@ -1,0 +1,107 @@
+
+menuconfig SND_SOC_TAS25XX
+    tristate "Texas Instruments TAS25XX SmartAmp(R)"
+    help
+      Enable the support for TAS driver.
+
+      This is the main config under which various
+      other configuration can be enabled based on
+      the below configurations.
+
+if SND_SOC_TAS25XX
+config PLATFORM_EXYNOS
+    bool "Exynos platform support"
+    depends on SND_SOC_TAS25XX
+    default n
+    help
+      Enable support for Exynos platform.
+
+      This enables the platform specific interface
+      which acts as abstraction layer to the algorithm
+      for Exynos platform.
+
+config PLATFORM_MTK
+    bool "MTK platform support"
+    depends on SND_SOC_TAS25XX
+    default n
+    help
+      Enable support for MTK platform.
+
+      This enables the platform specific interface
+      which acts as abstraction layer to the algorithm
+      for MTK platform.
+
+config TAS25XX_ALGO
+    bool "TAS25XX AP DSP Communication Support"
+    depends on SND_SOC_TAS25XX
+    help
+      Enable support for TAS25XX Calibration driver.
+
+      This includes TAS25XX Calibration driver interfaces
+      and functions also interfacing driver to corresponding
+      Platform/DSP
+
+config PLATFORM_QCOM
+    bool "QCOM platform support"
+    depends on TAS25XX_ALGO
+    default n
+    help
+      Enable support for Qcom platform.
+
+      This enables the platform specific interface
+      which acts as abstraction layer to the algorithm
+      for Exynos platform.
+
+config TISA_KBIN_INTF
+    bool "Kbin file method support"
+    depends on PLATFORM_QCOM
+    default n
+    help
+      Enable support for KBin file method
+
+      This is the algorithm specific configuration
+      where the binary file will be opened in the kernel
+      using request_firmware API. This interface currently supported
+      only on the Qualcomm platform
+
+config TAS25XX_CALIB_VAL_BIG
+    bool "For bigdata & calibration support"
+    depends on TAS25XX_ALGO
+    default n
+    help
+      Enable support for bigdata & calibration.
+
+      Enables the support for sysfs entries under
+      /sys/class/tas25xx directory
+      for calibration, validataion and bigdata
+
+config TAS25XX_IRQ_BD
+    bool "For bigdata IRQ data"
+    depends on SND_SOC_TAS25XX
+    default n
+    help
+      Enable support for bigdata & calibration.
+
+      Enables the support for sysfs entries under
+      /sys/class/tas25xx_dev/ directory
+      for irq related big data
+
+config TISA_SYSFS_INTF
+    bool "sysfs interface for calibration and algo support"
+    depends on TAS25XX_ALGO
+    default n
+    help
+      Enable the support for sysfs based interfaces
+      for calibration and algo control
+
+config TAS25XX_MISC
+    bool "Misc Driver support"
+    default y
+    help
+      Enable misc driver support.
+
+      Enable the misc driver "TAS25XX" which is
+      interface to communicate to device via register
+      read and write
+
+endif # SND_SOC_TAS25XX

@@ -1,0 +1,71 @@
+
+menuconfig SND_SOC_TAS256X
+    tristate "Texas Instruments TAS256X SmartAmp(R)"
+
+if SND_SOC_TAS256X
+config TAS256X_REGMAP
+    bool "Use of RegMap API"
+    depends on SND_SOC_TAS256X
+    help
+      Enable support for TAS256X regmap driver.
+      This includes i2c i2c driver structure,
+      IRQ processing, registers read and write
+      by i2c operations.
+
+config TAS256X_CODEC
+    bool "Codec Driver support"
+    depends on SND_SOC_TAS256X
+    help
+      Enable support for TAS256X codec driver.
+      This includes codec driver interfaces
+      and functions.
+
+config PLATFORM_EXYNOS
+    bool "Exynos platform support"
+    depends on SND_SOC_TAS256X
+    default n
+    help
+      Enable support for Exynos platform.
+
+config TAS25XX_ALGO
+    bool "TAS256X Calib Driver Support"
+    depends on SND_SOC_TAS256X
+    help
+      Enable support for TAS25XX Calibration driver.
+      This includes TAS256X Calibration driver interfaces
+      and functions.
+
+config PLATFORM_QCOM
+    bool "QCOM platform support"
+    depends on TAS25XX_ALGO
+    default y
+    help
+      Enable support for Qcom platform.
+
+config TAS256X_REGBIN_PARSER
+    bool "REG Bin File support"
+    depends on SND_SOC_TAS256X
+    default y
+    help
+      Enable support for REG Bin File.
+
+config TISA_KBIN_INTF
+    bool "Kbin file method support"
+    depends on SND_SOC_TAS256X
+    default n
+    help
+      Enable support for KBin file method
+
+config CONFIG_TAS25XX_CALIB_VAL_BIG
+    bool "For bigdata & calibration support"
+    depends on SND_SOC_TAS256X
+    default n
+    help
+      Enable support for bigdata & calibration.
+
+#config TAS2558_CODEC
+
+config TAS256X_MISC
+    bool "Misc Driver support"
+
+endif # SND_SOC_TAS256X

@@ -1,0 +1,735 @@
+What:		/sys/class/input/input(x)/default/delay_before_stop_playback_us
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Minimum time (in microseconds) that must elapse before a "stop playback" call
+		can be issued after a haptics effect has been triggered.
+
+		Access: Read, Write
+
+		Valid values: Represented as integer
+			Minimum: 0
+			Default: 0
+
+What:		/sys/class/input/input(x)/default/die_temp
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Filtered die temeprature in Celsius.
+		Device must be active in order to get result.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal using two's complement for negative values
+
+What:		/sys/class/input/input(x)/default/dsp_state
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Current state of the DSP.
+
+		Access: Read
+
+		Valid values: Represented as enum
+			0: Hibernate
+			1: Shutdown
+			2: Standby
+			3: Active
+
+What:		/sys/class/input/input(x)/default/f0_comp_enable
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Enable/disable F0 compensation.
+
+		Access: Read, Write
+
+		Valid values:
+			0: Disable F0 compensation
+			1: Enable F0 compensation
+
+What:		/sys/class/input/input(x)/default/f0_offset
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Fixed offset from resonant frequency (F0).
+
+		Access: Read, Write
+
+		Valid values: Represented as signed Q10.14 integer (Hz)
+			Minimum: 15138816 (-100 Hz)
+			Maximum: 1638400 (100 Hz)
+			Default: 0
+
+What:		/sys/class/input/input(x)/default/fw_rev
+Date:		November 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Get revision of the firmware running on the DSP.
+
+		Access: Read
+
+		Valid values:	Represented as string "major.minor.patch"
+
+What:		/sys/class/input/input(x)/default/halo_heartbeat
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Number of "active" clock cycles since the DSP's last wake from hibernation.
+		The DSP is "active" when it is running and processing a stream
+		or haptic effect.
+
+		Access: Read
+
+		Valid values: Represented as integer
+
+What:		/sys/class/input/input(x)/default/init_rom_wavetable
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Initiate ROM wavetable parsing by writing '1' to
+		this control. Allows use of ROM waveforms in Open Wavetable
+		effects.
+
+		Access: Write
+
+		Valid values: 1 (integer)
+
+What:		/sys/class/input/input(x)/default/braking_time_bank
+Date:		April 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Specify the bank of the effect from which braking time
+		information is to be read.
+
+		Access: Write
+
+		Valid values:
+			0: RAM bank
+			2: OWT bank
+
+What:		/sys/class/input/input(x)/default/braking_time_index
+Date:		April 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Specify the index in the 0-indexed wavetable of the effect from
+		which braking time information is to be read.
+
+		Access: Write
+
+		Valid values:
+			Minimum: 0
+
+What:		/sys/class/input/input(x)/default/braking_time_ms
+Date:		April 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Braking time in milliseconds of SVC effect specified by
+		braking_time_index and braking_time_bank.
+
+		A non-SVC effect will return a braking time of 0 ms.
+
+		Access: Read
+
+What:		/sys/class/input/input(x)/default/num_waves
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Number of waveforms loaded into device RAM.
+		Includes waveforms from wavetable tuning file (cs40l26.bin)
+		as well as any Open Wavetable (OWT) waveforms uploaded
+		at runtime.
+
+What:		/sys/class/input/input(x)/default/overprotection_gain
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Gain applied to signal prior to excursion limiter.
+
+		Used to increase gain on the estimated excursion; effectively
+		decreasing the excursion limit.
+
+		Access: Read, Write
+
+		Valid values: Represented as integer using unsigned Q3.20 format
+			Minimum: 1048576 (1)
+			Maximum: 8388607 (7.999999)
+
+What:		/sys/class/input/input(x)/default/owt_free_space
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Amount of space remaining (in bytes) in the Open Wavetable (OWT) portion of
+		RAM wavetable memory.
+
+		Access: Read
+
+		Valid values: Represented as integer
+			Minimum: 0
+
+What:		/sys/class/input/input(x)/default/owt_lib_compat
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Display compatible version of Cirrus OWT C library.
+
+		Access: Read
+
+What:		/sys/class/input/input(x)/default/pm_active_timeout_ms
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Amount of time (in milliseconds) to wait for transitioning from
+		DSP "active" state to DSP "standby" state.
+
+		Access: Read, Write
+
+		Valid values: Integers representing time in ms
+			Minimum: 0
+			Maximum: 10000
+			Default: 250
+
+What:		/sys/class/input/input(x)/default/pm_stdby_timeout_ms
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Amount of time (in milliseconds) to wait for transitioning from DSP "standby" state to DSP
+		"hibernate" state.
+
+		Access: Read, Write
+
+		Valid values: Integers representing time in ms
+			Minimum: 100
+			Maximum: 10000
+			Default: 100
+
+What:		/sys/class/input/input(x)/default/redc_comp_enable
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Enable/disable ReDC click compensation.
+
+		Access: Read, Write
+
+		Valid values:
+			0: Disable ReDC compensation
+			1: Enable ReDC compensation
+
+What:		/sys/class/input/input(x)/default/swap_firmware
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Load/reload firmware.
+
+		Access: Read, Write
+
+		Valid values: Represented as enum
+			0: Runtime firmware
+			1: Calibration firmware
+
+What:		/sys/class/input/input(x)/default/swap_wavetable
+Date:		February 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Switch wavetable tuning .bin files at runtime.
+		All uploaded effects from userspace must be erased
+		prior to swapping wavetable tunings.
+
+		Access: Read, Write
+
+		Valid values: Represented as integer
+			0: Loads cs40l26.bin
+			1: Loads cs40l26-wt1.bin
+			2: Loads cs40l26-wt2.bin
+			etc.
+
+What:		/sys/class/input/input(x)/default/vibe_state
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Current state of haptics playback.
+		Requires firmware variant that supports vibe_state reporting.
+
+		Access: Read
+
+		Valid values: Represented as enum
+			0: Stopped
+			1: Haptic
+			2: ASP
+
+What:		/sys/class/input/input(x)/calibration/dvl_peq_coefficients
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Coefficients for parametric EQ filter to model LRA.
+		Read after requesting DVL PEQ calibration.
+		This should only be done when calibration FW is loaded.
+
+		The control should only be written after loading runtime FW along
+		with cs40l26-dvl.bin to update the DVL PEQ coefficients with the
+		values obtained during calibration.
+
+		The format is the coefficients in order in hex format (signed Q4.20) separated by spaces.
+		<PEQ_COEF1_X> <PEQ_COEF1_Y> <PEQ_COEF2_X> <PEQ_COEF2_Y> <PEQ_COEF3_X> <PEQ_COEF3_Y>
+
+		Access: Read, Write
+
+		Valid values: each coefficient is represented as hex in signed Q4.20 format
+			Minimum: 0x800000 (-8)
+			Maximum: 0x7FFFFF (7.999999)
+
+What:		/sys/class/input/input(x)/calibration/f0_and_q_cal_time_ms
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Amount of time required to run the diagnostic signal to get F0 and Q-factor estimations.
+
+		Calibration firmware must be loaded to use this control.
+
+		The control is read-only and is determined based on freq_span and freq_centre values.
+
+		Access: Read
+
+		Valid values: Integer representing number of milliseconds required to succesfully
+			calculate F0 and Q estimations
+
+What:		/sys/class/input/input(x)/calibration/f0_measured
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Resonance frequency (F0) of the LRA.
+
+		Can only be used with calibration firmware, and will only display information
+		once the calibration procedure has been executed.
+
+		Access: Read
+
+		Valid values: Hex value in unsigned Q9.14 representing F0 in Hz
+		Minimum: 0x000000 (0 Hz)
+		Maximum: 0x7FFFFF (511.9999 Hz)
+
+What:		/sys/class/input/input(x)/calibration/f0_stored
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Value from f0_measured should be stored and written to f0_stored upon loading runtime firmware.
+
+		Access: Read, Write
+
+		Valid values: Hex value in unsigned Q9.14 format representing F0 in Hz
+		Minimum: 0x000000 (0 Hz)
+		Maximum: 0x7FFFFF (511.9999 Hz)
+
+What:		/sys/class/input/input(x)/calibration/freq_centre
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Programs the center frequency of the chirp effect being used for calibration.
+
+		Access: Read, Write
+
+		Valid values: Hex value in unsigned Q9.14 format representing center frequency in Hz
+			Minimum: 0x0C8000 (50 Hz)
+			Maximum: 0x7FC000 (511 Hz)
+			Default: 0x280000 (160 Hz)
+
+What:		/sys/class/input/input(x)/calibration/freq_span
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Frequency (in Hz) span of the calibration chirp.
+		Negative frequency span is interpreted as decremental frequency sweep.
+
+		Access: Read, Write
+
+		Valid values: Hex value in Q9.14 format (with bit 24 used as the sign bit)
+			representing span in Hz
+			Minimum: 0x050000 (20 Hz) or 0x850000 (-20 Hz)
+			Maximum: 0x1E0000 (120 Hz) or 0x9E0000 (-120 Hz)
+			Default: 0x1E0000 (120 Hz)
+
+What:		/sys/class/input/input(x)/calibration/ls_calibration_params_temp
+Date:		January 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Temperature during calibration.
+
+		Access: Read, Write
+
+		Valid values: Hex value in signed Q8.15 format representing degrees in Celsius
+			Minimum: 0xE70000 (-50 C)
+			Maximum: 0x190000 (50 C)
+			Default: 0x0A0000 (20 C)
+
+What:		/sys/class/input/input(x)/calibration/ls_calibration_results
+Date:		January 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Coefficients calibrated by the least squares algorithm.
+
+		After running LS Calibration via the trigger_calibration control,
+		read out the coefficients and store them in persistent memory.
+		After loading runtime firmware, write the coefficients back to this
+		control in the exact way that they were first printed when reading
+		the control. This will apply the correct coefficient configuration
+		to the excursion protection algorithm.
+
+		Access: Read, Write
+
+		Valid values: Hex values representing each coefficient setting
+			See firmware documentation for more detailed information
+			on each coefficient.
+
+What:		/sys/class/input/input(x)/calibration/ls_calibration_results_name
+Date:		February 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Coefficients calibrated by the least squares algorithm.
+
+		After running LS Calibration via the trigger_calibration control,
+		read out the coefficient values and the firmware control name to which
+		they apply.
+
+		Access: Read
+
+		Valid values: Firmware control name - hex value pairs
+			representing each coefficient setting.
+			See firmware documentation for more detailed information
+			on each coefficient.
+
+What:		/sys/class/input/input(x)/calibration/q_measured
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Q value for the LRA under test.
+
+		This control can only be used if calibration firmware is loaded.
+
+		Access: Read
+
+		Valid values: Hex value in unsigned Q7.16 format; the value is unitless
+			Minimum: 0x000000 (0)
+			Maximum: 0x7FFFFF (127.999985)
+
+What:		/sys/class/input/input(x)/calibration/q_stored
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Value from q_measured should be stored and written to q_stored upon loading runtime firmware.
+
+		Access: Read, Write
+
+		Valid values: Hex value in unsigned Q7.16 format representing Q (unitless)
+		Minimum: 0x000000 (0)
+		Maximum: 0x7FFFFF (127.999985)
+
+What:		/sys/class/input/input(x)/calibration/redc_cal_time_ms
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Specifies duration of ReDC calibration, the amount of time the user must wait after triggering
+		ReDC estimation before reading back the result from redc_measured.
+
+		Calibration firmware must be loaded to use this control.
+
+		The value can only be programmed by the user via cs40l26-calib.bin
+
+		Access: Read
+
+		Valid values: Integer representing calibration time in milliseconds
+			Minimum: 16
+
+What:		/sys/class/input/input(x)/calibration/redc_est
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Specifies the resistance of the LRA to be used in the F0 estimation algorithm.
+		It is recommended to execute ReDC calibration before F0 and Q estimation so that this control
+		can be populated and increase the accuracy of the calibration results.
+
+		Access: Read, Write
+
+		Valid values: Hex value in Q8.15 format representing Ohms
+			Minimum: 0x000000 (0 ohms)
+			Maximum: 0x7FFFFF (255.999969 ohms)
+
+What:		/sys/class/input/input(x)/calibration/redc_measured
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		ReDC value for the LRA under test.
+
+		Access: Read
+
+		Valid values: Hex value in Q8.15 format representing ohms
+			Minimum: 0x000000 (0 ohms)
+			Maximum: 0x7FFFFF (255.999969 ohms)
+
+What:		/sys/class/input/input(x)/calibration/redc_stored
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Value from redc_measured should be stored and written to redc_stored
+		upon loading runtime firmware.
+
+		Access: Read, Write
+
+		Valid values: Hex value in Q8.15 format representing ohms
+		Minimum: 0x000000 (0 ohms)
+		Maximum: 0x7FFFFF (255.999969 ohms)
+
+What:		/sys/class/input/input(x)/calibration/svc_le_est
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		When this file is read, the device calculates the SVC Le value of the LRA, and
+		displays the result.
+
+		Access: Read
+
+		Valid values: Hex value in unsigned Q0.23 format representing Henries
+			Minimum: 0x000000 (0 H)
+			Maximum: 0x7FFFFF (1 H)
+
+What:		/sys/class/input/input(x)/calibration/svc_le_stored
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Value used by the driver in order to select tuning files determined by the "svc-le" devicetree
+		control upon loading runtime firmware. This should be copied from svc_le_est.
+
+		Access: Read, Write
+
+		Valid values: Hex value in unsigned Q0.23 format representing Henries
+			Minimum: 0x000000 (0 H)
+			Maximum: 0x7FFFFF (1 H)
+
+What:		/sys/class/input/input(x)/calibration/trigger_calibration
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Write to this control to start calibration.
+
+		Access: Write
+
+		Valid values: Represented as hexadecimal
+			0x1: F0 and Q
+			0x2: ReDC
+			0x4: DVL PEQ
+			0x10: Least Squares
+
+What:		/sys/class/input/input(x)/data_logger/available_logger_srcs
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Displays data logger sources supported by the firmware.
+
+		Access: Read
+
+		Valid values: Represented as text string
+			"BEMF"
+			"EP"
+			"VBST"
+			"VMON"
+
+
+What:		/sys/class/input/input(x)/data_logger/logging_en
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Enables data logging for all available sources.
+
+		Access: Read, Write
+
+		Valid values: Represented as integer
+			0: Disable logging
+			1: Enable logging
+
+What:		/sys/class/input/input(x)/data_logger/logging_max_reset
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Reset maximum logging values when 1 is written to the control.
+
+		Access: Write
+
+		Valid values: Represented as integer
+			1: Reset calculated logging maximums
+
+What:		/sys/class/input/input(x)/data_logger/max_bemf
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of back EMF since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to a back EMF of 12.3 V.
+			Minimum: 0x000000 (0 V)
+			Maximum: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
+
+What:		/sys/class/input/input(x)/data_logger/max_excursion
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of excursion since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to an excursion of 10.5 mm
+			Minimum: 0x000000 (0 mm)
+			Maximum: 0x7FFFFF (0.999999 * 10.5 =~ 10.5 mm)
+
+What:		/sys/class/input/input(x)/data_logger/max_imon
+Date:		January 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of IMON since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to 2.1 Amperes
+			Minimum: 0x000000 (0 A)
+			Maximum: 0x7FFFFF (0.999999 * 2.1 =~ 2.1 A)
+
+What:		/sys/class/input/input(x)/data_logger/max_vbst
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of VBST since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in unsigned Q0.24 format.
+			Full scale corresponds to a boost voltage of 14 V.
+			Minimum: 0x000000 (0 V)
+			Maximum: 0xFFFFFF (1 * 14 = 14 V)
+
+What:		/sys/class/input/input(x)/data_logger/max_vmon
+Date:		September 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Maximum logged value of amplifier output voltage since logging was enabled
+		or maximum calculations were reset.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal in signed Q0.23 format.
+			Full scale corresponds to an amplifier voltage of 12.3 V.
+			Minimum: 0x000000 (0 V)
+			Maximum: 0x7FFFFF (0.999999 * 12.3 =~ 12.3 V)
+
+What:		/sys/class/input/input(x)/firmware/fw_algo_id
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		See external driver or firmware documentation for details on firmware algorithm IDs.
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal (3 bytes)
+
+What:		/sys/class/input/input(x)/firmware/fw_ctrl_name
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Name of the firmware control to access.
+
+		Short name with no algorithm prefix should be used instead of FullName.
+
+		Access: Read, Write
+
+		Valid values: Represented as a string
+
+What:		/sys/class/input/input(x)/firmware/fw_ctrl_reg
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Register address of control with properties as defined by
+		fw_ctrl_name, fw_algo_id, and fw_mem_block_type.
+
+		Access: Read
+
+		Valid values: Represented as hexadecimal
+
+What:		/sys/class/input/input(x)/firmware/fw_ctrl_size_words
+Date:		March 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Number of 32-bit words of the control defined by
+		fw_algo_id, fw_ctrl_name, and fw_mem_block_type.
+
+		Access: Read
+
+		Valid values: Represented as an integer
+
+What:		/sys/class/input/input(x)/firmware/fw_ctrl_val
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Value of the control defined by fw_algo_id, fw_ctrl_name, and fw_mem_block_type.
+
+		Access for the control is determined by its access flags: volatile, read, and write.
+		Volatile or read-only controls can not be written to. Write-only controls can not be read from.
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal
+			If reading from a firmware control that consists of more than one word
+			of data, the output will be displayed as a list of values separated by
+			a new line. The data will be displayed in increasing register order
+			as 32-bit hexadecimal words.
+
+			If writing to a firmware control that consists of more than one word
+			of data, the input must be formatted as 32-bit hexadecimal words separated
+			by a new line and listed in order of increasing register (i.e. the first
+			value in the list will be written to the first register that makes up
+			the firmware control etc.).
+
+What:		/sys/class/input/input(x)/firmware/rth_latch
+Date:		May 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Apply settings configured via firmware RTH controls to the ongoing/upcoming
+		haptics playback.
+
+		Access: Write
+
+		Valid values: Represented as integer
+			1: Apply RTH settings for control-port triggered haptics
+			2: Apply RTH settings for GPI triggered haptics
+
+What:		/sys/class/input/input(x)/firmware/fw_mem_block_type
+Date:		December 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Memory block type in which firmware control to access resides.
+		Firmware docuemntation can be used to determine the block type of each control.
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal (2 bytes)
+			0x0005: XM Unpacked
+			0x0006: YM Unpacked
+			0x0010: PM Packed
+			0x0011: XM Packed
+			0x0012: YM Packed
+
+What:		/sys/class/input/input(x)/device/default/reset
+Date:		December 2023
+Contact:	Tai Kuo <taikuo@google.com>
+Description:
+		Hardware reset trigger.
+
+		Access: Read, Write
+
+		Valid values: Represented as integer
+			0: Make a reset decision and trigger reset if needed.
+			1: Manual reset
