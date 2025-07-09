@@ -1,0 +1,730 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/cirrus,cs40l26.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cirrus Logic CS40L26 Boosted Haptic Amplifier
+
+maintainers:
+  - Fred Treven <fred.treven@cirrus.com>
+  - Ben Bright <ben.bright@cirrus.com>
+  - James Ogletree <james.ogletree@cirrus.com>
+
+description:
+  CS40L26 is a Boosted Haptic Driver with Integrated DSP and Waveform Memory
+  with Advanced Closed Loop Algorithms and LRA protection
+
+properties:
+  compatible:
+    enum:
+      - cirrus,cs40l26a
+      - cirrus,cs40l26b
+      - cirrus,cs40l27a
+      - cirrus,cs40l27b
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  VA-supply:
+    description: Regulator for analog voltage
+
+  VP-supply:
+    description: Regulator for boost converter input power
+
+  cirrus,vbbr-enable:
+    type: boolean
+    description:
+      Enable VBST brownout prevention.
+
+  cirrus,vbbr-thld-uv:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 109000
+    maximum: 3445000
+    default: 273000
+    description:
+      Boost converter brownout prevention delta voltage threshold
+      Brownout prevention mode is entered if the condition
+      "VBST(target) - VBST(actual) <= VBBR_THLD" is met.
+      Values accepted by the hardware register are in steps of
+      55000 microvolts starting from the minimum.
+
+  cirrus,vbbr-max-att-db:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
+    default: 9
+    description:
+      Maximum attenuation that the reactive VBST brownout can apply to the
+      signal.
+
+  cirrus,vbbr-atk-step:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 1
+    description: |
+      VBST brownout prevention attack step size. Configures the VBST brownout
+      prevention attacking attenuation step size when operating in either
+      digital volume or analog gain modes. The possible attack step values
+      are relative to triggering VBBR_1/VBBR_2/VBBR_3:
+      0: 0.0625 dB / 0.125 dB / 0.250 dB
+      1: 0.125 dB / 0.250 dB / 0.500 dB
+      2: 0.250 dB / 0.500 dB / 1.000 dB
+      3: 0.500 dB / 1.000 dB / 2.000 dB
+      4: 0.750 dB / 1.500 dB / 3.000 dB
+      5: 1.000 dB / 2.000 dB / 4.000 dB
+      6: 1.250 dB / 2.500 dB / 5.000 dB
+      7: 1.500 dB / 3.000 dB / 6.000 dB
+
+  cirrus,vbbr-atk-rate:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 2
+    description: |
+      Attenuation attack step rate. Configures the amount of delay between
+      consecutive volume attenuation steps when a brownout condition is
+      present and the VBST brownout condition is in an attacking state:
+      0: 2.5 us
+      1: 5 us
+      2: 10 us
+      3: 25 us
+      4: 50 us
+      5: 100 us
+      6: 250 us
+      7: 500 us
+
+  cirrus,vbbr-wait:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 1
+    description: |
+      Configures the delay between a brownout condition no longer being
+      present and the VBST brownout prevention entering an attenuation release
+      state:
+      0: 10 ms
+      1: 100 ms
+      2: 250 ms
+      3: 500 ms
+
+  cirrus,vbbr-rel-rate:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 5
+    description: |
+      Attenuation release step rate. Configures the delay between consecutive
+      volume attenuation release steps when a brownout condition is no longer
+      present and the VBST brownout prevention is in an attenuation release
+      state. The parameter can be set to 8 discrete values:
+      0: 5 ms
+      1: 10 ms
+      2: 25 ms
+      3: 50 ms
+      4: 100 ms
+      5: 250 ms
+      6: 500 ms
+      7: 1000 ms
+
+  cirrus,vpbr-enable:
+    type: boolean
+    description:
+      Enable VP brownout prevention.
+
+  cirrus,vpbr-thld-uv:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 2497000
+    maximum: 3874000
+    default: 2639000
+    description:
+      Battery voltage (VP) brownout prevention threshold.
+      Brownout prevention mode is entered if VP falls below VPBR_THLD.
+      Values accepted by the hardware register are in steps of
+      47000 microvolts starting from the minimum.
+
+  cirrus,vpbr-max-att-db:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
+    default: 9
+    description:
+      Maximum attenuation that the VP brownout prevention can apply to the
+      signal.
+
+  cirrus,vpbr-atk-step:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 1
+    description: |
+      VP brownout prevention attack step size. Configures the VP brownout
+      prevention attacking attenuation step size when operating in either
+      digital volume or analog gain modes. There are 8 possible attack step
+      values; they are relative to triggering VPBR_1/VPBR_2/VPBR_3.
+      0: 0.0625 dB / 0.125 dB / 0.250 dB
+      1: 0.125 dB / 0.250 dB / 0.500 dB (default)
+      2: 0.250 dB / 0.500 dB / 1.000 dB
+      3: 0.500 dB / 1.000 dB / 2.000 dB
+      4: 0.750 dB / 1.500 dB / 3.000 dB
+      5: 1.000 dB / 2.000 dB / 4.000 dB
+      6: 1.250 dB / 2.500 dB / 5.000 dB
+      7: 1.500 dB / 3.000 dB / 6.000 dB
+
+  cirrus,vpbr-atk-rate:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 2
+    description: |
+      Attenuation attack step rate. Configures the amount of delay between
+      consecutive volume attenuation steps when a brownout condition is
+      present and the VP brownout condition is in an attacking state:
+      0: 2.5 us
+      1: 5 us
+      2: 10 us
+      3: 25 us
+      4: 50 us
+      5: 100 us
+      6: 250 us
+      7: 500 us
+
+  cirrus,vpbr-wait:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 1
+    description: |
+      Configures the delay between a brownout condition no longer being
+      present and the VP brownout prevention entering an attenuation release
+      state:
+      0: 10 ms
+      1: 100 ms
+      2: 250 ms
+      3: 500 ms
+
+  cirrus,vpbr-rel-rate:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 5
+    description: |
+      Attenuation release step rate. Configures the delay between consecutive
+      volume attenuation release steps when a brownout condition is no longer
+      present and the VP brownout prevention is in an attenuation release
+      state:
+      0: 5 ms
+      1: 10 ms
+      2: 25 ms
+      3: 50 ms
+      4: 100 ms
+      5: 250 ms
+      6: 500 ms
+      7: 1000 ms
+
+  cirrus,bst-dcm-en:
+    type: boolean
+    description:
+      Enable boost converter to automatically enter low-power (DCM) mode during
+      low loading conditions.
+
+  cirrus,bst-ipk-microamp:
+    multipleOf: 50000
+    minimum: 800000
+    maximum: 4800000
+    default: 4500000
+    description:
+      Maximum amount of current that can be drawn by the device's boost converter.
+
+  cirrus,bst-ctl-microvolt:
+    multipleOf: 50000
+    minimum: 2500000
+    maximum: 11000000
+    default: 11000000
+    description:
+      Maximum target voltage to which the VBST supply can be set.
+
+  cirrus,f0-default:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 819200
+    maximum: 8372224
+    default: 2621440
+    description:
+      Default LRA resonant frequency (f0), expressed as follows
+      cirrus,f0-default = f0 (Hz) * 2^14.
+      This value represents the frequency used during playback of PWLE segments
+      specified with frequency equal to f0; it also serves as the unit-specific
+      f0 input to the click compensation algorithm.
+
+  cirrus,redc-default:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 16777215
+    default: 340787
+    description:
+      Default LRA series resistance (ReDC), expressed as follows
+      cirrus,redc-default = ReDC (ohms) * 2^15.
+      This value represents the unit-specific ReDC input to the click compensation
+      algorithm.
+
+  cirrus,q-default:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 8388607
+    default: 1769472
+    description:
+      Default LRA Q factor (silicon revision B1 only), expressed as follows
+      cirrus,q-default = Q * 2^16.
+      This value represents the unit-specific Q factor used to select the correct
+      sub-waveform for Q-dependent wavetable indexes.
+
+  cirrus,asp-gain-scale-pct:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 100
+    default: 100
+    description:
+      Gain scaling applied to gain for ASP streaming.
+
+  cirrus,pm-active-timeout-ms:
+    minimum: 0
+    maximum: 10000
+    default: 250
+    description:
+      Time delay for transitioning from active mode to standby mode.
+
+  cirrus,pm-stdby-timeout-ms:
+    minimum: 100
+    maximum: 10000
+    default: 100
+    description:
+      Time delay for the DSP to transition from standby mode to hibernate mode.
+
+  cirrus,bst-expl-mode-disable:
+    type: boolean
+    description:
+      Disable boost exploratory mode.
+
+      In exploratory mode the analog maximum peak current limit of 4.5 A
+      (tolerance of + 160 mA) will be applied. This is required for the
+      device to successfully detect a boost inductor short.
+
+      Boost exploratory mode allows the device to overshoot the set boost peak
+      current limit (i.e. if current peak limit is set to 2.5 A to protect the
+      boost inductor, the current limit will be opened up to 4.5 A for
+      several milliseconds at boost startup).
+      This has potential to damage the boost inductor.
+
+      Disabling this mode will prevent this from happening; it will also
+      prevent the device from detecting boost inductor short errors.
+
+  cirrus,dbc-enable:
+    type: boolean
+    description:
+      Enable Dynamic Boost Control automatically after firmware is loaded.
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
+
+  cirrus,dbc-env-rel-coef:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 8388607
+    default: 8384414
+    description:
+      Envelope release time represented as a scaling coefficient; Q0.23 format.
+      See Cirrus Logic release notes for more information on how to program
+      this parameter.
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
+
+  cirrus,dbc-fall-headroom:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 8388607
+    default: 750193
+    description:
+      Headroom for falling envelope in Dynamic Boost Control. Value is a ratio
+      of full-scale (12.3 V) and is in Q0.23 format. To program a headroom of x
+      Volts, the following formula is used. (x/12.3) * 2^(23).
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
+
+  cirrus,dbc-rise-headroom:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 8388607
+    default: 1432204
+    description:
+      Headroom for rising envelope in Dynamic Boost Control. Value is a ratio
+      of full-scale (12.3 V) and is in Q0.23 format. To program a headroom of x
+      Volts, the following formula is used. (x/12.3) * 2^(23).
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
+
+  cirrus,dbc-tx-lvl-hold-off-ms:
+    minimum: 0
+    maximum: 1000
+    default: 10
+    description:
+      Amount of time that the input signal must be lower than the threshold
+      (TX_LVL_THRESH, programmed via dbc-tx-lvl-thresh-fs). The algorithm
+      registers this as silence. The signal rising back to the threshold will
+      trigger an immediate rise to the max boost level.
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
+
+  cirrus,dbc-tx-lvl-thresh-fs:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 8388607
+    default: 839
+    description:
+      Full-scale threshold used by the rise edge detector in the Dynamic Boost
+      Control algorithm. When silence is detected and the signal rises above
+      this threshold an immediate rise to the max boost level is triggered.
+      The value must be provided as a percentage of full scale and is in Q0.23
+      format. To program a threshold of x dBFs use the following formula.
+      10^(x/20) * 2^(23).
+      Settings for DBC from the devicetree will not be used if "cs40l26-dbc.bin"
+      is loaded as a tuning file.
+
+  cirrus,pwle-zero-cross-en:
+    type: boolean
+    description:
+      Ensure that PWLE waveforms always end on a zero crossing,
+      extending the length of the waveform if necessary.
+
+  cirrus,calib-fw:
+    type: boolean
+    description:
+      Load calibration firmware ("cs40l26-calib.wmfw")
+      instead of runtime firmware ("cs40l26.wmfw") at boot time.
+
+  cirrus,fw-rom-only:
+    type: boolean
+    description:
+      Probe and register the driver with ROM FW only. Not compatible with
+      cirrus,fw-defer or cirrus,calib-fw. Intended for use with device
+      revision 0xB2 and greater.
+
+  cirrus,fw-defer:
+    type: boolean
+    description:
+      Probe and register the driver without loading RAM firmware.
+
+  cirrus,no-wait-ram-indices:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      List of RAM indices that will not use the delay_before_stop_playback_us
+      prior to sending a STOP_PLAYBACK command.
+
+  cirrus,release-index:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    items:
+      minimum: 0
+    description:
+      Bank and index of effect to be mapped to GPI release event upon driver
+      probe.
+
+  cirrus,press-index:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    items:
+      minimum: 0
+    description:
+      Bank and index of effect to be mapped to GPI press event upon driver
+      probe.
+
+  cirrus,gpo-playback-monitor:
+    type: boolean
+    description:
+      Configures GPIO1 to act as GPO to report the state of the device.
+      When playback or SVC braking is ongoing, GPIO1 will be set LOW.
+      When there is no playback, GPIO1 will be set HIGH.
+
+      If this property is present, the ability to map effects to GPIO1
+      events (either from the devicetree or at runtime) is disabled.
+
+  cirrus,clip-lvl-microvolt:
+    multipleOf: 250000
+    minimum: 250000
+    maximum: 11000000
+    default: 11000000
+    description:
+      Input clipping level after Virtual Impedance correction.
+
+  cirrus,ng-enable:
+    type: boolean
+    description:
+      Configures whether the amplifier noise gating detection
+      is enabled.
+
+  cirrus,ng-thld:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 3
+    description: |
+      Amplifier noise gate threshold at which the amplifier's
+      noise gating activates:
+      0: 654 uVpk
+      1: 328 uVpk
+      2: 164 uvPk
+      3: 82 uvPk
+      4: 41 uVpk
+      5: 21 uVpk
+      6: 10 uVpk
+      7: 0 uVpk
+
+  cirrus,ng-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 3
+    description: |
+      Amplifier noise gate entry delay. Time that the signal must
+      be below the configured threshold prior to entering a noise
+      gated state:
+      0: 5 ms
+      1: 10 ms
+      2: 25 ms
+      3: 50 ms
+      4: 100 ms
+      5: 250 ms
+      6: 500 ms
+      7: 1000 ms
+
+  cirrus,aux-ng-enable:
+    type: boolean
+    description:
+      Configures whether the auxiliary noise gating detection
+      is enabled.
+
+  cirrus,aux-ng-thld:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 3
+    description: |
+      Auxiliary noise gate threshold at which noise gating activates:
+      0: -66 dBFS
+      1: -72 dBFS
+      2: -78 dBFS
+      3: -84 dBFS
+      4: -90 dBFS
+      5: -96 dBFS
+      6: -102 dBFS
+      7: -108 dBFS
+
+  cirrus,aux-ng-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    default: 3
+    description: |
+      Amplifier noise gate entry delay. Time that the signal must
+      be below the configured threshold prior to entering a noise
+      gated state:
+      0: 5 ms
+      1: 10 ms
+      2: 25 ms
+      3: 50 ms
+      4: 100 ms
+      5: 250 ms
+      6: 500 ms
+      7: 1000 ms
+      8: 5000 ms
+      9: 10000 ms
+      10: 20000 ms
+      11: 30000 ms
+      12: 40000 ms
+      13: 50000 ms
+      14: 60000 ms
+      15: 120000 ms
+
+  cirrus,dc-wd-enable:
+    type: boolean
+    description: |
+      Enables DC input watchdog and unmasks rise/fall interrupts
+      for watchdog messages to the user.
+
+  cirrus,dc-wd-thld:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 40
+    default: 40
+    description: |
+      DC input watchdog amplitude threshold provided as
+      percentage of the full-scale signal in steps of 2.5%
+      (1 = 2.5%, 40 = 100%).
+      Configures the amplitude the amplifier's digital
+      input signal must exceed before triggering the watchdog.
+
+  cirrus,dc-wd-dur:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    default: 0
+    description: |
+      DC input watchdog duration time. The amount of time
+      the digital input signal must exceed the DC watchdog
+      amplitude threshold before triggering the watchdog.
+      0: 20 ms
+      1: 49 ms
+      2: 98 ms
+      3: 195 ms
+      4: 488 ms
+      5: 977 ms
+      6: 1953 ms
+      7: 4883 ms
+
+  cirrus,dc-wd-mute:
+    type: boolean
+    description: |
+      DC input watchdog response. Configures the response of
+      the amplifier hardware path when an error condition has
+      been detected. If this property is present and the DC
+      watchdog has been enabled, the device will mute digital
+      PCM volume upon the watchdog event being triggered.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - reset-gpios
+
+additionalProperties: false
+
+patternProperties:
+  "^svc-le[1-3]$":
+    type: object
+    $ref: input.yaml#
+    description:
+      Set of parameters used to determine which wavetable and SVC tuning file to
+      be loaded by the driver. If the LRA properties do not match the provided values,
+      default tunings for wavetable "cs40l26.bin" and SVC "cs40l26-svc.bin" will be
+      loaded.
+
+    properties:
+      cirrus,min:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 8388607
+        description:
+          Minimum inductance value in Henries (Q0.23 number format).
+
+      cirrus,max:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 8388607
+        description:
+          Maximum inductance value in Henries (Q0.23 number format).
+
+      cirrus,index:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 8388607
+        description:
+          Number used to determine which tuning files to load if inductance
+          estimation matches corresponding range. If index given is 3 then the
+          driver will load "cs40l26-svc3.bin" and "cs40l26-wt3.bin".
+
+      cirrus,gain-adjust:
+        $ref: /schemas/types.yaml#/definitions/int32
+        minimum: -100
+        maximum: 100
+        default: 0
+        description:
+          Alters the global digital gain by the given percentage based on the
+          tuning chosen.
+          Full gain must still be valid, the maximum total digital gain is 100%
+          and the minimum is 0%.
+
+    additionalProperties: false
+
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/input/input.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      cs40l26@58 {
+        compatible = "cirrus,cs40l26a";
+        reg = <0x58>;
+        interrupt-parent = <&gpio>;
+        interrupts = <57 IRQ_TYPE_LEVEL_LOW>;
+        reset-gpios = <&gpio 54 GPIO_ACTIVE_LOW>;
+        VA-supply = <&dummy_vreg>;
+        VP-supply = <&dummy_vreg>;
+
+        cirrus,vbbr-enable;
+        cirrus,vbbr-thld-uv = <328000>;
+        cirrus,vbbr-max-att-db = <10>;
+        cirrus,vbbr-atk-step = <6>;
+        cirrus,vbbr-atk-rate = <3>;
+        cirrus,vbbr-wait = <2>;
+        cirrus,vbbr-rel-rate = <0>;
+
+        cirrus,vpbr-enable;
+        cirrus,vpbr-thld-uv = <2686000>;
+        cirrus,vpbr-max-att-db = <15>;
+        cirrus,vpbr-atk-step = <0>;
+        cirrus,vpbr-atk-rate = <1>;
+        cirrus,vpbr-wait = <3>;
+        cirrus,vpbr-rel-rate = <4>;
+
+        cirrus,dbc-enable;
+        cirrus,dbc-env-rel-coef = <8000000>;
+        cirrus,dbc-fall-headroom = <7000000>;
+        cirrus,dbc-rise-headroom = <6000000>;
+        cirrus,dbc-tx-lvl-hold-off-ms = <50>;
+        cirrus,dbc-tx-lvl-thresh-fs = <900>;
+
+        cirrus,bst-dcm-en;
+
+        cirrus,bst-ipk-microamp = <4550000>;
+        cirrus,bst-ctl-microvolt = <2650000>;
+        cirrus,clip-lvl-microvolt= <10750000>;
+
+        cirrus,asp-gain-scale-pct = <80>;
+
+        cirrus,pm-active-timeout-ms = <200>;
+        cirrus,pm-stdby-timeout-ms = <500>;
+
+        cirrus,bst-expl-mode-disable;
+
+        cirrus,no-wait-ram-indices = <5 10 25>;
+
+        cirrus,ng-enable;
+        cirrus,ng-thld = <4>;
+        cirrus,ng-delay = <2>;
+
+        cirrus,aux-ng-enable;
+        cirrus,aux-ng-thld = <1>;
+        cirrus,aux-ng-delay = <14>;
+
+        cirrus,dc-wd-enable;
+        cirrus,dc-wd-thld = <20>;
+        cirrus,dc-wd-dur = <5>;
+        cirrus,dc-wd-mute;
+
+        svc-le1 {
+          cirrus,min = <671>;
+          cirrus,max = <1509>;
+          cirrus,index = <1>;
+          cirrus,gain-adjust = <(-5)>;
+        };
+        svc-le2 {
+          cirrus,min = <1510>;
+          cirrus,max = <2348>;
+          cirrus,index = <2>;
+        };
+        svc-le3 {
+          cirrus,min = <2349>;
+          cirrus,max = <3356>;
+          cirrus,index = <3>;
+        };
+      };
+    };
