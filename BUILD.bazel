@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT
+
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "include/**/*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/display:__subpackages__",
+        "//private/google-modules/touch:__subpackages__",
+    ],
+)
+
+ddk_headers(
+    name = "ddk_headers",
+    hdrs = ["headers"],
+    includes = [
+        "include",
+    ],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/display/panels:__subpackages__",
+        "//private/google-modules/touch:__subpackages__",
+    ],
+)
+
+filegroup(
+    name = "common.kconfig",
+    srcs = [
+        "Kconfig",
+    ],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
