@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: max77759tcpc driver device tree bindings
+
+maintainers:
+  - Badhri Jagan Sridharan <badhri@google.com>
+
+description: |
+  The max77759tcpc driver implements usb typec driver.
+
+properties:
+  bcl-usb-voting:
+    description: Allow USB to vote to change BCL's BATOILO1/2 threshold
+    type: boolean
+

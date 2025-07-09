@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Misc strange devices
+#
+
+config GSC_TPM
+	tristate "Google Security Companion"
+	depends on SPI
+	help
+	  Say Y here if you have a GSC security microcontroller from Google LLC
+	  It will be accessible using a TPM-style transport interface from within
+	  Linux.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gsc-spi.
+
+config ACCESS_RAMOOPS
+	tristate "Driver to allow access for decrypting encrypted ramoops"
+	depends on PSTORE_CONSOLE
+	help
+	  Say 'Y' here to enable access to ramoops encryption metadata. The
+	  encryption metablock contains ramoops encryption parameters.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called access_ramoops.
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/misc/s5910/Kconfig"
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/misc/sscoredump/Kconfig"
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/misc/sbb-mux/Kconfig"

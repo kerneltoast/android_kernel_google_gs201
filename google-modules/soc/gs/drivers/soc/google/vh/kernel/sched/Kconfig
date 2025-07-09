@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config VH_SCHED
+	tristate "Vendor hooks for kernel scheduler"
+	depends on VH_KERNEL
+	default n
+
+config VH_SCHED_MAX_CPU_NR
+	int "CPU number on this platform"
+	default 9
+
+config VH_PREEMPTIRQ_TRACEPOINTS
+	tristate "Vendor hooks for long preemptirq trace points"
+	depends on VH_SCHED
+	default n
+
+config TICK_DRIVEN_LATGOV
+	tristate "Service latency governers in sched vh."
+	default n
+
+config UCLAMP_STATS
+	bool "Uclamp stats"
+	depends on VH_SCHED
+	default n
+
+config USE_VENDOR_GROUP_UTIL
+        bool "Use cpu util based on vendor groups"
+        depends on VH_SCHED
+        default y
+
+config USE_GROUP_THROTTLE
+	bool "Use group throttle of vendor groups"
+	depends on VH_SCHED
+	default y
+
+config RVH_SCHED_LIB
+	bool "Library with additional scheduler options"
+	depends on VH_SCHED
+	default y
+
+config USE_UPDATE_SINGLE
+	bool "Use sugov_update_single function for single-cpu cluster"
+	depends on VH_SCHED
+	default n
+
+config VH_PRIO_INHERITANCE
+	bool "Enable prio inheritance vendor hooks"
+	depends on VH_SCHED
+	default y

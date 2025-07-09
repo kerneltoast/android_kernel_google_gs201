@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
+
+obj-$(CONFIG_KEYBOARD_S2MPG12)          += s2mpg12-key.o
+obj-$(CONFIG_KEYBOARD_S2MPG14)          += s2mpg14-key.o

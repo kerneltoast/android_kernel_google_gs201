@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config GS_THERMAL_V3
+	tristate "GS thermal management unit driver"
+	depends on THERMAL_OF
+	depends on HAS_IOMEM
+	help
+	  If you say yes here you get support for the TMU (Thermal Management
+	  Unit) driver for GS SoCs. This driver initialises
+	  the TMU, reports temperature and handles cooling action if defined.
+	  This driver uses the GS thermal APIs and TMU configuration
+	  data from the supported SoCs.
+
+config EXYNOS_ACPM_THERMAL
+	tristate "Exynos ACPM TMU plug-in support"
+	depends on GS_THERMAL_V3
+	help
+	  This feature supports ACPM TMU plug-in for Exynos thermal driver.
+
+config EXYNOS_CPU_THERMAL
+	tristate "EXYNOS cpu cooling support"
+	depends on GS_THERMAL_V3
+	help
+	  This implements the generic cpu cooling mechanism through frequency
+	  reduction. An ACPI version of this already exists
+	  (drivers/acpi/processor_thermal.c).
+	  This will be useful for platforms using the generic thermal interface
+	  and not the ACPI interface.
+	  If you want this support, you should say Y here.
+
+config GPU_THERMAL
+	tristate "gpu cooling support"
+	depends on GS_THERMAL_V3
+	help
+	  This implements the gpu cooling mechanism through frequency
+	  reduction.
+	  If you want this support, you should say Y here.
+
+config ISP_THERMAL
+	tristate "isp cooling support"
+	depends on GS_THERMAL_V3
+	help
+	  This implements the isp cooling mechanism through fps
+	  reduction.
+	  If you want this support, you should say Y here.

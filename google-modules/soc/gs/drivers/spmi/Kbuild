@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
+
+ccflags-y += -Wno-unused-function
+ccflags-y += -Wno-unused-variable
+
+obj-$(CONFIG_SPMI_BITBANG) += spmi_bit_bang.o
+

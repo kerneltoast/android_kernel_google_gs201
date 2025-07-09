@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
+obj-$(CONFIG_PHY_EXYNOS_USBDRD_EUSB)	+= phy-exynos-usbdrd-eusb-super.o
+phy-exynos-usbdrd-eusb-super-y		+= phy-exynos-usbdrd-eusb.o
+phy-exynos-usbdrd-eusb-super-y		+= phy-exynos-eusb.o
+phy-exynos-usbdrd-eusb-super-y		+= exynos-usb-blkcon.o
+phy-exynos-usbdrd-eusb-super-y		+= phy-exynos-snps-usbdp.o
+obj-$(CONFIG_PHY_EXYNOS_EUSB_REPEATER)	+= eusb_repeater.o
+obj-$(CONFIG_PHY_EXYNOS_USBDRD)		+= phy-exynos-usbdrd-super.o
+phy-exynos-usbdrd-super-y		+= phy-exynos-usbdrd.o
+phy-exynos-usbdrd-super-y		+= phy-exynos-usb3p1.o
+phy-exynos-usbdrd-super-y		+= phy-exynos-usbdp-gen2-v4.o
+obj-$(CONFIG_PHY_EXYNOS_MIPI_DSIM)	+= phy-exynos-mipi-dsim.o
+obj-$(CONFIG_PHY_EXYNOS_MIPI)		+= phy-exynos-mipi.o

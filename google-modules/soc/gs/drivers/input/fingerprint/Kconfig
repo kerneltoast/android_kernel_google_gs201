@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config GOODIX_FINGERPRINT
+	tristate "generic goodix fingerprint driver"
+	default n
+	help
+	add support for goodix fingerprint driver.

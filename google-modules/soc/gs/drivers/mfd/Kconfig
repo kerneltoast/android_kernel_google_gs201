@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Multifunction miscellaneous devices
+#
+
+if HAS_IOMEM
+
+config MFD_S2MPG10
+	tristate "SAMSUNG Electronics S2MPG10 PMIC Series Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGULATOR
+	select MFD_S2MPG1X_GPIO
+	select GENERIC_PINCONF
+	help
+	  Support for the Samsung Electronics MFD series.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device
+
+config MFD_S2MPG11
+	tristate "SAMSUNG Electronics S2MPG11 PMIC Series Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGULATOR
+	select MFD_S2MPG1X_GPIO
+	select GENERIC_PINCONF
+	help
+	  Support for the Samsung Electronics MFD series.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device
+
+config MFD_S2MPG12
+	tristate "SAMSUNG Electronics S2MPG12 PMIC Series Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGULATOR
+	help
+	  Support for the Samsung Electronics MFD series.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device
+
+config MFD_S2MPG13
+	tristate "SAMSUNG Electronics S2MPG13 PMIC Series Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGULATOR
+
+config MFD_S2MPG14
+	tristate "SAMSUNG Electronics S2MPG14 PMIC Series Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGULATOR
+	select MFD_S2MPG1415_GPIO
+	select GENERIC_PINCONF
+	help
+	  Support for the Samsung Electronics MFD series.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device
+
+config MFD_S2MPG15
+	tristate "SAMSUNG Electronics S2MPG15 PMIC Series Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGULATOR
+	select MFD_S2MPG1415_GPIO
+	select GENERIC_PINCONF
+	help
+	  Support for the Samsung Electronics MFD series.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device
+
+config MFD_S2MPG1X_GPIO
+	tristate "SAMSUNG Electronics S2MPG1X PMIC GPIO Support"
+	depends on I2C=y
+	help
+	  Support for the Samsung Electronics S2MPG1X GPIO control.
+	  Several balls of S2MPG1X chips replace a few of the GPIO pins of AP
+	  and provide registers for controlling them.
+	  If MFD_S2MPG10 or MFD_S2MPG1X is selected, this config will be
+	  included together.
+
+config MFD_S2MPG1415_GPIO
+	tristate "SAMSUNG Electronics S2MPG1415 PMIC GPIO Support"
+	depends on I2C=y
+	help
+	  Support for the Samsung Electronics S2MPG1X GPIO control.
+	  Several balls of S2MPG14 chips replace a few of the GPIO pins of AP
+	  and provide registers for controlling them.
+	  If MFD_S2MPG14 or MFD_S2MPG15 is selected, this config will be
+	  included together.
+
+config MFD_SLG51000
+	tristate "Dialog Semiconductor SLG51000 core driver"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor SLG51000.
+	  The SLG51000 is seven compact and customizable low dropout regulators.
+
+config MFD_SLG51002
+	tristate "Dialog Semiconductor SLG51002 core driver"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor SLG51002.
+	  The SLG51002 is eight compact and customizable low dropout regulators.
+
+endif

@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# PINCTRL infrastructure and drivers
+#
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/pinctrl/gs/Kconfig"
+
+config PINCTRL_SLG51000
+	tristate "Dialog Semiconductor SLG51000 pinctrl driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor SLG51000.
+	  The SLG51000 is seven compact and customizable low dropout regulators.
+
+config PINCTRL_SLG51002
+	tristate "Dialog Semiconductor SLG51002 pinctrl driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor SLG51002.
+	  The SLG51002 is eight compact and customizable low dropout regulators.

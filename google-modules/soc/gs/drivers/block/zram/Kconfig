@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-2.0
+config ZRAM_GS
+	tristate "Compressed RAM block device support"
+	depends on BLOCK && SYSFS && MMU
+	depends on CRYPTO_LZO || CRYPTO_ZSTD || CRYPTO_LZ4 || CRYPTO_LZ4HC || CRYPTO_842
+	select ZSMALLOC
+	help
+	  Creates virtual block devices called /dev/zramX (X = 0, 1, ...).
+	  Pages written to these disks are compressed and stored in memory
+	  itself. These disks allow very fast I/O and compression provides
+	  good amounts of memory savings.
+
+	  It has several use cases, for example: /tmp storage, use as swap
+	  disks and maybe many more.
+
+	  See Documentation/admin-guide/blockdev/zram.rst for more information.
+
+config ZCOMP_CPU
+	tristate "CPU compression"
+	depends on ZRAM_GS
+	default n
+	help
+	  Support CPU compressor. User should configuire it via echo
+	  "lzo" > /sys/block/zramX/comp_algorithm
+
+config ZCOMP_EH
+	tristate "Support Emerald Hill HW compressor"
+	depends on ZRAM_GS
+	select GOOGLE_EH
+	default n
+	help
+	  Support Emerald Hill HW compressor. User should configure it via
+	  echo "lz77eh" > /sys/block/zramX/comp_algorithm
+
+config ZRAM_GS_WRITEBACK
+       bool "Write back incompressible or idle page to backing device"
+       depends on ZRAM_GS
+       help
+	 With incompressible page, there is no memory saving to keep it
+	 in memory. Instead, write it out to backing device.
+	 For this feature, admin should set up backing device via
+	 /sys/block/zramX/backing_dev.
+
+	 With /sys/block/zramX/{idle,writeback}, application could ask
+	 idle page's writeback to the backing device to save in memory.
+
+	 See Documentation/admin-guide/blockdev/zram.rst for more information.
+
+config ZRAM_GS_MEMORY_TRACKING
+	bool "Track zRam block status"
+	depends on ZRAM_GS && DEBUG_FS
+	help
+	  With this feature, admin can track the state of allocated blocks
+	  of zRAM. Admin could see the information via
+	  /sys/kernel/debug/zram/zramX/block_state.
+
+	  See Documentation/admin-guide/blockdev/zram.rst for more information.

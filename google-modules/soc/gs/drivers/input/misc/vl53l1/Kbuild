@@ -1,0 +1,27 @@
+#
+# Kbuild for the vl53L1 drivers.
+#
+
+subdir-ccflags-y += -I$(srctree)/$(src)
+
+obj-$(CONFIG_INPUT_STMVL53L1)	+= stmvl53l1.o
+stmvl53l1-objs		:= stmvl53l1_module.o stmvl53l1_module-i2c.o
+stmvl53l1-objs		+= vl53l1_platform_ipp.o
+stmvl53l1-objs		+= protected/src/vl53l1_hist_funcs.o
+stmvl53l1-objs		+= protected/src/vl53l1_xtalk.o
+stmvl53l1-objs		+= protected/src/vl53l1_hist_algos_gen3.o
+stmvl53l1-objs		+= protected/src/vl53l1_hist_core.o
+stmvl53l1-objs		+= protected/src/vl53l1_sigma_estimate.o
+stmvl53l1-objs		+= protected/src/vl53l1_dmax.o
+stmvl53l1-objs		+= protected/src/vl53l1_hist_algos_gen4.o
+stmvl53l1-objs		+= stmvl53l1_i2c.o stmvl53l1_log.o
+stmvl53l1-objs		+= src/vl53l1_api.o src/vl53l1_api_core.o
+stmvl53l1-objs		+= src/vl53l1_api_strings.o src/vl53l1_error_strings.o
+stmvl53l1-objs		+= src/vl53l1_core.o src/vl53l1_register_funcs.o
+stmvl53l1-objs		+= src/vl53l1_api_preset_modes.o
+stmvl53l1-objs		+= src/vl53l1_api_calibration.o
+stmvl53l1-objs		+= src/vl53l1_silicon_core.o
+stmvl53l1-objs		+= src/vl53l1_zone_presets.o src/vl53l1_nvm.o
+stmvl53l1-objs		+= src/vl53l1_api_debug.o src/vl53l1_core_support.o
+stmvl53l1-objs		+= src/vl53l1_wait.o
+stmvl53l1-objs		+= src/vl53l1_nvm_debug.o

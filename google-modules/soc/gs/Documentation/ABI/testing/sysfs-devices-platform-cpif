@@ -1,0 +1,8 @@
+What:		/sys/devices/platform/cpif/s5100_wrst_wake_lock
+Date:		March, 2024
+Contact:	"Mahesh Kallelil" <kallelil@google.com>
+Description:
+		This file shows the current status of the s5100_wrst_wake_lock.
+		This wakelock is used to keep the AP awake when CP wants to
+		send data to MIF during a VoLTE call. We can also store a
+		wakelock value for debugging.

@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config VIDEO_EXYNOS_MFC
+	tristate "Exynos MFC Driver"
+	default n
+	depends on VIDEO_EXYNOS
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_DMA_SG
+	help
+	  MFC driver for V4L2.
+
+config MFC_USES_LLC
+	bool "MFC LLC support"
+	default n
+	depends on VIDEO_EXYNOS_MFC
+	help
+	  Uses the LLC of MFC.
+
+config MFC_USE_DMABUF_CONTAINER
+	bool "MFC dma-buf container support"
+	default n
+	depends on VIDEO_EXYNOS_MFC
+	help
+	  Use dma-buf container for MFC.
+
+config MFC_USE_DMA_SKIP_LAZY_UNMAP
+	bool "MFC support for DMA_ATTR_SKIP_LAZY_UNMAP"
+	default n
+	depends on VIDEO_EXYNOS_MFC
+	help
+	  Use dma-buf attribute for skip lazy unmap.

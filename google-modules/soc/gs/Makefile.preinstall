@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0
+
+quiet=silent_
+
+include $(KERNEL_SRC)/scripts/Kbuild.include
+
+CMD_UFS_PIXEL_FIPS_GEN_HMAC = $(OBJTREE)/drivers/ufs/ufs-pixel-fips_gen_hmac
+quiet_cmd_pixel_ufs_gen_hmac = HMAC    $@
+      cmd_pixel_ufs_gen_hmac = \
+	test ! -f $(OBJTREE)/drivers/ufs/ufs-pixel-fips140.ko || \
+	{ $(READELF) -SW $(OBJTREE)/drivers/ufs/ufs-pixel-fips140.ko|grep -Eo '\.init\.rela\.text\S*' || \
+	{ $(OBJCOPY) $@ \
+	--dump-section=$(shell $(READELF) -SW $@|grep -Eo '\.rela\.text\S*')=$@.rela.text && \
+	$(OBJCOPY) $@ \
+	--add-section=.init.rela.text=$@.rela.text \
+	--set-section-flags=.init.rela.text=alloc,readonly && \
+	$(CMD_UFS_PIXEL_FIPS_GEN_HMAC) $@ ; } ; }
+
+$(OBJTREE)/drivers/ufs/ufs-pixel-fips140.ko: FORCE
+	$(call cmd,pixel_ufs_gen_hmac)
+
+modules_preinstall: $(OBJTREE)/drivers/ufs/ufs-pixel-fips140.ko
+	@echo Calling modules_preinstall
+
+clean_preinstall: FORCE
+	rm -f $(OBJTREE)/drivers/ufs/ufs-pixel-fips140.ko.rela.text
+
+clean: clean_preinstall
+
+FORCE:
+
+.PHONY: FORCE

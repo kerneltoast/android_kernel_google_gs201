@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: exynos_pcie_rc driver device tree bindings
+
+maintainers:
+  - Ting-Hsin Chen <tinghsin@google.com>
+
+description: |
+  The exynos_pcie_rc driver implements driver of Designware (Synopsis) based
+  PCIe controller with Samsung provided PHY interface.
+
+properties:
+  customized-de-emphasis:
+    description: Configuartion for using customized de-emphasis value.
+    type: boolean
+    default: false
+
+  de-emphasis-value:
+    description: The setting for de-emphasis value if customsized de-emphasis is enabled.
+    type: int
+    default: 0

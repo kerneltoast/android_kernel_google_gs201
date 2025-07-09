@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Customized Richtek RT4539 backlight drvier
+
+maintainers:
+  - Ken Lin <lyenting@google.com>
+
+description: |
+  Customized RT4539 driver.
+
+properties:
+  compatible:
+    enum:
+      - richtek,rt4539
+
+  reg:
+    maxItems: 1
+
+  enable-supply:
+    description:
+      Supply to use to enable backight IC.
+    maxItems: 1
+
+  led-headroom:
+    description: Config LED driver headroom
+      - B00: 400mV
+      - B01: 450mV
+      - B10: 500mV
+      - B11: 600mV
+    maxItems: 1
+
+  bit-selection:
+    description: Config bit selection from 8 to 12 bits
+      - 8 to 11: Both linear and exponential
+      - 12: Linear only
+    maxItems: 1
+
+  initial-brightness:
+    description: Config initial brightness
+      - 0: 0%
+      - 4095: 100%
+    maxItems: 1
+
+  dimming-mode:
+    description: Select dimming mode
+      - B000: PWM mode
+      - B001: PWM-26k mode
+      - B010: Mixed mode
+      - B011: Mixed-26k mode
+      - B100: DC mode
+    maxItems: 1
+
+  boost-switch-freq:
+    description: config boost switching frequency
+      - 0x00h: 100kHz
+      (resoltuion: 50kHz)
+      - 0x04h: 300kHz
+      (resoltuion: 100kHz)
+      - 0x0Bh: 1000kHz
+      - 0x0Ch: 1225kHz
+      - 0x0Dh: 1335kHz
+      - 0x0Eh: 1450kHz
+      - 0x0Fh: 1600kHz
+    maxItems: 1
+
+  fade-in-out-time-ctrl:
+    description: Config fade in/out time control
+      - B000: 0.5us
+      (resolution: multiply by 2)
+      - B111: 64us
+    maxItems: 1
+
+  slope-time-ctrl:
+    description: Config slope time control
+      - B000: 0ms
+      - B001: 1ms
+      - B010: 8ms
+      - B011: 128ms
+      - B100: 256ms
+      - B101: 512ms
+      - B110: 768ms
+      - B111: 1024ms
+    maxItems: 1
+
+  slope-time-filter:
+    description: Select slope time filter
+      - B00: No Filter (exponential)
+      - B01: Light smoothing
+      - B10: Medium smoothing
+      - B11: Heavy smoothing
+    maxItems: 1
+
+  current-max:
+    description: Config the maximum LED current
+      - 0x00h : 0mA
+      - 0x01h to 0x2Fh : 10.04mA
+      (resolution: 0.12mA)
+      - 0xFFh : 35mA
+    maxItems: 1
+
+  brightness-control:
+    description: Config advanced brigtness control
+      - B00: External PWM signal
+      - B01: I2C brightness register
+      - B10: External PWM signal multiplied with I2C brightness register
+    maxItems: 1
+
+  enabled-leds:
+    description: Enable or disable FB channel
+      - bit 1 to 6: FB1_EN to FB6_EN
+      - B0: Off
+      - B1: On
+    maxItems: 1
+
+  boost-ovp-selection:
+    description: Config boost over voltage protection
+      - 0x00h: 10V
+      (resolution: 1V)
+      - 0x1Eh: 40V
+    maxItems: 1
+
+  led-short-protection:
+    description: Enable LED short protection
+    maxItems: 1
+
+  pfm-enable:
+    description: Enable control CLK PFM function
+    maxItems: 1
+
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        rt4539_bl: backlight@3c {
+            compatible = "richtek,rt4539";
+            reg = <0x3c>;
+
+            bl-name = "lcd-bl";
+            enable-supply = <&m_ldo25_reg>;
+
+            /* LED driver headroom 500mV  */
+            led-headroom = /bits/ 8 <0x02>;
+
+            bit-selection = /bits/ 8 <12>;
+
+            /* 28% (140 nits) initial brightness */
+            initial-brightness = /bits/ 16 <1146>;
+
+            /* DC Mode */
+            dimming-mode = /bits/ 8 <0x04>;
+
+            /* 1225kHz */
+            boost-switch-freq = /bits/ 8 <0x0c>;
+
+            /* 0.5 us */
+            fade-in-out-time-ctrl = /bits/ 8 <0x00>;
+
+            /* 8 ms */
+            slope-time-ctrl = /bits/ 8 <0x02>;
+
+            /* no filter */
+            slope-time-filter = /bits/ 8 <0x00>;
+
+            /* max current 23mA */
+            current-max = /bits/ 8 <0x9b>;
+
+            /* PWM signal multiplied with I2C */
+            brightness-control = /bits/ 8 <0x02>;
+
+            /* 5 LEDS */
+            enabled-leds = /bits/ 8 <0x3e>;
+
+            /* 28V */
+            boost-ovp-selection = /bits/ 8 <0x12>;
+            led-short-protection;
+            pfm-enable;
+        };
+    };

@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# RTC class/drivers configuration
+#
+
+if I2C
+
+config RTC_DRV_S2MPG10
+        tristate "Samsung PMIC S2MPG10 RTC"
+        depends on MFD_S2MPG10
+        help
+          If you say yes here you will get support for the
+          RTC of Samsung PMIC series.
+          This driver can also be built as a module. If so, the module
+          will be called rtc-s2mpg10.
+
+config RTC_DRV_S2MPG12
+	tristate "Samsung PMIC S2MPG12 RTC"
+	depends on MFD_S2MPG12
+	help
+	  If you say yes here you will get support for the
+	  RTC of Samsung PMIC series.
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-s2mpg12.
+
+config RTC_DRV_S2MPG14
+        tristate "Samsung PMIC S2MPG14 RTC"
+        depends on MFD_S2MPG14
+        help
+          If you say yes here you will get support for the
+          RTC of Samsung PMIC series.
+          This driver can also be built as a module. If so, the module
+          will be called rtc-s2mpg14.
+
+endif # I2C

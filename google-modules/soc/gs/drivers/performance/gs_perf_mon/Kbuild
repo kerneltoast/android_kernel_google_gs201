@@ -1,0 +1,6 @@
+# Google Performance Monitor
+
+ccflags-y := -DDYNAMIC_DEBUG_MODULE
+ccflags-y += -I$(srctree)/drivers/performance
+
+obj-$(CONFIG_GS_PERF_MON)			+= gs_perf_mon.o

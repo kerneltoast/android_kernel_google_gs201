@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+if SPI
+if SPI_MASTER
+
+config SPI_S3C64XX_GS
+	tristate "Samsung S3C64XX series type SPI in Google SoCs"
+	help
+	  SPI driver for Samsung S3C64XX and newer SoCs.
+
+endif # SPI_MASTER
+endif # SPI

@@ -1,0 +1,45 @@
+What:		/sys/devices/platform/*.usb/dwc3_exynos_otg_b_sess
+Date:		March, 2021
+Contact:	"Taehyun cho" <taehyun.cho@samsung.com>
+Description:
+		This file provides the interface to enble/disable usb device mode.
+		If usb device mode is active, it will display "1". otherwise "0".
+		If "1" is written, usb device mode is enabled. If "0" is written,
+		usb device mode is disabled.
+
+What:		/sys/devices/platform/*.usb/dwc3_exynos_otg_id
+Date:		March, 2021
+Contact:	"Taehyun cho" <taehyun.cho@samsung.com>
+Description:
+		This file provides the interface to enble/disable usb host mode.
+		If usb host mode is active, it will display "0", otherwise "1".
+		If "0" is written, usb host mode is enabled. If "1" is written,
+		usb host mode is disabled.
+
+What:		/sys/devices/platform/*.usb/dwc3_exynos_otg_state
+Date:		March, 2021
+Contact:	"Taehyun cho" <taehyun.cho@samsung.com>
+Description:
+		This file is read-only and displays current usb otg mode.
+		If usb device mode is active, it will display "b_peripheral".
+		If usb host mode is active, it will display "b_host".
+		Pls refer to 'usb_otg_state_string' for more detail about
+		usb otg mode.
+
+What:		/sys/devices/platform/*.usb/dwc3_exynos_extra_delay
+Date:		May, 2021
+Contact:	Ray Chi <raychi@google.com>
+Description:
+		For some specific usb drivers, it needs to take more time when USB
+		gadget mode exist. Therefore, this file provides a interface to
+		add the delay time. When userspace enables the specific usb functions,
+		userspace should also write "1" to the file. Otherwise, userspace should
+		write "0" to the file.
+
+What:		/sys/devices/platform/*.usb/dwc3_exynos_gadget_state
+Date:		Feb, 2023
+Contact:	Ray Chi <raychi@google.com>
+Description:
+		This file is used to show the gadget state of dwc3-exynos driver. If
+		peripheral mode is active, it will display "1", otherwise "0".
+		Userspace can read this file to know gadget state of dwc3-exynos.

@@ -1,0 +1,6 @@
+What:		/sys/devices/platform/etm2dram/arm
+Date:		September, 2023
+Contact:	"Woody Lin" <woodylin@google.com>
+Description:
+		Arm/Disarm to enable/disable the etm2dram process on setting up
+		the ETM traces capturing pipeline.

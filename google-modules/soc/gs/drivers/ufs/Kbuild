@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0
+# Pixel UFSHCD Makefile
+
+obj-$(CONFIG_SCSI_UFS_EXYNOS_GS) += ufs-exynos-gs.o
+ufs-exynos-gs-y += ufs-exynos.o ufs-exynos-crypto.o ufs-exynos-dbg.o ufs-pixel.o
+ufs-exynos-gs-$(CONFIG_SCSI_UFS_CRYPTO_SW_KEYS_MODE) += ufs-exynos-swkeys.o
+ufs-exynos-gs-$(CONFIG_SOC_GS101) += gs101/ufs-cal-if.o
+ufs-exynos-gs-$(CONFIG_SOC_GS201) += gs201/ufs-cal-if.o
+ufs-exynos-gs-$(CONFIG_SOC_ZUMA) += zuma/ufs-cal-if.o
+ufs-exynos-gs-$(CONFIG_SCSI_UFS_CRYPTO) += ufs-pixel-crypto.o
+
+ccflags-y += -I $(srctree)/drivers/ufs
+
+obj-$(CONFIG_SCSI_UFS_PIXEL_FIPS140) += ufs-pixel-fips140.o
+ufs-pixel-fips140-y += ufs-pixel-fips.o ufs-pixel-fips_sha256.o \
+				ufs-pixel-fips140-refs.o ufs-pixel-fips-exynos.o
+# Use -DBUILD_FIPS140_KO to disable dynamic code patching as that would
+# invalidate the hash of the module's .text section
+CFLAGS_ufs-pixel-fips140.o += -DBUILD_FIPS140_KO
+CFLAGS_ufs-pixel-fips_sha256.o := -DBUILD_FIPS140_KO
+hostprogs := ufs-pixel-fips_gen_hmac
+HOSTLDLIBS_ufs-pixel-fips_gen_hmac := -lcrypto -lelf
+$(obj)/ufs-pixel-fips140.o: $(obj)/ufs-pixel-fips_gen_hmac
+
+ifdef CONFIG_FUNCTION_TRACER
+CFLAGS_REMOVE_ufs-pixel-fips140.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_ufs-pixel-fips.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_ufs-pixel-fips-swkeys.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_ufs-pixel-fips_sha256.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_ufs-pixel-fips140-refs.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_ufs-pixel-fips-exynos.o = $(CC_FLAGS_FTRACE)
+endif
+
+GCOV_PROFILE_ufs-pixel-fips140.o := n
+GCOV_PROFILE_ufs-pixel-fips.o := n
+GCOV_PROFILE_ufs-pixel-fips-swkeys.o := n
+GCOV_PROFILE_ufs-pixel-fips_sha256.o := n
+GCOV_PROFILE_ufs-pixel-fips140-refs.o := n
+GCOV_PROFILE_ufs-pixel-fips-exynos.o := n

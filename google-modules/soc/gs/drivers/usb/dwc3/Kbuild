@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0
+
+##
+# Platform-specific glue layers go here
+#
+# NOTICE: Make sure your glue layer doesn't depend on anything
+# which is arch-specific and that it compiles on all situations.
+#
+# We want to keep this requirement in order to be able to compile
+# the entire driver (with all its glue layers) on several architectures
+# and make sure it compiles fine. This will also help with allmodconfig
+# and allyesconfig builds.
+##
+
+ccflags-y				+= -I$(srctree)/drivers/usb
+ccflags-y				+= -I$(srctree)/../private/google-modules/soc/gs/drivers/usb/host
+
+obj-$(CONFIG_USB_DWC3_EXYNOS_GS)	+= dwc3-exynos-usb.o
+dwc3-exynos-usb-y			+= dwc3-exynos.o
+dwc3-exynos-usb-y			+= dwc3-exynos-otg.o
+
+# This gives the drivers access to the logbuffer.h and gvotable.h header
+subdir-ccflags-y += -I$(KERNEL_SRC)/../private/google-modules/bms

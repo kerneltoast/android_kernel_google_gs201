@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# DMA engine configuration
+#
+
+config SAMSUNG_DMADEV
+	tristate "Legacy Samsung DMA abstraction"
+	select PL330_DMA_GS
+	help
+	  Use DMA device engine for PL330 DMA controller.
+
+config PL330_DMA_GS
+	tristate "DMA API Driver for PL330 in Google SoCs"
+	select DMA_ENGINE
+	depends on ARM_AMBA
+	help
+	  Select if your platform is a Google SoC and has one or more PL330
+	  DMACs.

@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: access_ramoops driver device tree bindings
+
+maintainers:
+  - Patrick Tjin <pattjin@google.com>
+
+description: |
+  The access_ramoops driver allows userspace access to the persistent RAM
+  storage used for oops and panics as well as the metadata required to decrypt
+  that data.
+
+properties:
+  compatible:
+    const: access_ramoops
+
+  memory-region:
+    description:
+       phandle to a node describing reserved memory used
+       (see bindings/reserved-memory/reserved-memory.txt)
+    maxItems: 1
+
+  label:
+    description:
+       name of the region, will be used to create the device node /dev/<label>
+    maxItems: 1
+
+required:
+  - compatible
+  - memory-region
+  - label
+
