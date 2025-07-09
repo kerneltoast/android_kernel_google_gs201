@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "*.h",
+        "uapi/*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/edgetpu:__subpackages__",
+        "//private/google-modules/gpu:__subpackages__",
+        "//private/google-modules/gxp:__subpackages__",
+        "//private/google-modules/power/mitigation:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
+
+filegroup(
+    name = "bcl.kconfig",
+    srcs = ["Kconfig"],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
+
+kernel_module(
+    name = "bcl",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "//private/google-modules/bms:headers",
+        "//private/google-modules/bms/misc:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        "google_bcl.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/edgetpu:__subpackages__",
+        "//private/google-modules/gpu:__subpackages__",
+        "//private/google-modules/gxp:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+    deps = [
+        "//private/google-modules/bms",
+        "//private/google-modules/bms/misc:bms-misc",
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)
