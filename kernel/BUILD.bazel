@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "uwb.dw3000",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+        "**/Kbuild",
+    ]),
+    outs = [
+        "drivers/net/ieee802154/dw3000.ko",
+        "drivers/net/ieee802154/dw3000-core-tests.ko",
+        "net/mcps802154/mcps802154.ko",
+        "net/mcps802154/mcps802154_region_fira.ko",
+        "net/mcps802154/mcps802154_region_nfcc_coex.ko",
+        "net/mcps802154/mcps802154_region_pctt.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
