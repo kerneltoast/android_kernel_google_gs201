@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config SCSI_UFS_EXYNOS_GS
+	tristate "EXYNOS UFS Host Controller Driver for GS SoCs"
+	depends on SCSI_UFSHCD && SCSI_UFSHCD_PLATFORM
+	help
+	  This selects the GS UFS host controller driver which
+	  run with GS SoCs.
+
+	  If you have a controller with this interface, say Y or M here.
+
+config SCSI_UFS_CRYPTO_SW_KEYS_MODE
+	bool "Enable support for software delivered encryption keys"
+	depends on SCSI_UFS_CRYPTO
+	help
+	  The exynos controller supports both hardware and software encryption
+	  key modes. The hardware encryption key mode is the default one. This
+	  config enables support for software key mode which must be activated
+	  via the use_kdn=0 module parameter passed via command line.
+
+config SCSI_UFS_PIXEL_FIPS140
+	tristate "Enable FIPS 140 CMVP Module"
+	depends on m && SCSI_UFS_EXYNOS_GS && SCSI_UFS_CRYPTO
+	select CRYPTO_FIPS140_MERGE_MOD_SECTIONS
+	help
+	  Build a module capable of executing FIPS140-3 compliant self tests of
+	  the UFS crypto engine. The module is used to execute power on self
+	  test for cases where the hardware component does not support
+	  the functionality natively.

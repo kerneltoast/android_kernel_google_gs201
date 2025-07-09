@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+package(
+    default_visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules:__subpackages__",
+    ],
+)
+
+# Force the user to define the generic gs_* flags
+filegroup(
+    name = "gs_undefined",
+    srcs = [],
+)
+
+label_flag(
+    name = "gs_soc_module",
+    build_setting_default = ":gs_undefined",
+)
+
+filegroup(
+    name = "gs_soc.kconfig",
+    srcs = glob([
+        "**/Kconfig",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+    ],
+)
+
+filegroup(
+    name = "gs.dt-bindings",
+    srcs = glob([
+        "include/dt-bindings/**",
+        "include/dtc/**",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+    ],
+)
+
+filegroup(
+    name = "gs_soc_sources",
+    srcs = glob(
+        ["**"],
+        exclude = [
+            ".*",
+            ".*/**",
+            "BUILD.bazel",
+            "build.config.*",
+        ],
+    ) + [
+        "//private/google-modules/bms/misc:headers",
+    ],
+    visibility = [
+        # keep sorted
+        "//private/devices/google:__subpackages__",
+    ],
+)
+
+filegroup(
+    name = "gs_soc_headers",
+    srcs = glob([
+        # Standard pixel headers
+        "include/**/*.h",
+        "include/**/uapi/*.h",
+    ] + [
+        # List of headers needed by external modules
+        "drivers/dma-buf/heaps/samsung/samsung-dma-heap.h",
+        "drivers/usb/host/xhci-exynos.h",
+        "drivers/usb/host/xhci-goog-dma.h",
+        "drivers/usb/typec/tcpm/google/google_tcpci_shim.h",
+        "drivers/usb/typec/tcpm/google/tcpci_max77759.h",
+        "drivers/usb/typec/tcpm/google/usb_psy.h",
+
+        # Needed for external modules to include in their makefiles
+        "Makefile.include",
+    ]),
+    visibility = [
+        # keep sorted
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules:__subpackages__",
+    ],
+)
+
+exports_files([
+    # keep sorted
+    "Kconfig.ext",
+    "Makefile",
+])

@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config EXYNOS_GS_COMMON_CLK
+	tristate "Samsung Exynos clock controller support for GS SoCs"
+	depends on CAL_IF
+	help
+	  Support for the Exynos clock controller for the GS SoCs.
+	  Select Y/M if you build for this SoC.

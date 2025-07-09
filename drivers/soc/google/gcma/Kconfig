@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+config GCMA
+        tristate "GCMA(Guaranteed Contiguous Memory Allocator"
+        depends on CLEANCACHE

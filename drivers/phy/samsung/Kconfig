@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Phy drivers for Samsung platforms
+#
+config PHY_EXYNOS_USBDRD
+	tristate "Exynos SoC series USB DRD PHY driver"
+	help
+	  Enable USB DRD PHY support for Exynos SoC series.
+	  This driver provides PHY interface for USB 3.0 DRD controller
+	  present on Exynos SoC series.
+
+config PHY_EXYNOS_EUSB_REPEATER
+	tristate "eUSB Repeater driver"
+	help
+	  Enable eUSB Repeater support.
+
+config PHY_EXYNOS_USBDRD_EUSB
+	tristate "Exynos SoC series eUSB DRD PHY driver"
+	help
+	  Enable eUSB DRD PHY support for Exynos SoC series.
+	  This driver provides PHY interface for USB 3.0 DRD controller
+	  present on Exynos SoC series.
+
+config PHY_SAMSUNG_USB_GEN2_V4
+	bool "Exynos SoC series USB DRD for GEN2 V4"
+	default n
+	help
+	  Support SAMSUNG USB3.1 GEN2 V4 PHY. GEN2 V4 PHY needs
+	  a different setting compared to GEN2 V2 PHY.
+	  This driver provides PHY interface for USB3.1 GEN2 V4 PHY.
+
+config PHY_EXYNOS_MIPI
+	tristate "Samsung EXYNOS SoC MIPI CSI/DSI D/C-PHY driver"
+	select GENERIC_PHY
+	help
+	  Support for MIPI CSI and MIPI DSI DPHY found on Samsung
+	  and EXYNOS SoCs.
+
+config PHY_EXYNOS_MIPI_DSIM
+	tristate "Samsung EXYNOS SoC MIPI DSI D-PHY driver"
+	select GENERIC_PHY
+	help
+	  Support for MIPI DSI DPHY found on Samsung
+	  and EXYNOS SoCs.

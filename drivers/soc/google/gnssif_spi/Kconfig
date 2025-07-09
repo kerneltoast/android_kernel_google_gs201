@@ -1,0 +1,5 @@
+config EXYNOS_GNSS_IF_SPI
+	tristate "Exynos GNSS SPI interface driver"
+	default n
+	help
+	  Exynos GNSS SPI interface driver

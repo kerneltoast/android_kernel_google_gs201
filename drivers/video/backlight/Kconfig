@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Backlight drivers configuration
+#
+
+if BACKLIGHT_CLASS_DEVICE
+
+config BACKLIGHT_RT4539_GS
+	tristate "Backlight driver for Richtek RT4539"
+	depends on I2C
+	help
+	  This supports Richtek RT4539 backlight driver.
+
+endif # BACKLIGHT_CLASS_DEVICE

@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config GOOGLE_EH
+        tristate "Google Emerald Hill compression engine driver"
+        depends on 64BIT
+        default n
+
+config GOOGLE_EH_CFIFO_DST_BUFFER_3KB
+        bool "Use 3KB destination buffers on compression FIFO entries"
+        depends on GOOGLE_EH
+        default y
+
+config GOOGLE_EH_DCMD_STATUS_IN_MEMORY
+        bool "Use memory location for decompress status"
+        depends on GOOGLE_EH
+        default n
+
+config GOOGLE_EH_DEBUG
+        bool "Enable debugging for Google Emerald Hill driver"
+        depends on GOOGLE_EH
+        default n

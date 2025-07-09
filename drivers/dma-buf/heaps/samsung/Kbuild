@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0
+
+ccflags-y += -I$(srctree)/drivers/dma-buf
+ccflags-y += -I$(KERNEL_SRC)/../private/google-modules/trusty/include
+
+# Needed for the trace points
+CFLAGS_samsung_heap.o = -I$(srctree)/$(src)
+
+obj-$(CONFIG_DMABUF_SAMSUNG_HEAPS) += samsung_dma_heap.o
+samsung_dma_heap-y += heap_dma_buf.o samsung_heap.o
+samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_CHUNK) += chunk_heap.o
+samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_CMA) += cma_heap.o
+samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_CARVEOUT) += carveout_heap.o
+samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_GOOGLE_GCMA) += gcma_heap.o gcma_heap_sysfs.o
+samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_SYSTEM) += system_heap.o
+samsung_dma_heap-$(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION) += secure_buffer.o

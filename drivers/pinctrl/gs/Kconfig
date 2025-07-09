@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# GS Pin control drivers
+#
+
+config PINCTRL_EXYNOS_GS
+	tristate "Pinctrl driver for GSxxx"
+	depends on OF_GPIO
+	depends on OF && GPIOLIB
+	select PINMUX
+	select PINCONF
+

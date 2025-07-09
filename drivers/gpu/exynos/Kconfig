@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "Exynos Graphic Devices"
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/gpu/exynos/g2d/Kconfig"
+endmenu

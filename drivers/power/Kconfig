@@ -1,0 +1,2 @@
+# SPDX-License-Identifier: GPL-2.0-only
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/power/reset/Kconfig"

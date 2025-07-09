@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config GSOC_PMIC_THERMAL
+	tristate "Google LLC. Granville SPMIC thermal driver"
+	depends on THERMAL
+	help
+	  This enables the thermal driver for the Granville PMIC adc thermistors
+	  device. It registers thermal zone with multiple trip points.
+	  Thermal client sets threshold temperature and  gets updated when
+	  a threshold is reached.
+
+config GSOC_PMIC_THERMAL_CAMBRIA
+	tristate "Google LLC. Cambria SPMIC thermal driver"
+	depends on THERMAL
+	help
+	  This enables the thermal driver for the Cambria PMIC adc thermistors
+	  device. It registers thermal zone with multiple trip points.
+	  Thermal client sets threshold temperature and  gets updated when
+	  a threshold is reached.
+
+config THERMAL_SENSOR_STS4X
+	tristate "Sensiron STS4X temperature sensor."
+	depends on THERMAL && I2C
+	help
+	  This enables the thermal driver for the Digital Temp Sensor (STS4x).
+	  It initiates a i2c_driver and registers a thermal zone to get temperature.
+
+config THERMAL_UCLAMP_COOLING_DEVICE
+	tristate "Thermal cooling device for scheduler auto uclamp"
+	depends on THERMAL && VH_SCHED
+	help
+	  This module will register cooling device to place thermal auto uclamp max
+	  for each cluster. There will be one cooling device per cluster and thermal
+	  governors can use these cooling device to mitigate CPU to selectively allow
+	  ADPF tasks to use the max CPU capacity.

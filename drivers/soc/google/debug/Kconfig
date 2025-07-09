@@ -1,0 +1,200 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menuconfig DEBUG_SNAPSHOT
+	tristate "Debug SnapShot Support"
+	depends on ARM64
+	default n
+	help
+	  Debug snapshot supports SoC debugging easily. This feature supports
+	  to trace other module events such frequceny change and IPC.
+	  This supports to save GPR and PC when panic or exception and
+	  to enter ramdump mode when panic is occurred and other exception.
+	  This supports to reserve memory for h/w debug feature such as
+	  scan2dram, arraydump.
+
+config DEBUG_SNAPSHOT_NR_CPUS
+	int "NR CPUS for kevent"
+	range 1 16
+	default 8
+	depends on DEBUG_SNAPSHOT
+	help
+	  This sets the number of cores for the kevents logging data structure declaration.
+
+config DEBUG_SNAPSHOT_FREQ_DOMAIN_NUM
+	int "Number of freq logging domain type"
+	depends on DEBUG_SNAPSHOT
+	range 4 32
+	default 32
+	help
+	  This option decides number of frequency logging domain type.
+
+config DEBUG_SNAPSHOT_LOG_ITEM_SIZE
+	int "Size of logging item"
+	depends on DEBUG_SNAPSHOT
+	range 256 1024
+	default 1024
+	help
+	  This option decides size of logging item.
+
+config DEBUG_SNAPSHOT_BUILT_IN
+	bool "Debug SnapShot Built-In Support"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  There are some kernel events in only core-kernel.
+	  If we get the events, we should need built-in driver.
+	  This supports to get kernel events of core-kernel such as
+	  interrupts, task switching, workqueue and cpuidle.
+
+config DEBUG_SNAPSHOT_SFRDUMP
+	tristate "Debug Snapshot SFR dump when panic"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  This supports sfrdump to string format into the DRAM
+	  if kernel panic happened. If you want to get dump,
+	  you should write list of sfr registers in device tree.
+	  If you want to dump sfr register, you say Y here.
+
+config DEBUG_SNAPSHOT_QUICKDUMP
+	tristate "Debug Snapshot quickdump"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  This is for weight ligntening of ramdump. If DRAM size is too big,
+	  Ramdump is also big. Then it takes a long time to get ramdump.
+	  So we get important data such as dss logging and H/W raw data.
+	  If you access text symbol and stack data, you could get them.
+	  But in GKI, we can't access section symbol and stack symbol.
+
+config DEBUG_SNAPSHOT_DEBUG_KINFO
+	tristate "Debug Kernel Information Support"
+	depends on DEBUG_SNAPSHOT
+	help
+	  Use DPM to enable/disable kernel information backup.
+
+config EXYNOS_EHLD
+	tristate "Exynos support Early Hardlockup Detector"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  This module is a driver for detecting HW lockup at early time.
+
+config EXYNOS_DEBUG_TEST
+	tristate "Exynos debug feature test"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  This can be tested for various errors. If you say y you can confirm
+	  that the debug feature works properly for the error.
+
+
+config PIXEL_DEBUG_TEST
+	tristate "Pixel Debug Test Error Triggers"
+	depends on ARM || ARM64
+	default n
+	help
+	  Say m or y here to add support for commands that can trigger
+	  intentional errors.
+
+config EXYNOS_ITMON
+        tristate "Exynos IPs Traffic Monitor"
+        default n
+	help
+	  This is IPs Traffic Monitor. If some errors happen in bus,
+	  this handles the error. The error type has SLVERR, DECERR
+	  and TIMEOUT. This was implemented based on AXI protocol.
+	  Each error is handled according to policy. There are
+	  panic, scan2dram, halt and so on in policy.
+
+config EXYNOS_CORESIGHT
+        tristate "Enable Coresight of exynos"
+	depends on DEBUG_SNAPSHOT
+        default n
+	help
+	  This is support to show PC values of each cpus when kernel panic
+	  caused by hard lockup.
+
+config EXYNOS_ECC_HANDLER
+	tristate "Exynos support ECC handler"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  If ECC happened in cache of CPU, interrupt occurs to cpu.
+
+menuconfig EXYNOS_CORESIGHT_ETM
+        tristate "Enable ETM driver of exynos"
+        depends on ARM || ARM64
+        default n
+        help
+          ETM is the source of coresight component. ETM generates trace data
+	  for output through the ATB.
+
+config EXYNOS_CORESIGHT_ETF
+        bool "Enable ETF (FIFO or Buffer)"
+        depends on EXYNOS_CORESIGHT_ETM
+        default n
+        help
+          ETF is the sink or link part of coresight component.
+	  If you say Y only here, This is set sink(Circular buffer mode).
+	  If you also say Y ETR, This is set link(FIFO mode).
+
+config EXYNOS_CORESIGHT_ETR
+        bool "Enable ETR (Route DRAM)"
+        depends on EXYNOS_CORESIGHT_ETF
+        default n
+        help
+          ETR is the sink part of coresight component. Trace data is stored
+	  into DRAM. If say Y here, ETF is set link and this is set sink.
+
+config EXYNOS_ADV_TRACER
+        tristate "Exynos Advanced Tracer"
+        depends on ARM || ARM64
+        default n
+	help
+	  This driver communicates with debugcore via mailbox. This supports
+	  ipc API with debugcore. If you make a driver to communicates with
+	  debugcore, you should use this API.
+
+config EXYNOS_ADV_TRACER_S2D
+        tristate "Exynos Advanced Tracer: Plug-in - S2D"
+        depends on EXYNOS_ADV_TRACER
+        default n
+	help
+	  This driver communicates with scan2dram plugin in debugcore.
+
+config PIXEL_BOOT_METRICS
+	tristate "Pixel Boot Metrics Information Support"
+	depends on ARM || ARM64
+	default n
+	help
+	  Say m or y here to add support for attributes that can get boot
+	  metrics information.
+
+config PIXEL_SUSPEND_DIAG
+	tristate "Pixel Suspend Diag Information Support"
+	depends on DEBUG_SNAPSHOT
+	default n
+	help
+	  Say m or y here to add support for attributes that can get suspend
+	  diag information.
+
+config GS_SJTAG
+        tristate "GS SJTAG driver"
+        default n
+	help
+	  This driver implements the driver to the AP & GSA SJTAG HW blocks
+	  in the GS SoC.
+
+config BOOKERCI
+	tristate "Booker-CI driver"
+	default n
+	help
+	  This is BOOKER-CI driver.
+
+config ETM2DRAM
+	tristate "ETM to DRAM driver"
+	default n
+	help
+	  This driver exposes interfaces to access debugcore for controlling
+	  ETM2DRAM functions.

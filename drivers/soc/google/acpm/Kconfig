@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# ACPM driver configuration
+#
+
+menuconfig GS_ACPM
+	tristate "ACPM driver support"
+	default n
+	help
+	  Enable ACPM support
+
+if GS_ACPM
+
+config ACPM_MFD
+	bool "ACPM_MFD support"
+	default y
+	help
+	  Enable ACPM_MFD support
+
+config ACPM_FLEXPMU_DBG
+	tristate "ACPM FLEXPMU DBG"
+	default n
+	help
+	  Support FLEXPMU DBG for GS SoC
+
+config ACPM_POWER_STATS
+	tristate "GS Power stats collection"
+	default n
+	help
+	  Manages the collection of power stats collected by the ACPM
+
+config ACPM_MBOX_TEST
+	tristate "ACPM_MBOX_TEST support"
+	default n
+	help
+	  Enable ACPM_MBOX_TEST support
+
+endif

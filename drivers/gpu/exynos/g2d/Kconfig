@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config EXYNOS_GRAPHICS_G2D
+	tristate "FIMG2D support"
+	select SYNC_FILE
+	help
+	  This enables FIMG2D driver of Exynos SoCs.
+

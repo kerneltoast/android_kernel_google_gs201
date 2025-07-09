@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Sideband Bit Multiplexer driver for 'trigger' GPIOs.
+#
+
+menuconfig SBB_MUX
+	tristate "Support for 'trigger' GPIOs"
+	default n
+	help
+	  This option enables support for sideband / 'trigger' GPIOs.
+	  If your board does not have GPIOs specifically routed to 'trigger'
+	  pins, this driver is not necessary.

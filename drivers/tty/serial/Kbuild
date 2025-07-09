@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Makefile for the kernel serial device drivers.
+#
+
+obj-$(CONFIG_SERIAL_EXYNOS) += exynos_tty.o
+
+# This gives the drivers access to the logbuffer.h header
+subdir-ccflags-y += -I$(KERNEL_SRC)/../private/google-modules/bms

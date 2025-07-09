@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Makefile for backlight drivers.
+#
+
+EXTRA_CFLAGS += -DDYNAMIC_DEBUG_MODULE=1
+EXTRA_CFLAGS += -Werror
+
+obj-$(CONFIG_BACKLIGHT_RT4539_GS) += rt4539_bl.o

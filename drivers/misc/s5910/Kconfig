@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+#
+config S5910
+	tristate "S5910 Driver"
+	default n
+	depends on REGMAP_SPMI
+	depends on SPMI_BITBANG
+	depends on SPMI
+	help
+		S5910 Driver

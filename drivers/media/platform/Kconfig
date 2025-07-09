@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+if V4L_PLATFORM_DRIVERS
+
+#
+# Platform multimedia device configuration
+#
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/media/platform/exynos/Kconfig"
+
+endif # V4L_PLATFORM_DRIVERS
+
+config VIDEO_EXYNOS_SMFC
+	tristate "Exynos Still MFC(H/W JPEG CODEC) Driver"
+	depends on VIDEO_DEV && HAS_DMA
+	select V4L2_MEM2MEM_DEV
+	select VIDEOBUF2_DMA_SG
+	default n
+	help
+	  Still MFC(Multi Format Codec) V4L2 Driver for Exynos SoCs.
+	  The driver supports for mem2mem V4L2 device.

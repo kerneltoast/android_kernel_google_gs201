@@ -1,0 +1,26 @@
+## SPDX-License-Identifier: GPL-2.0-only
+
+# vh/kernel/sched
+obj-$(CONFIG_VH_SCHED)	+= sched/
+
+# systrace
+CFLAGS_systrace.o = -I$(srctree)/$(src)
+obj-$(CONFIG_VH_SYSTRACE) += systrace.o
+
+# vh/kernel/fs
+obj-$(CONFIG_VH_FS)	+= fs/
+
+# vh/kernel/mm
+obj-$(CONFIG_VH_MM)     += mm/
+
+# vh/kernel/cgroup
+obj-$(CONFIG_VH_CGROUP)	+= cgroup/
+
+# vh/kernel/pixel_em
+obj-$(CONFIG_PIXEL_EM)   += pixel_em/
+
+# vh/kernel/thermal
+obj-$(CONFIG_VH_THERMAL)   += thermal/
+
+# pixel metrics
+obj-$(CONFIG_PIXEL_METRICS)	+= metrics/

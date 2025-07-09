@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# BTS device driver Kernel Configuration
+#
+menuconfig EXYNOS_BTS
+       tristate "BTS device driver support"
+       help
+         Enables BTS(Bus Traffic Shaper) device driver support
+         BTS device driver will set BTS and request DVFS for
+         controlling system bus traffic. Default setting of BTS
+         should be different to chipset because of hardware characteristics.

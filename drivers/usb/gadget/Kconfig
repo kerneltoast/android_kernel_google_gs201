@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# USB Gadget support on a system involves
+#    (a) a peripheral controller, and
+#    (b) the gadget driver using it.
+#
+# NOTE:  Gadget support ** DOES NOT ** depend on host-side CONFIG_USB !!
+#
+#  - Host systems (like PCs) need CONFIG_USB (with "A" jacks).
+#  - Peripherals (like PDAs) need CONFIG_USB_GADGET (with "B" jacks).
+#  - Some systems have both kinds of controllers.
+#
+# With help from a special transceiver and a "Mini-AB" jack, systems with
+# both kinds of controller can also support "USB On-the-Go" (CONFIG_USB_OTG).
+#
+
+if USB_GADGET
+
+config USB_F_DM
+	tristate
+
+config USB_F_ETR_MIU
+	tristate
+
+config USB_CONFIGFS_F_DM
+	tristate "DM gadget"
+	depends on USB_CONFIGFS
+	select USB_F_DM
+	select USB_U_SERIAL
+	help
+	  USB gadget DM(Diagnosis Monitor) support
+
+config USB_CONFIGFS_F_ETR_MIU
+	tristate "ETR_MIU"
+	depends on USB_CONFIGFS
+	select USB_F_ETR_MIU
+	help
+	  The ETR_MIU function enables sending trace data from Coresight ETR to USB
+	  via ETR_MIU. The function has an interface with two alternate settings.
+	  Alt0 setting is idle mode. Alt1 setting is data transfer mode. USB host
+	  must set Alt1 before attempting to download trace data.
+endif # USB_GADGET

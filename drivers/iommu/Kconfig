@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if IOMMU_SUPPORT
+
+config SAMSUNG_IOMMU
+	tristate "Samsung IOMMU Support"
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_DMA
+	select SAMSUNG_IOMMU_GROUP
+	help
+	  Support for IOMMU on GS SoCs.
+
+config SAMSUNG_IOMMU_V9
+	tristate "Samsung IOMMU V9 Support"
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_DMA
+	select SAMSUNG_IOMMU_GROUP
+	help
+	  Support for IOMMU V9 on Samsung Exynos SoCs.
+
+config SAMSUNG_IOMMU_GROUP
+	tristate "Samsung IOMMU Group Support"
+	help
+	  Support for IOMMU group on GS SoCs.
+
+config SAMSUNG_SECURE_IOVA
+	tristate "Samsung Secure IOVA Support"
+	help
+	  Support secure device virtual address management for GS SoCs.
+
+config EXYNOS_PCIE_IOMMU
+	tristate "Enable Exynos PCIe IOMMU"
+	depends on PCI_EXYNOS_GS
+	help
+	  Support for IOMMU feature for Exynos PCIe. Memory shared between the
+	  PCIe Root Complex and the Endpoints is susceptible to attacks by
+	  malicious firmware loaded into the Endpoints. Enabling this provides
+	  secure access of memory shared between PCIe RC and the EPs.
+
+config PCIE_IOMMU_HISTORY_LOG
+	bool "Enable Exynos PCIe IOMMU Map/Unmap History"
+	depends on EXYNOS_PCIE_IOMMU
+	help
+	  Support for saving map and unmap history of shared memory between the
+	  Root Complex and Endpoints of the Exynos PCIe interface. This history
+	  can be used for debugging purposes.
+
+	  Say Y to enable this feature.
+
+config IOVAD_BEST_FIT_ALGO
+	tristate "Enable best fit IOVA allocation"
+	help
+	  Support best fit IOVA allocation for GS SoCs.
+
+endif # IOMMU_SUPPORT

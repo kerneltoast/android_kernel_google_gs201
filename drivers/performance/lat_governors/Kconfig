@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config GS_MEMLAT_GOVERNOR
+	tristate "Google Memory Latency Governors"
+	depends on GS_PERF_MON
+	default n
+	help
+	  Latency governors providing votes for the memory subsystem.
+	  The governors only compute target frequencies for the DSU, BCI, and DDR
+	  then supplies them to the devfreq for processing.
+
+config GS_DSULAT_GOVERNOR
+	tristate "Google DSU Latency Governors"
+	depends on GS_MEMLAT_GOVERNOR
+	default n
+	help
+	  Config toggle sepecifically for DSU since some platforms
+	  dont provide independent DSU frequency scaling. Dependent
+	  on tick driven memory latency driver infrastructrue.

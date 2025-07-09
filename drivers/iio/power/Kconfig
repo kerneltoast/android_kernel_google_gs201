@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Power sensors
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Power sensors"
+
+config ODPM
+	tristate "ODPM driver for M/S PMICs"
+	depends on (SOC_GS101 && MFD_S2MPG10 && MFD_S2MPG11) || \
+		   (SOC_GS201 && MFD_S2MPG12 && MFD_S2MPG13) || \
+		   (SOC_ZUMA && MFD_S2MPG14 && MFD_S2MPG15)
+	select DRV_SAMSUNG_PMIC
+	help
+	  Say Y here to enable the On-Device Power Monitor (ODPM) driver.
+	  The On-Device Power Monitor allows for rail-specific energy and power
+	  measurements of the different subdomains of a PMIC device. The ODPM
+	  driver also allows for rail selection out of a subset of measurement
+	  "channels".
+
+endmenu

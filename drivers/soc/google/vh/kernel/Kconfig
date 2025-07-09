@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# kernel vendor hook modules
+
+config VH_SYSTRACE
+	tristate "Vendor SYSTRACE support"
+	depends on VH_KERNEL
+	depends on TRACING
+	default n
+	help
+	  This module exports ATRACE_XXX APIs at kernel.
+	  All tracepoints can be identified and plotted at Chrome tracing UI.
+
+	  Use APIs exported by this module to correlate kernel activities
+	  to userspace and system events in the timeline.
+
+	  If in doubt, say N.
+
+config PIXEL_EM
+	tristate "Enable Pixel Energy Model driver"
+	depends on VH_KERNEL
+	default n
+	help
+	  Support Pixel Energy Model.
+
+config PIXEL_METRICS
+        tristate "Enable PIXEL METRICS driver"
+        depends on VH_KERNEL
+        default n
+
+config CPUIDLE_METRICS
+	bool "Use cpu idle metrics module"
+	depends on PIXEL_METRICS
+	default y
+
+config VH_FS
+	tristate "Vendor hooks for filesystem"
+	depends on VH_KERNEL
+	default n
+
+config VH_MM
+	tristate "Vendor hooks for Memory Management"
+	depends on VH_KERNEL
+	default n
+
+config VH_CGROUP
+	tristate "Vendor hooks for cgroup"
+	depends on VH_KERNEL
+	default n
+
+config VH_THERMAL
+	tristate "Vendor hooks for kernel thermal"
+	depends on VH_KERNEL
+	default n
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/vh/kernel/sched/Kconfig"

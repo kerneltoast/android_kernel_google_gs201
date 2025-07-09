@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
+
+if USB_DWC3
+
+config USB_DWC3_EXYNOS_GS
+	tristate "GS Platform"
+	depends on (USB_DWC3 || COMPILE_TEST) && OF
+	help
+	  'USB_DWC3_EXYNOS_GS' is glue layer which can be used with
+	  Synopsys DWC3 controller on GS SoCs. Say 'Y' or 'M'
+	  if you have one such devices.
+
+endif

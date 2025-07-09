@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+
+obj-$(CONFIG_PCI_EXYNOS_GS) += pcie-exynos-gs.o
+pcie-exynos-gs-objs += pcie-exynos-rc.o pcie-exynos-dbg.o
+obj-$(CONFIG_PCI_EXYNOS_CAL_ZUMA) += pcie-exynos-zuma-rc-cal.o
+
+ccflags-y += -I $(srctree)/drivers/pci/controller/dwc
+
+# This gives the drivers access to the logbuffer.h header
+subdir-ccflags-y += -I$(KERNEL_SRC)/../private/google-modules/bms

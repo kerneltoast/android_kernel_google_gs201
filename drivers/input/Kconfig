@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Input device configuration
+#
+
+if INPUT
+
+config INPUT_KEYDEBUG
+	tristate "Long Press Key Debugging"
+	depends on INPUT && KERNEL_TOP
+	select INPUT_KEYCOMBO
+	help
+	  Say Y here if you want to hook debug function to dump information
+	  to debug device hang when some keys are long pressed.
+
+config INPUT_KEYCOMBO
+	tristate "Key combo"
+	depends on INPUT
+	help
+	  Say Y here if you want to take action when some keys are pressed;
+
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/input/misc/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/input/fingerprint/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/input/keyboard/Kconfig"
+
+endif
+
+

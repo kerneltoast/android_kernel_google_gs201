@@ -1,0 +1,320 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Google SoC drivers
+#
+
+menu "Google SoC drivers"
+
+config SOC_GOOGLE
+	bool "Google SoC driver support"
+
+config SOC_GS101
+	bool "Google GS101"
+	depends on SOC_GOOGLE
+
+config SOC_GS201
+	bool "Google GS201"
+	depends on SOC_GOOGLE
+
+config BOARD_SLIDER
+	bool "Google Slider Board"
+	depends on SOC_GS101
+
+config BOARD_CLOUDRIPPER
+	bool "Google Cloudripper Board"
+	depends on SOC_GS201
+
+config BOARD_EMULATOR
+	bool "Google Zuma emulator"
+	help
+	  Common configuration for both hybrid and full emulator.
+
+config SOC_ZUMA
+	bool "Google Zuma"
+	depends on SOC_GOOGLE
+
+config SOC_ZUMAPRO
+	bool "Google Zuma Pro"
+	depends on SOC_GOOGLE
+	depends on SOC_ZUMA
+
+config BOARD_RIPCURRENT
+	bool "Google Ripcurrent Board"
+	depends on SOC_ZUMA
+
+config BOARD_ZUMA_EMULATOR
+	bool "Google Zuma on full emulator"
+	depends on SOC_ZUMA
+	select BOARD_EMULATOR
+	help
+	Support Zuma on emulator
+
+config BOARD_ZUMA_HYBRID
+	bool "Google Zuma on hybrid emulator"
+	depends on SOC_ZUMA
+	select BOARD_EMULATOR
+	help
+	Support Zuma on hybrid emulator
+
+config GS_CHIPID
+	tristate "GS Chipid controller driver"
+	depends on ARM64
+	depends on SOC_GOOGLE
+	select SOC_BUS
+	default y
+
+config EXYNOS_BCM_DBG
+	tristate "EXYNOS_BCM_DBG driver support"
+	help
+	Enable exynos-bcm_dbg driver support
+
+config EXYNOS_BCM_DBG_DUMP
+	tristate "EXYNOS_BCM_DBG dump support"
+	depends on EXYNOS_BCM_DBG
+	default y if EXYNOS_BCM_DBG
+	help
+	Enable exynos-bcm_dbg dump support
+
+config EXYNOS_BCM_DBG_DUMP_FILE
+	bool "EXYNOS_BCM_DBG dump file support"
+	depends on EXYNOS_BCM_DBG_DUMP
+	default n
+	help
+	Enable exynos-bcm_dbg dump file support
+
+config EXYNOS_BCM_DBG_PPMU
+	bool "EXYNOS_BCM_DBG PPMU support"
+	depends on EXYNOS_BCM_DBG
+	default n if EXYNOS_BCM_DBG
+	help
+	Enable exynos-bcm_dbg PPMU perf_event support
+
+config CAL_IF
+       tristate "Exynos Chip Abstraction Layer Interface"
+       help
+       Support PMU/CMU CAL for Exynos SoC.
+
+config CMUCAL
+	tristate "Exynos CMU Chip Abstraction Layer"
+	default y
+	depends on CAL_IF
+	help
+	Support CMUCAL for Exynos SoC.
+
+config CMUCAL_DEBUG
+	tristate "CMUCAL Debug Interface"
+	default y
+	depends on CMUCAL
+
+config CMUCAL_QCH_IGNORE_SUPPORT
+	tristate "CMUCAL QCH IGNORE Support"
+	default y
+	depends on CMUCAL
+
+config PMUCAL
+        bool "Exynos PMU Chip Abstraction Layer"
+        depends on CAL_IF
+        default y
+        help
+        Support PMUCAL for Exynos SoC.
+
+config PMUCAL_DBG
+        tristate "Exynos PMUCAL debugging interface"
+        depends on PMUCAL
+        help
+        Support PMUCAL debugging for Exynos SoC.
+
+config EXYNOS_PMU_IF
+	tristate "Exynos PMU controller Interface driver"
+	help
+	Support PMU register API for Exynos SoC.
+
+config EXYNOS_PD
+	tristate "Exynos PM domain Support"
+	depends on CAL_IF && CMUCAL
+	depends on PM
+	select PM_GENERIC_DOMAINS
+
+config EXYNOS_PD_DBG
+	tristate "Exynos PM domain Support"
+	depends on CAL_IF && CMUCAL
+	depends on PM
+	select PM_GENERIC_DOMAINS
+
+config EXYNOS_PD_EL3
+	tristate "Exynos PD Save/Restore Support"
+	default m
+	help
+	Support Exynos Power Domain Save/Restore
+
+config EXYNOS_PD_HSI0
+	tristate "Exynos PD HSI0 driver"
+	depends on EXYNOS_PD
+	default m
+	help
+	Support PD driver to control HSI0 ldos.
+
+config EXYNOS_PM
+	tristate "Enable Exynos PM Support"
+	help
+	Support EXYNOS_PM for Exynos SoC.
+
+config EXYNOS_CPUPM
+	tristate "CPU Power Management driver"
+	depends on PMUCAL
+	help
+	Support CPU Power Control for GS SoC.
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/acpm/Kconfig"
+
+config ACPM_DVFS
+	tristate "ACPM DVFS manager"
+	depends on CAL_IF && CMUCAL
+	help
+	Support ACPM DVFS for GS SoC.
+
+config ECT
+	tristate "Enable Exynos Characteristic Table File"
+	default n
+	help
+	Support ECT for Exynos SoC.
+
+config EXYNOS_DVFS_MANAGER
+	tristate "Exynos DVFS Manager"
+	help
+	Enable DVFS Manager for Exynos SoC.
+	This module controls constraint between each DVFS domains.
+
+config EXYNOS_PM_QOS
+	tristate "Exynos PM QOS"
+	help
+	Support Exynos PM QOS
+
+config EXYNOS_CPUHP
+	tristate "CPU Hotplug driver support"
+	depends on HOTPLUG_CPU
+	default n
+	help
+	Support CPU Hotplug for Exynos SoC.
+
+config SLC_PARTITION_MANAGER
+	tristate "PT API framework"
+	default n
+	help
+	Enable PT framework for managing system level cache.
+
+config GS_SLC_ACPM
+	tristate "PT ACPM driver"
+	depends on SLC_PARTITION_MANAGER && GS_ACPM
+	default n
+	help
+	Support PT ACPM drvier
+
+config SLC_PMON
+	bool "Enable SLC perf counter support"
+	depends on GS_SLC_ACPM
+	default n
+	help
+	Enable SLC perf counter support in PT ACPM driver.
+
+config VH_KERNEL
+	bool "Vendor kernel modules"
+	default y
+	help
+	Modules for vendor kernel hooks.
+
+config PIXEL_STAT
+	tristate "Enable Pixel statistics"
+	default n
+	help
+	Support Pixel statistics.
+
+config EXYNOS_SECURE_LOG
+	tristate "Exynos Secure Log"
+	default n
+	help
+	Support Exynos Secure Log
+
+config EXYNOS_CONTENT_PATH_PROTECTION
+	tristate "Exynos Content Path Protection"
+	default n
+	help
+	  Enable content path protection of EXYNOS.
+
+config PERF_TRACE_CTRS
+	tristate "perf_trace_counters support"
+	default n
+	help
+	Support perf_trace_counters
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/gsa/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/debug/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/gnssif_spi/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/eh/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/gcma/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/pa_kill/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/smra/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/s2mpu/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/vh/kernel/Kconfig"
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/soc/google/boot_control/Kconfig"
+
+config HARDLOCKUP_DEBUG
+	tristate "Hardlockup Debugging"
+	depends on ARM64
+
+config HARDLOCKUP_WATCHDOG
+	tristate "Hardlockup Watchdog"
+	default n
+	help
+	The module is a driver for detecting individual core lockup.
+
+config DBGCORE_DUMP
+	tristate "Debug Core Framework"
+	depends on DEBUG_SNAPSHOT && EXYNOS_ADV_TRACER
+	default n
+	help
+	This module supports the Debug Core Framework functionality.
+
+config SYSRQ_HOOK
+	tristate "Sysrq hook to overwrite panic message"
+	depends on MAGIC_SYSRQ
+	default n
+	help
+	Modules for sysrq hooks.
+
+config PKVM_S2MPU
+	tristate "S2MPU driver compatible with pKVM"
+	default n
+	help
+	This module is a driver for the stage-2 IOMMU controlled by hypervisor.
+
+config PKVM_S2MPU_V9
+	tristate "S2MPU V9 driver compatible with pKVM"
+	default n
+	help
+	This module is a driver for the stage-2 IOMMU controlled by hypervisor.
+
+config KERNEL_TOP
+	tristate "Display processes statistic"
+	default n
+	help
+	  This module exposes kernel function for modules to debugging
+	  processes statistic.
+
+config GOOGLE_MODEMCTL
+	tristate "Common modem control interfaces"
+	default n
+	help
+	  This module provides common helpers and control interfaces for modems
+	  and clients that may want to interact with them.
+
+endmenu

@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config ARM_MEMLAT_MON
+	tristate "ARM CPU Memory Latency monitor hardware"
+	help
+	  The PMU present on these ARM cores allow for the use of counters to
+	  monitor the memory latency characteristics of an ARM CPU workload.
+	  This driver uses these counters to implement the APIs needed by
+	  the mem_latency devfreq governor.
+
+config DEVFREQ_GOV_MEMLAT
+	tristate "HW monitor based governor for device BW"
+	depends on ARM_MEMLAT_MON
+	help
+	  HW monitor based governor for device to DDR bandwidth voting.
+	  This governor sets the CPU BW vote based on stats obtained from memalat
+	  monitor if it determines that a workload is memory latency bound. Since
+	  this uses target specific counters it can conflict with existing profiling
+	  tools.
+
+config MEMLAT_DEVFREQ
+	tristate "HW monitor based DEVFREQ driver for device BW"
+	depends on ARM_MEMLAT_MON
+	help
+	  This adds the DEVFREQ driver for memory latency goverors.
+
+config ARM_EXYNOS_DEVFREQ
+	tristate "ARM EXYNOS DEVFREQ Common driver"
+	select PM_OPP
+	help
+	  This adds the DEVFREQ driver for Exynos series common bus
+
+config EXYNOS_ALT_DVFS
+	tristate "ALT(Active Load Tracing) DVFS"
+	depends on ARM_EXYNOS_DEVFREQ
+	help
+	  Enable ALT-DVFS scheme for simpleinteractive governor.
+	  When ALT-DVFS is enabled, governor will start to trace and
+	  calculate memory load based on activated cycle. Simpleinteractive
+	  governor decides new frequency for DVFS by comparing current load
+	  and PM QoS requests.
