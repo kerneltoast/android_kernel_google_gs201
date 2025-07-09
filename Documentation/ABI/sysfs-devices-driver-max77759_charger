@@ -1,0 +1,21 @@
+What:		/sys/devices/platform/*.hsi2c/i2c-[0-9]+/[0-9]+-0069/registers_dump
+Date:		Feb 2024
+KernelVersion:	6.1
+Contact:	"Daniel Okazaki" <dtokazaki@google.com>
+Description:
+		Dump all registers
+
+Users:		Dumpstate
+
+What:		/sys/devices/platform/*.hsi2c/i2c-[0-9]+/[0-9]+-0069/fship_dtls
+Date:		May 2020
+KernelVersion:	4.19
+Contact:	"Daniel Okazaki" <dtokazaki@google.com>
+Description:
+		Workaround for read-only CHG_DETAILS_03 to track exiting from shipmode.
+                MAX77759_PMIC_TOPSYS_INT_MASK_SPR_7 is used to detect exit from fshipmode.
+                The register (MAX77759_PMIC_TOPSYS_INT_MASK) is type S and the bit is reset
+                to 1 on power loss. The reports MAX77759_CHG_DETAILS_03 when the bit
+                is 1 and report 0 when the bit is set to 0.
+
+Users:		Debug

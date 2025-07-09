@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: max77779 pmic irq driver
+
+maintainers:
+  - James Wylder <jwylder@google.com>
+  - Daniel Okazaki <dtokazaki@google.com>
+  - Prasanna Prapancham <prapancham@google.com>
+  - Jack Wu <wjack@google.com>
+  - Ken Yang <yangken@google.com>
+  - Baltazar Ortiz <baltazarortiz@google.com>
+
+description: |
+  Max77779 pmic IRQ driver
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - max77779-pmic-irq
+
+  max777x9,irq-gpio:
+    description: IRQ gpio
+
+required:
+  - compatible
+  - pinctrl-names
+  - pinctrl-0
+  - interrupt-controller
+  - #interrupt-cells

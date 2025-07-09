@@ -1,0 +1,9 @@
+What:		/sys/class/power_supply/battery/charge_to_limit
+Date:		Mar 2024
+Contact:	hsiufangho@google.com
+Description:
+		Read/Write charge to limit SOC(state of charge)
+                Write 0 to disable this feature.
+
+		Access: Read/Write
+		Valid values: Represented as int

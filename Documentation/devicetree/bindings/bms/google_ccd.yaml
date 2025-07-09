@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Google CCD driver
+
+maintainers:
+  - Jack Wu <wjack@google.com>
+
+description: |
+  Charger combine driver. Adds control over a main charger and a buck charger.
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - google,ccd
+
+  google,main-chg-psy-name:
+    description: Main charger power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,buck-chg-psy-name:
+    description: Buck charger power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,buck_chg_en:
+    description: GPIO to enable buck charger
+
+required:
+  - compatible
+  - #cooling-cells

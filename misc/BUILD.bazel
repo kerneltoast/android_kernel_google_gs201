@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/bluetooth:__subpackages__",
+        "//private/google-modules/bms:__subpackages__",
+        "//private/google-modules/display:__subpackages__",
+        "//private/google-modules/power/mitigation:__subpackages__",
+        "//private/google-modules/power/reset:__subpackages__",
+        "//private/google-modules/radio:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+        "//private/google-modules/soc/gs:__subpackages__",
+    ],
+)
+
+filegroup(
+    name = "bms-misc.kconfig",
+    srcs = [
+        "Kconfig",
+    ],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
+
+kernel_module(
+    name = "bms-misc",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Kbuild",
+    ],
+    outs = [
+        "gvotable.ko",
+        "logbuffer.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/bluetooth:__subpackages__",
+        "//private/google-modules/bms:__subpackages__",
+        "//private/google-modules/display:__subpackages__",
+        "//private/google-modules/power/mitigation:__subpackages__",
+        "//private/google-modules/radio:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+        "//private/google-modules/soc/gs:__subpackages__",
+    ],
+)

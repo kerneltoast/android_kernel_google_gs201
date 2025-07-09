@@ -1,0 +1,8 @@
+What:		/sys/devices/platform/*.hsi2c/i2c-[0-9]+/[0-9]+-0060/registers_dump
+Date:		Jul 2024
+KernelVersion:	6.1
+Contact:	"Spade Lee" <spadelee@google.com>
+Description:
+		Dump max77779 scratchpad
+
+Users:		Dumpstate

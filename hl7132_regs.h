@@ -1,0 +1,321 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Platform data for the HL7132 battery charger driver.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#ifndef HL7132_REGS_H__
+#define HL7132_REGS_H__
+
+#define BITS(_end, _start) ((BIT(_end) - BIT(_start)) + BIT(_end))
+#define MASK2SHIFT(_mask)	__ffs(_mask)
+
+/*
+ * Register Map
+ */
+#define HL7132_REG_DEVICE_ID 0x00
+#define HL7132_BIT_DEV_ID BITS(3, 0)
+#define HL7132_DEVICE_ID 0x5
+
+#define HL7132_REG_INT 0x01
+#define HL7132_BIT_STATE_CHG_I BIT(7)
+#define HL7132_BIT_REG_I BIT(6)
+#define HL7132_BIT_TS_TEMP_I BIT(5)
+#define HL7132_BIT_V_OK_I BIT(4)
+#define HL7132_BIT_CUR_I BIT(3)
+#define HL7132_BIT_SHORT_I BIT(2)
+#define HL7132_BIT_WDOG_I BIT(1)
+
+#define HL7132_REG_INT_MSK 0x02
+#define HL7132_BIT_STATE_CHG_M BIT(7)
+#define HL7132_BIT_REG_M BIT(6)
+#define HL7132_BIT_TS_TEMP_M BIT(5)
+#define HL7132_BIT_V_OK_M BIT(4)
+#define HL7132_BIT_CUR_M BIT(3)
+#define HL7132_BIT_SHORT_I_M BIT(2)
+#define HL7132_WDOG_M BIT(1)
+
+#define HL7132_REG_INT_STS_A 0x03
+#define HL7132_BIT_STATE_CHG_STS BITS(7, 6)
+#define HL7132_BIT_REG_STS BITS(5, 2)
+
+#define HL7132_BIT_REG_STS_IIN_REG BIT(3)
+#define HL7132_BIT_REG_STS_VBAT_REG BIT(2)
+#define HL7132_BIT_TS_TEMP_STS BIT(1)
+
+enum {
+	REG_STS_NONE = 0b0000,
+	REG_STS_VBAT = 0b0001,
+	REG_STS_IIN  = 0b0010,
+	REG_STS_IBAT = 0b0100,
+	REG_STS_TEMP = 0b1000,
+};
+
+enum {
+	STATE_CHG_STS_RESET = 0,
+	STATE_CHG_STS_SHUTDOWN,
+	STATE_CHG_STS_STANDBY,
+	STATE_CHG_STS_ACTIVE,
+};
+
+#define HL7132_REG_INT_STS_B 0x04
+#define HL7132_BIT_V_NOT_OK_STS BIT(4)
+#define HL7132_BIT_CUR_STS BIT(3)
+#define HL7132_BIT_SHORT_STS BIT(2)
+#define HL7132_BIT_WDOG_STS BIT(1)
+
+#define HL7132_REG_STATUS_A 0x05
+#define HL7132_BIT_VIN_OVP_STS BIT(7)
+#define HL7132_BIT_VIN_UVLO_STS BIT(6)
+#define HL7132_BIT_TRACK_OV_STS BIT(5)
+#define HL7132_BIT_TRACK_UV_STS BIT(4)
+#define HL7132_BIT_VBAT_OVP_STS BIT(3)
+#define HL7132_BIT_VOUT_OVP_STS BIT(2)
+#define HL7132_BIT_PMID_QUAL_STS BIT(1)
+
+#define HL7132_REG_STATUS_B 0x06
+#define HL7132_BIT_IIN_OCP_STS BIT(7)
+#define HL7132_BIT_IBAT_OCP_STS BIT(6)
+#define HL7132_BIT_IIN_UCP_STS BIT(5)
+#define HL7132_BIT_FET_SHORT_STS BIT(4)
+#define HL7132_BIT_CFLY_SHORT_STS BIT(3)
+#define HL7132_BIT_DEV_MODE_STS BITS(2, 1)
+#define HL7132_BIT_THSD_STS BIT(0)
+
+#define HL7132_REG_STATUS_C 0x07
+#define HL7132_BIT_QPUMP_STS BIT(7)
+
+#define HL7132_REG_VBAT_REG 0x08
+#define HL7132_BIT_VBAT_OVP_DIS BIT(7)
+#define HL7132_BIT_TVBAT_OVP_DEB BIT(6)
+#define HL7132_BITS_VBAT_REG_TH BITS(5, 0)
+/* VBAT_REG_TH (V) = 4.0V + DEC (5:0) * 10mV */
+#define HL7132_VBAT_REG_OFFSET 4000000 /* 4000 mV in uV */
+#define HL7132_VBAT_REG_STEP 10000     /* 10 mV in uV */
+
+#define HL7132_REG_IBAT_REG 0x0A
+#define HL7132_IBAT_REG_DFT 0x2E
+/* Default from HW guide, not datasheet */
+#define HL7132_IBAT_REG_INIT_DFT 0xAE
+#define HL7132_BIT_IBAT_OCP_DIS BIT(7)
+#define HL7132_BIT_TIBAT_OCP_DEB BIT(6)
+#define HL7132_BITS_IBAT_REG_TH BITS(5, 0)
+
+#define HL7132_REG_VIN_OVP 0x0C
+#define HL7132_BIT_VIN_PD_CFG BIT(7)
+#define HL7132_BIT_VIN_OVP_DIS BIT(6)
+#define HL7132_BITS_VIN_OVP BITS(3, 0)
+#define HL7132_VIN_OVP_DFT 0x03
+
+#define HL7132_REG_IIN_REG 0x0E
+#define HL7132_BIT_IIN_OCP_DIS BIT(7)
+#define HL7132_BITS_IIN_REG_TH BITS(6, 0)
+
+#define HL7132_REG_IIN_OC_ALM 0x0F
+#define HL7132_BIT_TIIN_OC_DEB BIT(7)
+#define HL7132_BIT_IIN_ADJ_3 BIT(3)
+#define HL7132_BIT_IIN_ADJ_2 BIT(2)
+#define HL7132_BIT_IIN_ADJ_1 BIT(1)
+#define HL7132_BIT_IIN_ADJ_0 BIT(0)
+
+#define HL7132_REG_REG_CTRL_0 0x10
+#define HL7132_BIT_TDIE_REG_DIS BIT(7)
+#define HL7132_BIT_IIN_REG_DIS BIT(6)
+#define HL7132_BITS_TDIE_REG_TH BITS(5, 4)
+#define HL7132_BITS_IIN_OCP_TH BITS(3, 2)
+#define HL7132_IIN_OCP_TH_DFT 0b11
+
+#define HL7132_REG_REG_CTRL_1 0x11
+#define HL7132_BIT_VBAT_REG_DIS BIT(7)
+#define HL7132_BIT_IBAT_REG_DIS BIT(6)
+#define HL7132_BITS_VBAT_OVP_TH BITS(5, 4)
+#define HL7132_VBAT_OVP_TH_DFT 0b01
+#define HL7132_BITS_IBAT_OCP_TH BITS(3, 2)
+
+#define HL7132_REG_CTRL_0 0x12
+#define HL7132_BIT_CHG_EN BIT(7)
+#define HL7132_BITS_FSW_SET BITS(6, 3)
+#define HL7132_BIT_UNPLUG_DET_EN BIT(2)
+#define HL7132_BITS_IIN_UCP_TH BITS(1, 0)
+#define HL7132_IIN_UCP_TH_DFT 0b01
+
+#define HL7132_REG_CTRL_1 0x13
+/* Default from HW guide, not datasheet */
+#define HL7132_REG_CTRL_1_INIT_DFT 0x10
+#define HL7132_BIT_DEEP_SLEEP_EN BIT(7)
+#define HL7132_BIT_R_SENSE_CFG BIT(6)
+#define HL7132_BIT_VOUT_OVP_DIS BIT(5)
+#define HL7132_BIT_TS_PROT_EN BIT(4)
+#define HL7132_BIT_VIN_UV_SEL BIT(3)
+#define HL7132_BIT_AUTO_V_REC_EN BIT(2)
+#define HL7132_BIT_AUTO_I_REC_EN BIT(1)
+#define HL7132_BIT_AUTO_UCP_EN BIT(0)
+
+#define HL7132_REG_CTRL_2 0x14
+#define HL7132_CTRL_2_DFT  0x05
+#define HL7132_BITS_SFT_RST BITS(7, 4)
+#define HL7132_SFT_RESET 0b1100
+#define HL7132_BIT_WD_DIS BIT(2)
+#define HL7132_BITS_WD_TMR BITS(1, 0)
+
+#define HL7132_REG_CTRL_3 0x15
+#define HL7132_BITS_SYNC_CFG BITS(1, 0)
+
+#define HL7132_REG_TRACK_OV_UV 0x16
+#define HL7132_BIT_TRACK_OV_DIS BIT(7)
+#define HL7132_BIT_TRACK_UV_DIS BIT(6)
+#define HL7132_BITS_TRACK_OV BITS(5, 3)
+#define HL7132_TRACK_OV_DFT 0b100
+#define HL7132_BITS_TRACK_UV BITS(2, 0)
+#define HL7132_TRACK_UV_DFT 0b100
+
+#define HL7132_REG_TS0_TH_0 0x17
+#define HL7132_BITS_TS0_TH_LSB BITS(7, 0)
+/* Default from HW guide, not datasheet */
+#define HL7132_TS0_TH_0_INIT_DFT 0x55
+
+#define HL7132_REG_TS0_TH_1 0x18
+#define HL7132_BITS_TS0_TH_MSB BITS(1, 0)
+/* Default from HW guide, not datasheet */
+#define HL7132_TS0_TH_1_INIT_DFT 0x01
+
+#define HL7132_REG_TS1_TH_0 0x19
+#define HL7132_BITS_TS1_TH_0_LSB BITS(7, 0)
+
+#define HL7132_REG_TS1_TH_1 0x1A
+#define HL7132_BITS_TS1_TH_1_MSB BITS(1, 0)
+
+#define HL7132_REG_ADC_CTRL_0 0x1B
+#define HL7132_BIT_ADC_REG_COPY BIT(7)
+#define HL7132_BIT_ADC_MAN_COPY BIT(6)
+#define HL7132_BIT_ADC_MODE_CFG BIT(3)
+#define HL7132_BIT_ADC_AVG_TIME BIT(2)
+#define HL7132_BITS_ADC_AVG_TIME BITS(2, 1)
+#define HL7132_BIT_ADC_EN BIT(0)
+
+#define HL7132_REG_ADC_CTRL_1 0x1C
+#define HL7132_BIT_VIN_ADC_DIS BIT(7)
+#define HL7132_BIT_IIN_ADC_DIS BIT(6)
+#define HL7132_BIT_VBAT_ADC_DIS BIT(5)
+#define HL7132_BIT_IBAT_ADC_DIS BIT(4)
+#define HL7132_BIT_TS_ADC_DIS BIT(3)
+#define HL7132_BIT_TDIE_ADC_DIS BIT(2)
+#define HL7132_BIT_VOUT_ADC_DIS BIT(1)
+/* Default from HW guide, not datasheet */
+#define HL7132_ADC_CTRL_1_INIT_DFT (HL7132_BIT_VIN_ADC_DIS | \
+					HL7132_BIT_IBAT_ADC_DIS | \
+					HL7132_BIT_TS_ADC_DIS | \
+					HL7132_BIT_TDIE_ADC_DIS)
+
+#define HL7132_REG_ADC_VIN_0 0x1D
+#define HL7132_BITS_ADC_VIN_MSB BITS(7, 0)
+
+#define HL7132_REG_ADC_VIN_1 0x1E
+#define HL7132_BITS_ADC_VIN_LSB BITS(1, 0)
+
+#define HL7132_REG_ADC_IIN_0 0x1F
+#define HL7132_BITS_ADC_IIN_MSB BITS(7, 0)
+
+#define HL7132_REG_ADC_IIN_1 0x20
+#define HL7132_BITS_ADC_IIN_LSB BITS(1, 0)
+
+#define HL7132_REG_ADC_VBAT_0 0x21
+#define HL7132_BITS_ADC_VBAT_MSB BITS(7, 0)
+
+#define HL7132_REG_ADC_VBAT_1 0x22
+#define HL7132_BITS_ADC_VBAT_LSB BITS(1, 0)
+
+#define HL7132_REG_ADC_IBAT_0 0x23
+#define HL7132_BITS_ADC_IBAT_MSB BITS(7, 0)
+
+#define HL7132_REG_ADC_IBAT_1 0x24
+#define HL7132_BITS_ADC_IBAT_LSB BITS(1, 0)
+
+#define HL7132_REG_ADC_VTS_0 0x25
+#define HL7132_BITS_ADC_VTS_MSB BITS(7, 0)
+
+#define HL7132_REG_ADC_VTS_1 0x26
+#define HL7132_BITS_ADC_VTS_LSB BITS(1, 0)
+
+#define HL7132_REG_ADC_VOUT_0 0x27
+#define HL7132_BITS_ADC_VOUT_MSB BITS(7, 0)
+
+#define HL7132_REG_ADC_VOUT_1 0x28
+#define HL7132_BITS_ADC_VOUT_LSB BITS(1, 0)
+
+#define HL7132_REG_ADC_TDIE_0 0x29
+#define HL7132_BITS_ADC_TDIE_MSB BITS(7, 0)
+
+#define HL7132_REG_ADC_TDIE_1 0x2A
+#define HL7132_BITS_ADC_TDIE_LSB BITS(1, 0)
+
+#define HL7132_MAX_REGISTER		0x2A
+
+
+#define HL7132_IIN_CFG_MIN		1000000 /* 1A */
+#define HL7132_IIN_CFG_MAX              3500000 /* 3.5A */
+
+/* input current step, unit - uA */
+#define HL7132_IIN_CFG_STEP		50000 /* 50mA */
+
+/* input current, unit - uA */
+#define HL7132_IIN_CFG(input_curr) \
+	((input_curr) >= HL7132_IIN_CFG_MIN ? \
+	((input_curr) - HL7132_IIN_CFG_MIN) / HL7132_IIN_CFG_STEP : 0)
+
+/* charging current, uint - uA TODO */
+#define HL7132_ICHG_CFG(_chg_current)	((_chg_current) / 100000)
+/* convert _vbat_reg (uV) to VBAT_REG (mV). 4V is the min value and steps are 10mv */
+#define HL7132_VBAT_REG(_vbat_reg)	(((_vbat_reg) / 1000 - 4000) / 10) /* TODO 4.6*/
+
+#define HL7132_NTC_TH_STEP		1760 /* 1.76mV, unit - uV */
+
+/* Switching frequency */
+enum {
+	FSW_CFG_500KHZ = 0,
+	FSW_CFG_600KHZ,
+	FSW_CFG_700KHZ,
+	FSW_CFG_800KHZ,
+	FSW_CFG_900KHZ,
+	FSW_CFG_1000KHZ,
+	FSW_CFG_1100KHZ,
+	FSW_CFG_1200KHZ,
+	FSW_CFG_1300KHZ,
+	FSW_CFG_1400KHZ,
+	FSW_CFG_1500KHZ,
+	FSW_CFG_1600KHZ,
+};
+
+/* ADC Channel */
+enum {
+	ADCCH_VIN = 1,
+	ADCCH_IIN,
+	ADCCH_VBAT,
+	ADCCH_IBAT,
+	ADCCH_VTS,
+	ADCCH_VOUT,
+	ADCCH_TDIE,
+	ADCCH_MAX,
+};
+
+/* ADC step */
+#define HL7132_VIN_STEP 15000 /* 15mV (0 ~ 15.345V) */
+#define HL7132_IIN_STEP 4700  /* 4.7mA */
+#define HL7132_VBAT_STEP 5000 /* 5mV (0 ~ 5.115V) */
+#define HL7132_VTS_STEP 1760  /* 1.76mV (0 ~ 1.8V) */
+#define HL7132_TDIE_STEP 25   /* 0.25degreeC (0 ~ 125) */
+#define HL7132_TDIE_DENOM 10  /* 10, denominator */
+#define HL7132_VOUT_STEP 5000 /* 5mV (0 ~ 5.115V) */
+
+#define ADC_IIN_OFFSET		900000	/* 900mA */
+#define NTC_CURVE_THRESHOLD	185
+#define NTC_CURVE_1_BASE	960
+#define NTC_CURVE_1_SHIFT	2
+#define NTC_CURVE_2_BASE	730
+#define NTC_CURVE_2_SHIFT	3
+
+
+#endif

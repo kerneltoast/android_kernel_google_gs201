@@ -1,0 +1,364 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Google battery driver
+
+maintainers:
+  - Jenny Ho <hsiufangho@google.com>
+  - Spade Lee <spadelee@google.com>
+  - Chungro Lee <chungro@google.com>
+  - Prasanna Prapancham <prapancham@google.com>
+  - Jack Wu <wjack@google.com>
+
+description:
+  Google battery driver.
+
+  Main for ssoc update, ttf estimation, csi, battery health, battery history
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - google,battery
+
+  google,fg-psy-name:
+    description: fuel gauge power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,psy-type-unknown:
+    description: set power supply type to POWER_SUPPLY_TYPE_UNKNOWN
+    type: boolean
+
+  google,psy-name:
+    description: power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,vbatt-crit-deadline-sec:
+    description: boot time threshold to trigger critical shutdown
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  google,batt-voltage-critical:
+    description: voltage threshold to trigger critical shutdown
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,no-ravg:
+    description: disable functionality to calculate average resistance
+    type: boolean
+
+  google,res-temp-hi:
+    description: temperature upper bound to accumulate resistance
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,res-temp-lo:
+    description: temperature lower bound to accumulate resistance
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,res-soc-thresh:
+    description: SOC upper bound to accumulate resistance
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,ravg-soc-low:
+    description: SOC lower bound to accumulate resistance
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,res-filt-length:
+    description: max samples to calculate average resistance
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,fan-bt-limits:
+    description: map SOC to fan level
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      maximum: 4
+
+  google,batt-init-delay:
+    description: delay seconds to retry init
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,recharge-soc-threshold:
+    description: SOC threshold to recharge
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-trickle-recharge-soc:
+    description: SOC threshold to recharge when trickle charge enabled
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-trickle-reset-sec:
+    description: seconds to wait for reset trickle count on disconnect
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-trickle-enable:
+    description: enable trickle charge defend
+    type: boolean
+
+  google,ssoc-delta:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,health-safety-margin:
+    description: health charging margin time for safety
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,temp-record-thr:
+    description: temperature threshold to record swelling data
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,soc-record-thr:
+    description: SOC threshold to record swelling data
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,cv-max-temp:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bpst-enable:
+    description:
+    type: boolean
+
+  google,bpst-chg-rate:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,shutdown-flag-disable:
+    description:
+    type: boolean
+
+  google,chg-temp-limits:
+    description: temperature range in charge profile
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,chg-cv-limits:
+    description: constant voltage index in charge profile
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,chg-cc-limits:
+    description: constant current index in charge profile
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,chg-topoff-limits:
+    description: cut off current in charge profile
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,ttf-temp-idx:
+    description: temperature index at which the device will charge at max speed
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,ttf-adapter:
+    description: power of the reference adapter (1800 = 9V2A)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,ttf-soc-table:
+    description: seed SOC for time spent at each SOC%
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,ttf-elap-table:
+    description: seed time for time spent at each SOC%
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,ttf-tier-table:
+    description: map between SOC and charge tier
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,ttf-report-max-ratio:
+    description: max ratio to report ttf (0 = always not report)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,fv-uv-resolution:
+    description: float voltage resolution in uv
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,chg-cc-ua-resolution:
+    description: charge current resolution in ua
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,fv-uv-margin-dpct:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,fv-dc-ratio:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,cv-debounce-cnt:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,cv-update-interval:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,cv-tier-ov-cnt:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,cv-tier-switch-cnt:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,cv-otv-margin:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,enable-switch-chg-profile:
+    description: switch charge profile in google_debug_chg_profile
+    type: boolean
+
+  google,temp-filter-enable:
+    description: enable temperature filter
+    type: boolean
+
+  google,temp-filter-default-interval:
+    description: default interval to run temperature filter work
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,temp-filter-fast-interval:
+    description: fast interval to run temperature filter work
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,temp-filter-resume-delay:
+    description: delay time to run temperature filter work when resume
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,update-interval:
+    description: interval to run battery work
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,update-high-temp-threshold:
+    description: temperature threshold to report power supply change
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,chg-stats-qual-time:
+    description: charge time to be qualified
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,chg-stats-delta-soc:
+    description: delta soc to be qualified
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,chg-rest-soc:
+    description: SOC threshold to trigger health charge
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,chg-rest-rate:
+    description: charge rate % during health charge
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,chg-rest-rate-before-trigger:
+    description: charge rate % before health charge
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,disable-votes:
+    description: disable vote to fv_votable
+    type: boolean
+
+  google,eeprom-pairing:
+    description: enable battery pairing with eeprom
+    type: boolean
+
+  google,history-delta-cycle-count:
+    description: cycle counts of each history entry (0 = disable collect history)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,batt-vs-tz-name:
+    description: battery virtual sensor thermal zone name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,morepower-soc-limit-low:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,morepower-soc-limit-high:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,morepower_therm_limit:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,morepower_max_ratio_limit:
+    description:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dc-irdrop:
+    description:
+    type: boolean
+
+  google,pullback-current:
+    description:
+    type: boolean
+
+  google,allow-higher-fv:
+    description:
+    type: boolean
+
+  google,first-usage-date:
+    description: first usage date of battery
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-algo-ver:
+    description: battery health algorithm
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-w_ci:
+    description: battery health cycle count weight
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-w_pi:
+    description: battery health impedance weight
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-w_sd:
+    description: battery health swelling data weight
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-status-marginal:
+    description: health index threshold to report marginal
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-status-need-rep:
+    description: health index threshold to report need replacement
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-cycle-count-marginal:
+    description: cycle count threshold to report marginal
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-cycle-count-need-rep:
+    description: cycle count threshold to report need replacement
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-indi-cap:
+    description: capacity threshold for BHI_ALGO_INDI(bhi algo 8)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-cycle-grace:
+    description: cycle count grace for bhi algo with boundary
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bhi-l-bound:
+    description: capacity lower bound for bhi algo with boundary
+    $ref: /schemas/types.yaml#/definitions/uint16-array
+    items:
+      maximum: 10
+
+  google,bhi-u-bound:
+    description: capacity upper bound for bhi algo with boundary
+    $ref: /schemas/types.yaml#/definitions/uint16-array
+    items:
+      maximum: 10
+
+  google,bhi-l-trigger:
+    description: capacity lower bound to trigger recalibration for BHI_ALGO_ACHI_RECAL(bhi algo 4)
+    $ref: /schemas/types.yaml#/definitions/uint16-array
+    items:
+      maximum: 10
+
+  google,bhi-u-trigger:
+    description: capacity upper bound to trigger recalibration for BHI_ALGO_ACHI_RECAL(bhi algo 4)
+    $ref: /schemas/types.yaml#/definitions/uint16-array
+    items:
+      maximum: 10
