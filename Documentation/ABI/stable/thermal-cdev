@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+What:		/dev/thermal/cdev-by-name/gxp-cooling/user_vote
+Date:		January 2023
+Description:
+		To set a thermal state vote.
+Users:		Tj Thermal
+
+What:		/dev/thermal/cdev-by-name/gxp-cooling/state2power_table
+Date:		March 2023
+Description:
+		Thermal state to power consumption table for thermal throttliing.
+Users:		Tj Thermal
