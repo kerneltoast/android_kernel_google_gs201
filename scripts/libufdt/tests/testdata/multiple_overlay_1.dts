@@ -1,0 +1,15 @@
+/dts-v1/;
+/plugin/;
+
+&a { prop1 = <0x01>; };
+&b { ref1 =  <&a>;
+    e {
+        phandle = <0x04>;
+    };
+};
+&d {
+    e {
+        prop_e = <0x0e>;
+    };
+};
+&e { prop_e = <0x02>; };
