@@ -1,0 +1,255 @@
+What:		/sys/devices/platform/google,charger/thermal_dc_fan_alarm
+Date:		Sept 2022
+KernelVersion:	5.10
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Set fan level to alarm at legacy thermal level.
+
+Users:		Google Battery HAL
+
+What:		/sys/devices/platform/google,charger/charge_stats
+Date:		Aug 2022
+KernelVersion:	5.10
+Contact:	"Prasanna Prapancham" <prapancham@google.com>
+Description:
+		Print current charge stats.
+
+Users:		Charge Stats
+
+What:		/sys/devices/virtual/thermal/cooling_device[0-9]+/state2power_table
+Date:		July 2022
+KernelVersion:	5.10
+Contact:	"Jack Wu" <wjack@google.com>
+Description:
+		Print thermal budget table in mW.
+
+Users:		Thermal HAL
+
+What:		/sys/devices/platform/google,charger/dd_settings
+Date:		Mar 2022
+KernelVersion:	5.10
+Contact:	"Jack Wu" <wjack@google.com>
+Description:
+		Dock defend server-side flag which can be set by user to enable/disable
+		dock defend.
+		Defined in enum dock_defend_settings.
+
+Users:		Dock Defend
+
+What:		/sys/devices/platform/google,charger/dd_charge_start_level
+Date:		Mar 2022
+KernelVersion:	5.10
+Contact:	"Jack Wu" <wjack@google.com>
+Description:
+		Dock defend charge start level. range [0, 100]
+		Default: 0
+
+Users:		Dock Defend
+
+What:		/sys/devices/platform/google,charger/dd_charge_stop_level
+Date:		Mar 2022
+KernelVersion:	5.10
+Contact:	"Jack Wu" <wjack@google.com>
+Description:
+		Dock defend charge stop level. range [0, 100]
+		Default: 100
+
+Users:		Dock Defend
+
+What:		/sys/devices/platform/google,charger/dd_state
+Date:		Mar 2022
+KernelVersion:	5.10
+Contact:	"Jack Wu" <wjack@google.com>
+Description:
+		Dock defend state. Defined in enum dock_defend_state
+
+Users:		Dock Defend
+
+What:		/sys/devices/platform/google,charger/thermal_stats
+Date:		Apr 2022
+KernelVersion:	5.10
+Contact:	"Spade Lee" <spadelee@google.com>
+Description:
+		Print thermal throttling statistics
+
+Users:		Charge Stats.
+
+What:		/sys/devices/platform/google,charger/charging_type
+Date:		Feb 2022
+KernelVersion:	5.10
+Contact:	"Keewan Jung" <keewanjung@google.com>
+Description:
+		CSI charging type. Statuses defined in enum csi_type
+
+Users:		Charge Stats.
+
+What:		/sys/devices/platform/google,charger/charging_status
+Date:		Feb 2022
+KernelVersion:	5.10
+Contact:	"Keewan Jung" <keewanjung@google.com>
+Description:
+		CSI charging status. Statuses defined in enum csi_status
+
+Users:		Charge Stats.
+
+What:		/sys/devices/platform/google,charger/bd_state
+Date:		Jan 2022
+KernelVersion:	5.10
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Print battery defender state
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_clear
+Date:		Jul 2021
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Reset Battery Defender data
+
+Users:		Battery Defender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_temp_dry_run
+Date:		Dec 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Enable/disable temp defend dry-run for data collection
+
+Users:		Debug
+
+What:		/sys/devices/platform/google,charger/bd_temp_enable
+Date:		Dec 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Enable/disable temp defend
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_recharge_soc
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Recharge battery to state-of-charge range [0, 100]
+		Lowerbound for recharge
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_drainto_soc
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Drain battery to state-of-charge range [0, 100]
+		Upper bound for draining battery SOC
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_resume_soc
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Exit state-of-charge after disconnect.
+		Resume normal charging defend of SOC at or under bd_resume_soc
+		after disconnect
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_resume_temp
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Exit temperature in deciC after disconnect.
+		One temperature reading at or under bd_resume_temp, bd_resume_time
+		after disconnect will exit the triggered state
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_resume_time
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Time after disconnected (seconds)
+		One temperature reading at or under bd_resume_temp, bd_resume_time
+		after disconnect will exit the triggered state
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_resume_abs_temp
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Absolute exit temperature in deciC.
+		One reading at or under this temperature at any time will exit
+		temp defend.
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_recharge_voltage
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Recharge voltage in mA
+		When set, the battery voltage at which defend will re-enable
+		charging. Charging will be disabled again at bd_trigger_voltage.
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_trigger_time
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Trigger time in seconds
+		Debounce window after trigger
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_trigger_temp
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Trigger temperature in deciC
+		Temp defend will affect battery level if the average temperature
+		during bd_trigger_time has been at or over bd_trigger_temp
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/bd_trigger_voltage
+Date:		Nov 2020
+KernelVersion:	4.14
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Battery voltage that triggers time and temperature accumulation.
+		Limit for activer drain when bd_recharge_voltage is set
+
+Users:		BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/charge_start_level
+Date:		Dec 2018
+KernelVersion:	4.14
+Contact:	"Jack Wu" <wjack@google.com>
+Description:
+		state-of-charge (SOC) to start charging at. range [0, 100]
+		Default: 0
+
+Users:		Retail mode, BatteryDefender userspace module.
+
+What:		/sys/devices/platform/google,charger/charge_stop_level
+Date:		Dec 2018
+KernelVersion:	4.14
+Contact:	"Jack Wu" <wjack@google.com>
+Description:
+		state-of-charge (SOC) to stop charging at. range [0, 100]
+		Default: 100
+
+Users:		Retail mode, BatteryDefender userspace module.

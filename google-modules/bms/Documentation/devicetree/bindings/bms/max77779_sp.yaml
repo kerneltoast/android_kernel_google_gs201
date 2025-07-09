@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: max77779_sp driver
+
+maintainers:
+  - Daniel Okazaki <dtokazaki@google.com>
+  - Prasanna Prapancham <prapancham@google.com>
+  - Jack Wu <wjack@google.com>
+  - Ken Yang <yangken@google.com>
+  - Baltazar Ortiz <baltazarortiz@google.com>
+
+description: |
+  max7779 scratchpad driver. Interfaces with GBMS storage module.
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - maxim,max77779sp-i2c
+
+  reg:
+    description: address of the device.
+
+  max77779,no-storage:
+    description: Disable registration with GBMS storage module. Prevents conflicts when multiple
+    devices share the same opcode map.
+
+required:
+  - compatible
+  - reg

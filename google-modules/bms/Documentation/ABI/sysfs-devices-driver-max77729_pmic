@@ -1,0 +1,8 @@
+What:		/sys/devices/platform/*.hsi2c/i2c-[0-9]+/[0-9]+-0066/registers_dump
+Date:		Feb 2024
+KernelVersion:	6.1
+Contact:	"Daniel Okazaki" <dtokazaki@google.com>
+Description:
+		Print max77729/59 registers
+
+Users:		Dumpstate

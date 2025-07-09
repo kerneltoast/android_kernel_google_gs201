@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: RT9471 driver
+
+maintainers:
+  - Jack Wu <wjack@google.com>
+
+description: |
+  RT9471 Buck Charger driver
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - richtek,rt9471
+      - richtek,swchg
+
+  reg:
+    description: i2c address of the charger.
+
+  rt9471:
+    description: Main charger config block
+
+  charger_name:
+    description: rt9471 charger name. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/string
+
+  rt,intr_gpio:
+    description: IRQ gpio
+
+  rt,ceb_gpio:
+    description: Charge enable gpio
+
+  ichg:
+    description: Charging current. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  aicr:
+    description: Average input current regulation. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  mivr:
+    description: Minimum input voltage regulation. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  vac_ovp:
+    description: VAC Over-voltage-protection threshold. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  cv:
+    description: Constant voltage config. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ieoc:
+    description: End of charge current. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  safe-tmr:
+    description: Charge safe timer. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  wdt:
+    description: Watchdog timer. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  mivr-track:
+    description: Minimum input voltage regulation track. In rt9471 block.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  en-safe-tmr:
+    description: Enable charge safe timer. In rt9471 block.
+    type: boolean
+
+  en-te:
+    description: Enable charge termination. In rt9471 block.
+    type: boolean
+
+  en-jeita:
+    description: Enable JEITA thermal control. In rt9471 block.
+    type: boolean
+
+  ceb-invert:
+    description: Charge enable invert logic. In rt9471 block.
+    type: boolean
+
+  dis-i2c-tout:
+    description: Disable i2c timeout function. In rt9471 block.
+    type: boolean
+
+  en-qon-rst:
+    description: BATFET enable input low for 10 seconds, disable BATFET. In rt9471 block.
+    type: boolean
+
+  auto-aicr:
+    description: Auto set IAICR by BC1.2 done or PSEL change. In rt9471 block.
+    type: boolean
+
+  interrupt-names:
+    description: map interrupt to name and unmask interrupt
+    $ref: /schemas/types.yaml#/definitions/string-array
+
+  rt9471_gpio:
+    description: GPIO controller config.
+
+required:
+  - compatible
+  - reg
+  - interrupt-names

@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
+
+obj-$(CONFIG_GOOGLE_VOTABLE) += gvotable.o
+obj-$(CONFIG_GOOGLE_LOGBUFFER)	+= logbuffer.o

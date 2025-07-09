@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: PCA9468 driver
+
+maintainers:
+  - Prasanna Prapancham <prapancham@google.com>
+
+description: |
+  PCA9468 parallel charger driver
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - nxp,pca9468
+
+  reg:
+    description: i2c address of the charger.
+
+  pca9468,psy_name:
+    description: pca9468 charger power supply name.
+    $ref: /schemas/types.yaml#/definitions/string
+
+  pca9468,irq-gpio:
+    description: IRQ gpio.
+
+  pca9468,input-current-limit:
+    description: Input current limit.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,ta-max-vol:
+    description: Travel Adapter max voltage limit.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,ta-max-vol-cp:
+    description: Travel Adapter max voltage that can support CC in Constant Power Mode.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,float-voltage:
+    description: Default Float Voltage config.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,input-itopoff:
+    description: Input topoff current. Used to detect end of charge. Units -uV
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,switching-frequency:
+    description: Switching frequency value.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,ntc-threshold:
+    description: Thermister threshold config.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,iin-max-offset:
+    description: Max input current offset. Units uA.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,iin-cc_comp-offset:
+    description: Max input constant charge current compensation offset. Units uA.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,sc-clk-dither-rate:
+    description: Spread spectrum clk rate.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,sc-clk-dither-limit:
+    description: Spread spectrum clk limit.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  pca9468,spread-spectrum:
+    description: Spread Spectrum is enabled.
+    type: boolean
+
+  pca9468,ta-max-cur-mult:
+    description: Travel adapter max current multiplier.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,usb-port-tz-name:
+    description: USBC thermal zone name.
+    $ref: /schemas/types.yaml#/definitions/string
+
+  pca9468,google_cpm:
+    description: Google CPM phandle.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - reg

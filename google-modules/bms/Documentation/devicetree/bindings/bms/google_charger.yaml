@@ -1,0 +1,233 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Google Charger driver
+
+maintainers:
+  - Daniel Okazaki <dtokazaki@google.com>
+  - Prasanna Prapancham <prapancham@google.com>
+  - Jack Wu <wjack@google.com>
+  - Ken Yang <yangken@google.com>
+  - Jenny Ho <hsiufangho@google.com>
+  - Baltazar Ortiz <baltazarortiz@google.com>
+
+description: |
+  Main Google Charger driver.
+
+  Controls charging based on different modules
+   - Battery Defender
+   - Dock Defend
+   - Thermal Engine
+   - USB
+   - Wireless Charger
+   - Google Battery
+   - Retail Mode
+  Propagates charging stats to CSI.
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - google,charger
+
+  google,chg-power-supply:
+    description: Charger power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,bat-power-supply:
+    description: Battery power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,wlc-power-supply:
+    description: Wireless charger power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,ext-power-supply:
+    description: Dock power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,usb-power-supply:
+    description: USB power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,tcpm-power-supply:
+    description: TCPC power supply phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  google,psy-retry-count:
+    description: Retry count for finding power supplies from name in probe.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,pps-cc-tolerance-pct:
+    description: PPS cc_max tier change ratio.
+      If batt current is less than (cc_max * ratio) / 100), change charge tier to
+      higher level.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,enable-user-fcc-fv:
+    description: Allows debugfs modification of fcc (fast constant current) and
+      fv (float voltage)
+    type: boolean
+
+  google,cv-update-interval:
+    description: Constant voltage update interval. Determines the frequency of
+    the charge loop running.
+      Used during
+        - POWER_SUPPLY_STATUS_NOT_CHARGING
+        - POWER_SUPPLY_STATUS_UNKNOWN
+        - invalid charger power supply status
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,cc-update-interval:
+    description: Constant charge current update interval. Determines the frequency
+    of the charge loop running.
+      Used during
+        - POWER_SUPPLY_STATUS_CHARGING
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,chg-cc-tolerance:
+    description: Reduces cc_max in mA for a margin of safety.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,fcc-max-ua:
+    description: Max fast constant charging current when no charge table exists
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,fv-max-uv:
+    description: Max and default float voltage when no charge table exists
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,chg-termination-enable:
+    description: Charge termination control.
+    type: boolean
+
+  google,chg-termination-5v:
+    description: Fallback to 5V on charge termination
+    type: boolean
+
+  google,chg-taper-last-tier:
+    description: Enables taper on last tier in charge table
+    type: boolean
+
+  google,bd-trigger-voltage:
+    description: Voltage level to trigger Battery Defender
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-drainto-soc:
+    description: Drain to specified SOC level while in Battery Defend.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-trigger-temp:
+    description: Temperature average to trigger Battery Defender.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-trigger-time:
+    description: Debounce time for Battery Defender
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-recharge-voltage:
+    description: Voltage to recharge to after triggering Battery Defender.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-recharge-soc:
+    description: SOC to recharge to after triggering Battery Defender.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-resume-abs-temp:
+    description: Temperature to resume charging at after triggering Battery Defender.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-resume-soc:
+    description: SOC to resume charging at after triggering Battery Defender.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-resume-temp:
+    description: Temperature to resume charging at after triggering Battery Defender.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-resume-time:
+    description: Debounce time to resume charging at after triggering Battery Defender.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bd-temp-dry-run:
+    description: Don't run Battery Defender, but keep track of state in votable.
+    type: boolean
+
+  google,bd-temp-enable:
+    description: Disables Battery Defender
+    type: boolean
+
+  google,pps-enable:
+    description: Enable PPS charging capabilities
+    type: boolean
+
+  google,thermal-mitigation:
+    description: Wired thermal charge current limit table.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,thermal-mitigation-budgets:
+    description: Wired state2power thermal table. Stores the dissipation budget for
+    each power level.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,wlc-thermal-mitigation:
+    description: EPP/BPP wireless thermal charge current limit table.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,thermal-mitigation-budgets:
+    description: EPP/BPP wireless state2power thermal table. Stores the dissipation
+    budget for each power level.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,wlc-fcc-thermal-mitigation:
+    description: HPP wireless fast charge current thermal charge current limit table.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,therm-wlc-overrides-fcc:
+    description: SW will override the fast constant current (fcc). wired and wireless
+    limits are linked when this is enabled.
+    type: boolean
+
+  google,thermal-stats-lvl-map:
+    description: Mapping of thermal table for printing stats.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      maximum: 10
+
+  google,dd-charge-stop-level:
+    description: Dock defend SOC charge stop level.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dd-charge-start-level:
+    description: Dock defend SOC charge start level.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dd-state:
+    description: Dock defend state. DOCK_DEFEND_ENABLED = 0
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  google,dd-settings:
+    description: User dock defend state. DOCK_DEFEND_USER_ENABLED = 1
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  google,dd-trigger-time:
+    description: Dock defend debounce trigger time.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  no-wlc:
+    description: Skip wireless charging settings, such as thermal table.
+    type: boolean
+
+required:
+  - compatible
+  - #cooling-cells
+
+dependencies:
+  google,thermal-mitigation-budgets: ['google,thermal-mitigation']
+  google,wlc-thermal-mitigation-budgets: ['google,wlc-thermal-mitigation']
+  google,pps-enable: ['google,tcpm-power-supply']
+  google,bat-power-supply: ['google,chg-power-supply']

@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/power/mitigation:__subpackages__",
+        "//private/google-modules/power/reset:__subpackages__",
+    ],
+)
+
+kernel_module(
+    name = "bms",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "//private/google-modules/bms/misc:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        "google-battery.ko",
+        "google-bms.ko",
+        "google-charger.ko",
+        "google-cpm.ko",
+        "google_ccd.ko",
+        "google_dock.ko",
+        "google_dual_batt_gauge.ko",
+        "max1720x-battery.ko",
+        "max20339.ko",
+        "max77729-pmic.ko",
+        "max77729_charger.ko",
+        "max77729_uic.ko",
+        "max77759-charger.ko",
+        "max77779-charger.ko",
+        "max77779-charger-i2c.ko",
+        "p9221.ko",
+        "pca9468.ko",
+        "max77779_i2cm.ko",
+        "max77779_i2cm_i2c.ko",
+        "max77779_pmic.ko",
+        "max77779_pmic_i2c.ko",
+        "max77779_pmic_irq.ko",
+        "max77779_pmic_pinctrl.ko",
+        "max77779_pmic_sgpio.ko",
+        "max77779-vimon.ko",
+        "max77779-vimon-i2c.ko",
+        "max77779-sp.ko",
+        "max77779-sp-i2c.ko",
+        "ln8411.ko",
+        "max77779-fg-i2c.ko",
+        "max77779-fg.ko",
+        "max77779-fwupdate.ko",
+        "rt9471_charger.ko",
+        # "max77729.ko",
+        # "max77759.ko",
+        # "pca9468-google.ko",
+        "hl7132.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/power/mitigation:__subpackages__",
+        "//private/google-modules/power/reset:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+    deps = [
+        "//private/google-modules/bms/misc:bms-misc",
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)

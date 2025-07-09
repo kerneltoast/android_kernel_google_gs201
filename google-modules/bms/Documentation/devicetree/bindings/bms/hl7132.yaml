@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Google HL7132 driver
+
+maintainers:
+  - Baltazar Ortiz <baltazarortiz@google.com>
+
+description:
+  HL7132 parallel charger driver.
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - hl7132
+
+  hl7132,psy_name:
+    description: HL7132 power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  hl7132,vbat_reg-voltage:
+    description: VBAT regulation threshold
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  hl7132,input-itopoff:
+    description: Input topoff current
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  hl7132,switching-frequency:
+    description: Switching frequency value.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  hl7132,usb-port-tz-name:
+    description: USB connector thermal zone
+    $ref: /schemas/types.yaml#/definitions/string
+
+  hl7132,google_cpm:
+    description: google_cpm phandle
+
+required:
+  - compatible
+  - reg
+  - pinctrl-names

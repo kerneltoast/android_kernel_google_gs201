@@ -1,0 +1,364 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2023 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: P9221 Wireless Charger Driver
+
+maintainers:
+  - Alice Sheng <alicesheng@google.com>
+  - Yihsiang Peng <yihsiangpeng@google.com>
+  - YiKai Peng <kenpeng@google.com>
+
+description: |
+  Support P9221, P9222, P9382, P9412, RA9530 Wireless Charging Chips.
+  The chips are manufactured by renesas (formerly IDT).
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - idt,p9412
+      - idt,p9382
+      - idt,p9221
+      - idt,p9222
+      - idt,ra9530
+  reg:
+    description: i2c address of the charger.
+
+  idt,gpio-ben:
+    description: GPIO to enable external boost for RTX.
+    $ref: "types.yaml#/definitions/phandle"
+
+  idt,has_rtx:
+    description: Whether the device supports RTX or not.
+    enum: [0, 1]
+
+  idt,has_rtx_gpio:
+    description: Whether the device supports controlling RTX via GPIO.
+    type: boolean
+
+  idt,apbst_en:
+    description: Configure boost in WLC chip
+    type: boolean
+
+  idt,has_wlc_dc:
+    description: Whether the device supports high power charging.
+    type: boolean
+
+  idt,irq_flag:
+    description: set the flags that the IRQ should be configured with.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  idt,max_vout_mv:
+    description: VOUT max setting
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  fod:
+    description: Array of default FOD values
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  fod_lv:
+    description: Array of FOD values for low voltage
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  fod_epp:
+    description: Array of FOD values for EPP
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  fod_gpp:
+    description: Array of FOD values for GPP
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  fod_epp_comp:
+    description: Array of FOD values for EPP_COMP
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  fod_epp_iop:
+    description: Array of FOD values for EPP_IOP
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  fod_epp:
+    description: Array of FOD values for EPP
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  google,hpp_fod_vol:
+    description: List of HPP FOD voltages
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    items:
+      maximum: 8
+
+  fod_hpp:
+    description: Default HPP FOD voltages
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  fod_hpp_hv:
+    description: High voltage HPP FOD voltages
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  google,fod_fsw_base:
+    description: use frequency base compensation for set FOD
+    type: boolean
+
+  google,fod_fsw_high_thres:
+    description: use in frequency base compensation, frequency upper limit
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,fod_fsw_low_thres:
+    description: use in frequency base compensation, frequency lower limit
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,iop_fod_mfg:
+    description: List of TX manufacturer for which EPP_IOP FOD values should be used
+    $ref: /schemas/types.yaml#/definitions/uint16-array
+
+  google,q_value:
+    description: Q value that should be written during charging start
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,rf_value:
+    description: Resonance frequency that should be written during charging start
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,epp_rp_value:
+    description: Level to renegotiate power to during EPP
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,epp_rp_low_value:
+    description: Lower renegotiation power value for EPP when guaranteed power from TX < 10W
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,epp_vout_mv:
+    description: Value to set VOUT to during EPP
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,needs_dcin_reset:
+    description: Configures whether a hard reset of the WLC chip is required after power loss
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,alignment_frequencies:
+    description: (alignment v1)use with google,alignment_scalar, google,alignment_hysteresis
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,alignment_scalar:
+    description: (alignment v1) calculate current_scaling = google,alignment_scalar * avg_current.
+      current_scaling use for calculate frequency(freq = op_freq + current_scaling)
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,alignment_hysteresis:
+    description: (alignment v1) Frequency needs to be higher than frequency + hysteresis
+      before increasing alignment score.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  idt,ramp-disable:
+    description: Disable ICL ramp during BPP
+    type: boolean
+
+  google,alignment_scalar_low_current:
+    description: (alignment v2) use for current < google,alignment_current_threshold
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,alignment_scalar_high_current:
+    description: (alignment v2) use for current > google,alignment_current_threshold
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,alignment_offset_low_current:
+    description: (alignment v2) use for current < google,alignment_current_threshold
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,alignment_offset_high_current:
+    description: (alignment v2) use for current > google,alignment_current_threshold
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,alignment_current_threshold:
+    description: (alignment v2)
+      current < alignment_current_threshold, use low current scalar and low freq offset.
+      current > alignment_current_threshold, use high current scalar high freq offset.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,power_mitigate_threshold:
+    description: SOC threshold at which to enter BPP for power mitigation / dream defend
+    $ref: /schemas/types.yaml#/definitions/uint32
+    items:
+      maximum: 100
+
+  google,feat-no-compat:
+    description: Disable compatibility mode for HPP
+    type: boolean
+
+  google,has-sw-ramp:
+    description: Whether SW ramp up should be used during HPP entry
+    type: boolean
+
+  idt,tx_id_phone_type:
+    description: Phone type to write into the TXID during RTX
+    $ref: /schemas/types.yaml#/definitions/uint8
+
+  google,epp_dcicl_default_ma:
+    description: Default DC_ICL to set during EPP mode
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,gpp_dcicl_ua:
+    description: DC_ICL to set during GPP mode
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,align_delta:
+    description: adjustable offset for increase align margin, b/281087989
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  google,bpp_iop_vout_mv:
+    description: VOUT to set during BPP for IOP
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,epp_iop_vout_mv:
+    description: VOUT to set during EPP for IOP
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,lowest-freq-limit-khz:
+    description: Frequency limit to set during GPP
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,light_load:
+    description: Whether to set the light load register when charging starts
+    type: boolean
+
+  google,ll-bpp-vout-not-set:
+    description: Whether VOUT is set during BPP for luxury liner
+    type: boolean
+
+  google,align_check:
+    description: Whether alignment checking should be enabled
+    type: boolean
+
+  google,hpp_neg_pwr:
+    description: Negotiated power required for HPP
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,epp_neg_pwr:
+    description: Negotiated power to set for switching from HPP back to EPP
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,wait_prop_irq_ms:
+    description: Timeout for waiting for proprietary mode entry IRQ
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  idt,gpp-cmfet:
+    description: Value to set as CMFET register during GPP
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bpp-cep-on-dl:
+    description: enable BPP CEP ICL on D250(L7 is default enable)
+    type: boolean
+
+  google,gpp_enhanced:
+    description: Whether enhanced GPP should be enabled
+    type: boolean
+
+  google,hda-tz-wlc:
+    description: This will enable 1 value for hda thermal zone upon any wireless charger going online, to inform thermal to set temp target to 41
+    type: boolean
+
+  google,magsafe-optimized:
+    description: Whether magsafe optimization should be enabled
+    type: boolean
+
+  google,bpp_dcicl_default_ua:
+    description: Default DC_ICL to set during BPP
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bpp_dcicl_lower_vout_ua:
+    description: DC_ICL to set during BPP when VOUT is low
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bpp_dcicl_ramp_ua:
+    description: Initial BPP DC_ICL to set during ramp up
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bpp_dcicl_lower_vout_ramp_ua:
+    description: Initial BPP DC_ICL to set during ramp up when VOUT is low
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,bpp-freq108-disable-ramp:
+    description: Whether to disable ramp up for BPP with operation frequency 108kHz
+    type: boolean
+
+  google,enable_15w:
+    description: Whether 15W charging should be enabled for M4G charger
+    type: boolean
+
+patternProperties:
+  "^(idt,qien-gpio|idt,gpio_qien)$":
+    description: GPIO to enable/disable WLC chip.
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,qi_vbus_en-gpio|idt,gpio_qi_vbus_en)$":
+    description: GPIO to control the priority of USB and WLC,
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,wlc_en-gpio|idt,gpio_wlc_en)$":
+    description: GPIO to enable/Disable WLC chip(for P9XXX_GPIO_VBUS_EN)
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,slct-gpio|idt,gpio_slct)$":
+    description: GPIO to control BPP/EPP selection.
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,ldo_en-gpio:idt,gpio_ldo_en)$":
+    description: GPIO to enable external LDO.
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(google,wcin_inlim_en-gpio|google,wcin_inlim_en)$":
+    description: GPIO to enable input current limiting feature.
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,switch-gpio|idt,gpio_switch)$":
+    description: OTG_RTX_SW gpio, switch boost to OTG(5V) or RTx(7V)
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,boost-gpio|idt,gpio_boost)$":
+    description: GPIO to select RTX voltage level
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,extben-gpio|idt,gpio_extben)$":
+    description: GPIO to enable external boost for high power charging.
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,dc_switch-gpio|idt,gpio_dc_switch)$":
+    description: GPIO to control chip-internal switch to enable DC charging mode
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,irq-gpio|idt,irq_gpio)$":
+    description: GPIO connected to the main IRQ of WLC chip
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^(idt,irq_det-gpio|idt,irq_det_gpio)$":
+    description: GPIO connected to the presence detection IRQ of WLC chip
+    $ref: "types.yaml#/definitions/phandle"
+
+  "^fod_hpp_[0-9]$":
+    description: Sets of HPP FOD values based on HPP FOD voltages
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+
+  "^google,tx[0-9]+_q$":
+    description: Q value specifically for TX with specific MFG IDs
+    $ref: /schemas/types.yaml#/definitions/uint32"
+
+  "^google,tx[0-9]+_icl_ua$":
+    description: DC_ICL to set for a specific TX MFG ID
+    $ref: /schemas/types.yaml#/definitions/uint32"
+
+  "^google,bpp_freq[0-9]+_icl_ma$":
+    description: DC_ICL to set for a specific ping frequency BPP charger
+    $ref: /schemas/types.yaml#/definitions/uint32"
+
+  "^google,bpp_freq[0-9]+_vout_mv$":
+    description: Vout to set for a specific ping frequency BPP charger
+    $ref: /schemas/types.yaml#/definitions/uint32"
+
+required:
+  - compatible
+
+dependencies:
+  idt,gpio_slct_value: [ 'idt,slct-gpio' ]

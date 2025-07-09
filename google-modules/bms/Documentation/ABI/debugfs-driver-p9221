@@ -1,0 +1,99 @@
+What:		/sys/kernel/debug/trigger_dd
+Contact:	pixel-bms-sw@google.com
+Description:
+		Trigger dream defend
+
+What:		/sys/kernel/debug/no_fod
+Contact:	pixel-bms-sw@google.com
+Description:
+		Disable writing FOD
+
+What:		/sys/kernel/debug/de_rtx_hw_ocp
+Contact:	pixel-bms-sw@google.com
+Description:
+		Enable HW OCP detection in RTX ping phase
+
+What:		/sys/kernel/debug/de_q_value
+Contact:	pixel-bms-sw@google.com
+Description:
+		Custom Q value to be written. For WLC parameter tuning
+
+What:		/sys/kernel/debug/de_chk_ocp_ms
+Contact:	pixel-bms-sw@google.com
+Description:
+		How long to wait between OCP checks during RTX OCP
+
+What:		/sys/kernel/debug/de_rtx_delay_ms
+Contact:	pixel-bms-sw@google.com
+Description:
+		How long to keep checking during RTX OCP
+
+What:		/sys/kernel/debug/needs_align_check
+Contact:	pixel-bms-sw@google.com
+Description:
+		Enable align check
+
+What:		/sys/kernel/debug/irq_det
+Contact:	pixel-bms-sw@google.com
+Description:
+		Det irq status
+
+What:		/sys/kernel/debug/det_on_debounce
+Contact:	pixel-bms-sw@google.com
+Description:
+		Debounce time for det going from 0->1
+
+What:		/sys/kernel/debug/det_off_debounce
+Contact:	pixel-bms-sw@google.com
+Description:
+		Debounce time for det going from 1->0
+
+What:		/sys/kernel/debug/de_hpp_neg_pwr
+Contact:	pixel-bms-sw@google.com
+Description:
+		Required negotiated power to enter HPP
+
+What:		/sys/kernel/debug/de_epp_neg_pwr
+Contact:	pixel-bms-sw@google.com
+Description:
+		Required negotiated power to return from HPP to EPP
+
+What:		/sys/kernel/debug/de_wait_prop_irq_ms
+Contact:	pixel-bms-sw@google.com
+Description:
+		Time to wait for prop mode irq during entering HPP
+
+What:		/sys/kernel/debug/de_rtx_ocp_ma
+Contact:	pixel-bms-sw@google.com
+Description:
+		Threshold of RTX OCP on ra9530
+
+What:		/sys/kernel/debug/de_rtx_api_limit_ma
+Contact:	pixel-bms-sw@google.com
+Description:
+		API Current limit for RTX on ra9530 and p9412
+
+What:		/sys/kernel/debug/de_rtx_freq_low_khz
+Contact:	pixel-bms-sw@google.com
+Description:
+		Minimum allowable frequency for RTX on ra9530
+
+What:		/sys/kernel/debug/de_rtx_fod_thrsh_mw
+Contact:	pixel-bms-sw@google.com
+Description:
+		Power threshold at which FOD should be triggered during RTX
+
+What:		/sys/kernel/debug/de_rtx_plim_ma
+Contact:	pixel-bms-sw@google.com
+Description:
+		Threshold of RTX ping OCP on ra9530
+
+What:		/sys/kernel/debug/de_ocp_ua
+Contact:	pixel-bms-sw@google.com
+Description:
+		WLC chip current limit
+
+What:		/sys/kernel/debug/enable_i2c_debug
+Contact:	pixel-bms-sw@google.com
+Description:
+		Enable all i2c transactions to print in the log

@@ -1,0 +1,88 @@
+What:		/sys/devices/platform/google,cpm/wlc_dc_limit_vbatt_min
+Date:		Jun 2024
+KernelVersion:	6.1
+Contact:	"Daniel Okazaki" <dtokazaki@google.com>
+Description:
+		Battery min voltage where HPP wireless charging is allowed
+
+Users:		Debug
+
+What:		/sys/devices/platform/google,cpm/mdis_vote
+Date:		May 2023
+KernelVersion:	5.15
+Contact:	"Daniel Okazaki" <dtokazaki@google.com>
+Description:
+		Seperate thermal mitigation control from
+		/dev/thermal/cdev-by-name/chg_mdis/cur_state.
+		The max of that value and the value in this node will be used as
+		the thermal engine tier.
+
+Users:		Debug
+
+What:		/sys/devices/platform/google,cpm/mdis_out_table
+Date:		Apr 2022
+KernelVersion:	5.10
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Print thermal budget table for each charger in mW.
+
+Users:		Debug
+
+What:		/sys/devices/platform/google,cpm/state2power_table
+Date:		Apr 2022
+KernelVersion:	5.10
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Print thermal budget table for each CDEV in mW.
+
+Users:		Debug
+
+What:		/sys/devices/platform/google,cpm/thermal_mdis_fan_alarm
+Date:		Sept 2022
+KernelVersion:	5.10
+Contact:	"Jenny Ho" <hsiufangho@google.com>
+Description:
+		Set fan level to alarm at MDIS (curent thermal mitigation engine)
+
+Users:		Google Battery HAL
+
+What:		/sys/devices/platform/google,cpm/dc_ctl
+Date:		Jun 2021
+KernelVersion:	5.10
+Contact:	"Prasanna Prapancham" <prapancham@google.com>
+Description:
+		Control CPM enable/disable of drivers
+		0: Default, PPS-DC and WLC-DC enabled
+		1: Disable PPS-DC
+		2: Disable WLC-DC
+		3: Disable all DC
+
+Users:		Google Battery HAL
+
+What:		/sys/devices/platform/google,cpm/dc_limit_vbatt_min
+Date:		Jun 2021
+KernelVersion:	5.10
+Contact:	"Prasanna Prapancham" <prapancham@google.com>
+Description:
+		Battery min voltage where PPS charging is allowed
+
+Users:		Debug
+
+What:		/sys/devices/platform/google,cpm/dc_limit_vbatt_max
+Date:		Jun 2021
+KernelVersion:	5.10
+Contact:	"Prasanna Prapancham" <prapancham@google.com>
+Description:
+		Battery max voltage where PPS charging is allowed
+
+Users:		Debug
+
+What:		/sys/devices/platform/google,cpm/dc_limit_demand
+Date:		Jun 2021
+KernelVersion:	5.10
+Contact:	"Prasanna Prapancham" <prapancham@google.com>
+Description:
+		Parallel Charger chip demand limit in uV
+
+Users:		Debug
+
