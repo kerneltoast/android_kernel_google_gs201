@@ -1,0 +1,365 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * GS201 SoC PM Domains device tree source
+ *
+ * Copyright (c) 2021 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * GS201 SoC PM domains device nodes are listed in this file.
+ * GS201 based board files can include this file and provide
+ * values for board specific bindings.
+ *
+ */
+
+#include <dt-bindings/power/exynos-power.h>
+
+/ {
+	/* NOTICE: The order matters!
+	 * If one domain depends on another domain, make sure the dependency is
+	 * before the dependent. For example, put pd-g3d before pd-embedded_g3d.
+	 * This to prevent deferred probing from happening. The reason is that
+	 * pkvm-s2mpu devices are only probed during module init. If the modules
+	 * that pkvm-s2mpu depends on are not ready at that time, then those
+	 * modules will be skipped and never probed again. To prevent that from
+	 * happening, make sure all the domains will not be deferred as well.
+	 */
+
+	pd_aoc: pd-aoc@18061880 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18061880 0x20>;
+		cal_id = <0xB1380000>;
+		need_smc = <0x1A010204>;
+		cmu_id = <0x1A000000>;
+		status = "disabled";
+		#power-domain-cells = <0>;
+	};
+
+	pd_eh: pd-eh@18061C00 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18061C00 0x20>;
+		cal_id = <0xB1380005>;
+		need_smc = <0x17010204>;
+		cmu_id = <0x17000000>;
+		status = "okay";
+		skip-idle-ip;
+		#power-domain-cells = <0>;
+	};
+
+	pd_g3d: pd-g3d@18061E00 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18061E00 0x20>;
+		cal_id = <0xB1380007>;
+		need_smc = <0x27F10204>;
+		cmu_id = <0x27F00000>;
+		status = "okay";
+		skip-idle-ip;
+		#power-domain-cells = <0>;
+	};
+
+	pd_embedded_g3d: pd-embedded_g3d@18062000 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062000 0x20>;
+		cal_id = <0xB1380006>;
+		status = "okay";
+		skip-idle-ip;
+		power-domains = <&pd_g3d>;
+		#power-domain-cells = <0>;
+	};
+
+	pd_hsi0: pd-hsi0@18062080 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062080 0x20>;
+		cal_id = <0xB1380008>;
+		need_smc = <0x11010204>;
+		cmu_id = <0x11000000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+		power-down-ok = <PD_OK_USB>;
+		skip-idle-ip;
+	};
+
+	pd_hsi2: pd-hsi2@18062180 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062180 0x20>;
+		cal_id = <0xB1380009>;
+		need_smc = <0x14410204>;
+		cmu_id = <0x14400000>;
+		status = "disabled";
+		#power-domain-cells = <0>;
+	};
+
+	pd_disp: pd-disp@18062280 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062280 0x20>;
+		cal_id = <0xB138000B>;
+		need_smc = <0x1C210204>;
+		cmu_id = <0x1C200000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+		skip-idle-ip;
+	};
+
+	pd_dpu: pd-dpu@18062200 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062200 0x20>;
+		cal_id = <0xB138000A>;
+		need_smc = <0x1C010204>;
+		cmu_id = <0x1C000000>;
+		status = "okay";
+		power-domains = <&pd_disp>;
+		#power-domain-cells = <0>;
+		skip-idle-ip;
+	};
+
+	pd_g2d: pd-g2d@18062300 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062300 0x20>;
+		cal_id = <0xB138000C>;
+		need_smc = <0x1C610204>;
+		cmu_id = <0x1C600000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_mfc: pd-mfc@18062380 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062380 0x20>;
+		cal_id = <0xB138000D>;
+		need_smc = <0x1C810204>;
+		cmu_id = <0x1C800000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_csis: pd-csis@18062400 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062400 0x20>;
+		cal_id = <0xB138000E>;
+		need_smc = <0x1A410204>;
+		cmu_id = <0x1A400000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_pdp: pd-pdp@18062480 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062480 0x20>;
+		cal_id = <0xB138000F>;
+		need_smc = <0x1AA10204>;
+		cmu_id = <0x1AA00000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_g3aa: pd-g3aa@18062580 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062580 0x20>;
+		cal_id = <0xB1380011>;
+		need_smc = <0x1A810204>;
+		cmu_id = <0x1A800000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_ipp: pd-ipp@18062600 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062600 0x20>;
+		cal_id = <0xB1380012>;
+		need_smc = <0x1AC10204>;
+		cmu_id = <0x1AC00000>;
+		status = "okay";
+		power-domains = <&pd_pdp>;
+		#power-domain-cells = <0>;
+	};
+
+	pd_itp: pd-itp@18062680 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062680 0x20>;
+		cal_id = <0xB1380013>;
+		need_smc = <0x1B410204>;
+		cmu_id = <0x1B400000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_dns: pd-dns@18062500 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062500 0x20>;
+		cal_id = <0xB1380010>;
+		need_smc = <0x1B010204>;
+		cmu_id = <0x1B000000>;
+		status = "okay";
+		power-domains = <&pd_itp>;
+		#power-domain-cells = <0>;
+	};
+
+	pd_mcsc: pd-mcsc@18062700 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062700 0x20>;
+		cal_id = <0xB1380014>;
+		need_smc = <0x1B710204>;
+		cmu_id = <0x1B700000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_gdc: pd-gdc@18062780 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062780 0x20>;
+		cal_id = <0xB1380015>;
+		need_smc = <0x1D010204>;
+		cmu_id = <0x1D000000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_tnr: pd-tnr@18062800 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062800 0x20>;
+		cal_id = <0xB1380016>;
+		need_smc = <0x1BC10204>;
+		cmu_id = <0x1BC00000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_bo: pd-bo@18062880 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062880 0x20>;
+		cal_id = <0xB1380017>;
+		need_smc = <0x1CA10204>;
+		cmu_id = <0x1CA00000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_tpu: pd-tpu@18062900 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062900 0x20>;
+		cal_id = <0xB1380018>;
+		need_smc = <0x1CC10204>;
+		cmu_id = <0x1CC00000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	pd_aur: pd-aur@18062980 {
+		compatible = "samsung,exynos-pd";
+		reg = <0x0 0x18062980 0x20>;
+		cal_id = <0xB1380019>;
+		need_smc = <0x25A10204>;
+		cmu_id = <0x25A00000>;
+		status = "okay";
+		#power-domain-cells = <0>;
+	};
+
+	dbgdev-pd-aoc {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_aoc>;
+	};
+
+	dbgdev-pd-eh {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_eh>;
+	};
+
+	dbgdev-pd-embedded_g3d {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_embedded_g3d>;
+	};
+
+	dbgdev-pd-g3d {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_g3d>;
+	};
+
+	dbgdev-pd-hsi0 {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_hsi0>;
+	};
+
+	dbgdev-pd-hsi2 {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_hsi2>;
+	};
+
+	dbgdev-pd-dpu {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_dpu>;
+	};
+
+	dbgdev-pd-disp {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_disp>;
+	};
+
+	dbgdev-pd-g2d {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_g2d>;
+	};
+
+	dbgdev-pd-mfc {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_mfc>;
+	};
+
+	dbgdev-pd-csis {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_csis>;
+	};
+
+	dbgdev-pd-pdp {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_pdp>;
+	};
+
+	dbgdev-pd-dns {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_dns>;
+	};
+
+	dbgdev-pd-g3aa {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_g3aa>;
+	};
+
+	dbgdev-pd-ipp {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_ipp>;
+	};
+
+	dbgdev-pd-itp {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_itp>;
+	};
+
+	dbgdev-pd-mcsc {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_mcsc>;
+	};
+
+	dbgdev-pd-gdc {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_gdc>;
+	};
+
+	dbgdev-pd-tnr {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_tnr>;
+	};
+
+	dbgdev-pd-bo {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_bo>;
+	};
+
+	dbgdev-pd-tpu {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_tpu>;
+	};
+
+	dbgdev-pd-aur {
+		compatible = "samsung,exynos-pd-dbg";
+		power-domains = <&pd_aur>;
+	};
+};

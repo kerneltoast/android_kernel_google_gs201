@@ -1,0 +1,9 @@
+fs_type=ext4
+use_dynamic_partition_size=true
+ext_mkuserimg=mkuserimg_mke2fs
+ext4_share_dup_blocks=true
+extfs_rsv_pct=0
+journal_size=0
+partition_name=vendor_dlkm
+mount_point=vendor_dlkm
+selinux_fc=private/devices/google/common/sepolicy/vendor_dlkm_file_contexts

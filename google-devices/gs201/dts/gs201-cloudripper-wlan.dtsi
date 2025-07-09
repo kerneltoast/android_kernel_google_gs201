@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS201 wlan device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs101-pinctrl.h"
+
+&pinctrl_1 {
+	wlan_host_wake: wlan_host_wake {
+		samsung,pins = "gpa6-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&pinctrl_7 {
+	cfg_wlanen: cfg_wlanen {
+		samsung,pins = "gph2-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	wlan_dev_wake: wlan_dev_wake {
+		samsung,pins = "gph2-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&pcie_1 {
+	pinctrl-0 = <&pcie1_clkreq &pcie1_perst &cfg_wlanen &wlan_host_wake &wlan_dev_wake>;
+	use-cache-coherency = "true";
+	dma-coherent;
+
+	wlan {
+		compatible = "android,bcmdhd_wlan";
+		wl_reg_on = <&gph2 4 0x1>; /* wlan reg_on pin */
+		wl_host_wake = <&gpa6 1 0x1>; /* wlan oob pin */
+		wl_dev_wake = <&gph2 5 0x1>; /* wlan dev pin */
+		ch-num = <1>;
+		status = "okay";
+	};
+};

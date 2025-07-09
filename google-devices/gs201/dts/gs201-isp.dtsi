@@ -1,0 +1,987 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS201 ISP device tree source
+ *
+ * Copyright 2021 Google LLC.
+ */
+
+#include <dt-bindings/clock/gs201.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/gs201.h>
+#include "gs201-isp-event-info.dtsi"
+
+/ {
+	sysreg_csis_reset: system-controller@1A420500 {
+		compatible = "samsung,exynos-csis", "syscon";
+		reg = <0x0 0x1A420500 0x8>;
+	};
+
+	mipi_phy_csis0_m0s4s4s4s4s4: dcphy_m0s4s4s4s4s4_csi0@1A4F1300 {
+		/* DPHY 4.5 Gbps 4lane */
+		/* CPHY 2.5 Gbps 3lane */
+		compatible = "samsung,mipi-phy-m0s4s4s4s4s4";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		isolation = <0x3ebc>; /* PMU address offset */
+		samsung,reset-sysreg = <&sysreg_csis_reset>;
+		reset = <0>; /* reset bit */
+		reg = <0x0 0x1A4F1300 0x500>;
+		owner = <1>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	mipi_phy_csis1_m0s4s4s4s4s4: dcphy_m0s4s4s4s4s4_csi0@1A4F1B00 {
+		/* DPHY 4.5 Gbps 4lane */
+		/* CPHY 2.5 Gbps 3lane */
+		compatible = "samsung,mipi-phy-m0s4s4s4s4s4";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		isolation = <0x3ebc>; /* PMU address offset */
+		samsung,reset-sysreg = <&sysreg_csis_reset>;
+		reset = <1>; /* reset bit */
+		reg = <0x0 0x1A4F1B00 0x500>;
+		owner = <1>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	mipi_phy_csis2_m0s4s4s4s4s4: dcphy_m0s4s4s4s4s4_csi0@1A4F2300 {
+		/* DPHY 4.5 Gbps 2lane */
+		/* CPHY 2.5 Gbps 2lane */
+		compatible = "samsung,mipi-phy-m0s4s4s4s4s4";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		isolation = <0x3ebc>; /* PMU address offset */
+		samsung,reset-sysreg = <&sysreg_csis_reset>;
+		reset = <2>; /* reset bit */
+		reg = <0x0 0x1A4F2300 0x300>;
+		owner = <1>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	mipi_phy_csis3_m0s4s4s4s4s4: dcphy_m0s4s4s4s4s4_csi0@1A4F2600 {
+		/* DPHY 4.5 Gbps 2lane */
+		/* CPHY 2.5 Gbps 1lane */
+		compatible = "samsung,mipi-phy-m0s4s4s4s4s4";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		isolation = <0x3ebc>; /* PMU address offset */
+		samsung,reset-sysreg = <&sysreg_csis_reset>;
+		reset = <3>; /* reset bit */
+		reg = <0x0 0x1A4F2600 0x300>;
+		owner = <1>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	mipi_phy_csis4_m0s4s4s4s4s4: dcphy_m0s4s4s4s4s4_csi0@1A4F2B00 {
+		/* DPHY 4.5 Gbps 2lane */
+		/* CPHY 2.5 Gbps 2lane */
+		compatible = "samsung,mipi-phy-m0s4s4s4s4s4";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		isolation = <0x3ebc>; /* PMU address offset */
+		samsung,reset-sysreg = <&sysreg_csis_reset>;
+		reset = <4>; /* reset bit */
+		reg = <0x0 0x1A4F2B00 0x300>;
+		owner = <1>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	mipi_phy_csis5_m0s4s4s4s4s4: dcphy_m0s4s4s4s4s4_csi0@1A4F2E00 {
+		/* DPHY 4.5 Gbps 2lane */
+		/* CPHY 2.5 Gbps 1lane */
+		compatible = "samsung,mipi-phy-m0s4s4s4s4s4";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		isolation = <0x3ebc>; /* PMU address offset */
+		samsung,reset-sysreg = <&sysreg_csis_reset>;
+		reset = <5>; /* reset bit */
+		reg = <0x0 0x1A4F2E00 0x300>;
+		owner = <1>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	mipi_phy_csis6_m0s4s4s4s4s4: dcphy_m0s4s4s4s4s4_csi0@1A4F3300 {
+		/* DPHY 4.5 Gbps 2lane */
+		/* CPHY 2.5 Gbps 2lane */
+		compatible = "samsung,mipi-phy-m0s4s4s4s4s4";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		isolation = <0x3ebc>; /* PMU address offset */
+		samsung,reset-sysreg = <&sysreg_csis_reset>;
+		reset = <6>; /* reset bit */
+		reg = <0x0 0x1A4F3300 0x300>;
+		owner = <1>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	mipi_phy_csis7_m0s4s4s4s4s4: dcphy_m0s4s4s4s4s4_csi0@1A4F3600 {
+		/* DPHY 4.5 Gbps 2lane */
+		/* CPHY 2.5 Gbps 1lane */
+		compatible = "samsung,mipi-phy-m0s4s4s4s4s4";
+		samsung,pmu-syscon = <&pmu_system_controller>;
+		isolation = <0x3ebc>; /* PMU address offset */
+		samsung,reset-sysreg = <&sysreg_csis_reset>;
+		reset = <7>; /* reset bit */
+		reg = <0x0 0x1A4F3600 0x300>;
+		owner = <1>; /* 0: DSI,  1: CSI */
+		#phy-cells = <1>;
+	};
+
+	lwis_top: lwis_top@0 {
+		compatible = "google,lwis-top-device";
+
+		/* Device node name */
+		node-name = "top";
+	};
+
+	lwis_dpm: lwis_dpm@0 {
+		compatible = "google,lwis-dpm-device";
+
+		/* Device node name */
+		node-name = "dpm";
+	};
+
+	lwis_csi: lwis_csi@1A440000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "csi";
+
+		/* Register space */
+		reg =
+			<0x0 0x1A440000 0x1000>,  /* MIPI-CSIS0 */
+			<0x0 0x1A450000 0x1000>,  /* MIPI-CSIS1 */
+			<0x0 0x1A460000 0x1000>,  /* MIPI-CSIS2 */
+			<0x0 0x1A470000 0x1000>,  /* MIPI-CSIS3 */
+			<0x0 0x1A480000 0x1000>,  /* MIPI-CSIS4 */
+			<0x0 0x1A490000 0x1000>,  /* MIPI-CSIS5 */
+			<0x0 0x1A4A0000 0x1000>,  /* MIPI-CSIS6 */
+			<0x0 0x1A4B0000 0x1000>,  /* MIPI-CSIS7 */
+			<0x0 0x1A4C0000 0x100>,   /* CSIS EBUF */
+			<0x0 0x1A4D0000 0x10000>, /* CSIS DMA */
+			<0x0 0x1A4F0000 0x10000>, /* CSIS PHY */
+			<0x0 0x1A420000 0x10000>; /* SYSREG CSIS */
+
+		reg-names =
+			"csis-link0",
+			"csis-link1",
+			"csis-link2",
+			"csis-link3",
+			"csis-link4",
+			"csis-link5",
+			"csis-link6",
+			"csis-link7",
+			"csis-ebuf",
+			"csis-dma",
+			"csis-phy",
+			"csis-sysreg";
+
+		/* Clocks */
+		clocks =
+			<&clock UMUX_CLKCMU_CSIS_NOC>,
+			<&clock GATE_DFTMUX_CMU_CIS_CLK0>,
+			<&clock GATE_DFTMUX_CMU_CIS_CLK1>,
+			<&clock GATE_DFTMUX_CMU_CIS_CLK2>,
+			<&clock GATE_DFTMUX_CMU_CIS_CLK3>,
+			<&clock GATE_DFTMUX_CMU_CIS_CLK4>,
+			<&clock GATE_DFTMUX_CMU_CIS_CLK5>,
+			<&clock GATE_DFTMUX_CMU_CIS_CLK6>,
+			<&clock GATE_DFTMUX_CMU_CIS_CLK7>,
+			<&clock CIS_CLK0>,
+			<&clock CIS_CLK1>,
+			<&clock CIS_CLK2>,
+			<&clock CIS_CLK3>,
+			<&clock CIS_CLK4>,
+			<&clock CIS_CLK5>,
+			<&clock CIS_CLK6>,
+			<&clock CIS_CLK7>;
+		clock-names =
+			"UMUX_CLKCMU_CSIS_NOC",
+			"GATE_DFTMUX_CMU_CIS_CLK0",
+			"GATE_DFTMUX_CMU_CIS_CLK1",
+			"GATE_DFTMUX_CMU_CIS_CLK2",
+			"GATE_DFTMUX_CMU_CIS_CLK3",
+			"GATE_DFTMUX_CMU_CIS_CLK4",
+			"GATE_DFTMUX_CMU_CIS_CLK5",
+			"GATE_DFTMUX_CMU_CIS_CLK6",
+			"GATE_DFTMUX_CMU_CIS_CLK7",
+			"CIS_CLK0",
+			"CIS_CLK1",
+			"CIS_CLK2",
+			"CIS_CLK3",
+			"CIS_CLK4",
+			"CIS_CLK5",
+			"CIS_CLK6",
+			"CIS_CLK7";
+		clock-rates = <0>;
+
+		clock-family = <CAMERA_CLOCK_FAMILY_CAM>;
+		bts-scenario = "camera_default";
+
+		interrupts =
+			<0 IRQ_CSIS0_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS0_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS0_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS0_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS1_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS1_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS1_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS1_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS2_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS2_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS2_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS2_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS3_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS3_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS3_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS3_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS4_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS4_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS4_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS4_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS5_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS5_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS5_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS5_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS6_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS6_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS6_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS6_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS7_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS7_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS7_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS7_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_ZSL_DMA0_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_ZSL_DMA1_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_ZSL_DMA2_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_STRP_DMA0_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_STRP_DMA1_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_STRP_DMA2_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS_DMA0_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS_DMA1_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS_DMA2_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_CSIS_DMA3_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_EBUF_OVERFLOW0_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_EBUF_OVERFLOW1_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_EBUF_OVERFLOW2_CSIS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_EBUF_OVERFLOW3_CSIS IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"csi-link0-src0",
+			"csi-link0-src1",
+			"csi-link0-fs",
+			"csi-link0-fe",
+			"csi-link1-src0",
+			"csi-link1-src1",
+			"csi-link1-fs",
+			"csi-link1-fe",
+			"csi-link2-src0",
+			"csi-link2-src1",
+			"csi-link2-fs",
+			"csi-link2-fe",
+			"csi-link3-src0",
+			"csi-link3-src1",
+			"csi-link3-fs",
+			"csi-link3-fe",
+			"csi-link4-src0",
+			"csi-link4-src1",
+			"csi-link4-fs",
+			"csi-link4-fe",
+			"csi-link5-src0",
+			"csi-link5-src1",
+			"csi-link5-fs",
+			"csi-link5-fe",
+			"csi-link6-src0",
+			"csi-link6-src1",
+			"csi-link6-fs",
+			"csi-link6-fe",
+			"csi-link7-src0",
+			"csi-link7-src1",
+			"csi-link7-fs",
+			"csi-link7-fe",
+			"zsl-dma0",
+			"zsl-dma1",
+			"zsl-dma2",
+			"strp-dma0",
+			"strp-dma1",
+			"strp-dma2",
+			"csis-dma0",
+			"csis-dma1",
+			"csis-dma2",
+			"csis-dma3",
+			"csi-ebuf0",
+			"csi-ebuf1",
+			"csi-ebuf2",
+			"csi-ebuf3";
+		interrupt-event-infos =
+			<&csi_ctx0_csis_int0>,
+			<&csi_ctx0_csis_int1>,
+			<&csi_ctx0_fs_int>,
+			<&csi_ctx0_fe_int>,
+			<&csi_ctx1_csis_int0>,
+			<&csi_ctx1_csis_int1>,
+			<&csi_ctx1_fs_int>,
+			<&csi_ctx1_fe_int>,
+			<&csi_ctx2_csis_int0>,
+			<&csi_ctx2_csis_int1>,
+			<&csi_ctx2_fs_int>,
+			<&csi_ctx2_fe_int>,
+			<&csi_ctx3_csis_int0>,
+			<&csi_ctx3_csis_int1>,
+			<&csi_ctx3_fs_int>,
+			<&csi_ctx3_fe_int>,
+			<&csi_ctx4_csis_int0>,
+			<&csi_ctx4_csis_int1>,
+			<&csi_ctx4_fs_int>,
+			<&csi_ctx4_fe_int>,
+			<&csi_ctx5_csis_int0>,
+			<&csi_ctx5_csis_int1>,
+			<&csi_ctx5_fs_int>,
+			<&csi_ctx5_fe_int>,
+			<&csi_ctx6_csis_int0>,
+			<&csi_ctx6_csis_int1>,
+			<&csi_ctx6_fs_int>,
+			<&csi_ctx6_fe_int>,
+			<&csi_ctx7_csis_int0>,
+			<&csi_ctx7_csis_int1>,
+			<&csi_ctx7_fs_int>,
+			<&csi_ctx7_fe_int>,
+			<&csi_zsl_dma_ctx0_int>,
+			<&csi_zsl_dma_ctx1_int>,
+			<&csi_zsl_dma_ctx2_int>,
+			<&csi_strp_dma_ctx0_int>,
+			<&csi_strp_dma_ctx1_int>,
+			<&csi_strp_dma_ctx2_int>,
+			<&csi_csis_dma_ctx0_int>,
+			<&csi_csis_dma_ctx1_int>,
+			<&csi_csis_dma_ctx2_int>,
+			<&csi_csis_dma_ctx3_int>,
+			<&csi_ebuf0_int>,
+			<&csi_ebuf1_int>,
+			<&csi_ebuf2_int>,
+			<&csi_ebuf3_int>;
+
+		phys =
+			<&mipi_phy_csis0_m0s4s4s4s4s4 0>,
+			<&mipi_phy_csis1_m0s4s4s4s4s4 0>,
+			<&mipi_phy_csis2_m0s4s4s4s4s4 0>,
+			<&mipi_phy_csis3_m0s4s4s4s4s4 0>,
+			<&mipi_phy_csis4_m0s4s4s4s4s4 0>,
+			<&mipi_phy_csis5_m0s4s4s4s4s4 0>,
+			<&mipi_phy_csis6_m0s4s4s4s4s4 0>,
+			<&mipi_phy_csis7_m0s4s4s4s4s4 0>;
+		phy-names =
+			"csis0_dcphy",
+			"csis1_dcphy",
+			"csis2_dcphy",
+			"csis3_dcphy",
+			"csis4_dcphy",
+			"csis5_dcphy",
+			"csis6_dcphy",
+			"csis7_dcphy";
+
+		iommus =
+			<&sysmmu_csis0>,
+			<&sysmmu_csis1>;
+		power-domains = <&pd_pdp>;
+		samsung,iommu-group = <&iommu_group_isp>;
+		lwis,iommu-best-fit-algo;
+		samsung,tzmp = "true";
+	};
+
+	lwis_pdp: lwis_pdp@1AA40000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "pdp";
+
+		/* Register space */
+		reg =
+			<0x0 0x1AA40000 0x10000>, /* PDP CORE0 */
+			<0x0 0x1AA50000 0x10000>, /* PDP CORE1 */
+			<0x0 0x1AA60000 0x10000>, /* PDP CORE2 */
+			<0x0 0x1AA20000 0x10000>, /* SYSREG PDP */
+			<0x0 0x1A820400 0x4>,     /* SYSREG G3AA */
+			<0x0 0x1AC40000 0x10000>, /* IPP CORE0 */
+			<0x0 0x1AC50000 0x10000>, /* IPP CORE1 */
+			<0x0 0x1AC60000 0x10000>, /* IPP CORE2 */
+			<0x0 0x1A840000 0x20000>, /* G3AA */
+			<0x0 0x1A800000 0x10000>; /* G3AA CMU*/
+		reg-names =
+			"pdp-core0",
+			"pdp-core1",
+			"pdp-core2",
+			"sysreg-pdp",
+			"sysreg-g3aa",
+			"ipp-core0",
+			"ipp-core1",
+			"ipp-core2",
+			"g3aa-core",
+			"g3aa-cmu";
+
+		clocks =
+			<&clock UMUX_CLKCMU_PDP_NOC>,
+			<&clock UMUX_CLKCMU_PDP_VRA>;
+		clock-names =
+			"UMUX_CLKCMU_PDP_NOC",
+			"UMUX_CLKCMU_PDP_VRA";
+		clock-rates = <0>;
+
+		clock-family = <CAMERA_CLOCK_FAMILY_CAM>;
+
+		interrupts =
+			<0 IRQ_PDP_TOP0_PDP IRQ_TYPE_LEVEL_HIGH>, /* PDP_CORE0 */
+			<0 IRQ_PDP_TOP1_PDP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_PDP_TOP2_PDP IRQ_TYPE_LEVEL_HIGH>, /* PDP_CORE1 */
+			<0 IRQ_PDP_TOP3_PDP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_PDP_TOP4_PDP IRQ_TYPE_LEVEL_HIGH>, /* PDP_CORE2 */
+			<0 IRQ_PDP_TOP5_PDP IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"pdp-ctx0-src1",
+			"pdp-ctx0-src2",
+			"pdp-ctx1-src1",
+			"pdp-ctx1-src2",
+			"pdp-ctx2-src1",
+			"pdp-ctx2-src2";
+		interrupt-event-infos =
+			<&pdp_ctx0_int_src1>,
+			<&pdp_ctx0_int_src2>,
+			<&pdp_ctx1_int_src1>,
+			<&pdp_ctx1_int_src2>,
+			<&pdp_ctx2_int_src1>,
+			<&pdp_ctx2_int_src2>;
+
+		iommus =
+			<&sysmmu_csis1>,
+			<&sysmmu_ipp>,
+			<&sysmmu_g3aa>;
+		power-domains = <&pd_pdp>;
+		samsung,iommu-group = <&iommu_group_isp>;
+	};
+
+	lwis_ipp: lwis_ipp@1AC40000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "ipp";
+
+		/* Register space */
+		reg =
+			<0x0 0x1AC40000 0x10000>, /* IPP0 */
+			<0x0 0x1AC50000 0x10000>, /* IPP1 */
+			<0x0 0x1AC60000 0x10000>; /* IPP2 */
+		reg-names =
+			"ipp0",
+			"ipp1",
+			"ipp2";
+
+		clocks = <&clock UMUX_CLKCMU_IPP_NOC>;
+		clock-names = "UMUX_CLKCMU_IPP_NOC";
+		clock-rates = <0>;
+		clock-family = <CAMERA_CLOCK_FAMILY_CAM>;
+
+		interrupts =
+			<0 IRQ_IPP_CH0_0_IPP IRQ_TYPE_LEVEL_HIGH>,    /* IPP0 */
+			<0 IRQ_IPP_CH0_1_IPP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_IPP_CH0_0_IPP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_IPP_CH0_1_IPP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_IPP_CH1_0_IPP IRQ_TYPE_LEVEL_HIGH>,    /* IPP1 */
+			<0 IRQ_IPP_CH1_1_IPP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_IPP_CH1_0_IPP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_IPP_CH1_1_IPP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_IPP_CH2_0_IPP IRQ_TYPE_LEVEL_HIGH>,    /* IPP2 */
+			<0 IRQ_IPP_CH2_1_IPP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_IPP_CH2_0_IPP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_IPP_CH2_1_IPP IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"ipp0-int1",
+			"ipp0-int2",
+			"ipp0_fro_int0",
+			"ipp0_fro_int1",
+			"ipp1-int1",
+			"ipp1-int2",
+			"ipp1_fro_int0",
+			"ipp1_fro_int1",
+			"ipp2-int1",
+			"ipp2-int2",
+			"ipp2_fro_int0",
+			"ipp2_fro_int1";
+		interrupt-event-infos =
+			<&ipp_ctx0_int1>,
+			<&ipp_ctx0_int2>,
+			<&ipp_fro_ctx0_int0>,
+			<&ipp_fro_ctx0_int1>,
+			<&ipp_ctx1_int1>,
+			<&ipp_ctx1_int2>,
+			<&ipp_fro_ctx1_int0>,
+			<&ipp_fro_ctx1_int1>,
+			<&ipp_ctx2_int1>,
+			<&ipp_ctx2_int2>,
+			<&ipp_fro_ctx2_int0>,
+			<&ipp_fro_ctx2_int1>;
+
+		iommus = <&sysmmu_ipp>;
+		samsung,iommu-group = <&iommu_group_isp>;
+
+		/* Adjust Thread priority */
+		transaction-thread-priority = <99>;
+	};
+
+	lwis_gtnr_align: lwis_gtnr_align@1AC80000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "gtnr-align";
+
+		/* Register space */
+		reg =
+			<0x0 0x1AC80000 0x10000>, /* TNR_ALIGN */
+			<0x0 0x1AC03100 0x4>,     /* TNR_A_CLOCK */
+			<0x0 0x1AEB4400 0x88>,    /* TNR_ALIGN_M0 */
+			<0x0 0x1AEC4400 0x88>;    /* TNR_ALIGN_M4 */
+		reg-names =
+			"tnr_align",
+			"tnr_a_clock",
+			"tnr_align_m0",
+			"tnr_align_m4";
+
+		clocks =
+			<&clock UMUX_CLKCMU_IPP_NOC>,
+			<&clock UMUX_CLKCMU_DNS_NOC>;
+		clock-names =
+			"UMUX_CLKCMU_IPP_NOC",
+			"UMUX_CLKCMU_DNS_NOC";
+		clock-rates = <0>;
+		clock-family = <CAMERA_CLOCK_FAMILY_CAM>;
+
+		interrupts =
+			<0 IRQ_TNR_A_IPP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_MUTE_GTNR_ALIGN_IPP IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"gtnr-align-int",
+			"gtnr-align-mute";
+		interrupt-event-infos =
+			<&gtnr_align_int>,
+			<&gtnr_align_secu_int_mute>;
+
+		iommus =
+			<&sysmmu_ipp>,
+			<&sysmmu_dns>;
+		samsung,iommu-group = <&iommu_group_isp>;
+	};
+
+	lwis_gtnr_merge: lwis_gtnr_merge@1BC40000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "gtnr-merge";
+
+		/* Register space */
+		reg =
+			<0x0 0x1BC40000 0x10000>,   /* TNR */
+			<0x0 0x1BE84000 0xA00>,     /* TNR SSMT D0 */
+			<0x0 0x1BE94000 0xA00>,     /* TNR SSMT D1 */
+			<0x0 0x1BEA4000 0xA00>,     /* TNR SSMT D2 */
+			<0x0 0x1BEB4000 0xA00>,     /* TNR SSMT D3 */
+			<0x0 0x1BEC4000 0xA00>,     /* TNR SSMT D4 */
+			<0x0 0x1BED4000 0xA00>,     /* TNR SSMT D5 */
+			<0x0 0x1BEE4000 0xA00>,     /* TNR SSMT D6 */
+			<0x0 0x1BEF4000 0xA00>,     /* TNR SSMT D7 */
+			<0x0 0x1BC030E4 0x8>,       /* TNR_QCH */
+			<0x0 0x1BC20400 0x4>;       /* TNR SYSREG */
+		reg-names =
+			"tnr",
+			"tnr_ssmt_d0",
+			"tnr_ssmt_d1",
+			"tnr_ssmt_d2",
+			"tnr_ssmt_d3",
+			"tnr_ssmt_d4",
+			"tnr_ssmt_d5",
+			"tnr_ssmt_d6",
+			"tnr_ssmt_d7",
+			"tnr_qch",
+			"tnr_sysreg";
+
+		clocks = <&clock UMUX_CLKCMU_TNR_NOC>;
+		clock-names = "UMUX_CLKCMU_TNR_NOC";
+		clock-rates = <0>;
+
+		clock-family = <CAMERA_CLOCK_FAMILY_TNR>;
+
+		interrupts =
+			<0 IRQ_TNR_0_TNR IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_TNR_1_TNR IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_TNR_0_TNR IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"gtnr-merge-int0",
+			"gtnr-merge-int1",
+			"gtnr-merge-cmdq-int";
+		interrupt-event-infos =
+			<&gtnr_merge_int0>,
+			<&gtnr_merge_int1>,
+			<&gtnr_merge_cmdq_int>;
+
+		iommus =
+			<&sysmmu_tnr0>,
+			<&sysmmu_tnr1>,
+			<&sysmmu_tnr2>,
+			<&sysmmu_tnr3>,
+			<&sysmmu_tnr4>;
+		samsung,iommu-group = <&iommu_group_isp>;
+	};
+
+	lwis_g3aa: lwis_g3aa@1A840000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "g3aa";
+
+		/* Register space */
+		reg =
+			<0x0 0x1A840000 0x20000>, /* G3AA */
+			<0x0 0x1A820000 0x10000>, /* SYSREG_G3AA */
+			<0x0 0x1A860000 0x10000>; /* LINEBUFFER_G3AA */
+		reg-names =
+			"g3aa",
+			"sysreg-g3aa",
+			"linebuffer-g3aa";
+
+		clocks = <&clock UMUX_CLKCMU_G3AA_G3AA>;
+		clock-names = "UMUX_CLKCMU_G3AA_G3AA";
+		clock-rates = <0>;
+		clock-family = <CAMERA_CLOCK_FAMILY_CAM>;
+
+		interrupts =
+			<0 IRQ_G3AA_G3AA IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_G3AA_G3AA IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_G3AA_G3AA IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_G3AA_G3AA IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"g3aa-ctx0-int",
+			"g3aa-ctx1-int",
+			"g3aa-ctx2-int",
+			"g3aa-err-int";
+		interrupt-event-infos =
+			<&g3aa_ctx0_interrupts>,
+			<&g3aa_ctx1_interrupts>,
+			<&g3aa_ctx2_interrupts>,
+			<&g3aa_error_interrupts>;
+
+		iommus = <&sysmmu_g3aa>;
+		samsung,iommu-group = <&iommu_group_isp>;
+
+		/* Adjust Thread priority */
+		transaction-thread-priority = <99>;
+	};
+
+	lwis_itp: lwis_itp@1B450000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "itp";
+
+		/* Register space */
+		reg =
+			<0x0 0x1B450000 0x10000>, /* ITP */
+			<0x0 0x1B040000 0x10000>, /* DNS */
+			<0x0 0x1B740000 0x10000>, /* ITSC */
+			<0x0 0x1B020000 0x10000>, /* SYSREG DNS */
+			<0x0 0x1B894000 0xA00>;   /* SSMT D0 ITSC */
+		reg-names =
+			"itp",
+			"dns",
+			"itsc",
+			"sysreg_dns",
+			"ssmt_d0_itsc";
+
+		clocks =
+			<&clock UMUX_CLKCMU_ITP_NOC>,
+			<&clock UMUX_CLKCMU_DNS_NOC>,
+			<&clock UMUX_CLKCMU_MCSC_ITSC>;
+		clock-names =
+			"UMUX_CLKCMU_ITP_NOC",
+			"UMUX_CLKCMU_DNS_NOC",
+			"UMUX_CLKCMU_MCSC_ITSC";
+		clock-rates = <0>;
+
+		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
+
+		interrupts =
+			<0 INTREQ_ITP_0_ITP IRQ_TYPE_LEVEL_HIGH>,
+			<0 INTREQ_ITP_0_ITP IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_DNS_0_DNS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_DNS_1_DNS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_DNS_0_DNS IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_ITSC_0_MCSC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_ITSC_1_MCSC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_ITSC_0_MCSC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"itp-itp-int0",
+			"itp-itp-cmdq-int",
+			"itp-dns-int0",
+			"itp-dns-int1",
+			"itp-dns-cmdq-int",
+			"itp-itsc-int0",
+			"itp-itsc-int1",
+			"itp-itsc-cmdq-int";
+		interrupt-event-infos =
+			<&itp_itp_int0>,
+			<&itp_itp_cmdq_int>,
+			<&itp_dns_int0>,
+			<&itp_dns_int1>,
+			<&itp_dns_cmdq_int>,
+			<&itp_itsc_int0>,
+			<&itp_itsc_int1>,
+			<&itp_itsc_cmdq_int>;
+
+		iommus =
+			<&sysmmu_dns>,
+			<&sysmmu_mcsc0>;
+		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
+
+		transaction-thread-priority = <99>;
+	};
+
+	lwis_mcsc: lwis_mcsc@1B760000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "mcsc";
+
+		/* Register space */
+		reg =
+			<0x0 0x1B760000 0x10000>, /* MCSC */
+			<0x0 0x1B8C4000 0xA00>;   /* SSMT D0 MCSC */
+		reg-names =
+			"mcsc",
+			"ssmt_d0_mcsc";
+
+		clocks = <&clock UMUX_CLKCMU_MCSC_MCSC>;
+		clock-names = "UMUX_CLKCMU_MCSC_MCSC";
+		clock-rates = <0>;
+
+		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
+
+		interrupts =
+			<0 IRQ_MCSC_0_MCSC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_MCSC_1_MCSC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_MCSC_0_MCSC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"mcsc-int0",
+			"mcsc-int1",
+			"mcsc-cmdq-int";
+		interrupt-event-infos =
+			<&mcsc_int0>,
+			<&mcsc_int1>,
+			<&mcsc_cmdq_int>;
+
+		iommus =
+			<&sysmmu_mcsc1>,
+			<&sysmmu_mcsc2>;
+		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
+	};
+
+	lwis_scsc: lwis_scsc@1D080000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "scsc";
+
+		/* Register space */
+		reg =
+			<0x0 0x1D080000 0x10000>, /* SCSC */
+			<0x0 0x1D204000 0xA00>;   /* SSMT SCSC */
+		reg-names =
+			"scsc",
+			"ssmt_d0_scsc";
+
+		clocks = <&clock UMUX_CLKCMU_GDC_SCSC>;
+		clock-names = "UMUX_CLKCMU_GDC_SCSC";
+		clock-rates = <0>;
+
+		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
+
+		interrupts =
+			<0 IRQ_SCSC_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_SCSC_IRQ_1_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_SCSC_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"scsc-int0",
+			"scsc-int1",
+			"scsc-cmdq-int";
+		interrupt-event-infos =
+			<&scsc_int0>,
+			<&scsc_int1>,
+			<&scsc_cmdq_int>;
+
+		iommus = <&sysmmu_gdc2>;
+		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
+	};
+
+	lwis_gdc0: lwis_gdc@1D040000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "gdc0";
+
+		/* Register space */
+		reg =
+			<0x0 0x1D040000 0x10000>,	/* GDC0 */
+			<0x0 0x1D134000 0xA00>;		/* GDC0 SSMT */
+		reg-names =
+			"gdc",
+			"gdc_ssmt";
+
+		clocks = <&clock UMUX_CLKCMU_GDC_GDC0>;
+		clock-names = "UMUX_CLKCMU_GDC_GDC0";
+		clock-rates = <0>;
+
+		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
+
+		interrupts =
+			<0 IRQ_GDC0_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_GDC0_IRQ_1_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_GDC0_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"gdc-int0",
+			"gdc-int1",
+			"gdc-cmdq-int";
+		interrupt-event-infos =
+			<&gdc_int0>,
+			<&gdc_int1>,
+			<&gdc_cmdq_int>;
+
+		iommus = <&sysmmu_gdc0>;
+		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
+	};
+
+	lwis_gdc1: lwis_gdc@1D060000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "gdc1";
+
+		/* Register space */
+		reg =
+			<0x0 0x1D060000 0x10000>,  /* GDC1 */
+			<0x0 0x1D144000 0xA00>;    /* GDC1 SSMT */
+		reg-names =
+			"gdc",
+			"gdc_ssmt";
+
+		clocks = <&clock UMUX_CLKCMU_GDC_GDC1>;
+		clock-names = "UMUX_CLKCMU_GDC_GDC1";
+		clock-rates = <0>;
+		clock-family = <CAMERA_CLOCK_FAMILY_INTCAM>;
+
+		interrupts =
+			<0 IRQ_GDC1_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_GDC1_IRQ_1_GDC IRQ_TYPE_LEVEL_HIGH>,
+			<0 IRQ_GDC1_IRQ_0_GDC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names =
+			"gdc-int0",
+			"gdc-int1",
+			"gdc-cmdq-int";
+		interrupt-event-infos =
+			<&gdc_int0>,
+			<&gdc_int1>,
+			<&gdc_cmdq_int>;
+
+		iommus = <&sysmmu_gdc1>;
+		samsung,iommu-group = <&iommu_group_isp>;
+		samsung,tzmp = "true";
+	};
+
+	lwis_votf: lwis_votf@1A4E0000 {
+		compatible = "google,lwis-ioreg-device";
+
+		/* Device node name */
+		node-name = "votf";
+
+		/* Register space */
+		reg =
+			<0x0 0x1A4E0000 0x10000>,  /* CSIS C2SERV */
+			<0x0 0x1AA70000 0x10000>,  /* PDP  C2SERV */
+			<0x0 0x1B050000 0x10000>,  /* DNS  C2SERV */
+			<0x0 0x1BC50000 0x10000>,  /* TNR  C2SERV */
+			<0x0 0x1B750000 0x10000>,  /* ITSC C2SERV */
+			<0x0 0x1B770000 0x10000>,  /* MCSC C2SERV */
+			<0x0 0x1D050000 0x10000>,  /* GDC0 C2SERV */
+			<0x0 0x1D070000 0x10000>,  /* GDC1 C2SERV */
+			<0x0 0x1D090000 0x10000>;  /* SCSC C2SERV */
+		reg-names =
+			"csis-c2serv",
+			"pdp-c2serv",
+			"dns-c2serv",
+			"tnr-c2serv",
+			"itsc-c2serv",
+			"mcsc-c2serv",
+			"gdc0-c2serv",
+			"gdc1-c2serv",
+			"scsc-c2serv";
+
+		clocks =
+			<&clock UMUX_CLKCMU_CSIS_NOC>,
+			<&clock UMUX_CLKCMU_PDP_NOC>,
+			<&clock UMUX_CLKCMU_DNS_NOC>,
+			<&clock UMUX_CLKCMU_TNR_NOC>,
+			<&clock UMUX_CLKCMU_ITP_NOC>,
+			<&clock UMUX_CLKCMU_MCSC_ITSC>,
+			<&clock UMUX_CLKCMU_GDC_GDC0>,
+			<&clock UMUX_CLKCMU_GDC_GDC1>,
+			<&clock UMUX_CLKCMU_GDC_SCSC>;
+		clock-names =
+			"UMUX_CLKCMU_CSIS_NOC",
+			"UMUX_CLKCMU_PDP_NOC",
+			"UMUX_CLKCMU_DNS_NOC",
+			"UMUX_CLKCMU_TNR_NOC",
+			"UMUX_CLKCMU_ITP_NOC",
+			"UMUX_CLKCMU_MCSC_NOC",
+			"UMUX_CLKCMU_GDC_GDC0",
+			"UMUX_CLKCMU_GDC_GDC1",
+			"UMUX_CLKCMU_GDC_SCSC";
+		clock-rates = <0>;
+
+		iommus =
+			<&sysmmu_gdc0>,
+			<&sysmmu_gdc1>,
+			<&sysmmu_gdc2>,
+			<&sysmmu_ipp>,
+			<&sysmmu_dns>,
+			<&sysmmu_mcsc0>,
+			<&sysmmu_mcsc1>,
+			<&sysmmu_mcsc2>,
+			<&sysmmu_tnr0>,
+			<&sysmmu_tnr1>,
+			<&sysmmu_tnr2>,
+			<&sysmmu_tnr3>,
+			<&sysmmu_tnr4>,
+			<&sysmmu_csis0>,
+			<&sysmmu_csis1>;
+		samsung,iommu-group = <&iommu_group_isp>;
+
+		power-domains =
+			<&pd_pdp>,
+			<&pd_csis>,
+			<&pd_gdc>,
+			<&pd_itp>,
+			<&pd_mcsc>,
+			<&pd_tnr>;
+	};
+
+	lwis_slc: lwis_slc@0 {
+		compatible = "google,lwis-slc-device";
+
+		/* Device node name */
+		node-name = "slc";
+
+		/* SLC partitions */
+		pt_id =
+			"CAMERA2WAY",
+			"CAMERA4WAY0",
+			"CAMERA4WAY1",
+			"CAMERA4WAY2",
+			"CAMERA6WAY0",
+			"CAMERA6WAY1",
+			"CAMERA6WAY2",
+			"CAMERA8WAY0";
+
+		pt_size = <512 1024 1024 1024 1536 1536 1536 2048>;
+	};
+};

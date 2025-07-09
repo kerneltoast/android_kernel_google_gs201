@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * GS201 SoC reserved memory
+ *
+ * Copyright 2021 Google LLC
+ */
+
+#include <dt-bindings/soc/google/debug-snapshot-def.h>
+#include <dt-bindings/soc/google/exynos-seclog.h>
+
+/ {
+
+	bootloader_log {
+		compatible = "google,bldr_log";
+		reg = <0x0 0xfd800000 0x80000>, <0x0 0xfd880000 0x80000>;
+		reg-names = "bl_log", "bl_old_log";
+		memory-region = <&bldr_log_reserved>;
+	};
+
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		ect_binary: ect_binary {
+			compatible = "exynos,ect_rmem";
+			reg = <0x0 0x90000000 0x0003A000>;
+		};
+
+		gsa_reserved_protected: gsa@90200000 {
+			reg = <0x0 0x90200000 0x400000>;
+			no-map;
+		};
+
+		tpu_fw_ctx_reserved: tpu_ctx@91E00000 {
+			reg = <0x0 0x91E00000 0x1200000>;
+			no-map;
+		};
+
+		tpu_fw_reserved: tpu_fw@93000000 {
+			reg = <0x0 0x93000000 0x1000000>;
+			no-map;
+		};
+
+		aoc_reserve: aoc@94000000 {
+			reg = <0x0 0x94000000 0x03000000>;
+			no-map;
+		};
+
+		gxp_fw_reserved: gxp_fw@98000000 {
+			reg = <0x0 0x98000000 0x0400000>;
+			no-map;
+		};
+
+		gxp_scratchpad_reserved: gxp_scratchpad@98400000 {
+			reg = <0x0 0x98400000 0x00100000>;
+			no-map;
+		};
+
+		abl_reserved: abl@f8800000 {
+			reg = <0x0 0xf8800000 0x02000000>;
+			no-map;
+		};
+
+		dss_log_reserved: dss_log_reserved@fd3f0000 {
+			reg = <0 0xfd3f0000 0x0000e000>;
+			no-map;
+		};
+
+		debug_kinfo_reserved: debug_kinfo_reserved@fd3fe000 {
+			reg = <0 0xfd3fe000 0x00001000>;
+			no-map;
+		};
+
+		suspend_diag_log_reserved: suspend_diag_log_reserved@fd90c000 {
+			reg = <0 0xfd90c000 0x00001000>;
+			no-map;
+		};
+
+		ramoops_mem@fd3ff000 {
+			compatible = "ramoops";
+			reg = <0 0xfd3ff000 0x400000>;
+			console-size = <0x200000>;
+			pmsg-size = <0x200000>;
+		};
+
+		bldr_log_reserved: bldr_log_reserved@fd800000 {
+			reg = <0 0xfd800000 0x00100000>;
+			no-map;
+		};
+
+		cp_rmem: cp_rmem {
+			compatible = "exynos,modem_if";
+			reg = <0x0 0xEA400000 0x00800000>;
+			rmem_index = <0>;
+		};
+
+		cp_msi_rmem: cp_msi_rmem {
+			compatible = "exynos,modem_if";
+			reg = <0x0 0xF6200000 0x00001000>;
+			rmem_index = <1>;
+		};
+
+		cp_rmem_1: cp_rmem_1 {
+			compatible = "exynos,modem_if";
+			reg = <0x0 0xE8000000 0x02000000>;
+			rmem_index = <2>;
+		};
+
+		cp_aoc_rmem: cp_aoc_rmem {
+			compatible = "exynos,modem_if";
+			reg = <0x0 0x197FD000 0x00003000>;
+			rmem_index = <3>;
+		};
+
+		header: header {
+			reg = <0 DSS_HEADER_ADDR DSS_HEADER_SIZE>;
+			no-map;
+		};
+		log_kevents: log_kevents {
+			reg = <0 DSS_LOG_KEVENTS_ADDR
+					DSS_LOG_KEVENTS_SIZE>;
+			no-map;
+		};
+		log_bcm: log_bcm {
+			reg = <0 DSS_LOG_BCM_ADDR DSS_LOG_BCM_SIZE>;
+			no-map;
+		};
+		log_s2d: log_s2d {
+			reg = <0 DSS_LOG_S2D_ADDR DSS_LOG_S2D_SIZE>;
+			no-map;
+		};
+		log_arrdumpreset: log_array_reset {
+			reg = <0 DSS_LOG_ARRAYRESET_ADDR
+					DSS_LOG_ARRAYRESET_SIZE>;
+			no-map;
+		};
+		log_arrdumppanic: log_array_panic {
+			reg = <0 DSS_LOG_ARRAYPANIC_ADDR
+					DSS_LOG_ARRAYPANIC_SIZE>;
+			no-map;
+		};
+		log_slcdump: log_slcdump {
+			reg = <0 DSS_LOG_SLCDUMP_ADDR
+					DSS_LOG_SLCDUMP_SIZE>;
+			no-map;
+		};
+		log_preslcdump: log_preslcdump {
+			reg = <0 DSS_LOG_PRE_SLCDUMP_ADDR
+					DSS_LOG_SLCDUMP_SIZE>;
+			no-map;
+		};
+		log_itmon: log_itmon {
+			reg = <0 DSS_LOG_ITMON_ADDR DSS_LOG_ITMON_SIZE>;
+			no-map;
+		};
+
+		seclog_mem: seclog_mem {
+			compatible = "exynos,seclog";
+			reg = <0 SECLOG_LOG_BUF_BASE SECLOG_LOG_BUF_TOTAL_SIZE>;
+		};
+	};
+};

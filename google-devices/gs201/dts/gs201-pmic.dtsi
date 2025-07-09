@@ -1,0 +1,1373 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs201 pmic device tree source
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/gs201.h>
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+#include <dt-bindings/power/google-power.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs101-pinctrl.h"
+
+&pinctrl_0 {
+	m_pmic_irq: m-pmic-irq {
+		samsung,pins = "gpa0-6";
+		samsung,pin-pud = <0>;
+	};
+
+	s_pmic_irq: s-pmic-irq {
+		samsung,pins = "gpa0-7";
+		samsung,pin-pud = <0>;
+	};
+
+	smpl_warn: smpl-warn {
+		samsung,pins = "gpa5-0";	/* SMPL_WARN_R_L */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&acpm_mfd_bus0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	s2mpg12mfd: s2mpg12mfd@1f {
+		compatible = "samsung,s2mpg12mfd";
+		acpm-ipc-channel = <2>;
+		s2mpg12,wakeup = "enabled";
+		reg = <0x1f>;
+		interrupts = <GIC_SPI IRQ_INTCOMB_VGPIO2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&m_pmic_irq &smpl_warn>;
+		gpios = <&gpa5 0 0>,		/* SMPL_WARN_R_L */
+			<&gpa5 1 0>,		/* OCP_WARN_CPUCL1_R */
+			<&gpa5 2 0>,		/* OCP_WARN_CPUCL2_R */
+			<&gpa5 3 0>,		/* SOFT_OCP_WARN_CPUCL1_R */
+			<&gpa5 4 0>,		/* SOFT_OCP_WARN_CPUCL2_R */
+			<&gpp19 1 0>,		/* OCP_WARN_TPU_R */
+			<&gpp19 3 0>;		/* SOFT_OCP_WARN_TPU_R */
+		#thermal-sensor-cells = <1>;
+
+		/* SMPL_WARN */
+		smpl_warn_en = <1>; /* 1 : enable , 0 : disable */
+		smpl_warn_vth = <SMPL_2_9V>;
+		/* SMPL_Hys[4:3] */
+		/* 00(Reserved), 01(200mV), 10(300mV), 11(Reserved) */
+		smpl_warn_hys = <SMPL_HYST_200MV>;
+
+		/* OCP WARN */
+		b2_ocp_warn_en = <1>;	/* 1 : enable, 0 : disable */
+		/* ocp warn reset timing control */
+		b2_ocp_warn_cnt = <0>;	/* 0 : 2 clock, 1 : 32 clock */
+		/* ocp warn mask when dvs */
+		b2_ocp_warn_dvs_mask = <0>;	/* 0 : not masked, 1 : masked */
+		b2_ocp_warn_lvl = <0>;		/* 12.0A */
+
+		b3_ocp_warn_en = <1>;		/* 1 : enable, 0 : disable */
+		b3_ocp_warn_cnt = <0>;		/* 0 : 2 clock, 1 : 32 clock */
+		b3_ocp_warn_dvs_mask = <0>;	/* 0 : not masked, 1 : masked */
+		b3_ocp_warn_lvl = <0>;		/* 8.0A */
+
+		b10_ocp_warn_en = <1>;		/* 1 : enable, 0 : disable */
+		b10_ocp_warn_cnt = <0>;		/* 0 : 2 clock, 1 : 32 clock */
+		b10_ocp_warn_dvs_mask = <0>;/* 0 : not masked, 1 : masked */
+		b10_ocp_warn_lvl = <0>;	/* 12A */
+
+		b2_soft_ocp_warn_en = <0>;		/* 1 : enable, 0 : disable */
+		b2_soft_ocp_warn_cnt = <0>;		/* 0 : 2 clock, 1 : 32 clock */
+		b2_soft_ocp_warn_dvs_mask = <0>;/* 0 : not masked, 1 : masked */
+		b2_soft_ocp_warn_lvl = <20>;		/* 9.0A */
+
+		b3_soft_ocp_warn_en = <0>; 		/* 1 : enable, 0 : disable */
+		b3_soft_ocp_warn_cnt = <0>; 	/* 0 : 2 clock, 1 : 32 clock */
+		b3_soft_ocp_warn_dvs_mask = <0>;/* 0 : not masked, 1 : masked */
+		b3_soft_ocp_warn_lvl = <0>; 		/* 7.0A */
+
+		b10_soft_ocp_warn_en = <0>;			/* 1 : enable, 0 : disable */
+		b10_soft_ocp_warn_cnt = <0>; 		/* 0 : 2 clock, 1 : 32 clock */
+		b10_soft_ocp_warn_dvs_mask = <0>;	/* 0 : not masked, 1 : masked */
+		b10_soft_ocp_warn_lvl = <0>; 		/* 8.5A */
+
+		/* BUCK OCP Detection */
+		buck_ocp_ctrl1 = <0xBB>;
+		buck_ocp_ctrl2 = <0xBB>;
+		buck_ocp_ctrl3 = <0xBB>;
+		buck_ocp_ctrl4 = <0xBB>;
+		buck_ocp_ctrl5 = <0xBB>;
+
+		/* RTC: wtsr/smpl */
+		wtsr_en = "enabled"; 		/* enable */
+		coldrst_en = "disabled";
+		smpl_en = "disabled"; 		/* disable */
+		wtsr_timer_val = <3>;		/* 1000ms */
+		coldrst_timer_val = <3>;	/* 256ms */
+		smpl_timer_val = <4>;		/* 500ms */
+		sub_smpl_en = "disabled";	/* disable */
+		check_jigon = <0>; 			/* do not check jigon */
+
+		/* RTC: If first boot, reset rtc to 1/1/2020 12:00:00(Wed) */
+		init_time,sec = <0>;
+		init_time,min = <0>;
+		init_time,hour = <12>;
+		init_time,mday = <1>;
+		init_time,mon = <0>;
+		init_time,year = <120>;
+		init_time,wday = <3>;
+
+		/* PCTRLSEL(VGPIO) 1~14 (CONTROL_SEL#) */
+		sel_vgpio = <0xC2 0x0B 0x22 0xA2 0x2D 0x2F 0x55 0x55
+			0x0B 0x7D 0x32 0x3C 0x80 0x80>;
+
+		s2mpg12-keys {
+			button@1 {
+				label = "pmic-keys: KEY_POWER";
+				linux,code = <116>;
+				wakeup = <1>;
+			};
+		};
+
+		regulators {
+			m_buck1_reg: BUCK1M {
+				regulator-name = "S2MPG12_BUCK1";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x1>;
+				schematic-name = "S1M_VDD_MIF";
+				subsys-name = "MIF";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x1>;
+			};
+
+			m_buck2_reg: BUCK2M {
+				regulator-name = "S2MPG12_BUCK2";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x2>;
+				schematic-name = "S2M_VDD_CPUCL2";
+				subsys-name = "CPU(BIG)";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x2>;
+				odpm_disable_in_sleep;
+			};
+
+			m_buck3_reg: BUCK3M {
+				regulator-name = "S2MPG12_BUCK3";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x3>;
+				schematic-name = "S3M_VDD_CPUCL1";
+				subsys-name = "CPU(MID)";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x4>;
+				odpm_disable_in_sleep;
+			};
+
+			m_buck4_reg: BUCK4M {
+				regulator-name = "S2MPG12_BUCK4";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x4>;
+				schematic-name = "S4M_VDD_CPUCL0";
+				subsys-name = "CPU(LITTLE)";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x8>;
+				odpm_disable_in_sleep;
+			};
+
+			m_buck5_reg: BUCK5M {
+				regulator-name = "S2MPG12_BUCK5";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x5>;
+				schematic-name = "S5M_VDD_INT";
+				subsys-name = "INT";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x10>;
+				odpm_disable_in_sleep;
+			};
+
+			m_buck6_reg: BUCK6M {
+				regulator-name = "S2MPG12_BUCK6";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x6>;
+				schematic-name = "S6M_LLDO1";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x20>;
+				odpm_disable_in_sleep;
+			};
+
+			m_buck7_reg: BUCK7M {
+				regulator-name = "S2MPG12_BUCK7";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x7>;
+				schematic-name = "S7M_VDD_INT_M";
+				subsys-name = "INT";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x40>;
+				odpm_disable_in_sleep;
+			};
+
+			m_buck8_reg: BUCK8M {
+				regulator-name = "S2MPG12_BUCK8";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x8>;
+				schematic-name = "S8M_LLDO2";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x80>;
+			};
+
+			m_buck9_reg: BUCK9M {
+				regulator-name = "S2MPG12_BUCK9";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x9>;
+				schematic-name = "S9M_LLDO3";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x1>;
+			};
+
+			m_buck10_reg: BUCK10M {
+				regulator-name = "S2MPG12_BUCK10";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0xA>;
+				schematic-name = "S10M_VDD_TPU";
+				subsys-name = "TPU";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x2>;
+				odpm_disable_in_sleep;
+			};
+
+			m_ldo1_reg: LDO1M {
+				regulator-name = "S2MPG12_LDO1";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x21>;
+				schematic-name = "L1M_ALIVE";
+				subsys-name = "Alive";
+			};
+
+			m_ldo2_reg: LDO2M {
+				regulator-name = "S2MPG12_LDO2";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x22>;
+				schematic-name = "L2M_ALIVE";
+				subsys-name = "Alive";
+			};
+
+			m_ldo3_reg: LDO3M {
+				regulator-name = "S2MPG12_LDO3";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x23>;
+				schematic-name = "L3M_VDD_AOC_RET";
+				subsys-name = "AOC";
+			};
+
+			m_ldo4_reg: LDO4M {
+				regulator-name = "S2MPG12_LDO4";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x24>;
+				schematic-name = "L4M_HSI";
+				subsys-name = "IO";
+			};
+
+			m_ldo5_reg: LDO5M {
+				regulator-name = "S2MPG12_LDO5";
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x25>;
+				schematic-name = "L5M_TCXO";
+				subsys-name = "PLL";
+			};
+
+			m_ldo6_reg: LDO6M {
+				regulator-name = "S2MPG12_LDO6";
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x26>;
+				schematic-name = "L6M_PLL";
+				subsys-name = "PLL";
+			};
+
+			m_ldo7_reg: LDO7M {
+				regulator-name = "S2MPG12_LDO7";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <950000>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x27>;
+				schematic-name = "L7M_VDD_HSI";
+				subsys-name = "IO";
+			};
+
+			m_ldo8_reg: LDO8M {
+				regulator-name = "S2MPG12_LDO8";
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x28>;
+				schematic-name = "L8M_USB";
+				subsys-name = "USB";
+			};
+
+			m_ldo9_reg: LDO9M {
+				regulator-name = "S2MPG12_LDO9";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x29>;
+				schematic-name = "L9M_USB";
+				subsys-name = "USB";
+			};
+
+			m_ldo10_reg: LDO10M {
+				regulator-name = "S2MPG12_LDO10";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3350000>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2A>;
+				schematic-name = "L10M_USB";
+				subsys-name = "USB";
+			};
+
+			m_ldo11_reg: LDO11M {
+				regulator-name = "S2MPG12_LDO11";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x2B>;
+				schematic-name = "L11M_VDD_CPUCL1_M";
+				subsys-name = "CPU(MID)";
+			};
+
+			m_ldo12_reg: LDO12M {
+				regulator-name = "S2MPG12_LDO12";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x2C>;
+				schematic-name = "L12M_VDD_CPUCL0_M";
+				subsys-name = "CPU(LITTLE)";
+			};
+
+			m_ldo13_reg: LDO13M {
+				regulator-name = "S2MPG12_LDO13";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x2D>;
+				schematic-name = "L13M_VDD_TPU_M";
+				subsys-name = "TPU";
+			};
+
+			m_ldo14_reg: LDO14M {
+				regulator-name = "S2MPG12_LDO14";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x2E>;
+				schematic-name = "L14M_TCXO";
+				subsys-name = "PLL";
+			};
+
+			m_ldo15_reg: LDO15M {
+				regulator-name = "S2MPG12_LDO15";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2F>;
+				schematic-name = "L15M_VDD_SLC_M";
+				subsys-name = "SLC";
+			};
+
+			m_ldo16_reg: LDO16M {
+				regulator-name = "S2MPG12_LDO16";
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x30>;
+				schematic-name = "L16M_PCIE0";
+				subsys-name = "PCIE";
+			};
+
+			m_ldo17_reg: LDO17M {
+				regulator-name = "S2MPG12_LDO17";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x31>;
+				schematic-name = "L17M_VDD_CPUCL2_M";
+				subsys-name = "CPU(BIG)";
+			};
+
+			m_ldo18_reg: LDO18M {
+				regulator-name = "S2MPG12_LDO18";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x32>;
+				schematic-name = "L18M_PCIE0";
+				subsys-name = "PCIE";
+			};
+
+			m_ldo19_reg: LDO19M {
+				regulator-name = "S2MPG12_LDO19";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <950000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x33>;
+				schematic-name = "L19M_SPARE";
+				subsys-name = "Spare";
+			};
+
+			m_ldo20_reg: LDO20M {
+				regulator-name = "S2MPG12_LDO20";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x34>;
+				schematic-name = "L20M_DMIC1";
+				subsys-name = "DMIC";
+			};
+
+			m_ldo21_reg: LDO21M {
+				regulator-name = "S2MPG12_LDO21";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x35>;
+				schematic-name = "L21M_GSC";
+				subsys-name = "GSC";
+			};
+
+			m_ldo22_reg: LDO22M {
+				regulator-name = "S2MPG12_LDO22";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x36>;
+				schematic-name = "L22M_SPARE";
+				subsys-name = "Spare";
+			};
+
+			m_ldo23_reg: LDO23M {
+				regulator-name = "S2MPG12_LDO23";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x37>;
+				schematic-name = "L23M_DMIC2";
+				subsys-name = "DMIC";
+			};
+
+			m_ldo24_reg: LDO24M {
+				regulator-name = "S2MPG12_LDO24";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x38>;
+				schematic-name = "L24M_DISP_VDDI";
+				subsys-name = "Display";
+			};
+
+			m_ldo25_reg: LDO25M {
+				regulator-name = "S2MPG12_LDO25";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x39>;
+				schematic-name = "L25M_TSP_DVDD";
+				subsys-name = "TSP";
+			};
+
+			m_ldo26_reg: LDO26M {
+				regulator-name = "S2MPG12_LDO26";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3A>;
+				schematic-name = "L26M_TS_AVDD";
+				subsys-name = "TS";
+			};
+
+			m_ldo27_reg: LDO27M {
+				regulator-name = "S2MPG12_LDO27";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3B>;
+				schematic-name = "L27M_DISP_VCI";
+				subsys-name = "Display";
+			};
+
+			m_ldo28_reg: LDO28M {
+				regulator-name = "S2MPG12_LDO28";
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x3C>;
+				schematic-name = "L28M_DISP";
+				subsys-name = "Display";
+			};
+		};
+
+		odpm {
+			chip-name = "S2MPG12";
+			sample-rate-uhz = <125000000>;
+			sample-rate-external-uhz = <31250000>;
+
+			/* 120 minutes was selected as the spec
+			 * for the sample rate (125sps)
+			 *
+			 * Note, this can be verified based on the
+			 * number of bits in the ACC registers.
+			 * ACC_COUNT is 20 bits. Thus,
+			 * 2^20 - 1 = 1048575 ==> 8388.6 seconds
+			 * ==> 139.81 minutes
+			 */
+			max-refresh-time-ms = <(120 * 60 * 1000)>;
+
+			channels {
+				ch1: channel@0 {
+					rail-name = "VSEN_C1";
+					channel_enabled;
+				};
+
+				ch2: channel@1 {
+					rail-name = "VSEN_C2";
+					channel_enabled;
+				};
+
+				ch3: channel@2 {
+					rail-name = "VSEN_C3";
+					channel_enabled;
+				};
+
+				ch4: channel@3 {
+					rail-name = "BUCK1M";
+					channel_enabled;
+				};
+
+				ch5: channel@4 {
+					rail-name = "BUCK2M";
+					channel_enabled;
+				};
+
+				ch6: channel@5 {
+					rail-name = "BUCK3M";
+					channel_enabled;
+				};
+
+				ch7: channel@6 {
+					rail-name = "BUCK4M";
+					channel_enabled;
+				};
+
+				ch8: channel@7 {
+					rail-name = "BUCK5M";
+					channel_enabled;
+				};
+
+				ch9: channel@8 {
+					rail-name = "BUCK8M";
+					channel_enabled;
+				};
+
+				ch10: channel@9 {
+					rail-name = "LDO15M";
+					channel_enabled;
+				};
+
+				ch11: channel@10 {
+					rail-name = "BUCK10M";
+					channel_enabled;
+				};
+
+				ch12: channel@11 {
+					rail-name = "BUCK6M";
+					channel_enabled;
+				};
+			};
+
+			rails {
+				use-regulators-as-rails;
+
+				/* Additional rails */
+				/* Note; VSEN_P is not supported */
+
+				m_ext4_rail: VSEN_C1 {
+					external_rail;
+					channel-en-index = <1>;
+					channel-mux-selection = <0x5C>;
+					shunt-res-uohms = <10000>;
+					schematic-name = "VSYS_PWR_MMWAVE";
+					subsys-name = "Cellular";
+				};
+
+				m_ext5_rail: VSEN_C2 {
+					external_rail;
+					channel-en-index = <2>;
+					channel-mux-selection = <0x5D>;
+					shunt-res-uohms = <5000>;
+					schematic-name = "VSYS_PWR_MODEM";
+					subsys-name = "Modem";
+				};
+
+				m_ext6_rail: VSEN_C3 {
+					external_rail;
+					channel-en-index = <4>;
+					channel-mux-selection = <0x5E>;
+					shunt-res-uohms = <5000>;
+					schematic-name = "VSYS_PWR_RFFE";
+					subsys-name = "Cellular";
+				};
+			};
+		};
+
+		s2mpg12_gpio: s2mpg12_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <6>;
+			gpio-ranges = <&s2mpg12_pinctrl 0 0 6>;
+		};
+
+		s2mpg12_pinctrl: s2mpg12_pinctrl {
+		};
+	};
+};
+
+&acpm_mfd_bus1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	s2mpg13mfd: s2mpg13mfd@2f {
+		compatible = "samsung,s2mpg13mfd";
+		acpm-ipc-channel = <2>;
+		s2mpg13,wakeup = "enabled";
+		reg = <0x2f>;
+		interrupts = <1 0 0>, // OCP_WARN_GPU
+			     <1 0 1>; // SOFT_OCP_WARN_GPU
+		interrupt-parent = <&gpa0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&s_pmic_irq>;
+		gpios = <&gpp19 0 0>,
+			<&gpp19 2 0>;
+		#thermal-sensor-cells = <1>;
+
+		b2_ocp_warn_en = <1>;		/* 1 : enable, 0 : disable */
+		b2_ocp_warn_cnt = <0>;		/* 0 : 2 clock, 1 : 32 clock */
+		b2_ocp_warn_dvs_mask = <0>;	/* 0 : not masked, 1 : masked  */
+		b2_ocp_warn_lvl = <0>;		/* 12.0A */
+
+		b2_soft_ocp_warn_en = <0>; 		/* 1 : enable, 0 : disable */
+		b2_soft_ocp_warn_cnt = <0>; 	/* 0 : 2 clock, 1 : 32 clock */
+		b2_soft_ocp_warn_dvs_mask = <0>;/* 0 : not masked, 1 : masked */
+		b2_soft_ocp_warn_lvl = <0>; 	/* 12.0A */
+
+		/* BUCK OCP Detection */
+		buck_ocp_ctrl1 = <0xBB>;
+		buck_ocp_ctrl2 = <0xBB>;
+		buck_ocp_ctrl3 = <0xBB>;
+		buck_ocp_ctrl4 = <0xBB>;
+		buck_ocp_ctrl5 = <0xBB>;
+		buck_ocp_ctrl6 = <0xBB>;
+		buck_ocp_ctrl7 = <0x0B>;
+
+		/* PCTRLSEL(VGPIO) 1~11 (CONTROL_SEL#) */
+		sel_vgpio = <0x92 0x92 0x69 0x0A 0x9A 0x12
+			0xCA 0x81 0x08 0x00 0x8A>;
+
+		regulators {
+			s_buck1_reg: BUCK1S {
+				regulator-name = "S2MPG13_BUCK1";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x1>;
+				schematic-name = "S1S_VDD_CAM";
+				subsys-name = "Multimedia";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x1>;
+				odpm_disable_in_sleep;
+			};
+
+			s_buck2_reg: BUCK2S {
+				regulator-name = "S2MPG13_BUCK2";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x2>;
+				schematic-name = "S2S_VDD_G3D";
+				subsys-name = "GPU";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x2>;
+				odpm_disable_in_sleep;
+			};
+
+			s_buck3_reg: BUCK3S {
+				regulator-name = "S2MPG13_BUCK3";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x3>;
+				schematic-name = "S3S_LLDO1";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x4>;
+			};
+
+			s_buck4_reg: BUCK4S {
+				regulator-name = "S2MPG13_BUCK4";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x4>;
+				schematic-name = "S4S_VDD2H_MEM";
+				subsys-name = "DDR";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x8>;
+			};
+
+			s_buck5_reg: BUCK5S {
+				regulator-name = "S2MPG13_BUCK5";
+				regulator-min-microvolt = <400000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x5>;
+				schematic-name = "S5S_VDDQ_MEM";
+				subsys-name = "DDR";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x10>;
+			};
+
+			s_buck6_reg: BUCK6S {
+				regulator-name = "S2MPG13_BUCK6";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x6>;
+				schematic-name = "S6S_LLDO2";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x20>;
+			};
+
+			s_buck7_reg: BUCK7S {
+				regulator-name = "S2MPG13_BUCK7";
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <2200000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x7>;
+				schematic-name = "S7S_MLDO";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x40>;
+			};
+
+			s_buck8_reg: BUCK8S {
+				regulator-name = "S2MPG13_BUCK8";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x8>;
+				schematic-name = "S8S_VDD_G3D_L2";
+				subsys-name = "GPU";
+				buck_rail;
+				channel-en-byte-offset = <0>;
+				channel-en-index = <0x80>;
+				odpm_disable_in_sleep;
+			};
+
+			s_buck9_reg: BUCK9S {
+				regulator-name = "S2MPG13_BUCK9";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x9>;
+				schematic-name = "S9S_VDD_AOC";
+				subsys-name = "AOC";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x1>;
+			};
+
+			s_buck10_reg: BUCK10S {
+				regulator-name = "S2MPG13_BUCK10";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0xA>;
+				schematic-name = "S10S_LLDO3";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x2>;
+			};
+
+			s_bucka_reg: BUCKA {
+				regulator-name = "S2MPG13_BUCKA";
+				regulator-min-microvolt = <1700000>;
+				regulator-max-microvolt = <2100000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0xC>;
+				schematic-name = "SA";
+				subsys-name = "IO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x8>;
+			};
+
+			s_buckboost_reg: BUCKBOOST {
+				regulator-name = "S2MPG13_BUCKBOOST";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3600000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x10>;
+				schematic-name = "BB_HLDO";
+				subsys-name = "LDO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x10>;
+			};
+
+			s_buckc_reg: BUCKC {
+				regulator-name = "S2MPG13_BUCKC";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0xD>;
+				schematic-name = "SC";
+				subsys-name = "IO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x8>;
+			};
+
+			s_buckd_reg: BUCKD {
+				regulator-name = "S2MPG13_BUCKD";
+				regulator-min-microvolt = <2400000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0xB>;
+				schematic-name = "SD";
+				subsys-name = "IO";
+				buck_rail;
+				channel-en-byte-offset = <1>;
+				channel-en-index = <0x4>;
+			};
+
+			s_ldo1_reg: LDO1S {
+				regulator-name = "S2MPG13_LDO1";
+				regulator-min-microvolt = <450000>;
+				regulator-max-microvolt = <950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x21>;
+				schematic-name = "L1S_VDD_G3D_M";
+				subsys-name = "GPU";
+			};
+
+			s_ldo2_reg: LDO2S {
+				regulator-name = "S2MPG13_LDO2";
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x22>;
+				schematic-name = "L2S_PLL_MIPI_UFS";
+				subsys-name = "PLL";
+			};
+
+			s_ldo3_reg: LDO3S {
+				regulator-name = "S2MPG13_LDO3";
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x23>;
+				schematic-name = "L3S_PCIE1";
+				subsys-name = "PCIE";
+			};
+
+			s_ldo4_reg: LDO4S {
+				regulator-name = "S2MPG13_LDO4";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x24>;
+				schematic-name = "L4S_HS_AMP";
+				subsys-name = "Audio";
+			};
+
+			s_ldo5_reg: LDO5S {
+				regulator-name = "S2MPG13_LDO5";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x25>;
+				schematic-name = "L5S_PROX";
+				subsys-name = "Prox";
+			};
+
+			s_ldo6_reg: LDO6S {
+				regulator-name = "S2MPG13_LDO6";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x26>;
+				schematic-name = "L6S_DISP2_VCI";
+				subsys-name = "Display";
+			};
+
+			s_ldo7_reg: LDO7S {
+				regulator-name = "S2MPG13_LDO7";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-boot-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x27>;
+				schematic-name = "L7S_SENSORS_FPS";
+				subsys-name = "Sensors";
+			};
+
+			s_ldo8_reg: LDO8S {
+				regulator-name = "S2MPG13_LDO8";
+				regulator-min-microvolt = <1125000>;
+				regulator-max-microvolt = <1275000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x28>;
+				schematic-name = "L8S_UFS_VCCQ";
+				subsys-name = "UFS";
+			};
+
+			s_ldo9_reg: LDO9S {
+				regulator-name = "S2MPG13_LDO9";
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x29>;
+				schematic-name = "L9S_GNSS_CORE";
+				subsys-name = "GPS";
+			};
+
+			s_ldo10_reg: LDO10S {
+				regulator-name = "S2MPG13_LDO10";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2A>;
+				schematic-name = "L10S_GNSS_RF";
+				subsys-name = "GPS";
+			};
+
+			s_ldo11_reg: LDO11S {
+				regulator-name = "S2MPG13_LDO11";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2B>;
+				schematic-name = "L11S_GNSS_AUX";
+				subsys-name = "GPS";
+			};
+
+			s_ldo12_reg: LDO12S {
+				regulator-name = "S2MPG13_LDO12";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x2C>;
+				schematic-name = "L12S_TS2_DVDD";
+				subsys-name = "Touch";
+			};
+
+			s_ldo13_reg: LDO13S {
+				regulator-name = "S2MPG13_LDO13";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3350000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x2D>;
+				schematic-name = "L13S_DPAUX";
+				subsys-name = "Display";
+			};
+
+			s_ldo14_reg: LDO14S {
+				regulator-name = "S2MPG13_LDO14";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2E>;
+				schematic-name = "L14S_NFC";
+				subsys-name = "NFC";
+			};
+
+			s_ldo15_reg: LDO15S {
+				regulator-name = "S2MPG13_LDO15";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x2F>;
+				schematic-name = "L15S_UDFPS";
+				subsys-name = "FPS";
+			};
+
+			s_ldo16_reg: LDO16S {
+				regulator-name = "S2MPG13_LDO16";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x30>;
+				schematic-name = "L16S_UWB";
+				subsys-name = "UWB";
+			};
+
+			s_ldo17_reg: LDO17S {
+				regulator-name = "S2MPG13_LDO17";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x31>;
+				schematic-name = "L17S_UWB";
+				subsys-name = "UWB";
+			};
+
+			s_ldo18_reg: LDO18S {
+				regulator-name = "S2MPG13_LDO18";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_SUSPEND>;
+				channel-mux-selection = <0x32>;
+				schematic-name = "L18S_PCIE1";
+				subsys-name = "PCIE";
+			};
+
+			s_ldo19_reg: LDO19S {
+				regulator-name = "S2MPG13_LDO19";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x33>;
+				schematic-name = "L19S_DMIC3";
+				subsys-name = "DMIC";
+			};
+
+			s_ldo20_reg: LDO20S {
+				regulator-name = "S2MPG13_LDO20";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x34>;
+				schematic-name = "L20S_DMIC45";
+				subsys-name = "DMIC";
+			};
+
+			s_ldo21_reg: LDO21S {
+				regulator-name = "S2MPG13_LDO21";
+				regulator-min-microvolt = <725000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+				regulator-initial-mode = <SEC_OPMODE_ON>;
+				channel-mux-selection = <0x35>;
+				schematic-name = "L21S_VDD2L_MEM";
+				subsys-name = "DDR";
+			};
+
+			s_ldo22_reg: LDO22S {
+				regulator-name = "S2MPG13_LDO22";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x36>;
+				schematic-name = "L22S_UDFPS";
+				subsys-name = "FPS";
+			};
+
+			s_ldo23_reg: LDO23S {
+				regulator-name = "S2MPG13_LDO23";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x37>;
+				schematic-name = "L23S_SPARE";
+				subsys-name = "Spare";
+			};
+
+			s_ldo24_reg: LDO24S {
+				regulator-name = "S2MPG13_LDO24";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x38>;
+				schematic-name = "L24S_SPARE";
+				subsys-name = "Spare";
+			};
+
+			s_ldo25_reg: LDO25S {
+				regulator-name = "S2MPG13_LDO25";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x39>;
+				schematic-name = "L25S_SPARE";
+				subsys-name = "Spare";
+			};
+
+			s_ldo26_reg: LDO26S {
+				regulator-name = "S2MPG13_LDO26";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x3A>;
+				schematic-name = "L26S_S5910";
+				subsys-name = "S5910";
+			};
+
+			s_ldo27_reg: LDO27S {
+				regulator-name = "S2MPG13_LDO27";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1950000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x3B>;
+				schematic-name = "L27S_S5910";
+				subsys-name = "S5910";
+			};
+
+			s_ldo28_reg: LDO28S {
+				regulator-name = "S2MPG13_LDO28";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-initial-mode = <SEC_OPMODE_OFF>;
+				channel-mux-selection = <0x3C>;
+				schematic-name = "L28S_HS_AMP";
+				subsys-name = "Audio";
+			};
+		};
+
+		odpm {
+			chip-name = "S2MPG13";
+			sample-rate-uhz = <125000000>;
+			sample-rate-external-uhz = <31250000>;
+
+			/* 120 minutes was selected as the spec
+			 * for the sample rate (125sps)
+			 *
+			 * Note, this can be verified based on the
+			 * number of bits in the ACC registers.
+			 * ACC_COUNT is 20 bits. Thus,
+			 * 2^20 - 1 = 1048575 ==> 8388.6 seconds
+			 * ==> 139.81 minutes
+			 */
+			max-refresh-time-ms = <(120 * 60 * 1000)>;
+
+			channels {
+				ch13: channel@0 {
+					rail-name = "VSEN_C4";
+					channel_enabled;
+				};
+
+				ch14: channel@1 {
+					rail-name = "VSEN_C5";
+					channel_enabled;
+				};
+
+				ch15: channel@2 {
+					rail-name = "LDO9S";
+					channel_enabled;
+				};
+
+				ch16: channel@3 {
+					rail-name = "BUCK1S";
+					channel_enabled;
+				};
+
+				ch17: channel@4 {
+					rail-name = "BUCK2S";
+					channel_enabled;
+				};
+
+				ch18: channel@5 {
+					rail-name = "BUCK4S";
+					channel_enabled;
+				};
+
+				ch19: channel@6 {
+					rail-name = "BUCK5S";
+					channel_enabled;
+				};
+
+				ch20: channel@7 {
+					rail-name = "BUCK8S";
+					channel_enabled;
+				};
+
+				ch21: channel@8 {
+					rail-name = "BUCK9S";
+					channel_enabled;
+				};
+
+				ch22: channel@9 {
+					rail-name = "LDO7S";
+					channel_enabled;
+				};
+
+				ch23: channel@10 {
+					rail-name = "LDO14S";
+					channel_enabled;
+				};
+
+				ch24: channel@11 {
+					rail-name = "LDO2S";
+					channel_enabled;
+				};
+			};
+
+			rails {
+				use-regulators-as-rails;
+
+				/* Additional rails */
+				/* Note; VSEN_P is not supported */
+
+				s_ext4_rail: VSEN_C4 {
+					external_rail;
+					channel-en-index = <1>;
+					channel-mux-selection = <0x5C>;
+					shunt-res-uohms = <10000>;
+					schematic-name = "VSYS_PWR_DISPLAY";
+					subsys-name = "Display";
+				};
+
+				s_ext5_rail: VSEN_C5 {
+					external_rail;
+					channel-en-index = <2>;
+					channel-mux-selection = <0x5D>;
+					shunt-res-uohms = <10000>;
+					schematic-name = "VSYS_PWR_WLAN_BT";
+					subsys-name = "WLAN-BT";
+				};
+
+				s_ext6_rail: VSEN_C6 {
+					external_rail;
+					channel-en-index = <4>;
+					channel-mux-selection = <0x5E>;
+					shunt-res-uohms = <5000>;
+					schematic-name = "VSEN_C6_NC";
+					subsys-name = "Spare";
+				};
+			};
+		};
+
+		s2mpg13_gpio: s2mpg13_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+			gpio-ranges = <&s2mpg13_pinctrl 0 0 8>;
+		};
+
+		s2mpg13_pinctrl: s2mpg13_pinctrl {
+		};
+	};
+};
+
+&acpm_mbox_test {
+	main-pmic = <&s2mpg12mfd>;
+	sub-pmic = <&s2mpg13mfd>;
+	acpm-ipc-channel = <2>;
+};

@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * GS101 SoC Faceauth-HEAP
+ *
+ * Copyright 2021 Google LLC
+ */
+
+&faceauth_tpu_dma_heap {
+	status = "okay";
+};
+
+&faceauth_rawimage_heap {
+	status = "okay";
+};
+
+&faceauth_preview_heap {
+	status = "okay";
+};
+
+&faceauth_model_heap {
+	status = "okay";
+};
+
+&faceauth_tpu {
+	status = "okay";
+};
+
+&famodel {
+	status = "okay";
+};
+
+&farawimg {
+	status = "okay";
+};
+
+&faprev {
+	status = "okay";
+};

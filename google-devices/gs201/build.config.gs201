@@ -1,0 +1,13 @@
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.common
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.aarch64
+
+KCONFIG_EXT_MODULES_PREFIX=$(realpath ${ROOT_DIR} --relative-to ${ROOT_DIR}/${KERNEL_DIR})/
+KCONFIG_SOC_GS_PREFIX=${KCONFIG_EXT_MODULES_PREFIX}/private/google-modules/soc/gs/
+
+DEFCONFIG=gki_defconfig
+
+BOOT_IMAGE_HEADER_VERSION=4
+TRIM_UNUSED_MODULES=1
+
+DTC_INCLUDE=${ROOT_DIR}/private/google-modules/soc/gs/include/dtc
+MKDTIMG_FLAGS="--page_size=4096 --id=/:board_id --rev=/:board_rev"

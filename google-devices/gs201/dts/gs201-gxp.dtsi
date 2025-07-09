@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * GXP device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include <dt-bindings/interrupt-controller/gs201.h>
+
+/ {
+	/* GXP */
+	gxp: gxp@25C00000 {
+		compatible = "google,gxp";
+		#dma-address-cells = <1>;
+		#dma-size-cells = <1>;
+		dma-window = <0x00001000 0xFFFFF000>;
+		gcip-dma-window = <0x30000000 0xC0000000>; /* GCIP IOMMU attribute. */
+		gcip-reserved-map = <0x80000000 0x1000>;
+		pasid-num-bits = <3>;
+		reg = <0x0 0x25C00000 0x01400000
+		       /* Mailboxes */
+		       0x0 0x18380000 0x00001000
+		       0x0 0x183A0000 0x00001000
+		       0x0 0x183C0000 0x00001000
+		       0x0 0x183E0000 0x00001000
+		       /* CMU AUR */
+		       0x0 0x25A00000 0x00001000
+		       /* SSMTs */
+		       0x0 0x25AD0000 0x00010000
+		       0x0 0x25AE0000 0x00010000>;
+		reg-names = "aur",
+			    "mailbox0", "mailbox1", "mailbox2", "mailbox3",
+			    "cmu", "ssmt_idma", "ssmt_inst_data";
+		interrupts = <GIC_SPI IRQ_MAILBOX_AUR02AP_ALIVE IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI IRQ_MAILBOX_AUR12AP_ALIVE IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI IRQ_MAILBOX_AUR22AP_ALIVE IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI IRQ_MAILBOX_AUR32AP_ALIVE IRQ_TYPE_LEVEL_HIGH
+			      GIC_SPI IRQ_AUR_WDOG_CPU_IRQ_AUR IRQ_TYPE_EDGE_RISING>;
+		tpu-device = <&edgetpu>;
+		gsa-device = <&gsa>;
+		gxp-tpu-mbx-offset = <0x0 0xC0000>;
+		iommus = <&sysmmu_aur_idma>, <&sysmmu_aur_inst_data>;
+		samsung,iommu-group = <&iommu_group_aur>;
+		gxp-fw-region = <&gxp_fw_reserved>;
+		gxp-scratchpad-region = <&gxp_scratchpad_reserved>;
+		gxp-memory-per-core = <0 512>;
+		gcip-dvfs-table-size = <7 2>; /*<row col>*/
+		gcip-dvfs-table = <
+			/*
+			 * when updating gcip-dvfs-table, update gcip-dvfs-table-size as well
+			 * freq   power(mW)
+			 * -------------------
+			 */
+			1065000   78
+			 861000   58
+			 713000   40
+			 560000   27
+			 355000   20
+			 256000   16
+			 178000   13
+		>;
+	};
+	gxp_cooling: gxp-cooling {
+		#cooling-cells = <2>;
+	};
+};

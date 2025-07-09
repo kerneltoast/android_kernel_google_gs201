@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Samsung's SoC UFS device tree source
+ *
+ * Copyright (c) 2020 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+#include <dt-bindings/ufs/ufs.h>
+
+/ {
+	sysreg_hsi2_system_controller: system-controller@14420000 {
+		compatible = "google,gs201-sysreg-hsi2", "syscon";
+		reg = <0x0 0x14420000 0x1000>;
+	};
+
+	ufs: ufs@14700000 {
+		/* ----------------------- */
+		/* 1. SYSTEM CONFIGURATION */
+		/* ----------------------- */
+		compatible ="samsung,exynos-ufs";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+
+		reg =
+			<0x0 0x14700000 0x200>,		/* HCI standard */
+			<0x0 0x14701100 0x200>,		/* Vendor specificed */
+			<0x0 0x14780000 0xa000>,	/* UNIPRO */
+			<0x0 0x14600000 0x100>,		/* UFS protector */
+			<0x0 0x14704000 0x3000>,	/* phy */
+			<0x0 0x14708000 0x804>;		/* cport */
+		interrupts = <GIC_SPI IRQ_UFS_EMBD_HSI2 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ufs_rst_n &ufs_refclk_out>;
+		clocks =
+			/* aclk clock */
+			<&clock GATE_UFS_EMBD>,
+			/* unipro clocks */
+			<&clock UFS_EMBD>;
+
+		clock-names =
+			/* aclk clocks */
+			"GATE_UFS_EMBD",
+			/* unipro clocks */
+			"UFS_EMBD";
+
+		/* ----------------------- */
+		/* 2. UFS COMMON           */
+		/* ----------------------- */
+		freq-table-hz = <0 0>, <0 0>;
+
+		vcc-supply = <&ufs_fixed_vcc>;
+		vcc-fixed-regulator;
+
+		/* ----------------------- */
+		/* 3. UFS EXYNOS           */
+		/* ----------------------- */
+		/* power mode change */
+		ufs,pmd-attr-lane = /bits/ 8 <2>;
+		ufs,pmd-attr-gear = /bits/ 8 <4>;
+
+		/* evt version for UFS CAL */
+		evt-ver = /bits/ 8 <0>;
+
+		/* board type for UFS CAL */
+		brd-for-cal = /bits/ 8 <1>;  /* (1:SMDK, 16:UNIV) board */
+
+		/* DMA coherent callback, should be coupled with 'ufs-sys' */
+		dma-coherent;
+
+		/* UFS IO coherency  */
+		samsung,sysreg-phandle = <&sysreg_hsi2_system_controller>;
+
+		fmp-id = <0>;
+		smu-id = <0>;
+
+		/* GSA (KDN) device  */
+		gsa-device = <&gsa>;
+
+		/* UTRD bug fixed */
+		fixed-prdt-req_list-ocs;
+
+		/* ----------------------- */
+		/* 4. ADDITIONAL NODES     */
+		/* ----------------------- */
+		ufs-phy-iso {
+			offset = <0x3ec8>;
+			mask = <0x1>;
+			val = <0x1>;
+		};
+		ufs-iocc {
+			offset = <0x710>;
+			mask = <0x3>;
+			val = <0x3>;
+		};
+		ufs-perf {
+			active = <0>;
+
+			freq-cluster1 = <1066000>;
+			freq-cluster0 = <1794000>;
+			chunk = <128>;
+			count-b = <40>;
+			count-l = <48>;
+			period-in-ms-b = <160>;
+			period-in-ms-l = <3>;
+			reset-delay-in-ms = <30>;
+		};
+	};
+
+	ufs_fixed_vcc: fixedregulator@0 {
+		       compatible = "regulator-fixed";
+		       regulator-name = "ufs-vcc";
+		       gpio = <&gpp0 1 0>;
+		       regulator-boot-on;
+		       enable-active-high;
+	};
+
+};

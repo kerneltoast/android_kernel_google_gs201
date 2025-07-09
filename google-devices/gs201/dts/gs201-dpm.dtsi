@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS201 Debug Policy Manager device tree source
+ *
+ * Copyright 2021 Google LLC
+ */
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <1>;
+	dpm: dpm  {
+	}; /* end of dpm */
+}; /* end of root */
+
+/* default settings built into kernel dt */
+#include "gs201-dpm-user.dtsi"

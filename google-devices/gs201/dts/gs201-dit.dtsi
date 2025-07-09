@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Samsung CP interface device tree source
+ *
+ * Copyright (c) 2019-2020 Samsung Electronics Co., Ltd.
+ *             http://www.samsung.com
+ */
+
+#include <dt-bindings/soc/google/exynos-dit.h>
+
+/ {
+	dit {
+		compatible = "samsung,exynos-dit";
+		status = "okay";
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI IRQ_DIT_RxDst00_MISC IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_DIT_RxDst1_MISC IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_DIT_RxDst2_MISC IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_DIT_TxDst0_MISC IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "DIT-RxDst00", "DIT-RxDst1", "DIT-RxDst2", "DIT-Tx";
+
+		reg = <0x0 0x10190000 0x00010000>, <0x0 0x10030000 0x00002000>;
+		reg-names = "dit", "sysreg";
+
+		/* DIT_SHARABILITY_CON or DIT_BUS_CON */
+		dit_sharability_offset = <0x00001108>;
+		dit_sharability_value = <0x00110011>;
+
+		dit_hw_capabilities = <(DIT_CAP_MASK_NONE)>;
+
+		dit_use_tx = <0>;
+		dit_use_rx = <0>;
+		dit_use_clat = <0>;
+		dit_use_recycling = <0>;
+
+		dit_hal_support = <1>;
+		dit_hal_enqueue_rx = <0>;
+
+		dit_rx_extra_desc_ring_len = <2048>;
+		dit_irq_affinity = <2>;
+	};
+};

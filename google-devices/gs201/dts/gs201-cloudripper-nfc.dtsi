@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google GS101 Board device tree source
+ *
+ * Copyright (c) 2021 Google, LLC
+ *		https://www.google.com
+ *
+*/
+#include <dt-bindings/clock/gs201.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs101-pinctrl.h"
+
+&pinctrl_6 {
+	nfc_rst: nfc-rst {
+		samsung,pins = "gph1-5";
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+	nfc_pidle: nfc-pidle {
+		samsung,pins = "gph0-5";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_UP>;
+	};
+};
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <400000>;
+	status = "okay";
+	st21nfc@8 {
+		compatible = "st,st21nfc";
+		reg = <0x08>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_rst &nfc_pidle>;
+		interrupt-parent = <&gpa9>;
+		interrupts = <0 0 0>;
+		reset-gpios = <&gph1 5 0>;
+		irq-gpios = <&gpa9 1 0>;
+		clkreq-gpios = <&gpp25 3 0>;
+		pidle-gpios = <&gph0 5 0>;
+		st,pidle_active_low;
+		clock-names = "nfc_ref_clk";
+		clocks = <&clock CLKOUT1>;
+		pmu_clk_pad = <0x3e84>;
+		status = "ok";
+	};
+};

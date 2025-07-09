@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Goodix fps device tree source
+ *
+ * Copyright 2021 Google,LLC.
+ */
+
+&pinctrl_4 {
+	goodixfp_pins: goodixfp_pins {
+		samsung,pins = "gpp1-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&odm {
+	goodixfp {
+		status = "okay";
+		compatible = "goodix,fingerprint";
+		interrupt-parent = <&gpa9>;
+		interrupts = <2 0>;
+		spi-max-frequency = <1000000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&goodixfp_pins>;
+		fp-gpio-irq = <&gpa9 2 GPIO_ACTIVE_HIGH>;
+		fp-gpio-reset = <&gpp1 1 GPIO_ACTIVE_LOW>;
+	};
+
+	fps_touch_handler: fps_touch_handler {
+		status = "okay";
+		compatible = "google,fps-touch-handler";
+	};
+};

@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Pantah pmic device tree source
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+&m_ldo23_reg {
+	schematic-name = "L23M_SPARE";
+	subsys-name = "Spare";
+};
+
+&m_ldo24_reg {
+	schematic-name = "L24M_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo4_reg {
+	schematic-name = "L4S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo6_reg {
+	schematic-name = "L6S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo7_reg {
+	schematic-name = "L7S_SENSORS";
+};
+
+&s_ldo8_reg {
+	schematic-name = "L8S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo12_reg {
+	schematic-name = "L12S_CAMIO";
+	subsys-name = "Multimedia";
+};
+
+&s_ldo14_reg {
+	schematic-name = "L14S_ALIVE";
+	subsys-name = "Alive";
+};
+
+&s_ldo15_reg {
+	schematic-name = "L15S_UDFPS_AVDD";
+};
+
+&s_ldo20_reg {
+	schematic-name = "L20S_DMIC2";
+	subsys-name = "DMIC";
+};
+
+&s_ldo22_reg {
+	schematic-name = "L22S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo26_reg {
+	schematic-name = "L26S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo27_reg {
+	schematic-name = "L27S_SPARE";
+	subsys-name = "Spare";
+};
+
+&s_ldo28_reg {
+	schematic-name = "L28S_SPARE";
+	subsys-name = "Spare";
+};
+

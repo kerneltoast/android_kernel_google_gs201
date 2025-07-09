@@ -1,0 +1,34 @@
+# WiFi, BT drivers; loaded per-device via insmod.sh
+blocklist bcmdhd4389
+blocklist mhi
+blocklist qmi_helpers
+blocklist qrtr
+blocklist qrtr_mhi
+blocklist btpower
+
+# Only needed on lynx
+blocklist cs40l26_i2c
+blocklist goodix_brl_touch
+
+# Only needed on felix
+blocklist ftm5
+
+# Not needed for anyone?
+blocklist sec_touch
+
+# Only needed on some pantah
+blocklist syna_touch
+
+# Only needed on felix
+blocklist fst2
+
+# Only needed on tangorpro
+blocklist goog_usi_stylus
+blocklist nvt_touch
+blocklist synadhd
+
+# Only needed on lynx, panther
+blocklist focal_touch
+
+# Only needed on tangorpro, felix
+blocklist fpc1020_platform_tee
