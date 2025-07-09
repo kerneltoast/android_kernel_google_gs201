@@ -1,0 +1,60 @@
+config TOUCHSCREEN_HEATMAP
+	tristate "Heatmap support for touchscreen"
+	select VIDEOBUF2_VMALLOC
+	help
+	  Do not explicitly select this option. The drivers that utilize
+	  this module must select this in their Kconfig.
+
+config TOUCHSCREEN_TBN
+	tristate "Touch Bus Negotiator for Google Pixel"
+	help
+	  Say Y here if you have a Google Pixel device. This module enables
+	  support for kernel touch drivers to coordinate bus access with remote
+	  processors (e.g. sensor DSP processor), which is required to enable
+	  low power touch gesture detection in processors other than AP.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called touch_bus_negotiator.
+
+config TOUCHSCREEN_TBN_AOC_CHANNEL_MODE
+	bool "AOC channel mode for TBN"
+	depends on TOUCHSCREEN_TBN
+	help
+	  Say Y here if you want to enable AOC channel mode for TBN.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_OFFLOAD
+	tristate "Touchscreen algorithm offload"
+	help
+	  Say Y here to enable touchscreen algorithm offload. This module allows
+	  the touchscreen driver to feed heatmap data into a char device to be
+	  consumed by a client outside the kernel.
+
+	  If unsure, say N.
+
+config GOOG_TOUCH_INTERFACE
+	tristate "Google Touch Interface (GTI)"
+	depends on TOUCHSCREEN_OFFLOAD
+	depends on TOUCHSCREEN_HEATMAP
+	help
+	  Say Y here if you want to enable the Google Touch Interface driver.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_SPI_FLASH
+        bool "Touchscreen with flash support"
+        default n
+        help
+          Say Y here if you have the touchscreen with flash support.
+
+          If unsure, say N.
+
+config GOOG_USI_STYLUS
+	tristate "Google USI Stylus Subsystem"
+	help
+	  Say Y here if you want to enable the Google USI Stylus Subsystem.
+
+	  If unsure, Say N.

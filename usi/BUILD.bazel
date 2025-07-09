@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/touch:__subpackages__",
+    ],
+)
+
+kernel_module(
+    name = "touch.common.usi",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Kbuild",
+    ],
+    outs = [
+        "goog_usi_stylus.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/touch:__subpackages__",
+    ],
+)
