@@ -1,0 +1,7 @@
+ccflags-y := -DDYNAMIC_DEBUG_MODULE
+
+ccflags-y += -I$(KERNEL_SRC)/../private/google-modules/touch/common
+ccflags-y += -I$(KERNEL_SRC)/../private/google-modules/touch/common/include
+
+obj-$(CONFIG_FPS_TOUCH_HANDLER) = fps_touch_handler.o
+
