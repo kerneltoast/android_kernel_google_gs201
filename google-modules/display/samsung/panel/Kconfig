@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_PANEL_GOOGLE_COMMON
+	tristate "Google common panel driver"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SAMSUNG_COMMON
+	tristate "Samsung common panel driver"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SAMSUNG_EMUL
+	tristate "Samsung emulator panel"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SAMSUNG_S6E3HC2
+	tristate "Samsung S6E3HC2 panel"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SAMSUNG_S6E3FC3
+	tristate "Samsung S6E3FC3 Panel"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SAMSUNG_S6E3FC3_P10
+	tristate "Samsung S6E3FC3_P10 Panel"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SAMSUNG_SOFEF01
+	tristate "Samsung SOFEF01 Panel"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SAMSUNG_S6E3HC3
+	tristate "Samsung S6E3HC3 Panel"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SAMSUNG_S6E3HC3_C10
+	tristate "Samsung S6E3HC3_C10 Panel"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_SAMSUNG_S6E3HC4
+	tristate "Samsung S6E3HC4 Panel"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_BOE_NT37290
+	tristate "BOE NT37290 Panel"
+	depends on DRM && DRM_PANEL
+
+config DRM_PANEL_BOE_NT37290
+	tristate "BOE NT37290 Panel"
+	depends on DRM && DRM_PANEL
+

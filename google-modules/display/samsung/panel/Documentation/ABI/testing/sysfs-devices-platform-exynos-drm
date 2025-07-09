@@ -1,0 +1,96 @@
+What:		/sys/devices/platform/exynos-drm/<panel>/error_count_te
+Date:		March, 2023
+KernelVersion:	5.15
+Contact:	"Jeremy DeHaan" <jdehaan@google.com>
+Description:
+		This file provides the count of all TE errors detected during
+		runtime.
+
+		Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What:		/sys/devices/platform/exynos-drm/<panel>/error_count_unknown
+Date:		March, 2023
+KernelVersion:	5.15
+Contact:	"Jeremy DeHaan" <jdehaan@google.com>
+Description:
+		This file provides the count of all unclassified errors detected
+		during runtime.
+
+		Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What:		/sys/devices/platform/exynos-drm/<panel>/refresh_ctrl
+Date:		October, 2024
+KernelVersion:	6.1
+Contact:	"Jeremy DeHaan" <jdehaan@google.com>
+Description:
+		This file provides a mechanism to control panel refresh
+		behaviors.
+
+		Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What:		/sys/devices/platform/exynos-drm/<panel>/panel_pwr_vreg
+Date:		October 2023
+KernelVersion:	5.15
+Contact:	"Chris Lu" <luchris@google.com>
+Description:
+		The file provides the Vreg power setting of a panel.
+
+		Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What:		/sys/devices/platform/exynos-drm/<panel>/time_in_state
+Date:		December 2023
+KernelVersion:	5.15
+Contact:	"Midas Chien" <midaschieh@google.com>
+Description:
+		The file provides the time (msec) spent in various display states.
+
+		Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What:		/sys/devices/platform/exynos-drm/<panel>/available_disp_stats
+Date:		December 2023
+KernelVersion:	5.15
+Contact:	"Midas Chien" <midaschieh@google.com>
+Description:
+		The file provides the available display stats state.
+
+		Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What:		/sys/class/backlight/<panel>-backlight/allow_wakeup_by_state_change
+Date:		January 2024
+KernelVersion:	5.15
+Contact:	"Midas Chien" <midaschieh@google.com>
+Description:
+		The file specifies whether the system can be awakened to receive
+		notifications regarding backlight state changes.
+
+		Valid panels are 'panel0' or 'panel1'.
+
+What:		/sys/devices/platform/exynos-drm/<panel>/refresh_ctrl
+Date:		October, 2024
+KernelVersion:	6.1
+Contact:	"Jeremy DeHaan" <jdehaan@google.com>
+Description:
+		This file provides a mechanism to control panel refresh
+		behaviors.
+
+		Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What:		/sys/devices/platform/exynos-drm/<panel>/power_mode
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Attis Chen" <attis@google.com>
+Description:
+		Userspace client uses this to read the display_on, normal and sleep bits at
+		bit 2, 3, 4 respectively of power mode register.
+
+		Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What:		/sys/devices/platform/exynos-drm/<panel>/power_state
+Date:		August, 2024
+KernelVersion:	6.1
+Contact:	"Kevin Ying" <kevinying@google.com>
+Description:
+		Userspace client uses this to read panel power state. This information
+		includes only if the panel is on, off, in low-power mode, or in a HBM state.
+
+		Valid panels are 'primary-panel' or 'secondary-panel'.

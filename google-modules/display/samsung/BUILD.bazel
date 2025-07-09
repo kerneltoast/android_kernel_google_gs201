@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: GPL-2.0
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = [
+        "dp_audio/dp_audio.h",
+        "exynos_drm_connector.h",
+        "exynos_drm_format.h",
+        "panel/panel-common.h",
+        "panel/panel-samsung-drv.h",
+        "//private/google-modules/display/common:headers",
+        "//private/google-modules/display/samsung/include:headers",
+    ],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/aoc/alsa:__subpackages__",
+        "//private/google-modules/touch:__subpackages__",
+    ],
+)
+
+filegroup(
+    name = "display.samsung.kconfig",
+    srcs = [
+        "Kconfig",
+        "panel/Kconfig",
+    ],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
+
+kernel_module(
+    name = "display.samsung",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Kbuild",
+        "panel/Kbuild",
+        "//private/google-modules/aoc/alsa:headers",
+        "//private/google-modules/bms/misc:headers",
+        "//private/google-modules/display/samsung:headers",
+        "//private/google-modules/hdcp/samsung:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        "exynos-drm.ko",
+        "exynos-drm-audio.ko",
+        "panel/panel-boe-nt37290.ko",
+        "panel/panel-common.ko",
+        "panel/panel-samsung-drv.ko",
+        "panel/panel-samsung-emul.ko",
+        "panel/panel-samsung-s6e3fc3.ko",
+        "panel/panel-samsung-s6e3fc3-p10.ko",
+        "panel/panel-samsung-s6e3hc2.ko",
+        "panel/panel-samsung-s6e3hc3.ko",
+        "panel/panel-samsung-s6e3hc3-c10.ko",
+        "panel/panel-samsung-s6e3hc4.ko",
+        "panel/panel-samsung-sofef01.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/aoc/alsa:__pkg__",
+        "//private/google-modules/soc/gs:__pkg__",
+        "//private/google-modules/touch:__subpackages__",
+    ],
+    deps = [
+        "//private/google-modules/bms/misc:bms-misc",
+        "//private/google-modules/display/common/gs_drm",
+        "//private/google-modules/hdcp/samsung:hdcp.samsung",
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)

@@ -1,0 +1,194 @@
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport/hpd
+Date:		August 2023
+KernelVersion:	5.15
+Contact:	"Petri Gynther" <pgynther@google.com>
+Description:
+		USB HAL uses this interface to report HPD events.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport/irq_hpd
+Date:		August 2023
+KernelVersion:	5.15
+Contact:	"Petri Gynther" <pgynther@google.com>
+Description:
+		USB HAL uses this interface to report IRQ_HPD events.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport/link_status
+Date:		August 2023
+KernelVersion:	5.15
+Contact:	"Petri Gynther" <pgynther@google.com>
+Description:
+		USB HAL uses this interface to check on DP link status.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport/orientation
+Date:		August 2023
+KernelVersion:	5.15
+Contact:	"Petri Gynther" <pgynther@google.com>
+Description:
+		USB HAL uses this interface to report DP cable orientation.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport/pin_assignment
+Date:		August 2023
+KernelVersion:	5.15
+Contact:	"Petri Gynther" <pgynther@google.com>
+Description:
+		USB HAL uses this interface to report DP cable pin assignment.
+
+What:          /sys/devices/platform/110f0000.drmdp/drm-displayport/dp_hotplug_error_code
+Date:          September 2023
+KernelVersion: 5.15
+Contact:       "Sergey Volk" <servolk@google.com>
+Description:
+               Used to pass error code associated with a hotplug event sent to client.
+               Zero indicates successful hotplug event, non-zero value indicates hotplug failure.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/link_negotiation_failures
+Date:		November 2023
+KernelVersion:	5.15
+Contact:	"Weizhung Ding" <weizhungding@google.com>
+Description:
+		Used to count the unmber of link negotiation failures, Link training failed
+		will increase the count.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/edid_read_failures
+Date:		November 2023
+KernelVersion:	5.15
+Contact:	"Weizhung Ding" <weizhungding@google.com>
+Description:
+		Used to count the number of edid read failures. Read EDID failed will
+		increase the count.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/dpcd_read_failures
+Date:		November 2023
+KernelVersion:	5.15
+Contact:	"Weizhung Ding" <weizhungding@google.com>
+Description:
+		Used to count the unmber of dpcd read failures. Read sink failed will increase
+		the count.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/edid_invalid_failures
+Date:		November 2023
+KernelVersion:	5.15
+Contact:	"Weizhung Ding" <weizhungding@google.com>
+Description:
+		Used to count the number of edid invalid failures. If EDID is invalid, the count
+		will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/sink_count_invalid_failures
+Date:		November 2023
+KernelVersion:	5.15
+Contact:	"Weizhung Ding" <weizhungding@google.com>
+Description:
+		Used to count the number of sink count invalid failures. If sink count is invalid,
+		the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/link_unstable_failures
+Date:		November 2023
+KernelVersion:	5.15
+Contact:	"Weizhung Ding" <weizhungding@google.com>
+Description:
+		Used to count the number of link unstable failures. When DP link is down and re-establish
+		the link, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_1366_768
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution of 1366 x 768.
+		When the display's max resolution is detected as 1366 x 768, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_1440_900
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution of 1440 x 1080.
+		When the display's max resolution is detected as 1920 x 1080, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_1600_900
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution of 1600 x 900.
+		When the display's max resolution is detected as 1600 x 900, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_1920_1080
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max FHD resolution, 1920 x 1080.
+		When the display's max resolution is detected as 1920 x 1080, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_2560_1080
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution of 2560 x 1080.
+		When the display's max resolution is detected as 2560 x 1080, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_2560_1440
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution of 2560 x 1440.
+		When the display's max resolution is detected as 2560 x 1440, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_3440_1440
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution of 3440 x 1440.
+		When the display's max resolution is detected as 3440 x 1440, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_3840_2160
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution of 3840 x 2160.
+		When the display's max resolution is detected as 3840 x 2160, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_5120_2880
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution of 5120 x 2880.
+		When the display's max resolution is detected as 5120 x 2880, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_7680_4320
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution of 7680 x 4320.
+		When the display's max resolution is detected as 7680 x 4320, the count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/max_res_other
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of times the display port was used with displays that have a max resolution that falls outside the current available options.
+		When the display's max resolution is not one of the other preset resolutions, this count will be increased.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/fec_dsc_supported
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of FEC/DSC supported monitors the device was plugged into.
+		If both FEC and DSC are supported this count will increase.
+
+What:		/sys/devices/platform/110f0000.drmdp/drm-displayport-stats/fec_dsc_not_supported
+Date:		June 2024
+KernelVersion:	6.1
+Contact:	"Carlos Rodriguez" <cjeremyrod@google.com>
+Description:
+		Used to count the number of FEC/DSC unsupported monitors the device was plugged into.
+		If either FEC and DSC are not supported this count will increase.

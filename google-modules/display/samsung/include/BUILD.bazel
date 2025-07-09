@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/display/samsung:__pkg__",
+        "//private/google-modules/touch:__subpackages__",
+    ],
+)
