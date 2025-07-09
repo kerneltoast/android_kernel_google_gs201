@@ -1,0 +1,127 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reserved-memory/google,open-dice.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AoC SoC
+
+description: |
+  This binding represents the AoC component.
+
+maintainers:
+  - Alex Iacobucci <alexiacobucci@google.com>
+
+properties:
+  compatible:
+    const: google,aoc
+
+  wifi-chip:
+    description:
+      integer specifying the wifi chip for that particulare device.
+    maxItems: 1
+
+required:
+  - compatible
+
+# TODO: add remaining items in required and properties.
+
+examples:
+  - |
+  aoc: aoc@17000000 {
+      compatible = "google,aoc";
+
+      reg = <0x0 0x17000000 0x02000000>,
+            <0x0 0x154B0000 0x00001000>,
+            <0x0 0x190C0000 0x00001000>,
+            <0x0 0x19060000 0x00005000>;
+
+      reg-names = "blk_aoc", "aoc_req", "aoc_s2mpu", "ssmt_aoc";
+
+      interrupts = <GIC_SPI IRQ_AOC_Watchdog_CPU_AOC
+              IRQ_TYPE_LEVEL_HIGH 0>;
+      interrupt-names = "watchdog";
+
+      pinctrl-names = "default";
+      pinctrl-0 = <&aoc_vsync_pins>;
+
+      gsa-enabled = "true";
+
+      iommus = <&sysmmu_aoc>;
+      memory-region = <&aoc_reserve>;
+      samsung,iommu-group = <&iommu_group_aoc>;
+
+      mbox-channels = <48>;
+
+      mbox-names = "aoc2ap";
+      mboxes = <&mbox_aoc_a32  0
+                &mbox_aoc_a32  1
+                &mbox_aoc_a32  2
+                &mbox_aoc_a32  3
+                &mbox_aoc_a32  4
+                &mbox_aoc_a32  5
+                &mbox_aoc_a32  6
+                &mbox_aoc_a32  7
+                &mbox_aoc_a32  8
+                &mbox_aoc_a32  9
+                &mbox_aoc_a32 10
+                &mbox_aoc_a32 11
+                &mbox_aoc_a32 12
+                &mbox_aoc_a32 13
+                &mbox_aoc_a32 14
+                &mbox_aoc_a32 15
+                &mbox_aoc_f1 0
+                &mbox_aoc_f1 1
+                &mbox_aoc_f1 2
+                &mbox_aoc_f1 3
+                &mbox_aoc_f1 4
+                &mbox_aoc_f1 5
+                &mbox_aoc_f1 6
+                &mbox_aoc_f1 7
+                &mbox_aoc_f1 8
+                &mbox_aoc_f1 9
+                &mbox_aoc_f1 10
+                &mbox_aoc_f1 11
+                &mbox_aoc_f1 12
+                &mbox_aoc_f1 13
+                &mbox_aoc_f1 14
+                &mbox_aoc_f1 15
+                &mbox_aoc_p6 0
+                &mbox_aoc_p6 1
+                &mbox_aoc_p6 2
+                &mbox_aoc_p6 3
+                &mbox_aoc_p6 4
+                &mbox_aoc_p6 5
+                &mbox_aoc_p6 6
+                &mbox_aoc_p6 7
+                &mbox_aoc_p6 8
+                &mbox_aoc_p6 9
+                &mbox_aoc_p6 10
+                &mbox_aoc_p6 11
+                &mbox_aoc_p6 12
+                &mbox_aoc_p6 13
+                &mbox_aoc_p6 14
+                &mbox_aoc_p6 15
+      >;
+
+      acpm-ipc-channel = <13>;
+
+      force-vnom = <0>;
+
+      gsa-device = <&gsa>;
+
+      pcu-base = <0x1400000>;
+      gpio-base = <0x1C00000>;
+      pcu-db-set-offset = <0x1F004>;
+      pcu-db-clr-offset = <0x1F008>;
+      cp-aperture-start-offset = <0x7FDF80>;
+      cp-aperture-end-offset = <0x7FFFFF>;
+      clock-divider = <1>;
+
+      channel-max-pending-msgs = <128>;
+      block-channel-threshold = <64>;
+
+      notify-on-state-transition = "true";
+      hotword-supported = "true";
+      chre-supported = "true";
+  };

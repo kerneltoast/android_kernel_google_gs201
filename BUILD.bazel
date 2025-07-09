@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "*.h",
+        "uapi/*.h",
+    ]),
+    visibility = [
+        # keep sorted
+        ":__subpackages__",
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/touch/common:__pkg__",
+    ],
+)
+
+kernel_module(
+    name = "aoc",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Kbuild",
+        "Makefile",
+        "//private/google-modules/aoc_ipc:sources",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+        "//private/google-modules/trusty:headers",
+    ],
+    outs = [
+        "aoc_channel_dev.ko",
+        "aoc_char_dev.ko",
+        "aoc_control_dev.ko",
+        "aoc_core.ko",
+        "aoc_tbn_service_dev.ko",
+        "aoc_unit_test_dev.ko",
+        "aoc_uwb_platform_drv.ko",
+        "aoc_uwb_service_dev.ko",
+        "mailbox-wc.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        ":__subpackages__",
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+        "//private/google-modules/touch/common:__pkg__",
+    ],
+    deps = [
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)
