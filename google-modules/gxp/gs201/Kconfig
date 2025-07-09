@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "GXP device"
+
+config GXP
+	tristate "Device driver for GXP"
+	select DMA_SHARED_BUFFER
+	select GENERIC_ALLOCATOR
+	select IOMMU_API
+	select PM
+	help
+	  This driver supports the GXP device. Say Y if you want to
+	  include this driver in the kernel.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called "gxp".
+
+config AMALTHEA
+	tristate "Amalthea GXP device driver"
+	depends on GXP
+	default CONFIG_GXP
+	help
+	  Alias of CONFIG_GXP.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called "gxp".
+
+endmenu

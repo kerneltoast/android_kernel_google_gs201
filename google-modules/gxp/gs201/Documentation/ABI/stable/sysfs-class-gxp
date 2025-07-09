@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+# Firmware Management
+
+What:		/sys/class/gxp/gxp/device/load_firmware
+Date:		June 2022
+Description:
+		To load an MCU firmware file, write the OS firmware location-relative path of the
+		firmware image file to load to this attribute.  For example:
+		  # echo google/my-test.fw > /sys/class/gxp/gxp/device/load_firmware
+		Read this file to see the name of the currently-loaded firmware image name.
+Users:		GXP runtime library (libgxp)
+
+What:		/sys/class/gxp/gxp/device/load_dsp_firmware
+Date:		April 2022
+Description:
+		To load DSP firmware files, write the OS firmware location-relative path of the
+		firmware image file name prefix to this attribute.  For example:
+		  # echo gxp_callisto_fw_core > /sys/class/gxp/gxp/device/load_dsp_firmware
+		Read this file to see the name of the currently-loaded firmware image name prefix.
+		The firmware files to be loaded are the name suffixed with number starts from 0.
+		In above example the firmware files to be loaded are gxp_callisto_fw_core0,
+		gxp_callisto_fw_core1, etc. How many firmware to be loaded depends on how many DSP
+		cores are there on the system and is decided by the GXP kernel driver.
+Users:		GXP runtime library (libgxp)
+
+What:		/sys/class/gxp/gxp/device/firmware_version
+Date:		June 2023
+Description:
+		Firmware google3 build CL and its privilege (either secure or non-secure):
+		  # cat /sys/class/gxp/gxp/device/firmware_version
+		  cl=575066969 priv=secure
+Users:		GXP runtime library (libgxp)
+
+# Error Statistics
+# These statistics are maintained by the kernel driver.
+
+What:		/sys/class/gxp/gxp/device/firmware_crash_counter
+Date:		September 2023
+Description:
+		Count of “unrecoverable” MCU firmware crash events; does not include “non-fatal”
+		crashes on DSP core failures.  (No clear action.)
+Users:		GXP runtime library (libgxp)
+
+# Performance/Usage Statistics
+# These stats are gathered from the firmware at device power down time.  Reading the sysfs file will
+# immediately poll for updated values if the device is currently powered on; if the device is
+# powered down then the last received value is returned.
+
+What:		/sys/class/gxp/gxp/device/dsp_usage_0
+Date:		March 2023
+Description:
+		DSP core 0 usage duration in microseconds per “UID” (an Android app context ID for
+		Android/Pixel) for each frequency.  Write to clear.
+Users:		GXP runtime library (libgxp)
+
+What:		/sys/class/gxp/gxp/device/dsp_usage_1
+Date:		March 2023
+Description:
+		Same as dsp_usage_0 but for DSP core 1, if it presents on the system.
+Users:		GXP runtime library (libgxp)
+
+What:		/sys/class/gxp/gxp/device/dsp_usage_2
+Date:		March 2023
+Description:
+		Same as dsp_usage_0 but for DSP core 2, if it presents on the system.
+Users:		GXP runtime library (libgxp)
+
+What:		/sys/class/gxp/gxp/device/dsp_workload_count
+Date:		March 2023
+Description:
+		Number of workloads executed on each DSP core.  Write to clear.
+Users:		GXP runtime library (libgxp)
+
+What:		/sys/class/gxp/gxp/device/context_switch_count
+Date:		March 2023
+Description:
+		Number of context switch happened on each DSP core.  Write to clear.
+Users:		GXP runtime library (libgxp)
+
+What:		/sys/class/gxp/gxp/device/preempt_count
+Date:		March 2023
+Description:
+		Number of times a workload was preempted on each DSP core.  Write to clear.
+Users:		GXP runtime library (libgxp)
+
+What:		/sys/class/gxp/gxp/device/fw_thread_stats
+Date:		March 2023
+Description:
+		Maximum stack depth per thread id.  Write to clear.
+Users:		GXP runtime library (libgxp)
+
+What:		/sys/class/gxp/gxp/device/scaling_available_frequencies
+Date:		March 2023
+Description:
+		The list of supported frequencies in Hz.
+Users:		GXP runtime library (libgxp)
