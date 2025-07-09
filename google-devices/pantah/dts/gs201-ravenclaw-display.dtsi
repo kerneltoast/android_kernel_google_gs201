@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Display nodes for slider-related boards.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+#include "gs201-raven-display-constants.dtsi"
+
+&drmdsim0 {
+	samsung_s6e3hc3: panel@0 {
+		compatible = "samsung,s6e3hc3";
+		label = "samsung-s6e3hc3";
+		channel = <0>;
+		touch = <&spitouch>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+		vddd-supply = <&m_ldo28_reg>;
+		vddd-normal-microvolt = <RAVEN_VDD_NORMAL_MICROVOLT>;
+		vddd-lp-microvolt = <RAVEN_VDD_LP_MICROVOLT>;
+		vci-supply = <&m_ldo27_reg>;
+		vddi-supply = <&s_bucka_reg>;
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+

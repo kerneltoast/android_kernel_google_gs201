@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Ravenclaw-specific PMIC settings
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+#include "gs201-raven-display-constants.dtsi"
+
+/* Display: vci-supply voltage */
+&m_ldo27_reg {
+	regulator-min-microvolt = <RAVEN_VCI_MICROVOLT>;
+	regulator-max-microvolt = <RAVEN_VCI_MICROVOLT>;
+};
+
+/* Display: Ravenclaw & Cloudripper use LDO28M for display. */
+&m_ldo28_reg {
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+	regulator-min-microvolt = <RAVEN_VDD_LP_MICROVOLT>;
+	regulator-max-microvolt = <RAVEN_VDD_NORMAL_MICROVOLT>;
+	regulator-ramp-delay = <1200>;
+	regulator-enable-ramp-delay = <125>;
+};
+
+/* Fingerprint: Ravenclaw uses LDO15S for Fingerprint. */
+&s_ldo15_reg {
+	regulator-always-on;
+};
+
+/* UWB: Ravenclaw and Cheetah use LDO[16,17]S for UWB */
+&s_ldo16_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+&s_ldo17_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};

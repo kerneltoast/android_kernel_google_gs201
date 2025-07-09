@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Usecases specific to the gs201 platform
+ *
+ * Copyright 2021 Google,LLC
+ *
+ */
+
+/* system use cases */
+&max77759_chg {
+	/* external boost */
+	max77759,bst-on = <&max777x9_gpio 4 GPIO_ACTIVE_HIGH>; /* MW: OTG_BOOST_EN */
+	max77759,extbst-ctl = <&max77759_tcpc_gpio 0 GPIO_ACTIVE_HIGH>;
+	max77759,extbst-mode = <&s2mpg12_gpio 4 GPIO_ACTIVE_HIGH>;
+	max77759,cpout-ctl =  <&p9xxx_gpio 3 GPIO_ACTIVE_HIGH>;
+
+	/* WLC_TX_SW_EN */
+	/* max77759,ls1-en = <&max777x9_gpio 5 GPIO_ACTIVE_HIGH>; */
+	/* MW_OVP_EN_L configured by USB driver, not here */
+
+	max77759,ls2-en = <&s2mpg12_gpio 3 GPIO_ACTIVE_HIGH>;  /* GRA-M: WLC_TX_SW_EN */
+
+	/* b/202526678 handles for WLC_RX->WLC_RX+GPIO */
+	max77759,wlc-en =  <&gpp0 0 GPIO_ACTIVE_HIGH>;
+	max77759,wlc-vout_is_invalid = <&p9xxx_gpio 14 GPIO_ACTIVE_HIGH>;
+	max77759,cpout-en = <&p9xxx_gpio 1 GPIO_ACTIVE_HIGH>;
+	/* for OTG related usecase*/
+	max77759,rx-to-rx-otg-en; /* support RX -> RX+OTG */
+	max77759,ext-otg-only; /* use external OTG only */
+	/* WLC_TX ON : extboost on -> loadswitch on    */
+	/*        OFF: loadswitch off -> extboost off  */
+	max77759,bst-lsw-sequence;
+
+	/* The high/low bound of vbatt for FCCM mode */
+	max77759,otg-fccm-vbatt-upperbd = <4000>;
+	max77759,otg-fccm-vbatt-lowerbd = <3900>;
+
+	max77759,gpio_dc_switch = <&p9xxx_gpio 4 GPIO_ACTIVE_HIGH>; /* WLC_RX_SW_EN */
+};

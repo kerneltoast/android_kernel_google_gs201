@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Cheetah-specific PMIC settings
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+/* Display: Cheetah VDDD-supply's power source */
+&m_buck6_reg {
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* Display: vci-supply voltage */
+&m_ldo27_reg {
+	regulator-min-microvolt = <CHEETAH_VCI_MICROVOLT>;
+	regulator-max-microvolt = <CHEETAH_VCI_MICROVOLT>;
+};
+
+/* Display: Cheetah VDDD-supply voltage */
+&m_ldo28_reg {
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+	regulator-min-microvolt = <CHEETAH_VDDD_LP_MICROVOLT>;
+	regulator-max-microvolt = <CHEETAH_VDDD_NORMAL_MICROVOLT>;
+	regulator-ramp-delay = <1200>;
+	regulator-enable-ramp-delay = <125>;
+};
+
+/* UWB: Ravenclaw and Cheetah use LDO[16,17]S for UWB */
+&s_ldo16_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* UWB: Ravenclaw and Cheetah use LDO[16,17]S for UWB */
+&s_ldo17_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};

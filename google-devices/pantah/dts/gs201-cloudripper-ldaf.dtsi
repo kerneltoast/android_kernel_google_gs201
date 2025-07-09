@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs201 ldaf(Laser Detection Auto Focus) device tree source
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+&stmvl53l1 {
+	vio-type = "regulator";
+	vio-supply = <&slg51000_ldo1>;
+	vio-voltage = <0>;
+};
+

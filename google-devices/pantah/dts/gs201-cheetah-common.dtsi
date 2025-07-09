@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * cheetah device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+
+#include "gs201/gs201-common.dtsi"
+#include "gs201/gs201-cloudripper-battery.dtsi"
+#include "gs201/gs201-cloudripper-bcl.dtsi"
+#include "gs201/gs201-cloudripper-bluetooth.dtsi"
+#include "gs201/gs201-pantah-charging.dtsi"
+#include "gs201/gs201-cloudripper-cp-s5300-sit.dtsi"
+#include "gs201/gs201-cloudripper-ese.dtsi"
+#include "gs201/gs201-cloudripper-gsa-gsc.dtsi"
+#include "gs201/gs201-cloudripper-nfc.dtsi"
+#include "gs201/gs201-cloudripper-sbbm.dtsi"
+#include "gs201/gs201-cloudripper-wlan.dtsi"
+
+#include "gs201/gs201-ravenclaw-fingerprint.dtsi"
+#include "gs201-ravenclaw-usecases.dtsi"
+#include "gs201/gs201-ravenclaw-uwb.dtsi"
+
+#include "gs201-pantah-camera-pmic.dtsi"
+#include "gs201-cheetah-camera.dtsi"
+#include "gs201-cheetah-display.dtsi"
+#include "gs201-cheetah-pmic.dtsi"
+#include "gs201-cheetah-touch.dtsi"
+#include "gs201-cheetah-thermal.dtsi"
+#include "gs201-cheetah-audio.dtsi"
+#include "gs201-cheetah-battery.dtsi"
+#include "gs201/gs101-faceauth-dma-heap.dtsi"
+#include "gs201-cheetah-charging.dtsi"
+#include "gs201-cheetah-wcharger.dtsi"
+#include "gs201-cheetah-usb.dtsi"
+#include "gs201/gs201-pantah-pmic.dtsi"

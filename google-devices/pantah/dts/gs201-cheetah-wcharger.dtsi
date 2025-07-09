@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Wireless Charger device tree entries.
+ *
+ * Copyright 2020 Google Inc.
+ */
+
+#include "gs201-pantah-wcharger.dtsi"
+
+&hsi2c_15 {
+	p9412@3c {
+		fod = [AD 2E 8D 39 87 24 95 06 97 FC 9C E6 19 06 01 3C];
+		fod_epp = [AD 54 83 7A 89 44 87 46 8A 33 8D 17 32 11 01 50];
+		fod_hpp = [A2 5B 83 7F 8F 13 8D 12 87 3E 8F E1 32 11 01 50];
+		fod_hpp_hv = [B0 7F 91 7E 91 38 8E 3E 8B 42 8E 23 32 11 01 50];
+		google,q_value = <56>;
+		google,tx4191_q = <29>;
+		idt,has_rtx = <1>;
+
+		google,alignment_scalar_low_current = <300>;
+		google,alignment_scalar_high_current = <100>;
+		google,alignment_offset_low_current = <123000>;
+		google,alignment_offset_high_current = <139000>;
+		google,alignment_current_threshold = <500>;
+	};
+};

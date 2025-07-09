@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to raviole
+ *
+ * Copyright 2021 Google,LLC
+ *
+ */
+
+/ {
+	fragment@charging {
+		target-path = "/";
+		__overlay__ {
+
+			google_cpm: google,cpm {
+				status = "okay";
+				compatible = "google,cpm";
+				google,chg-power-supplies = "main-charger",
+							    "pca94xx-mains";
+
+				/* S2MPG12X01 -> GPIO_1 -> CHARGE_PUMP_EN */
+				google,dc-en = <&s2mpg12_gpio 1 0>;
+				/* DC enabled by default */
+				google,dc-en-value;
+				google,dc_limit-demand = <560000>;
+				google,dc_limit-vbatt = <4350000>;
+				google,dc_limit-vbatt_min = <3400000>;
+
+				google,tcpm-power-supply = <&max77759tcpc>;
+				google,wlc_dc-power-supply = "wireless";
+				google,pps-awake;
+			};
+
+			google_charger: google,charger {
+				status = "okay";
+				compatible = "google,charger";
+				#cooling-cells = <2>;
+
+				google,chg-power-supply = "gcpm";
+				google,bat-power-supply = "battery";
+				google,usb-power-supply = "usb";
+
+				google,fv-max-uv = <4450000>;
+
+				google,thermal-mitigation = <4000000 3000000
+							2000000 1000000 500000>;
+				google,wlc-thermal-mitigation = <1100000 500000 250000 110000>;
+				google,wlc-fcc-thermal-limits = <4000000 3000000
+							2000000 1000000 500000>;
+
+				/* b/170700459 thresholds, updated in b/191070950 */
+				google,bd-resume-abs-temp = <280>;
+				google,bd-resume-soc = <50>;
+				google,bd-resume-time = <14400>;  /* 4 hours */
+				google,bd-resume-temp = <290>;
+				google,bd-trigger-time = <21600>; /* 6 hours */
+				google,bd-trigger-temp = <350>;
+				google,bd-trigger-voltage = <4270000>;
+				google,bd-recharge-voltage = <4250000>;
+				google,bd-drainto-soc = <80>;
+				google,bd-recharge-soc = <79>;
+				/* Enable TEMP-DEFEND */
+				google,bd-temp-enable;
+				google,bd-temp-dry-run;
+			};
+
+			google_bms {
+				nvmem = <&pack_bee>;
+			};
+
+		};
+	};
+};
+
+&pinctrl_0 {
+
+	dc_charger_irq: dc-charger-irq {
+		samsung,pins = "gpa9-0"; /* XEINT_20 (PLC_INT_L) */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+
+&max77759_chg {
+	max77759,psy-name = "main-charger";
+};
+
+&hsi2c_13 {
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	clock-frequency = <400000>;
+
+	pca9468_dc: pca9468@57 {
+		compatible = "nxp,pca9468";
+		reg = <0x57>;
+
+		pca9468,psy_name = "pca94xx-mains";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&dc_charger_irq>;
+
+		interrupt-parent = <&gpa9>;
+		pca9468,irq-gpio = <&gpa9 0 GPIO_ACTIVE_LOW>; /* PLC_INT_L */
+
+		pca9468,float-voltage = <4300000>; /* 4.3V */
+
+		pca9468,input-itopoff = <500000>; /* 500mA */
+		pca9468,switching-frequency = <3>; /* 980KHz */
+
+		/* disable USBC NTC */
+		pca9468,ntc-threshold = <0>; /* disabled */
+
+		/* USBC thermal zone */
+		google,usb-port-tz-name = "usbc-therm-adc";
+
+		pca9468,google_cpm = <&google_cpm>;
+
+		pca9468,ta-max-cur-mult = <2>; /* has cap div */
+	};
+
+};

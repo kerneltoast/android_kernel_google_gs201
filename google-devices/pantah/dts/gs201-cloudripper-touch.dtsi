@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Cloudripper device tree source
+ *
+ * Copyright 2021 Google Inc.
+ *
+ */
+
+#include <arm64/exynos/exynos-pinctrl.h>
+#include <dt-bindings/regulator/samsung,s2mpg-regulator.h>
+
+/*
+ * Touch is connected to spi_0, pins:
+ *   CLK=GPP20[0], MOSI=GPP20[1], MISO=GPP20[2], CS=GPP20[3]
+ * TS_RESET_L = C26 = XAPC_USI11_RTSN_DI = GPP23[2] = <&gpp23 2 0>
+ * TS_INT_L = AT22 = XEINT_8 = GPA7[0] = <&gpa7 0 0>
+ *
+ * DVDD = PP1800_L25M_TSP_DVDD = ??? = VLDO25M = "PP1800_L25M_TSP"?
+ * AVDD = PP3300_L26M_TS_AVDD  = ??? = VLDO26M = "PP3300_L26M_TSP"?
+ *
+ * AP2AOC: XHSI1_GPIO2 - GPH1[0] -> XAOC_GPIO13 - gpio_in[87]
+ * AOC2AP: XAOC_GPIO2 - gpio_in[39] -> XEINT_22 - GPA9[2]
+ */
+
+&tbn {
+	tbn,aoc2ap_gpio = <&gpa9 2 GPIO_ACTIVE_LOW>;
+};
+
+&spi_0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_bus &spi0_cs_func>;
+};
+
+&spitouch {
+	status = "ok";
+	compatible = "sec,sec_ts";
+
+	spi-max-frequency = <16000000>; // Whitefin/R3 set to 16000000
+	spi-cpol;
+	spi-cpha;
+
+	sec,spi_cs_gpio = <&gpp20 3 0>;
+	sec,irq_gpio = <&gpa7 0 0>;
+	sec,reset_gpio = <&gpp23 2 0>;
+	sec,firmware_name = "s6sy79x.bin";
+	sec,mis_cal_check = <1>;
+	sec,heatmap_mode = <1>;
+
+	sec,max_coords = <1080 2340>;
+
+	controller-data {
+		samsung,spi-feedback-delay = <0>;
+		samsung,spi-chip-select-mode = <1>;
+	};
+};
+
+/* R4 TS_DVDD */
+&s_ldo12_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};

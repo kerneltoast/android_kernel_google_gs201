@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Cheetah display-specific constants
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+#define CHEETAH_VCI_MICROVOLT 3025000
+#define CHEETAH_VDDD_NORMAL_MICROVOLT 1200000
+#define CHEETAH_3HC4_VDDD_NORMAL_MICROVOLT 1125000
+#define CHEETAH_VDDD_LP_MICROVOLT 1050000

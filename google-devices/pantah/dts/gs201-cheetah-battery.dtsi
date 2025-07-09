@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to raven
+ *
+ * Copyright 2021 Google,LLC
+ *
+ */
+
+&google_battery {
+	google,chg-battery-capacity = <4926>;
+};
+
+&max77759_fg {
+	/delete-property/ maxim,force-batt-id;
+
+	maxim,filtercfg-temp = <100>;
+	maxim,filtercfg-temp-hysteresis = <30>;
+	maxim,filtercfg-default = /bits/ 16 <0xc613>;
+	maxim,filtercfg-adjust = /bits/ 16 <0xc617>;
+
+	maxim,fg-data {
+		#include "gs201-cheetah-battery-data.dtsi"
+	};
+};
+
+/ {
+	fragment@battery {
+		target-path = "/";
+		__overlay__ {
+			google_battery: google,battery {
+				google,ttf-temp-idx= <2>;
+				google,ttf-adapter = <3000>;
+				google,ttf-soc-table =  <40 47 49 70 82 84 86 88  92  100>;
+				google,ttf-elap-table = <41 47 54 59 76 84 93 111 152 176>;
+				google,ttf-tier-table = <0 48 72>;
+
+				/* 90% after 600 cycles, 80% after 1000 cycles */
+				google,aacr-algo = <3>;
+				google,aacr-cliff-capacity-rate = <80>;
+				google,aacr-cycle-max = <1000>;
+
+				google,batt-id-1-atl {
+					google,batt-id = <1>;
+					google,aacr-ref-cycles = <599 600 1000>;
+					google,aacr-ref-fade10 = <  0 100  100>;
+					google,aafv-ref-cycles = <200 400 600 800 1000 1001>;
+					google,aafv-ref-offset = <  0  20  40  60   80  100>;
+				};
+
+				google,batt-id-3-lsn {
+					google,batt-id = <3>;
+					google,aacr-ref-cycles = <599 600 1000>;
+					google,aacr-ref-fade10 = <  0 100  100>;
+					google,aafv-ref-cycles = <200 400 600 800 1000 1001>;
+					google,aafv-ref-offset = <  0  20  40  60   80  100>;
+				};
+			};
+
+			google_bms {
+				nvmem-names = "8-00500";
+				/* pack eeprom is available only with P20+ batteries */
+				google,bee-name = "8-00500";
+			};
+		};
+	};
+};
