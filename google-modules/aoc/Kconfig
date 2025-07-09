@@ -1,0 +1,43 @@
+#
+# AoC Driver Support
+#
+
+config WC_MBOX
+	tristate "Whitechapel Mailbox support"
+	depends on MAILBOX
+	help
+		Say yes here to build the generic mailbox driver for the exynos
+		mailboxes in Whitechapel
+
+config AOC_DRIVER
+	tristate "WhiteChapel AoC support"
+	default n
+	depends on WC_MBOX
+	# GOOGLE_MODEMCTL is an optional dependency.
+	depends on GOOGLE_MODEMCTL || !GOOGLE_MODEMCTL
+	help
+		Say yes here to add support for the AoC subsystem in WhiteChapel
+
+config AOC_CHAR_DRIVER
+	tristate "WhiteChapel AoC character device support"
+	default Y if AOC_DRIVER
+	help
+		Say yes here to expose AoC services as character devices
+
+config AOC_CHAN_DRIVER
+	tristate "WhiteChapel AoC IPC channel support"
+	default Y if AOC_DRIVER
+	help
+		Say yes here to add channelized IPC support for USF
+
+config AOC_CONTROL_DRIVER
+	tristate "WhiteChapel AoC Basic Control"
+	default Y if AOC_DRIVER
+	help
+		Say yes here to add basic control for the AoC
+
+config AOC_TBN_DRIVER
+	tristate "WhiteChapel AoC TBN service"
+	default Y if AOC_DRIVER
+	help
+		Say yes here to add TBN service for the AoC
