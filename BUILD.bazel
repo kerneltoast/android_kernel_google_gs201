@@ -1,0 +1,275 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load(
+    "//build/kernel/kleaf:kernel.bzl",
+    "kernel_abi",
+    "kernel_build",
+    "kernel_build_config",
+    "kernel_dtstree",
+    "kernel_images",
+    "kernel_module_group",
+    "kernel_modules_install",
+    "kernel_unstripped_modules_archive",
+    "merged_kernel_uapi_headers",
+)
+load("//private/devices/google/common/kleaf:create_file.bzl", "create_file")
+load("//private/devices/google/gs201:constants.bzl", "GS201_DTBS", "GS201_MODULE_OUTS")
+load(":constants.bzl", "LYNX_DTBOS")
+
+exports_files(["lynx_defconfig"])
+
+kernel_build_config(
+    name = "build_config",
+    srcs = [
+        # do not sort
+        "//private/devices/google/gs201:build_config",
+    ],
+)
+
+kernel_dtstree(
+    name = "dtstree",
+    srcs = glob(["dts/**"]) + [
+        "//private/google-modules/soc/gs:gs.dt-bindings",
+    ],
+    makefile = "dts/Makefile",
+)
+
+create_file(
+    name = "kconfig_ext",
+    srcs = [
+        # do not sort
+        "//private/devices/google/gs201:kconfig_ext",
+        "Kconfig.ext.lynx",
+    ],
+    out = "Kconfig.ext",
+)
+
+filegroup(
+    name = "defconfig_fragments",
+    srcs = [
+        # do not sort
+        "//private/devices/google/gs201:defconfig_fragments",
+        "lynx_defconfig",
+    ],
+)
+
+filegroup(
+    name = "kernel_sources",
+    srcs = [
+        # keep sorted
+        "//private/devices/google/gs201:kernel_sources",
+        "//private/google-modules/radio/samsung/s5300:cpif.kconfig",
+        "//private/google-modules/touch/common:touch.common.kconfig",
+    ],
+)
+
+kernel_build(
+    name = "kernel",
+    srcs = [":kernel_sources"],
+    outs = [
+        ".config",
+    ] + [
+        "gs201/{}".format(dtb)
+        for dtb in GS201_DTBS
+    ],
+    base_kernel = "//common:kernel_aarch64",
+    build_config = ":build_config",
+    collect_unstripped_modules = True,
+    defconfig_fragments = [":defconfig_fragments"],
+    dtstree = ":dtstree",
+    kconfig_ext = ":kconfig_ext",
+    kmi_symbol_list = "//common:android/abi_gki_aarch64_pixel",
+    make_goals = [
+        "modules",
+        "dtbs",
+    ],
+    module_outs = GS201_MODULE_OUTS,
+    strip_modules = True,
+)
+
+kernel_build(
+    name = "_dtbos",
+    srcs = [":kernel_sources"],
+    outs = LYNX_DTBOS,
+    base_kernel = "//common:kernel_aarch64",
+    build_config = ":build_config",
+    dtstree = ":dtstree",
+    make_goals = ["dtbs"],
+)
+
+filegroup(
+    name = "dtbos",
+    srcs = ["_dtbos/" + dtbo for dtbo in LYNX_DTBOS],
+    visibility = ["//private/devices/google/gs201:__subpackages__"],
+)
+
+kernel_module_group(
+    name = "kernel_ext_modules",
+    srcs = [
+        # FIXME: SoC modules need to be loaded first or the device will crash.
+        #        Module dependencies should not rely on the order. This needs be fixed.
+        "//private/devices/google/gs201:kernel_ext_modules",
+    ] + [
+        # keep sorted
+        "//private/devices/google/lynx/display:drm_panel.google",
+        "//private/google-modules/amplifiers/cs35l41",
+        "//private/google-modules/amplifiers/cs40l26",
+        "//private/google-modules/amplifiers/snd_soc_wm_adsp:snd-soc-wm-adsp",
+        "//private/google-modules/bluetooth/qcom:bluetooth.qcom",
+        "//private/google-modules/gps/broadcom/bcm47765",
+        "//private/google-modules/nfc",
+        "//private/google-modules/radio/samsung/s5300:cpif",
+        "//private/google-modules/touch/common:touch.common",
+        "//private/google-modules/touch/focaltech/ft3658",
+        "//private/google-modules/touch/goodix",
+        "//private/google-modules/wlan/wcn6740/cnss2",
+        "//private/google-modules/wlan/wcn6740/wlan/qcacld-3.0",
+    ],
+    visibility = ["//private/devices/google/gs201:__subpackages__"],
+)
+
+kernel_modules_install(
+    name = "kernel_modules_install",
+    kernel_build = ":kernel",
+    kernel_modules = [":kernel_ext_modules"],
+)
+
+kernel_unstripped_modules_archive(
+    name = "kernel_unstripped_modules_archive",
+    kernel_build = ":kernel",
+    kernel_modules = [":kernel_ext_modules"],
+)
+
+merged_kernel_uapi_headers(
+    name = "merged_kernel_uapi_headers",
+    kernel_build = ":kernel",
+    kernel_modules = [":kernel_ext_modules"],
+)
+
+create_file(
+    name = "vendor_ramdisk_modules_list",
+    srcs = [
+        # do not sort
+        "//private/devices/google/gs201:vendor_ramdisk_modules_list",
+        "vendor_ramdisk.modules.lynx",
+    ],
+    out = "vendor_ramdisk.modules",
+)
+
+create_file(
+    name = "system_dlkm_modules_list",
+    srcs = ["//private/devices/google/gs201:system_dlkm_modules_list"],
+    out = "system_dlkm.modules",
+)
+
+create_file(
+    name = "system_dlkm_props",
+    srcs = ["//private/devices/google/gs201:system_dlkm_props"],
+    out = "system_dlkm.props",
+)
+
+create_file(
+    name = "vendor_dlkm_modules_list",
+    srcs = ["//private/devices/google/gs201:vendor_dlkm_modules_list"],
+    out = "vendor_dlkm.modules",
+)
+
+create_file(
+    name = "vendor_dlkm_modules_blocklist",
+    srcs = [
+        # do not sort
+        "//private/devices/google/gs201:vendor_dlkm_modules_blocklist",
+        "vendor_dlkm.blocklist.lynx",
+    ],
+    out = "vendor_dlkm.blocklist",
+)
+
+create_file(
+    name = "vendor_dlkm_props",
+    srcs = ["//private/devices/google/gs201:vendor_dlkm_props"],
+    out = "vendor_dlkm.props",
+)
+
+filegroup(
+    name = "insmod_cfgs",
+    srcs = glob(["insmod_cfg/*.cfg"]),
+)
+
+kernel_images(
+    name = "kernel_images",
+    base_kernel_images = "//common:kernel_aarch64_images",
+    # TODO: b/362627953 - Remove dtb.img
+    boot_image_outs = [
+        "dtb.img",
+        "vendor_kernel_boot.img",
+    ],
+    build_dtbo = True,
+    build_initramfs = True,
+    build_system_dlkm = True,
+    build_vendor_dlkm = True,
+    build_vendor_kernel_boot = True,
+    dtbo_srcs = [":dtbos"],
+    kernel_build = ":kernel",
+    kernel_modules_install = ":kernel_modules_install",
+    modules_list = ":vendor_ramdisk_modules_list",
+    ramdisk_compression = "lz4",
+    system_dlkm_modules_list = ":system_dlkm_modules_list",
+    system_dlkm_props = ":system_dlkm_props",
+    vendor_dlkm_archive = True,
+    vendor_dlkm_etc_files = [":insmod_cfgs"],
+    vendor_dlkm_modules_blocklist = ":vendor_dlkm_modules_blocklist",
+    vendor_dlkm_modules_list = ":vendor_dlkm_modules_list",
+    vendor_dlkm_props = ":vendor_dlkm_props",
+    deps = ["//private/devices/google/common:sepolicy"],
+)
+
+copy_to_dist_dir(
+    name = "dist",
+    data = [
+        # keep sorted
+        ":dtbos",
+        ":insmod_cfgs",
+        ":kernel",
+        ":kernel_images",
+        ":kernel_modules_install",
+        ":kernel_unstripped_modules_archive",
+        ":merged_kernel_uapi_headers",
+        "//common:android/abi_gki_aarch64_pixel",
+        "//common:kernel_aarch64",
+        "//common:kernel_aarch64_gki_boot_image",
+        "//common:kernel_aarch64_headers",
+        "//private/devices/google/common:kernel_gki_modules",
+    ] + select({
+        "//private/devices/google/common:enable_download_fips140": ["@gki_prebuilt_fips140//fips140.ko"],
+        "//private/devices/google/common:disable_download_fips140": [],
+    }),
+    dist_dir = "out/lynx/dist",
+    flat = True,
+    log = "info",
+)
+
+# For ABI monitoring
+kernel_abi(
+    name = "kernel_abi",
+    kernel_build = ":kernel",
+    kernel_modules = [":kernel_ext_modules"],
+    kmi_symbol_list_add_only = True,
+    module_grouping = False,
+)
+
+# For compatibility
+alias(
+    name = "gs201_soc.lynx",
+    actual = "//private/devices/google/gs201:gs201_soc",
+)
+
+alias(
+    name = "gs201_lynx_dist",
+    actual = ":dist",
+)
+
+alias(
+    name = "gs201_lynx_abi_update_symbol_list",
+    actual = ":kernel_abi_update_symbol_list",
+)

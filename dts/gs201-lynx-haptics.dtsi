@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Lynx cs40l26 device tree source
+ *
+ * Copyright (c) 2022 Google, LLC
+ *		https://www.google.com
+ *
+*/
+
+&cs40l26a_haptics {
+	cirrus,vpbr-thld-uv = <3008000>;	/* 3.008V */
+	cirrus,bst-ipk-microamp = <2500000>;	/* 2.5A */
+	cirrus,bst-ctl-microvolt = <10000000>;	/* 10V */
+	cirrus,f0-default = <0x2A8000>;		/* 170 Hz */
+	cirrus,redc-default = <0x68000>;	/* 13 Ohm */
+};

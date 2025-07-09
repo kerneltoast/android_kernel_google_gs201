@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Lynx device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include "gs201/gs201-common.dtsi"
+#include "gs201/gs201-cloudripper-battery.dtsi"
+#include "gs201/gs201-cloudripper-bcl.dtsi"
+#include "gs201/gs201-cloudripper-cp-s5300-sit.dtsi"
+#include "gs201/gs201-cloudripper-ese.dtsi"
+#include "gs201/gs201-cloudripper-gsa-gsc.dtsi"
+#include "gs201/gs201-cloudripper-nfc.dtsi"
+#include "gs201/gs201-cloudripper-sbbm.dtsi"
+#include "gs201/gs101-faceauth-dma-heap.dtsi"
+
+#include "gs201/gs201-ravenclaw-fingerprint.dtsi"
+
+#include "gs201/gs101-faceauth-dma-heap.dtsi"
+
+#include "gs201-lynx-usecases.dtsi"
+#include "gs201-lynx-wcharger.dtsi"
+#include "gs201-lynx-bluetooth.dtsi"
+#include "gs201-lynx-camera-pmic.dtsi"
+#include "gs201-lynx-camera.dtsi"
+#include "gs201-lynx-display.dtsi"
+#include "gs201-lynx-pmic.dtsi"
+#include "gs201-lynx-thermal.dtsi"
+#include "gs201-lynx-audio.dtsi"
+#include "gs201-lynx-haptics.dtsi"
+#include "gs201-lynx-usb.dtsi"
+#include "gs201-lynx-battery.dtsi"
+#include "gs201-lynx-charging.dtsi"
+#include "gs201-lynx-wlan.dtsi"

@@ -1,0 +1,2 @@
+blocklist cs40l26_i2c
+blocklist goodix_brl_touch
