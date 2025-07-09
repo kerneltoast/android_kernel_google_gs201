@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "drm_panel.google",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Kbuild",
+        "//private/google-modules/display/common:headers",
+        "//private/google-modules/display/samsung:headers",
+        "//private/google-modules/display/samsung/include:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        # keep sorted
+        "panel-samsung-s6e3fc3-l10.ko",
+        "panel-samsung-s6e3fc5.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+    deps = [
+        "//private/google-modules/display/common/gs_panel",
+        "//private/google-modules/display/samsung:display.samsung",
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)
