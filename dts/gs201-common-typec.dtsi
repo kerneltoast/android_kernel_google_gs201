@@ -1,0 +1,141 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2021, Google LLC
+ *
+ * Cloudripper Type-C device tree
+ */
+#include <dt-bindings/usb/pd.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs101-pinctrl.h"
+
+&hsi2c_13{
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	max77759tcpc: max77759tcpc@25 {
+		status = "okay";
+		compatible = "max77759tcpc";
+		reg = <0x25>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_pd_irq>;
+		interrupt-parent = <&gpa9>;
+		usbpd,usbpd_int = <&gpa9 7 GPIO_ACTIVE_LOW>;
+		usb-psy-name = "usb";
+		/* Enable when BMS is up */
+		chg-psy-name = "gcpm";
+		/* Default OVP IC is SLG59H1313C. Config others in overlay if needed. */
+		ovp-present;
+		in-switch-gpio = <&max777x9_gpio 5 GPIO_ACTIVE_LOW>;
+		quick-ramp-vbus-ovp;
+		conn = <&conn>;
+		orientation-switch;
+		bcl-usb-voting;
+
+		conn: connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			power-role = "dual";
+			try-power-role = "sink";
+			self-powered;
+			op-sink-microwatt = <2600000>;
+			new-source-frs-typec-current = <FRS_5V_1P5A>;
+			usb-role-switch;
+			slow-charger-loop;
+			/*
+			 * b/174044466: Extboost can only do ~1A.
+			 * However, max77759 operating in reverse boost
+			 * mode (0xA) can do till 1.5A.
+			 * Since extboost is the primary path, set this
+			 * to 900mA.
+			 */
+			source-pdos = <PDO_FIXED(5000, 900,
+						 PDO_FIXED_SUSPEND |
+						 PDO_FIXED_USB_COMM |
+						 PDO_FIXED_DATA_SWAP |
+						 PDO_FIXED_DUAL_ROLE)>;
+			sink-pdos = <PDO_FIXED(5000, 3000,
+					       PDO_FIXED_DATA_SWAP |
+					       PDO_FIXED_USB_COMM |
+					       PDO_FIXED_HIGHER_CAP |
+					       PDO_FIXED_DUAL_ROLE)
+				     PDO_FIXED(9000, 2200, 0)
+				     PDO_PPS_APDO(5000, 11000, 3000)>;
+			sink-vdos = <VDO_IDH(/* usbh */ 1, /* usbd */ 1, IDH_PTYPE_PERIPH,
+					     /* is_modal */ 0, IDH_PTYPE_DFP_HOST, /* conn */ 2,
+					     0x18D1)
+				     VDO_CERT(0x0)
+				     VDO_PRODUCT(0x4EE1, 0x0)
+				     VDO_UFP(UFP_VDO_VER1_2, DEV_USB2_CAPABLE | DEV_USB3_CAPABLE,
+					     UFP_RECEPTACLE, /* rsvd */ 0, AMA_VCONN_NOT_REQ,
+					     /* rsvd */ 0, UFP_ALTMODE_NOT_SUPP, UFP_USB32_GEN1)
+				     /* padding */ 0
+				     VDO_DFP(DFP_VDO_VER1_1, HOST_USB2_CAPABLE | HOST_USB3_CAPABLE,
+					     DFP_RECEPTACLE, /* pnum */ 0)>;
+			sink-vdos-v1 = <VDO_IDH(/* usbh */ 1, /* usbd */ 1, IDH_PTYPE_PERIPH,
+						/* is_modal */ 0, /* rsvd */ 0, /* rsvd */ 0,
+						0x18D1)
+					VDO_CERT(0x0)
+					VDO_PRODUCT(0x4EE1, 0x0)>;
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				mux_notification_src: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&mux_notification_snk>;
+				};
+
+			};
+		};
+
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mux_notification_snk: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mux_notification_src>;
+			};
+		};
+
+		/* EXT_BST_EN exposed as GPIO */
+		max77759_tcpc_gpio: max77759_tcpc_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <1>;
+		};
+	};
+};
+
+&hsi2c13_bus {
+	samsung,pins = "gpp25-0", "gpp25-1";
+	samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+};
+
+&pinctrl_0 {
+	usb_pd_irq: usb-pd-irq {
+		samsung,pins = "gpa9-7";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+/ {
+	fragment@typec {
+		target-path = "/";
+		__overlay__ {
+			google,usbc_port_cooling_dev {
+				extcon = <&max77759tcpc>;
+				compatible = "google,usbc_port_cooling_dev";
+				google,usb-cd-polling-interval-ms = <5000>;
+				google,usb-cd-connected-interval-ms = <700>;
+				google,usb-cd-unplug-interval-sec = <2>;
+				#cooling-cells = <2>;
+			};
+		};
+	};
+};

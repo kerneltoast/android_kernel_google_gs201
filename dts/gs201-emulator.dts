@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2019 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+*/
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@zebu {
+		target-path="/";
+		__overlay__ {
+			model = "GS201 EVT0 EMULATOR ML3_DEV06 board based on GS201";
+			compatible = "samsung,GS201", "samsung,GS201 EMULATOR";
+
+			firmware {
+				android: android {
+					compatible = "android,firmware";
+					fstab {
+						compatible = "android,fstab";
+						system: system {
+							compatible = "android,system";
+							dev = "/dev/block/platform/14620000.dwmmc2/by-name/system";
+							type = "ext4";
+							mnt_flags = "ro";
+							fsmgr_flags = "wait";
+							status = "okay";
+						};
+						vendor: vendor {
+							compatible = "android,vendor";
+							dev = "/dev/block/platform/14620000.dwmmc2/by-name/vendor";
+							type = "ext4";
+							mnt_flags = "ro";
+							fsmgr_flags = "wait";
+							status = "okay";
+						};
+					};
+				};
+			};
+
+			virtio_block@14630000 {
+				compatible = "virtio,mmio";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x0 0x14630000 0x10000>;
+				interrupts = <0 222 4>;
+			};
+		};
+	};
+};
+
+/ {
+	fragment@serial0 {
+		target-path = "/";
+		__overlay__ {
+			uart@10A00000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart0_bus>;
+			};
+		};
+	};
+};
+
+&serial_0 {
+	samsung,fifo-size = <256>;
+	clocks = <&ext_26m>, <&ext_26m>;
+	status = "okay";
+};
+
+&mct {
+	clocks = <&ext_26m>, <&ext_26m>;
+};
+
+&memory_0 {
+	reg = <0x0 0x80000000 0x40000000>;
+};
+
+&chosen {
+		bootargs = "earlycon=exynos4210,mmio32,0x10A00000 console=ttySAC0,115200n8 root=/dev/ram0 rw ramdisk_size=65536 initrd=0x84000000,64M clk_ignore_unused mem=1024M maxcpus=1 firmware_class.path=/vendor/firmware androidboot.first_stage_console=1 androidboot.force_normal_boot=1";
+};
+
+&pinctrl_6 {
+	status = "disabled";
+};
+
+&pinctrl_7 {
+	status = "disabled";
+};
+
+&amba {
+	status = "disabled";
+};

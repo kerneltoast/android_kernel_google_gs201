@@ -1,0 +1,260 @@
+# In-tree kernel configs. Note that these configs are only applied to
+# non-GKI modules. Make sure they're compatible with GKI.
+CONFIG_LOG_BUF_SHIFT=22
+# CONFIG_MODULE_SIG_ALL is not set
+CONFIG_CFG80211=m
+CONFIG_NL80211_TESTMODE=y
+# CONFIG_CFG80211_DEFAULT_PS is not set
+# CONFIG_CFG80211_CRDA_SUPPORT is not set
+CONFIG_MAC80211=m
+CONFIG_EEPROM_AT24=m
+CONFIG_CHR_DEV_SG=m
+CONFIG_I2C_CHARDEV=m
+CONFIG_SPI_SPIDEV=m
+CONFIG_SOFT_WATCHDOG=m
+CONFIG_ARM_DSU_PMU=m
+
+# private/google-modules/soc/gs/drivers/block/zram/Kconfig
+CONFIG_ZRAM_GS=m
+CONFIG_ZCOMP_CPU=m
+CONFIG_ZCOMP_EH=m
+CONFIG_ZRAM_GS_WRITEBACK=y
+
+# private/google-modules/soc/gs/drivers/bts/Kconfig
+CONFIG_EXYNOS_BTS=m
+
+# private/google-modules/soc/gs/drivers/clk/gs/Kconfig
+CONFIG_EXYNOS_GS_COMMON_CLK=m
+
+# private/google-modules/soc/gs/drivers/clocksource/Kconfig
+CONFIG_CLKSRC_EXYNOS_MCT_GS=m
+
+# private/google-modules/soc/gs/drivers/cpufreq/Kconfig
+CONFIG_ARM_EXYNOS_ACME=m
+
+# private/google-modules/soc/gs/drivers/devfreq-whi/google/Kconfig
+CONFIG_ARM_EXYNOS_DEVFREQ=m
+CONFIG_EXYNOS_ALT_DVFS=m
+
+# private/google-modules/soc/gs/drivers/dma-buf/heaps/Kconfig
+CONFIG_DMABUF_SAMSUNG_HEAPS=m
+CONFIG_DMABUF_HEAPS_SAMSUNG_CHUNK=y
+CONFIG_DMABUF_HEAPS_SAMSUNG_CMA=y
+CONFIG_DMABUF_HEAPS_SAMSUNG_CARVEOUT=y
+CONFIG_DMABUF_HEAPS_SAMSUNG_SYSTEM=y
+
+# private/google-modules/soc/gs/drivers/dma/Kconfig
+CONFIG_SAMSUNG_DMADEV=m
+
+# private/google-modules/soc/gs/drivers/i2c/busses/Kconfig
+CONFIG_I2C_EXYNOS5_GS=m
+CONFIG_I2C_ACPM=m
+
+# private/google-modules/soc/gs/drivers/iio/Kconfig
+CONFIG_ODPM=m
+
+# private/google-modules/soc/gs/drivers/input/Kconfig
+CONFIG_INPUT_KEYDEBUG=m
+CONFIG_INPUT_STMVL53L1=m
+CONFIG_GOODIX_FINGERPRINT=m
+CONFIG_KEYBOARD_S2MPG12=m
+
+# private/google-modules/soc/gs/drivers/iommu/Kconfig
+CONFIG_SAMSUNG_IOMMU=m
+CONFIG_EXYNOS_PCIE_IOMMU=m
+CONFIG_IOVAD_BEST_FIT_ALGO=m
+
+# private/google-modules/soc/gs/drivers/media/platform/Kconfig
+CONFIG_VIDEO_EXYNOS_MFC=m
+CONFIG_VIDEO_EXYNOS_SMFC=m
+
+# private/google-modules/soc/gs/drivers/mfd/Kconfig
+CONFIG_MFD_S2MPG12=m
+CONFIG_MFD_S2MPG13=m
+CONFIG_MFD_S2MPG1X_GPIO=m
+CONFIG_MFD_SLG51000=m
+CONFIG_MFD_SLG51002=m
+
+# private/google-modules/soc/gs/drivers/misc/Kconfig
+CONFIG_SUBSYSTEM_COREDUMP=m
+CONFIG_SBB_MUX=m
+
+# private/google-modules/soc/gs/drivers/pci/controller/dwc-whi/Kconfig
+CONFIG_PCI_EXYNOS_GS=m
+CONFIG_PCI_EXYNOS_CAL_GS201=m
+
+# private/google-modules/soc/gs/drivers/performance/gs_perf_mon/Kconfig
+CONFIG_GS_PERF_MON=m
+
+# private/google-modules/soc/gs/drivers/performance/lat_governors/Kconfig
+CONFIG_GS_MEMLAT_GOVERNOR=m
+
+# private/google-modules/soc/gs/drivers/phy/Kconfig
+CONFIG_PHY_EXYNOS_USBDRD=m
+CONFIG_PHY_SAMSUNG_USB_GEN2_V4=y
+CONFIG_PHY_EXYNOS_MIPI=m
+CONFIG_PHY_EXYNOS_MIPI_DSIM=m
+
+# private/google-modules/soc/gs/drivers/pinctrl/Kconfig
+CONFIG_PINCTRL_EXYNOS_GS=m
+CONFIG_PINCTRL_SLG51000=m
+CONFIG_PINCTRL_SLG51002=m
+
+# private/google-modules/soc/gs/drivers/power/Kconfig
+CONFIG_DEBUG_REBOOT=m
+
+# private/google-modules/soc/gs/drivers/pwm/Kconfig
+CONFIG_PWM_EXYNOS=m
+
+# private/google-modules/soc/gs/drivers/regulator/Kconfig
+CONFIG_REGULATOR_S2MPG12=m
+CONFIG_REGULATOR_S2MPG13=m
+CONFIG_REGULATOR_SLG51000_GS=m
+CONFIG_REGULATOR_SLG51002=m
+
+# private/google-modules/soc/gs/drivers/rtc/Kconfig
+CONFIG_RTC_DRV_S2MPG12=m
+
+# private/google-modules/soc/gs/drivers/soc/google/Kconfig
+CONFIG_SOC_GOOGLE=y
+CONFIG_SOC_GS201=y
+CONFIG_BOARD_CLOUDRIPPER=y
+CONFIG_GS_CHIPID=m
+CONFIG_EXYNOS_BCM_DBG=m
+CONFIG_EXYNOS_BCM_DBG_PPMU=y
+CONFIG_CAL_IF=m
+CONFIG_EXYNOS_PMU_IF=m
+CONFIG_EXYNOS_PD=m
+CONFIG_EXYNOS_PD_DBG=m
+CONFIG_EXYNOS_PM=m
+CONFIG_EXYNOS_CPUPM=m
+CONFIG_GS_ACPM=m
+CONFIG_ACPM_FLEXPMU_DBG=m
+CONFIG_ACPM_POWER_STATS=m
+CONFIG_ACPM_MBOX_TEST=m
+CONFIG_ACPM_DVFS=m
+CONFIG_ECT=m
+CONFIG_EXYNOS_DVFS_MANAGER=m
+CONFIG_EXYNOS_PM_QOS=m
+CONFIG_EXYNOS_CPUHP=m
+CONFIG_SLC_PARTITION_MANAGER=m
+CONFIG_GS_SLC_ACPM=m
+CONFIG_SLC_PMON=y
+CONFIG_PIXEL_STAT=m
+CONFIG_EXYNOS_SECURE_LOG=m
+CONFIG_EXYNOS_CONTENT_PATH_PROTECTION=m
+CONFIG_GOOGLE_MODEMCTL=m
+CONFIG_GSA=m
+CONFIG_GSA_PKVM=m
+CONFIG_GSA_GSC=m
+CONFIG_DEBUG_SNAPSHOT=m
+CONFIG_DEBUG_SNAPSHOT_DEBUG_KINFO=m
+CONFIG_EXYNOS_EHLD=m
+CONFIG_EXYNOS_DEBUG_TEST=m
+CONFIG_PIXEL_DEBUG_TEST=m
+CONFIG_EXYNOS_ITMON=m
+CONFIG_EXYNOS_CORESIGHT=m
+CONFIG_EXYNOS_ECC_HANDLER=m
+CONFIG_EXYNOS_CORESIGHT_ETM=m
+CONFIG_EXYNOS_CORESIGHT_ETF=y
+CONFIG_EXYNOS_CORESIGHT_ETR=y
+CONFIG_EXYNOS_ADV_TRACER=m
+CONFIG_EXYNOS_ADV_TRACER_S2D=m
+CONFIG_PIXEL_BOOT_METRICS=m
+CONFIG_PIXEL_SUSPEND_DIAG=m
+CONFIG_GS_SJTAG=m
+CONFIG_ETM2DRAM=m
+CONFIG_SMRA=m
+CONFIG_VH_SYSTRACE=m
+CONFIG_PIXEL_EM=m
+CONFIG_PIXEL_METRICS=m
+CONFIG_VH_FS=m
+CONFIG_VH_MM=m
+CONFIG_VH_CGROUP=m
+CONFIG_VH_THERMAL=m
+CONFIG_VH_SCHED=m
+CONFIG_VH_SCHED_MAX_CPU_NR=8
+CONFIG_VH_PREEMPTIRQ_TRACEPOINTS=m
+CONFIG_TICK_DRIVEN_LATGOV=y
+CONFIG_HARDLOCKUP_DEBUG=m
+CONFIG_HARDLOCKUP_WATCHDOG=m
+CONFIG_DBGCORE_DUMP=m
+CONFIG_SYSRQ_HOOK=m
+CONFIG_PKVM_S2MPU=m
+CONFIG_KERNEL_TOP=m
+
+# private/google-modules/soc/gs/drivers/spi/Kconfig
+CONFIG_SPI_S3C64XX_GS=m
+
+# private/google-modules/soc/gs/drivers/thermal/Kconfig
+CONFIG_GS_THERMAL_V3=m
+CONFIG_EXYNOS_ACPM_THERMAL=m
+CONFIG_EXYNOS_CPU_THERMAL=m
+CONFIG_GPU_THERMAL=m
+CONFIG_GSOC_PMIC_THERMAL=m
+
+# private/google-modules/soc/gs/drivers/tty/serial/Kconfig
+CONFIG_SERIAL_EXYNOS=m
+
+# private/google-modules/soc/gs/drivers/ufs/Kconfig
+CONFIG_SCSI_UFS_EXYNOS_GS=m
+CONFIG_SCSI_UFS_CRYPTO_SW_KEYS_MODE=y
+CONFIG_SCSI_UFS_PIXEL_FIPS140=m
+
+# private/google-modules/soc/gs/drivers/usb/Kconfig
+CONFIG_USB_XHCI_EXYNOS=m
+CONFIG_USB_DWC3_EXYNOS_GS=m
+CONFIG_USB_CONFIGFS_F_DM=m
+CONFIG_USB_CONFIGFS_F_ETR_MIU=m
+CONFIG_TYPEC_COOLING_DEV=m
+CONFIG_TYPEC_MAX77759=m
+CONFIG_TYPEC_MAX77759_CONTAMINANT=m
+CONFIG_TYPEC_MAX77779_CONTAMINANT=m
+
+# private/google-modules/soc/gs/drivers/video/Kconfig
+CONFIG_EXYNOS_GRAPHICS_G2D=m
+
+# private/google-modules/soc/gs/drivers/video/backlight/Kconfig
+CONFIG_BACKLIGHT_RT4539_GS=m
+
+# private/google-modules/soc/gs/drivers/watchdog/Kconfig
+CONFIG_S3C2410_WATCHDOG_GS=m
+CONFIG_S3C2410_SHUTDOWN_REBOOT=y
+
+# private/google-modules/bms/misc/Kconfig
+CONFIG_GOOGLE_LOGBUFFER=m
+
+# private/google-modules/display/common/Kconfig
+CONFIG_GS_DRM_PANEL_UNIFIED=m
+
+# private/google-modules/display/samsung/Kconfig
+CONFIG_DRM_SAMSUNG=m
+CONFIG_DRM_SAMSUNG_DP=y
+CONFIG_DRM_SAMSUNG_DP_AUDIO=y
+
+# private/google-modules/display/samsung/panel/Kconfig
+CONFIG_DRM_PANEL_GOOGLE_COMMON=m
+CONFIG_DRM_PANEL_SAMSUNG_COMMON=m
+CONFIG_DRM_PANEL_SAMSUNG_EMUL=m
+CONFIG_DRM_PANEL_SAMSUNG_S6E3HC2=m
+CONFIG_DRM_PANEL_SAMSUNG_S6E3FC3=m
+CONFIG_DRM_PANEL_SAMSUNG_S6E3FC3_P10=m
+CONFIG_DRM_PANEL_SAMSUNG_SOFEF01=m
+CONFIG_DRM_PANEL_SAMSUNG_S6E3HC3=m
+CONFIG_DRM_PANEL_SAMSUNG_S6E3HC3_C10=m
+CONFIG_DRM_PANEL_SAMSUNG_S6E3HC4=m
+CONFIG_DRM_PANEL_BOE_NT37290=m
+
+# private/google-modules/fingerprint/goodix/fps_touch_handler/Kconfig
+CONFIG_FPS_TOUCH_HANDLER=m
+
+# private/google-modules/power/mitigation/Kconfig
+CONFIG_GOOGLE_BCL=m
+
+# private/google-modules/power/reset/Kconfig
+CONFIG_PIXEL_POWER_REBOOT=m
+
+# private/google-modules/trusty/drivers/trusty/Kconfig
+CONFIG_TRUSTY=m
+CONFIG_TRUSTY_DMA_BUF_FFA_TAG=y
+CONFIG_TRUSTY_CRASH_IS_PANIC=y

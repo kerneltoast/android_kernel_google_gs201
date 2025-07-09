@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * CP temperature manager.
+ *
+ * Copyright 2020 Google, LLC.
+ */
+
+#include <dt-bindings/thermal/thermal.h>
+
+/ {
+	cp_tm1: cp-tm1 {
+		compatible = "google,gs101-cp-thermal";
+		#thermal-sensor-cells = <1>;
+	};
+};

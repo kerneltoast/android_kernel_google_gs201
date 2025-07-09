@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2021, Google LLC
+ *
+ * MAX20339 OVP device node.
+ */
+#include <dt-bindings/gpio/gpio.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+
+&hsi2c_13{
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	max20339_ovp: max20339ovp@35 {
+		status = "okay";
+		compatible = "max20339ovp";
+		reg = <0x35>;
+
+		/* OVP interrupt on MW pmic GPIO6 */
+		max20339,irq-gpio = <&max777x9_gpio 5 GPIO_ACTIVE_LOW>;
+
+		/* LoadSwitch 1 and LoadSwitch 2 mapped as gpios.  */
+		max20339_gpio: max20339_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+		};
+	};
+};
+
+&max77759tcpc {
+	/delete-property/ ovp-present;
+	in-switch-gpio = <&max20339_gpio 4 GPIO_ACTIVE_HIGH>;
+	max20339,ovp = <&max20339_ovp>;
+};

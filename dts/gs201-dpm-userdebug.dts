@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+/plugin/;
+
+#include "gs201-dpm-userdebug.dtsi"
+#include "avf-dpm-userdebug.dtsi"

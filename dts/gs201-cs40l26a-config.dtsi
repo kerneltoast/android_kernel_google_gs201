@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS201 cs40l26 device tree source
+ *
+ * Copyright (c) 2021 Google, LLC
+ *		https://www.google.com
+ *
+*/
+
+#include <dt-bindings/gpio/gpio.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+
+&dai_be_haptic_rx {
+	dai_be_haptic_rx_codec: codec {
+		sound-dai = <&cs40l26_codec 0>;
+	};
+};
+
+&aoc_snd_card {
+	clks {
+		sys {
+			sys@cs40l26_codec {
+				comp = <&cs40l26_codec>;
+				src = "BCLK";
+				/* clk id */
+				id = <0>;
+				/* clk source */
+				srcid = <0>;
+				/* in clk multiple */
+				in_mul = <1>;
+				/* out clk multiple */
+				out_mul = <1>;
+			};
+		};
+	};
+};
+
+/* GPIO_FAR_ALIVE */
+&pinctrl_1 {
+	hapt_amp_irq: hapt-amp-irq {
+		samsung,pins = "gpa8-1"; /* XEINT_13 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+/* GPIO_PERIC1 */
+&pinctrl_5 {
+	hapt_amp_rst: hapt-amp-rst {
+		samsung,pins = "gpp24-3"; /* XAPC_USI15_CTSn_CSn */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	hapt_amp_trig: hapt-amp-trig {
+		samsung,pins = "gpp24-2"; /* XAPC_USI15_RTSn_DI */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&hsi2c_8 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsi2c8_bus>;
+
+	clock-frequency = <400000>;
+
+	cs40l26a_haptics: cs40l26a@43 {
+		compatible = "cirrus,cs40l26a";
+		reg = <0x43>;
+		input-device-name = "cs40l26_input";    /* input device name */
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&hapt_amp_irq &hapt_amp_rst &hapt_amp_trig>;
+
+		interrupt-parent = <&gpa8>;
+		interrupts = <1 0 0>;
+
+		reset-gpios = <&gpp24 3 GPIO_ACTIVE_LOW>;
+
+		cirrus,bst-dcm-en = <0>;
+		cirrus,pwle-zero-cross-en;
+		cirrus,vpbr-enable;
+		cirrus,vpbr-thld-uv = <3000000>;	/* 3.0V */
+		cirrus,bst-expl-mode-disable;
+		cirrus,bst-ipk-microamp = <2500000>;	/* 2.5A */
+		cirrus,bst-ctl-microvolt = <11000000>;	/* 11V */
+		cirrus,f0-default = <0x244000>;		/* 145 Hz */
+		cirrus,redc-default = <0x68000>;	/* 13 Ohm */
+		cirrus,pm-active-timeout-ms = <5>;
+
+		status = "okay";
+
+		cs40l26_codec: cs40l26_codec@snd {
+			#sound-dai-cells = <1>;
+			compatible = "cs40l26-codec";
+			status = "okay";
+		};
+	};
+};

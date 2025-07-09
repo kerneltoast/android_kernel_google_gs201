@@ -1,0 +1,817 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * debug device tree source code for gs201 SoC
+ *
+ * Copyright (C) 2020 Samsung Electronics Co., Ltd.
+ *              http://www.samsung.com
+ */
+
+#include <dt-bindings/interrupt-controller/gs201.h>
+#include "gs201-dpm.dtsi"
+#include "gs201-ppmu.dtsi"
+/ {
+	dss: dss {
+		compatible = "google,debug-snapshot";
+		freq_names = "LIT", "MID", "BIG", "INT", "MIF", "ISP",
+				"DISP", "INTCAM", "TPU", "TNR", "MFC",
+				"BO";
+		memory-region = <&header>, <&log_kevents>, <&log_bcm>, <&log_s2d>,
+				<&log_arrdumpreset>, <&log_arrdumppanic>,
+				<&log_slcdump>, <&log_preslcdump>,
+				<&log_itmon>;
+		panic-action = <GO_DEFAULT_ID>;
+	};
+
+	hardlockup-debugger {
+		compatible = "google,hardlockup-debug";
+		use_multistage_wdt_irq = <830>; /* IRQ_WDT_CLUSTER1_MISC + 32 */
+	};
+
+	hardlockup-watchdog {
+		compatible = "google,hardlockup-watchdog";
+		sampling_time = <4>;
+		opportunity_count = <3>;
+		panic = <1>;
+	};
+
+	dss-built {
+		compatible = "google,debug-snapshot-built";
+		memory-region = <&header>;
+	};
+
+	dss-qdump {
+		compatible = "google,debug-snapshot-qdump";
+	};
+
+	dss-sfrdump {
+		compatible = "google,debug-snapshot-sfrdump";
+		/*
+		 * -----------<< Example >>-------------------
+		 * dump-info {
+		 *	#address-cells = <1>;
+		 *	#size-cells = <1>;
+		 *
+		 *	gic-setenable {
+		 *		reg = <0x11f01100 0x100>;
+		 *	};
+		 *	gic-setpend {
+		 *		reg = <0x11f01200 0x100>;
+		 *	};
+		 *	gic-setactive {
+		 *		reg = <0x11f01300 0x100>;
+		 *	};
+		 *};
+		 */
+	};
+
+	dss-debug-kinfo {
+		compatible = "google,debug-snapshot-debug-kinfo";
+		memory-region = <&debug_kinfo_reserved>;
+	};
+
+	exynos-debug-test {
+		compatible = "google,exynos-debug-test";
+		ps_hold_control_offset = <0x3e9c>;
+		nr_cpu = <0x8>;
+		nr_little_cpu = <0x4>;
+		nr_mid_cpu = <0x2>;
+		nr_big_cpu = <0x2>;
+		little_cpu_start = <0x0>;
+		mid_cpu_start = <0x4>;
+		big_cpu_start = <0x6>;
+	};
+
+	keydebug {
+		compatible = "keydebug";
+		key_down_delay = <6000>;
+		keys_down = <116 115>;
+		dbg_fn_delay = <2000>;
+	};
+
+	debug-kinfo {
+		compatible = "google,debug-kinfo";
+		memory-region = <&debug_kinfo_reserved>;
+	};
+
+	boot-metrics {
+		compatible = "google,boot-metrics";
+
+		reg = <0x0 0x02038000 0x00001000>;
+		reg-names = "ns_sram_base";
+		offset = <0x880>;
+	};
+
+	pixel-suspend-diag {
+		compatible = "google,pixel-suspend-diag";
+		memory-region = <&suspend_diag_log_reserved>;
+	};
+
+	gs201-itmon {
+		compatible = "google,gs201-itmon";
+		interrupts =
+			<GIC_SPI IRQ_TREX_D_NOCL1B_debugInterrupt_NOCL1B
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_D_NOCL2A_debugInterrupt_NOCL2A
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_D_NOCL1A_debugInterrupt_NOCL1A
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_D_NOCL0_debugInterrupt_NOCL0
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_NOCL0_debugInterrupt_NOCL0
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_NOCL1B_debugInterrupt_NOCL1B
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_NOCL2A_debugInterrupt_NOCL2A
+							IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI IRQ_TREX_P_NOCL1A_debugInterrupt_NOCL1A
+							IRQ_TYPE_LEVEL_HIGH>;
+		panic_count = <0>;
+		err_fatal = <GO_S2D_ID>;
+		err_drex_tmout = <GO_S2D_ID>;
+		err_ip = <GO_DEFAULT_ID>;
+		err_cpu = <GO_S2D_ID>;
+		err_unhandled = <GO_PANIC_ID>;
+	};
+
+	coresight@2b000000 {
+		compatible = "google,exynos-coresight";
+		dbg_base = <0x2b810000>, <0x2b910000>, <0x2ba10000>, <0x2bb10000>,
+			   <0x2bc10000>, <0x2bd10000>, <0x2be10000>, <0x2bf10000>;
+		cti_base = <0x2b820000>, <0x2b920000>, <0x2ba20000>, <0x2bb20000>,
+			   <0x2bc20000>, <0x2bd20000>, <0x2be20000>, <0x2bf20000>;
+		pmu_base = <0x2b830000>, <0x2b930000>, <0x2ba30000>, <0x2bb30000>,
+			   <0x2bc30000>, <0x2bd30000>, <0x2be30000>, <0x2bf30000>;
+		sgi_base = <0x10450000>, <0x10470000>, <0x10490000>, <0x104b0000>,
+			   <0x104d0000>, <0x104f0000>, <0x10510000>, <0x10530000>;
+		gpr_base = <0x2b001000>;
+		dbgack-mask = <0xff00000>;
+		halt = <1>;
+		retention = <1>;
+	};
+
+	ecc-handler {
+		compatible = "google,exynos-ecc-handler";
+		interrupts = <GIC_SPI IRQ_CPUCL0_ERRIRQ_0_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* DSU */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_1_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE0 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_2_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE1 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_3_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE2 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_4_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE3 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_5_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE4 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_6_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE5 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_7_CPUCL0 IRQ_TYPE_LEVEL_HIGH>, /* CORE6 */
+			     <GIC_SPI IRQ_CPUCL0_ERRIRQ_8_CPUCL0 IRQ_TYPE_LEVEL_HIGH>; /* CORE7 */
+
+		interrupt-names ="DSU, L3 DATA or TAG or Snoop filter RAM",
+				"CORE0, L1,L2 DATA or TAG RAM",
+				"CORE1, L1,L2 DATA or TAG RAM",
+				"CORE2, L1,L2 DATA or TAG RAM",
+				"CORE3, L1,L2 DATA or TAG RAM",
+				"CORE4, L1,L2 DATA or TAG RAM",
+				"CORE5, L1,L2 DATA or TAG RAM",
+				"CORE6, L1,L2 DATA or TAG RAM",
+				"CORE7, L1,L2 DATA or TAG RAM";
+	};
+
+	exynos-etm {
+		compatible = "google,exynos-etm";
+		cs_base = <0x2b000000>;
+		boot-start = <0>;
+		funnel-num = <3>;
+		etf-num = <2>;
+		trex-num = <4>;
+		/* funnel-port = <(funnel num) (port num)>; */
+		etm0 {
+			device_type = "etm";
+			offset = <0x840000>;
+			funnel-port = <0 0>;
+		};
+		etm1 {
+			device_type = "etm";
+			offset = <0x940000>;
+			funnel-port = <0 1>;
+		};
+		etm2 {
+			device_type = "etm";
+			offset = <0xa40000>;
+			funnel-port = <1 0>;
+		};
+		etm3 {
+			device_type = "etm";
+			offset = <0xb40000>;
+			funnel-port = <1 1>;
+		};
+		etm4 {
+			device_type = "etm";
+			offset = <0xc40000>;
+			funnel-port = <1 2>;
+		};
+		etm5 {
+			device_type = "etm";
+			offset = <0xd40000>;
+			funnel-port = <1 3>;
+		};
+		etm6 {
+			device_type = "etm";
+			offset = <0xe40000>;
+			funnel-port = <0 2>;
+		};
+		etm7 {
+			device_type = "etm";
+			offset = <0xf40000>;
+			funnel-port = <0 3>;
+		};
+		etf0@4000 {
+			device_type = "etf";
+			offset = <0x4000>;
+			funnel-port = <2 0>;
+		};
+		etf1@5000 {
+			device_type = "etf";
+			offset = <0x5000>;
+			funnel-port = <2 1>;
+		};
+		funnel0@7000 {
+			device_type = "funnel";
+			offset = <0x7000>;
+		};
+		funnel1@8000 {
+			device_type = "funnel";
+			offset = <0x8000>;
+		};
+		funnel2@9000 {
+			device_type = "funnel";
+			offset = <0x9000>;
+		};
+		etr@A000 {
+			device_type = "etr";
+			sfr_base = <0x2b00c000 0x100>;
+			qch-offset = <0x2c>;
+			offset = <0xA000>;
+			buf-size = <0x100000>;
+		};
+		bdu@10000 {
+			device_type = "bdu";
+			offset = <0x10000>;
+			funnel-port = <1 5>;
+		};
+		bdu_etf@11000 {
+			device_type = "bdu_etf";
+			offset = <0x11000>;
+		};
+		trex0 {
+			device_type = "trex";
+			mux_ctrl = <0x66>;
+			dbg_trace_addr = <0x1ea83010>;
+			dbg_trace_val = <5>;
+		};
+		trex1 {
+			device_type = "trex";
+			mux_ctrl = <0x77>;
+			dbg_trace_addr = <0x1f603010>;
+			dbg_trace_val = <26>;
+		};
+		trex2 {
+			device_type = "trex";
+			mux_ctrl = <0x88>;
+			dbg_trace_addr = <0x204e3010>;
+			dbg_trace_val = <8>;
+		};
+		trex3 {
+			device_type = "trex";
+			mux_ctrl = <0x55>;
+			dbg_trace_addr = <0x1e503010>;
+			dbg_trace_val = <8>;
+		};
+	};
+
+	etm0: etm@2b840000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb95d>;
+
+		reg = <0 0x2b840000 0x1000>;
+		cpu = <&cpu0>;
+
+		coresight-name = "coresight-etm0";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		arm,coresight-loses-context-with-cpu;
+
+		out-ports {
+			port {
+				etm0_out_port: endpoint {
+					remote-endpoint = <&funnel0_in_port0>;
+				};
+			};
+		};
+	};
+
+	etm1: etm@2b940000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb95d>;
+
+		reg = <0 0x2b940000 0x1000>;
+		cpu = <&cpu1>;
+
+		coresight-name = "coresight-etm1";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		arm,coresight-loses-context-with-cpu;
+
+		out-ports {
+			port {
+				etm1_out_port: endpoint {
+					remote-endpoint = <&funnel0_in_port1>;
+				};
+			};
+		};
+	};
+
+	etm2: etm@2ba40000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb95d>;
+
+		reg = <0 0x2ba40000 0x1000>;
+		cpu = <&cpu2>;
+
+		coresight-name = "coresight-etm2";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		arm,coresight-loses-context-with-cpu;
+
+		out-ports {
+			port {
+				etm2_out_port: endpoint {
+					remote-endpoint = <&funnel1_in_port0>;
+				};
+			};
+		};
+	};
+
+	etm3: etm@2bb40000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb95d>;
+
+		reg = <0 0x2bb40000 0x1000>;
+		cpu = <&cpu3>;
+
+		coresight-name = "coresight-etm3";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		arm,coresight-loses-context-with-cpu;
+
+		out-ports {
+			port {
+				etm3_out_port: endpoint {
+					remote-endpoint = <&funnel1_in_port1>;
+				};
+			};
+		};
+	};
+
+	etm4: etm@2bc40000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb95d>;
+
+		reg = <0 0x2bc40000 0x1000>;
+		cpu = <&cpu4>;
+
+		coresight-name = "coresight-etm4";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		arm,coresight-loses-context-with-cpu;
+
+		out-ports {
+			port {
+				etm4_out_port: endpoint {
+					remote-endpoint = <&funnel1_in_port2>;
+				};
+			};
+		};
+	};
+
+	etm5: etm@2bd40000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb95d>;
+
+		reg = <0 0x2bd40000 0x1000>;
+		cpu = <&cpu5>;
+
+		coresight-name = "coresight-etm5";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		arm,coresight-loses-context-with-cpu;
+
+		out-ports {
+			port {
+				etm5_out_port: endpoint {
+					remote-endpoint = <&funnel1_in_port3>;
+				};
+			};
+		};
+	};
+
+	etm6: etm@2be40000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb95d>;
+
+		reg = <0 0x2be40000 0x1000>;
+		cpu = <&cpu6>;
+
+		coresight-name = "coresight-etm6";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		arm,coresight-loses-context-with-cpu;
+
+		out-ports {
+			port {
+				etm6_out_port: endpoint {
+					remote-endpoint = <&funnel0_in_port2>;
+				};
+			};
+		};
+	};
+
+	etm7: etm@2bf40000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb95d>;
+
+		reg = <0 0x2bf40000 0x1000>;
+		cpu = <&cpu7>;
+
+		coresight-name = "coresight-etm7";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		arm,coresight-loses-context-with-cpu;
+
+		out-ports {
+			port {
+				etm7_out_port: endpoint {
+					remote-endpoint = <&funnel0_in_port3>;
+				};
+			};
+		};
+	};
+
+	funnel0: funnel@2b007000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb908>;
+
+		reg = <0 0x2b007000 0x1000>;
+		reg-names = "funnel-base";
+
+		coresight-name = "coresight-funnel0";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		out-ports {
+			port {
+				funnel0_out_port: endpoint {
+					remote-endpoint = <&etf0_in_port>;
+				};
+			};
+		};
+
+		in-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				funnel0_in_port0: endpoint {
+					remote-endpoint = <&etm0_out_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				funnel0_in_port1: endpoint {
+					remote-endpoint = <&etm1_out_port>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				funnel0_in_port2: endpoint {
+					remote-endpoint = <&etm6_out_port>;
+				};
+			};
+
+			port@3 {
+				reg = <3>;
+				funnel0_in_port3: endpoint {
+					remote-endpoint = <&etm7_out_port>;
+				};
+			};
+		};
+	};
+
+	funnel1: funnel@2b008000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb908>;
+
+		reg = <0 0x2b008000 0x1000>;
+		reg-names = "funnel-base";
+
+		coresight-name = "coresight-funnel1";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		out-ports {
+			port {
+				funnel1_out_port: endpoint {
+					remote-endpoint = <&etf1_in_port>;
+				};
+			};
+		};
+
+		in-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				funnel1_in_port0: endpoint {
+					remote-endpoint = <&etm2_out_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				funnel1_in_port1: endpoint {
+					remote-endpoint = <&etm3_out_port>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+				funnel1_in_port2: endpoint {
+					remote-endpoint = <&etm4_out_port>;
+				};
+			};
+
+			port@3 {
+				reg = <3>;
+				funnel1_in_port3: endpoint {
+					remote-endpoint = <&etm5_out_port>;
+				};
+			};
+		};
+	};
+
+	funnel2: funnel@2b009000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x000bb908>;
+
+		reg = <0 0x2b009000 0x1000>;
+		reg-names = "funnel-base";
+
+		coresight-name = "coresight-funnel2";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		out-ports {
+			port {
+				funnel2_out_port: endpoint {
+					remote-endpoint = <&etr_in_port>;
+				};
+			};
+		};
+
+		in-ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				funnel2_in_port0: endpoint {
+					remote-endpoint = <&etf0_out_port>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				funnel2_in_port1: endpoint {
+					remote-endpoint = <&etf1_out_port>;
+				};
+			};
+		};
+	};
+
+	etf0: etf@2b004000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		arm,primecell-periphid = <0x001bb961>;
+		reg = <0 0x2b004000 0x1000>;
+
+		coresight-name = "coresight-etf0";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		in-ports {
+			port {
+				etf0_in_port: endpoint {
+					remote-endpoint = <&funnel0_out_port>;
+				};
+			};
+		};
+
+		out-ports {
+			port {
+				etf0_out_port: endpoint {
+					remote-endpoint = <&funnel2_in_port0>;
+				};
+			};
+		};
+	};
+
+	etf1: etf@2b005000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		arm,primecell-periphid = <0x001bb961>;
+		reg = <0 0x2b005000 0x1000>;
+
+		coresight-name = "coresight-etf1";
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		in-ports {
+			port {
+				etf1_in_port: endpoint {
+					remote-endpoint = <&funnel1_out_port>;
+				};
+			};
+		};
+
+		out-ports {
+			port {
+				etf1_out_port: endpoint {
+					remote-endpoint = <&funnel2_in_port1>;
+				};
+			};
+		};
+	};
+
+	etr: etr@2b00a000 {
+		compatible = "arm,coresight-tmc", "arm,primecell";
+		arm,primecell-periphid = <0x001bb961>;
+		reg = <0 0x2b00a000 0x1000>;
+
+		coresight-name = "coresight-etr";
+		arm,scatter-gather;
+
+		clocks = <&clock ATCLK>;
+		clock-names = "apb_pclk";
+
+		in-ports {
+			port {
+				etr_in_port: endpoint {
+					remote-endpoint = <&funnel2_out_port>;
+				};
+			};
+		};
+	};
+
+	etr-miu@110B0000 {
+		compatible = "google,gs101-etr-miu";
+		reg = <0x0 0x110B0000 0x100>;
+		tmc_buf_addr = <0x00000010 0x00000000>;
+		tmc_buf_size = <0x10000000>;
+	};
+
+	exynos-adv_tracer {
+		compatible = "google,exynos-adv-tracer";
+		reg = <0x0 0x18360000 0x1000>;
+		reg-names = "mailbox";
+		interrupts = <GIC_SPI IRQ_MAILBOX_DBGCORE2AP_ALIVE IRQ_TYPE_LEVEL_HIGH>;
+		pmu-dbgcore-config = <0x3080>;
+		pmu-dbgcore-status = <0x3084>;
+		intr-bitoffset = <0>;
+		status = "ok";
+	};
+
+	exynos_adv_tracer_s2d {
+		compatible = "google,exynos-adv-tracer-s2d";
+		plugin-len = <3>;
+		plugin-name = "S2D";
+		pmu-burnin-ctrl = <0x3cd0>;
+		sel-scanmode-bit = <25>;
+		dbgsel-sw-bit = <4>;
+		blk-list = "AOC", "AOCCORE", "AUR", "AURCORE", "BO", "BOCORE",
+			   "CMU", "CPUCL0", "CLUSTER0", "CSIS",
+			   "DISP", "DNS", "DPU", "EH", "G2D", "G3AA",
+			   "G3D", "GPU", "GDC", "GSA", "HSI0", "HSI1",
+			   "HSI2", "IPP", "ITP", "MCSC", "MFC", "MIF0", "MIF1",
+			   "MIF2", "MIF3", "NOCL0", "NOCL1A", "NOCL1B", "NOCL2A",
+			   "PDP", "PERIC0", "PERIC1", "TNR",
+			   "TPU", "TPUCORE", "SLC0", "SLC1", "SLC2", "SLC3";
+		status = "ok";
+	};
+
+	exynos-ehld {
+		compatible = "google,exynos-ehld";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		cs_base = <0x2b000000>;
+		sgi_base = <0x10450000>, <0x10470000>, <0x10490000>, <0x104b0000>,
+			   <0x104d0000>, <0x104f0000>, <0x10510000>, <0x10530000>;
+		status = "ok";
+
+		dbgc {
+			/* IPC */
+			plugin-len = <4>;
+			plugin-name = "ELD";
+			support = <1>;
+			interval = <1000>;
+			warn-count = <4>;
+			use-tick-timer = <0>;
+		};
+
+		cpu0 {
+			dbg-offset = <0x810000>;
+		};
+		cpu1 {
+			dbg-offset = <0x910000>;
+		};
+		cpu2 {
+			dbg-offset = <0xa10000>;
+		};
+		cpu3 {
+			dbg-offset = <0xb10000>;
+		};
+		cpu4 {
+			dbg-offset = <0xc10000>;
+		};
+		cpu5 {
+			dbg-offset = <0xd10000>;
+		};
+		cpu6 {
+			dbg-offset = <0xe10000>;
+		};
+		cpu7 {
+			dbg-offset = <0xf10000>;
+		};
+	};
+
+	sjtag_ap {
+		compatible = "google,sjtag";
+		ms-per-tick = <5590>;
+		ipc-timeout-ms = <450>;
+		pubkey = /bits/ 8 <0xc1 0x13 0xb3 0x1d 0x85 0x6a 0xac 0xc2 0x35 0xf1 0xd7 0x9e
+				   0x08 0x91 0xc6 0xab 0x16 0xf8 0xfd 0x2f 0x14 0xaa 0x91 0x1d
+				   0x85 0xc0 0xf6 0x08 0xb1 0xa3 0xfe 0xb8 0x2f 0xa2 0x11 0x1a
+				   0x6b 0x2b 0xcb 0x21 0x29 0x8b 0xda 0xba 0x30 0x2d 0xb0 0x52
+				   0x8f 0x19 0x8f 0x77 0x2b 0x0c 0x69 0x29 0x04 0x14 0x7b 0x3c
+				   0x5c 0x96 0x74 0x90 0x7e 0x01 0x00 0x00 0x37 0x6a 0x20 0x58
+				   0xd3 0xc0 0xb9 0xd0 0x36 0xd1 0x7b 0x1a 0x98 0xc7 0x4b 0xb3
+				   0xf8 0xb4 0x13 0xcc 0xf0 0x82 0x17 0x44 0x1e 0x5e 0x64 0xa3
+				   0x2e 0x62 0x8b 0x6e 0x14 0xa1 0x45 0x14 0x75 0xc3 0x86 0xff
+				   0x4d 0x05 0x8b 0x6a 0x42 0x94 0xd7 0x04 0xc2 0x1c 0xe8 0x34
+				   0xda 0xed 0x1e 0xbb 0x9a 0x0f 0xcc 0xad 0x3f 0xbe 0xf9 0x4c
+				   0x52 0x01 0x00 0x00>;
+		dbg-domain = <0x8028eff9>;
+		access-lvl = <0xc0000cc0 0xfcffffc3>;
+		dbg-itvl = <0>;
+		gsa-device = <&gsa>;
+	};
+
+	sjtag_gsa {
+		compatible = "google,sjtag";
+		ms-per-tick = <5590>;
+		ipc-timeout-ms = <450>;
+		pubkey = /bits/ 8 <0xe2 0x15 0xce 0xbb 0xc4 0xcb 0x55 0x24 0xf9 0xb3 0x54 0xd8
+				   0x3f 0x71 0xf7 0xd5 0x16 0x2b 0xa3 0x38 0x74 0x31 0x4b 0x9b
+				   0x4d 0xa3 0x5f 0xe8 0x5b 0xf0 0x34 0xa1 0x00 0x96 0x71 0x31
+				   0x25 0x34 0x97 0xcd 0x83 0xb8 0x59 0x5e 0xa3 0xdb 0xb5 0xe8
+				   0x9e 0x7f 0xb0 0x9d 0x10 0x16 0x7e 0x02 0x27 0x90 0x47 0x74
+				   0x71 0xc1 0x37 0xcb 0x81 0x00 0x00 0x00 0x68 0xb9 0xd3 0x84
+				   0x72 0x4f 0xa3 0xdf 0x5e 0x7a 0x51 0x83 0x75 0x79 0x02 0x5b
+				   0x77 0xd5 0x43 0x05 0x00 0x40 0xa6 0x64 0x92 0x33 0xcf 0x32
+				   0x43 0x8c 0x5b 0x46 0x92 0xc0 0x96 0x41 0x7a 0x4a 0x01 0xed
+				   0xd1 0x2d 0x58 0xe2 0x3e 0xb3 0x4b 0xfa 0x0c 0x8c 0x69 0x11
+				   0x46 0x25 0x3d 0xa4 0xb7 0x20 0x9b 0x82 0x87 0xb0 0x9e 0x95
+				   0xc6 0x01 0x00 0x00>;
+		dbg-domain = <0x0000006f>;
+		access-lvl = <0x00000000 0x00003cff>;
+		dbg-itvl = <0>;
+		gsa-device = <&gsa>;
+	};
+};

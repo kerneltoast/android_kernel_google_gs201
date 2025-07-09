@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Common Bluetooth device tree for gs101 boards.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs101-pinctrl.h"
+
+&pinctrl_4 {
+	bt_reg_on: bt-reg-on {
+		samsung,pins ="gpp16-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+	bt_dev_wake: bt-dev-wake {
+		samsung,pins ="gpp16-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&pinctrl_1 {
+	bt_host_wake: bt-host-wake {
+		samsung,pins ="gpa6-6";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&serial_18 {
+	status = "okay";
+};
+
+&odm {
+	btbcm: btbcm {
+		compatible = "goog,nitrous";
+		pinctrl-0 = <&bt_reg_on &bt_dev_wake &bt_host_wake>;
+		pinctrl-names = "default";
+		shutdown-gpios = <&gpp16 2 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpa6 6 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpp16 3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};

@@ -1,0 +1,384 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Common device tree for all gs201 boards.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+#include <dt-bindings/gpio/gpio.h>
+#include "gs201-common-audio.dtsi"
+#include "gs201-common-bluetooth.dtsi"
+#include "gs201-common-gps.dtsi"
+#include "gs201-common-touch.dtsi"
+#include "gs201-common-typec.dtsi"
+#include "gs201-ldaf.dtsi"
+#include "gs201-pmic.dtsi"
+
+#include <dt-bindings/pci/pci.h>
+
+&serial_0 {
+	status = "okay";
+};
+
+&pinctrl_1 {
+	key_volup: key-volup {
+		samsung,pins = "gpa8-5";  /* VOL_UP_L */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_0 {
+	key_power: key-power {
+		samsung,pins = "gpa10-0";  /* PMIC_PWRON_OD_L */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+	key_voldown: key-voldown {
+		samsung,pins = "gpa10-1";  /* VOL_DN_L */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+};
+
+&gpio_keys {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&key_voldown &key_volup &key_power>;
+	button@1 {
+		label = "gpio-keys: KEY_VOLUMEDOWN";
+		linux,code = <114>;
+		gpios = <&gpa10 1 0xf>;
+		wakeup-source;
+	};
+	button@2 {
+		label = "gpio-keys: KEY_VOLUMEUP";
+		linux,code = <115>;
+		gpios = <&gpa8 5 0xf>;
+		wakeup-source;
+	};
+};
+
+&udc {
+	adj-sof-accuracy = <1>;
+	samsung,no-extra-delay;
+	usb_host_device_timeout = <0x7ff>; /* Max value */
+	extcon = <&max77759tcpc>;
+
+	u1u2_exitfail_quirk;
+	/* ux_exit_in_px should be defined in MK, LT */
+	ux_exit_in_px_quirk;
+	/* elastic_buf_mode_quirk should be defined in MK */
+	elastic_buf_mode_quirk;
+	xhci_l2_support = <1>;
+
+	usbdrd_dwc3: dwc3 {
+		dr_mode = "peripheral";
+		maximum-speed = "super-speed-plus";
+		usb-psy-name = "usb";
+		snps,quirk-frame-length-adjustment = <0x20>;
+
+		snps,has-lpm-erratum;
+		snps,lpm-nyet-threshold = <0>;
+
+		snps,usb2-gadget-lpm-disable;
+
+		/*
+		 * dis-u2-freeclk-exists-quirk, dis_u2_susphy_quirk are alternative.
+		 * One of them should be selected
+		 */
+		snps,dis-u2-freeclk-exists-quirk;
+		/*snps,dis_u2_susphy_quirk;*/
+
+		/* http://b/171478776 : disabling U1/U2 speed up NCM tethering by >2x */
+		snps,dis-u1-entry-quirk;
+		snps,dis-u2-entry-quirk;
+		xhci_l2_support = <1>;
+	};
+};
+
+&usbdrd_phy0 {
+	usb_hs_tune:hs_tune {
+		status = "disabled";
+		hs_tune_cnt = <6>;
+		/* value = <device host> */
+		hs_tune1 {
+			tune_name = "tx_pre_emp";
+			tune_value = <0x1 0x1>;
+		};
+
+		hs_tune2 {
+			tune_name = "tx_vref";
+			tune_value = <0x8 0x8>;
+		};
+
+		hs_tune3 {
+			tune_name = "rx_sqrx";
+			tune_value = <0x5 0x5>;
+		};
+
+		hs_tune4 {
+			tune_name = "utmi_clk";
+			tune_value = <0x1 0x1>;
+		};
+
+		hs_tune5 {
+			tune_name = "compdis";
+			tune_value = <0x7 0x7>;
+		};
+
+		hs_tune6 {
+			tune_name = "tx_res";
+			tune_value = <0x3 0x3>;
+		};
+	};
+
+	usb_ss_tune:ss_tune {
+		status = "disabled";
+		ss_tune_cnt = <36>;
+		/* value = <device host> */
+		/* 0xffffffff means using default value */
+		ss_tune1 {
+			tune_name = "ssrx_sqhs_th_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune2 {
+			tune_name = "ssrx_sqhs_th_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune3 {
+			tune_name = "ssrx_lfps_th";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune4 {
+			tune_name = "ssrx_adap_coef_sel";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune5 {
+			tune_name = "ssrx_mf_eq_psel_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune6 {
+			tune_name = "ssrx_mf_eq_psel_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune7 {
+			tune_name = "ssrx_mf_eq_zsel_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune8 {
+			tune_name = "ssrx_mf_eq_zsel_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune9 {
+			tune_name = "ssrx_hf_eq_rsel_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune10 {
+			tune_name = "ssrx_hf_eq_rsel_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune11 {
+			tune_name = "ssrx_hf_eq_csel_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune12 {
+			tune_name = "ssrx_hf_eq_csel_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune13 {
+			tune_name = "ssrx_dfe_1tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune14 {
+			tune_name = "ssrx_dfe_1tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune15 {
+			tune_name = "ssrx_dfe_2tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune16 {
+			tune_name = "ssrx_dfe_2tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune17 {
+			tune_name = "ssrx_dfe_3tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune18 {
+			tune_name = "ssrx_dfe_3tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune19 {
+			tune_name = "ssrx_dfe_4tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune20 {
+			tune_name = "ssrx_dfe_4tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune21 {
+			tune_name = "ssrx_dfe_5tap_ctrl_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune22 {
+			tune_name = "ssrx_dfe_5tap_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune23 {
+			tune_name = "ssrx_term_cal";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune24 {
+			tune_name = "sstx_amp_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune25 {
+			tune_name = "sstx_deemp_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune26 {
+			tune_name = "sstx_pre_shoot_ss";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune27 {
+			tune_name = "sstx_amp_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune28 {
+			tune_name = "sstx_deemp_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune29 {
+			tune_name = "sstx_pre_shoot_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune30 {
+			tune_name = "sstx_idrv_up";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune31 {
+			tune_name = "sstx_lfps_idrv_up";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune32 {
+			tune_name = "sstx_up_term";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune33 {
+			tune_name = "sstx_dn_term";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune34 {
+			tune_name = "rext_ovrd";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune35 {
+			tune_name = "ssrx_cdr_fbb_fine_ctrl_sp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+
+		ss_tune36 {
+			tune_name = "ssrx_cdr_fbb_fine_ctrl_ssp";
+			tune_value = <0xffffffff 0xffffffff>;
+		};
+	};
+};
+
+&usbdrd_phy0 {
+	status = "okay";
+
+	hs_tune_param = <&usb_hs_tune>;
+	ss_tune_param = <&usb_ss_tune>;
+	extcon = <&max77759tcpc>;
+};
+
+&sub_pd_hsi0 {
+	vdd_hsi-supply = <&m_ldo7_reg>;
+	/* PP0850_L8M_USB: AVDD_PLL_USB, AVDD085_USB20, AVDD085_USBDP */
+	/* PP1800_L9M_USB: AVDD18_USB20, AVDD18_USBDP */
+	/* PP3000_L10M_USB: AVDD33_USB20 */
+	vdd085-supply = <&m_ldo8_reg>;
+	vdd18-supply = <&m_ldo9_reg>;
+	vdd30-supply = <&m_ldo10_reg>;
+};
+
+&pcie_0 {	/* pcie ch0 used for the connection with CP */
+	status = "okay";
+	use-cache-coherency = "true";
+	use-msi = "true";
+	use-sicd = "true";
+	use-ia = "true";
+	use-l1ss = "true";
+	phy-power-off = "false";
+	use-pcieon-sleep = "true";
+	use-sysmmu = "true";
+	use-secure-atu = "true";
+	ep-device-type = <EP_SAMSUNG_MODEM>;
+	vreg1-supply = <&m_ldo16_reg>;  /* PP0850_L16M_PCIE0: AVDD085_PCIE_GEN4_0 */
+	vreg2-supply = <&m_ldo18_reg>;  /* PP1800_L18M_PCIE0: AVDD18_PCIE_GEN4_0 */
+};
+
+&sysmmu_hsi1 {
+	use-map-once = "true";
+	status = "okay";
+};
+
+&pcie_1 {	/* pcie ch1 used for the connection with WiFi */
+	status = "okay";
+	num-lanes = <1>;
+	use-sicd = "true";
+	use-ia = "true";
+	use-l1ss = "true";
+	use-sysmmu = "true";
+	max-link-speed = <LINK_SPEED_GEN2>;
+	ep-device-type = <EP_BCM_WIFI>;
+	pcie,wlan-gpio = <&gph2 4 0x1 /* WLAN_EN */ >;  /* WLAN_REG_ON */
+	vreg1-supply = <&s_ldo3_reg>;  /* PP0850_L3S_PCIE1: AVDD085_PCIE_GEN4_1 */
+	vreg2-supply = <&s_ldo18_reg>; /* PP1800_L18S_PCIE1: AVDD18_PCIE_GEN4_1 */
+};
+
+&aoc {
+	sensor_1v8-supply = <&s_ldo7_reg>;
+	sensor_3v3-supply = <&s_ldo5_reg>;
+	sensor_power_list = "sensor_1v8", "sensor_3v3";
+};

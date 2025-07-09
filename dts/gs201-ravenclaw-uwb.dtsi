@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Google GS201 Board device tree source
+ *
+ * Copyright (c) 2021 Google, LLC
+ *		https://www.google.com
+*/
+
+#include <dt-bindings/gpio/gpio.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs101-pinctrl.h"
+
+&pinctrl_1 {
+	dw3xxx_irq: dw3xxx-irq {
+		samsung,pins = "gpa6-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PDN_PREV>;
+	};
+};
+
+
+&pinctrl_4 {
+	dw3xxx_ap_rst: dw3xxx-ap-rst {
+		samsung,pins = "gpp2-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PDN_PREV>;
+	};
+};
+
+&spi_16 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	cs-gpios = <&gpp26 3 GPIO_ACTIVE_LOW>;
+	num-cs = <1>;
+
+	dw3xxx_prod@0 {
+		compatible = "decawave,dw3000";
+		reg = <0>;
+
+		interrupt-parent = <&gpa6>;
+		interrupts = <0 IRQ_TYPE_LEVEL_HIGH 0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi16_cs &dw3xxx_irq &dw3xxx_ap_rst>;
+		spi-max-frequency = <40000000>;
+
+		uwbhal,reset-gpio = <&aoc_gpiochip 0 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+		power_reg_2p5-supply = <&s_ldo16_reg>;
+		power_reg_1p8-supply = <&s_ldo17_reg>;
+
+		decawave,eui64 = /bits/ 64 <0>;
+		decawave,panid = /bits/ 16 <0>;
+
+		min_clamp = <900>;
+
+		status = "okay";
+
+	};
+};
+
+&spi16_bus {
+	samsung,pin-drv = <GS101_PIN_DRV_10_MA>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
+&spi16_cs {
+	samsung,pin-drv = <GS101_PIN_DRV_10_MA>;
+};
+

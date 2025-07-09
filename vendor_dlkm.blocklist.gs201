@@ -1,0 +1,6 @@
+blocklist aoc_unit_test_dev
+blocklist mali_kutf
+blocklist mali_kutf_clk_rate_trace_test_portal
+blocklist rt4539_bl
+blocklist sscoredump_sample_test.ko
+blocklist sscoredump_test.ko
