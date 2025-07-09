@@ -1,0 +1,31 @@
+# Kernel module compilation files
+*.cmd
+*.mod
+*.mod.c
+*.o
+*.ko
+modules.order
+Module.symvers
+
+# Notes
+*.md
+
+# Ctags's file
+tags
+
+# Debugging scripts
+*.sh
+
+# IDE files
+.editorconfig
+.clang-format
+
+# Symlinks
+linux
+decadriver
+decawave
+uwb-hal
+dw1000
+
+# Temporary
+rootfs
