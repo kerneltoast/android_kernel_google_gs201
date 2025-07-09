@@ -1,0 +1,342 @@
+What:		/sys/devices/virtual/pmic/mitigation/irq_config/<IRQ>_disabled
+Date:		Dec, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		IRQ can be selected from uvlo1, uvlo2, batoilo, batoilo2, smpl, ocp_cpu1, ocp_cpu2,
+		ocp_tpu, ocp_gpu, soft_ocp_cpu1, soft_ocp_cpu2, soft_ocp_tpu, soft_ocp_gpu.
+		0 indicates IRQ is enabled. 1 indicates IRQ is disabled.
+
+What:		/sys/devices/virtual/pmic/mitigation/triggered_state/<IRQ>_triggered
+Date:		Nov, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		IRQ can be selected from uvlo1, uvlo2, batoilo, batoilo2, smpl
+		The reported value is the readback of the current mitigation state and current
+		throttling target.
+		If it doesn't exist, the reported value is 0_0.
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_mode/<IRQ>_<COUNT>
+Date:		Sept, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		IRQ can be selected from uvlo1, uvlo2, batoilo, batoilo2
+		COUNT can be selected from limit_cap_cnt, power_reduction_cnt, shutdown_cnt
+		The reported value is the readback of the counter incremented per mitigation IRQ
+		at different mitigation stages.  The stages are start, light, medium, and heavy.
+		If it doesn't exist, the reported value is 0.
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_mode/<IRQ>_<TIME>
+Date:		Sept, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		IRQ can be selected from uvlo1, uvlo2, batoilo, batoilo2
+		COUNT can be selected from limit_cap_time, power_reduction_time, shutdown_time
+		The reported value is the readback of the last triggered timestamp per mitigation
+		IRQ at different mitigation stages. The stages are start, light, medium, and heavy.
+		If it doesn't exist, the reported value is 0.
+
+What:		/sys/devices/virtual/pmic/mitigation/vdroop_flt/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from cpu1_vdroop_flt, cpu2_vdroop_flt, gpu_vdroop_flt,
+		tpu_vdroop_flt.
+		The reported value is the readback of the corresponding register.  If the core
+		is powered down, reported value is "off".
+
+What:		/sys/devices/virtual/pmic/mitigation/triggered_lvl/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_lvl, ocp_cpu1_lvl, ocp_cpu2_lvl, ocp_tpu_lvl,
+		soft_ocp_cpu1_lvl, soft_ocp_cpu2_lvl, soft_ocp_tpu_lvl, ocp_gpu_lvl,
+		soft_ocp_gpu_lvl.
+		The reported value is the readback of the corresponding threshold.
+
+What:		/sys/devices/virtual/pmic/mitigation/clock_div/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from cpu0_clk_div, cpu1_clk_div, cpu2_clk_div,
+		aur_clk_div, tpu_clk_div, gpu_clk_div.
+		The reported value is the readback of the corresponding register.  If the core
+		is powered down, reported value is "off".
+
+What:		/sys/devices/virtual/pmic/mitigation/clock_stats/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from cpu0_clk_stats, cpu1_clk_stats, cpu2_clk_stats,
+		aur_clk_stats, tpu_clk_stats, gpu_clk_stats.
+		The reported value is the readback of the corresponding register.  If the core
+		is powered down, reported value is "off".
+
+What:		/sys/devices/virtual/pmic/mitigation/clock_ratio/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from cpu0_clk_ratio, cpu1_heavy_clk_ratio,
+		cpu2_heavy_clk_ratio, tpu_heavy_clk_ratio, gpu_heavy_clk_ratio,
+		cpu1_light_clk_ratio, cpu2_light_clk_ratio, tpu_light_clk_ratio,
+		gpu_light_clk_ratio.
+		The reported value is the readback of the corresponding register.  If the core
+		is powered down, reported value is "off".
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_count/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_warn_count, ocp_cpu1_count, ocp_cpu2_count,
+		ocp_tpu_count, soft_ocp_cpu1_count, soft_ocp_cpu2_count, soft_ocp_tpu_count,
+		ocp_gpu_count, soft_ocp_gpu_count, vdroop1_count, vdroop2_count, batoilo_count.
+		The reported value is the count of IRQ triggering.
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_timestamp/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_warn_time, ocp_cpu1_time, ocp_cpu2_time,
+		ocp_tpu_time, soft_ocp_cpu1_time, soft_ocp_cpu2_time, soft_ocp_tpu_time,
+		ocp_gpu_time, soft_ocp_gpu_time, vdroop1_time, vdroop2_time, batoilo_time.
+		The reported value is the last triggered timestamp.
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_capacity/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_warn_cap, ocp_cpu1_cap, ocp_cpu2_cap,
+		ocp_tpu_cap, soft_ocp_cpu1_cap, soft_ocp_cpu2_cap, soft_ocp_tpu_cap,
+		ocp_gpu_cap, soft_ocp_gpu_cap, vdroop1_cap, vdroop2_cap, batoilo_cap.
+		The reported value is the last triggered battery capacity.
+
+What:		/sys/devices/virtual/pmic/mitigation/last_triggered_voltage/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be selected from smpl_warn_volt, ocp_cpu1_volt, ocp_cpu2_volt,
+		ocp_tpu_volt, soft_ocp_cpu1_volt, soft_ocp_cpu2_volt, soft_ocp_tpu_volt,
+		ocp_gpu_volt, soft_ocp_gpu_volt, vdroop1_volt, vdroop2_volt, batoilo_volt.
+		The reported value is the last triggered battery voltage.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/main_offsrc<IDX>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		IDX can be selected from 1 or 2.
+		The reported value is the last offsrc of main core regulator.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/sub_offsrc<IDX>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		IDX can be selected from 1 or 2.
+		The reported value is the last offsrc of sub core regulator.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/enable_mitigation
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		The reported value indicates if brownout mitigation is enabled.
+		1 means enabled; 0 means disabled.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/enable_rffe_mitigation
+Date:		Mar, 2024
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		Enable rffe peak power && BATOILO triggered modem crash.
+		1 means enabled; 0 means disabled.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/pwronsrc
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		The reported value indicates the power on source.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/last_current
+Date:		Feb, 2024
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		The reported value indicates the last maximum current raw ADC value logged
+		by the fuel gauge.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/vimon_buff
+Date:		Feb, 2024
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		The reported value returns the data buffer collected by the vimon hardware.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/big_db_settings
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		The reported value is dispatch block throttling setting for BIG cluster.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/mid_db_settings
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		The reported value is dispatch block throttling setting for MID cluster.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/ready
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		The reported value indicates if brownout mitigation is ready and armed.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/big_mpmm_settings
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		The reported value is MPMM settings for BIG cluster.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/mid_mpmm_settings
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		The reported value is MPMM settings for MID cluster.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/lit_mpmm_settings
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		The reported value is MPMM settings for LITTLE cluster.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/ppm_settings
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		The reported value is PPM settings for BIG cluster.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/evt_cnt_batoilo1
+Date:		Sep, 2023
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		Number of cycles batoilo1 is asserted before a brownout event.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/evt_cnt_batoilo2
+Date:		Sep, 2023
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		Number of cycles batoilo1 is asserted before a brownout event.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/evt_cnt_uvlo1
+Date:		Sep, 2023
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		Number of cycles uvlo1 is asserted before a brownout event.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/evt_cnt_uvlo2
+Date:		Sep, 2023
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		Number of cycles uvlo2 is asserted before a brownout event.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/evt_cnt_latest_batoilo1
+Date:		Feb, 2024
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		Number of cycles batoilo1 is asserted in latest batoilo1 event.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/evt_cnt_latest_batoilo2
+Date:		Feb, 2024
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		Number of cycles batoilo1 is asserted in latest batoilo2 event.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/evt_cnt_latest_uvlo1
+Date:		Feb, 2024
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		Number of cycles uvlo1 is asserted in latest uvlo1 event.
+
+What:		/sys/devices/virtual/pmic/mitigation/instruction/evt_cnt_latest_uvlo2
+Date:		Feb, 2024
+Contact:	"Hiroshi Akiyama" <hiroshiakiyama@google.com>
+Description:
+		Number of cycles uvlo2 is asserted in latest uvlo2 event.
+
+What:		/sys/devices/virtual/pmic/mitigation/qos/<SUBSYSTEM>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		SUBSYSTEM can be one of following:
+		qos_batoilo, qos_batoilo2, qos_ocp_cpu1, qos_ocp_cpu2, qos_ocp_tpu, qos_ocp_gpu,
+		qos_smpl_warn, qos_vdroop1, qos_vdroop2
+		The reported value is pmQOS settings for the corresponding BCL zone.
+
+What:		/sys/devices/virtual/pmic/mitigation/main_pwrwarn/main_pwrwarn_threshold<RAIL>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		RAIL ranges from 0 to 11.
+		The reported value is PWRWARN threshold for the corresponding main ODPM rail.
+
+What:		/sys/devices/virtual/pmic/mitigation/sub_pwrwarn/sub_pwrwarn_threshold<RAIL>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		RAIL ranges from 0 to 11.
+		The reported value is PWRWARN threshold for the corresponding sub ODPM rail.
+
+What:		/sys/devices/virtual/pmic/mitigation/irq_dur_cnt/<INTERVAL>
+Date:		May, 2023
+Contact:	"George Lee" <geolee@google.com>
+Description:
+		INTERVAL can be selected from less_than_5ms_count, between_5ms_to_10ms_count,
+		and greater_than_10ms_count.
+		The reported value is print out of the PWRWARN IRQ breaches across all ODPM rails
+		and IFPMIC IRQ.
+
+What:		/sys/devices/virtual/pmic/mitigation/br_stats/enable_br_stats
+Date:		Dec, 2023
+Contact:	"George Lee" <geolee@google.com>
+		"Sam Ou" <samou@google.com>
+Description:
+		enable_br_stats: indicates if br_stats is enabled
+
+What:		/sys/devices/virtual/pmic/mitigation/br_stats/triggered_idx
+Date:		Dec, 2023
+Contact:	"George Lee" <geolee@google.com>
+		"Sam Ou" <samou@google.com>
+Description:
+		triggered_idx: brownout event index (support sysfs_notify)
+
+What:		/sys/devices/virtual/pmic/mitigation/br_stats/stats
+Date:		Dec, 2023
+Contact:	"George Lee" <geolee@google.com>
+		"Sam Ou" <samou@google.com>
+Description:
+		stats: brownout information (see uapi/brownout_stats.h)
+
+What:		/sys/devices/virtual/pmic/mitigation/br_stats/trigger_br_stats
+Date:		Sep, 2024
+Contact:	"George Lee" <geolee@google.com>
+		"Sam Ou" <samou@google.com>
+Description:
+		trigger_br_stats: write triggered_idx to trigger data logging
+
+What:		/sys/devices/virtual/pmic/mitigation/br_stats/meter_channels
+Date:		Aug, 2024
+Contact:	"Sam Ou" <samou@google.com>
+Description:
+		meter_channels:
+		The reported value indicates the meter channel number.
+
+What:		/sys/devices/virtual/pmic/mitigation/mitigation/<PMIC>_mitigation_threshold
+Date:		Dec, 2023
+Contact:	"George Lee" <geolee@google.com>
+		"Sam Ou" <samou@google.com>
+Description:
+		PMIC can be one of following:
+		main, sub
+		The reported value is lpf_power_raw of each odpm channels for declaring
+		mitigation module during brownout.
+
+What:		/sys/devices/virtual/pmic/mitigation/mitigation/<PMIC>_mitigation_module_id
+Date:		Dec, 2023
+Contact:	"George Lee" <geolee@google.com>
+		"Sam Ou" <samou@google.com>
+Description:
+		PMIC can be one of following:
+		main, sub
+		The reported value is module_id of each odpm channels.
