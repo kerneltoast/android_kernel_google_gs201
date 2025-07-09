@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "mali_pixel",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Kbuild",
+        "//private/google-modules/gpu/common:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        "mali_pixel.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/gpu/borr_mali_kbase:__pkg__",
+        "//private/google-modules/gpu/mali_kbase:__pkg__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+    deps = [
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)

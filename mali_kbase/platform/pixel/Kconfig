@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0
+
+#
+# Mali Pixel integration configuration
+#
+# Copyright 2020 Google LLC.
+#
+
+config MALI_PIXEL_GPU_QOS
+	bool "Enable QOS requests for GPU"
+	depends on MALI_MIDGARD_DVFS && PM_DEVFREQ && CPU_FREQ
+	default y
+	help
+		Turns on quality of service (QOS) requests on MIF, INT
+		and the CPU clusters based on GPU utilization. Frequency
+		values, thresholds and hysteresis valus are specified for
+		each GPU OPP in the GPU device tree entry.
+
+config MALI_PIXEL_GPU_BTS
+	bool "Enable Bus Traffic Shaping for GPU"
+	depends on MALI_PIXEL_GPU_QOS && EXYNOS_BTS
+	default y
+	help
+		Enables the setting of Bus Traffic Shaping scenarios when
+		GPU utilization is at a specific level. Configuration for
+		this feature is specified on the GPU device tree entry and
+		allows for setting the BTS scenario to use, and the GPU OPP
+		at which it is triggered.
+
+config MALI_PIXEL_GPU_THERMAL
+	bool "Enable support for constraining GPU clocks due to thermal events"
+	depends on MALI_MIDGARD_DVFS && GPU_THERMAL && EXYNOS_THERMAL_V2
+	default y
+	help
+		Sets up the GPU driver to register for thermal events that
+		require it to clock down the GPU to remain within thermal
+		bounds.
+
+config MALI_PIXEL_GPU_SECURE_RENDERING
+	bool "Enable Pixel GPU Secure Rendering Support"
+	depends on MALI_MIDGARD && ION_EXYNOS && EXYNOS_CONTENT_PATH_PROTECTION
+	default y
+	help
+		Enables support for the GPU to render into secure memory.

@@ -1,0 +1,62 @@
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU license.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+# SPDX-License-Identifier: GPL-2.0
+
+load(
+    "//build/kernel/kleaf:kernel.bzl",
+    "kernel_module",
+)
+
+_midgard_modules = [
+    "mali_kbase.ko",
+    "tests/kutf/mali_kutf.ko",
+    "tests/mali_kutf_clk_rate_trace/kernel/mali_kutf_clk_rate_trace_test_portal.ko",
+]
+
+kernel_module(
+    name = "mali_kbase",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+        "**/*Kbuild",
+        "**/*Makefile",
+    ]) + [
+        "//private/google-modules/gpu/common:headers",
+        "//private/google-modules/power/mitigation:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = _midgard_modules,
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+    deps = [
+        "//private/google-modules/gpu/mali_pixel",
+        "//private/google-modules/power/mitigation:bcl",
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)
+
+filegroup(
+    name = "midgard_kconfig.cloudripper",
+    srcs = glob([
+        "**/*Kconfig",
+    ]),
+    visibility = [
+        "//common:__pkg__",
+        "//common-modules/mali:__subpackages__",
+    ],
+)
