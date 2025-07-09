@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "nfc",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Kbuild",
+        "ese/Kbuild",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        "ese/st33spi.ko",
+        "ese/st54spi.ko",
+        "st21nfc.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+    deps = [
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)
