@@ -1,0 +1,111 @@
+// Copyright 2016 The Android Open Source Project
+package {
+    default_applicable_licenses: ["external_dtc_license"],
+}
+
+// Added automatically by a large-scale-change that took the approach of
+// 'apply every license found to every target'. While this makes sure we respect
+// every license restriction, it may not be entirely correct.
+//
+// e.g. GPL in an MIT project might only apply to the contrib/ directory.
+//
+// Please consider splitting the single license below into multiple licenses,
+// taking care not to lose any license_kind information, and overriding the
+// default license using the 'licenses: [...]' property on targets as needed.
+//
+// For unused files, consider creating a 'fileGroup' with "//visibility:private"
+// to attach the license to, and including a comment whether the files may be
+// used in the current project.
+//
+// large-scale-change included anything that looked like it might be a license
+// text as a license_text. e.g. LICENSE, NOTICE, COPYING etc.
+//
+// Please consider removing redundant or irrelevant files from 'license_text:'.
+// See: http://go/android-license-faq
+license {
+    name: "external_dtc_license",
+    visibility: [":__subpackages__"],
+    license_kinds: ["SPDX-license-identifier-GPL-2.0"],
+    license_text: ["GPL"],
+}
+
+license {
+    name: "external_dtc_libfdt_license",
+    visibility: [":__subpackages__"],
+    license_kinds: ["SPDX-license-identifier-BSD-2-Clause"],
+    license_text: ["BSD-2-Clause"],
+}
+
+license {
+   name: "external_dtc_tests_license",
+    visibility: [":__subpackages__"],
+    license_kinds: ["SPDX-license-identifier-LGPL-2.1+"],
+    license_text: ["LGPL"],
+}
+
+cc_defaults {
+    name: "dt_defaults",
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wno-sign-compare",
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-parameter",
+        "-DNO_YAML"
+    ],
+
+    shared_libs: ["libfdt"],
+
+    stl: "none",
+    dist: {
+        targets: [
+            "dist_files",
+        ],
+        dir: "dtc",
+    },
+}
+
+cc_binary_host {
+    name: "dtc",
+    defaults: ["dt_defaults"],
+    srcs: [
+        "checks.c",
+        "data.c",
+        "dtc.c",
+        "dtc-lexer.l",
+        "dtc-parser.y",
+        "flattree.c",
+        "fstree.c",
+        "livetree.c",
+        "srcpos.c",
+        "treesource.c",
+        "util.c",
+    ],
+}
+
+cc_binary_host {
+    name: "fdtget",
+    defaults: ["dt_defaults"],
+    srcs: [
+        "fdtget.c",
+        "util.c",
+    ],
+}
+
+cc_binary_host {
+    name: "fdtoverlay",
+    defaults: ["dt_defaults"],
+    srcs: [
+        "fdtoverlay.c",
+        "util.c",
+    ],
+}
+
+cc_binary_host {
+    name: "fdtdump",
+    defaults: ["dt_defaults"],
+    srcs: [
+        "fdtdump.c",
+        "util.c",
+    ],
+}
