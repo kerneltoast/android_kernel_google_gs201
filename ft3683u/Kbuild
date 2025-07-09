@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+ccflags-y += -I$(srctree)/../private/google-modules/touch/common
+ccflags-y += -I$(srctree)/../private/google-modules/touch/common/include
+
+obj-$(CONFIG_TOUCHSCREEN_FTS) = focal_touch.o
+focal_touch-objs += focaltech_core.o focaltech_ex_fun.o focaltech_ex_mode.o \
+	focaltech_gesture.o focaltech_esdcheck.o focaltech_point_report_check.o \
+	focaltech_test/focaltech_test.o focaltech_test/focaltech_test_ini.o \
+	focaltech_test/supported_ic/focaltech_test_ft3683u.o \
+	focaltech_flash.o \
+	focaltech_flash/focaltech_upgrade_ft3683u.o \
+	focaltech_spi.o
+
+ifneq ($(CONFIG_GOOG_TOUCH_INTERFACE),)
+focal_touch-objs += focaltech_goog.o
+endif
