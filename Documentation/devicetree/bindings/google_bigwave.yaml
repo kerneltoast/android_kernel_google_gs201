@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Bigwave video driver device tree bindings
+
+maintainers:
+  - Ruofei Ma <ruofeim@google.com>
+  - Vinay Kalia <vinaykalia@google.com>
+  - Wesley Lee <szuweilee@google.com>
+
+description:
+  The Bigwave video driver allows userspace access to the bigwave HW for
+  the AV1 encoding and decoding tasks. The Bigwave video driver changes
+  the HW frequency and votes the MIF bandwidth according to the work load.
+
+properties:
+  ip-ver:
+    description: Specify the version of zuma SOC. When the value is 0,
+                 zuma A0 SOC is used. Otherwise, it is zuma B0.
+    type: boolean
+
+  freq-khz:
+    description: Specify the bigwave working frequency for a particular
+                 workload.
+    type: u32
+
+  load-pps:
+    description: Define the workload. The value, 122400, is obatined by
+                 1920 * 1088 * 60 / 1024 for 1080p60fps contents.
+    type: u32
+
+  rd-bw:
+    description: Define the read bandwidth in terms of Kilobyte per
+                 second for the decoder.
+    type: u32
+
+  wr-bw:
+    description: Define the write bandwidth in terms of Kilobyte per
+                 second for the decoder.
+    type: u32
+
+  pk-bw:
+    description: Define the peak bandwidth in terms of Kilobyte per
+                 second for the decoder.
+    type: u32
+
+  rd-bw-afbc:
+    description: Define the read bandwidth in terms of Kilobyte per
+                 second for the decoder when AFBC (memory compression)
+                 is enabled.
+    type: u32
+
+  wr-bw-afbc:
+    description: Define the write bandwidth in terms of Kilobyte per
+                 second for the decoder when AFBC (memory compression)
+                 is enabled.
+    type: u32
+
+  pk-bw-afbc:
+    description: Define the peak bandwidth in terms of Kilobyte per
+                 second for the decoder when AFBC (memory compression)
+                 is enabled.
+    type: u32
+
+  rd-bw-enc:
+    description: Define the read bandwidth in terms of Kilobyte per
+                 second for the encoder.
+    type: u32
+
+  wr-bw-enc:
+    description: Define the write bandwidth in terms of Kilobyte per
+                 second for the encoder.
+    type: u32
+
+  pk-bw-enc:
+    description: Define the peak bandwidth in terms of Kilobyte per
+                 second for the encoder.
+    type: u32
+
