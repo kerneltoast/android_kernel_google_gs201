@@ -1,0 +1,1 @@
+../core/hdd/src/wlan_hdd_sysfs_thermal_cfg.h

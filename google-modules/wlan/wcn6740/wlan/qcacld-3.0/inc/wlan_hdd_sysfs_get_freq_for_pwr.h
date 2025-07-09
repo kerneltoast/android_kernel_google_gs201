@@ -1,0 +1,1 @@
+../core/hdd/src/wlan_hdd_sysfs_get_freq_for_pwr.h

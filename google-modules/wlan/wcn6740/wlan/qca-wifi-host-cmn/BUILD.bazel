@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+filegroup(
+    name = "qcacmn",
+    srcs = glob([
+        "**/*.h",
+        "**/*.c",
+    ]),
+    visibility = [
+        "//private/google-modules/wlan/wcn6740/wlan/qcacld-3.0:__pkg__",
+    ],
+)
