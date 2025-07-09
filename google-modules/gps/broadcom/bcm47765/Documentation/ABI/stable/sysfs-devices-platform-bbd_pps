@@ -1,0 +1,6 @@
+What:		/sys/devices/platform/bbd_pps/pps_assert
+Date:		Feb, 2024
+Contact:	chengcha@google.com
+Description:
+		(RO) Reading to this file to have the lastest pulse boot time.
+		Format: "%lld.%09ld#%u", {SECOND}#{PULSE_NUMBER}

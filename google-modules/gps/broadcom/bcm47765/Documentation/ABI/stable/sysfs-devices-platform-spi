@@ -1,0 +1,7 @@
+What:		/sys/devices/platform/spi.N/coredump
+Date:		Oct, 2023
+Contact:	chengcha@google.com
+Description:
+		(WO) Writing to this file causes the bcm47765 driver to initiate an
+		ssrdump.
+		Format: "{REASON};{DUMPSTRING}"
