@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "cpif.kconfig",
+    srcs = [
+        "Kconfig",
+    ],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+    ],
+)
+
+kernel_module(
+    name = "cpif",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Kbuild",
+        "//private/google-modules/bms/misc:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        "cp_thermal_zone.ko",
+        "cpif.ko",
+        "cpif_page.ko",
+        "shm_ipc.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules:__subpackages__",
+    ],
+    deps = [
+        "//private/google-modules/bms/misc:bms-misc",
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)
+
+kernel_module(
+    name = "cpif.dit",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Kbuild",
+        "dit/Kbuild",
+        "//private/google-modules/bms/misc:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        "boot_device_spi.ko",
+        "cp_thermal_zone.ko",
+        "cpif.ko",
+        "cpif_page.ko",
+        "dit/exynos_dit.ko",
+        "shm_ipc.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules:__subpackages__",
+    ],
+    deps = [
+        "//private/google-modules/bms/misc:bms-misc",
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)
