@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config FPS_TOUCH_HANDLER
+	tristate "fps touch handler"
+	default n
+	help
+	add support for fps touch handler.
