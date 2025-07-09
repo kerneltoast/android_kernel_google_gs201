@@ -1,0 +1,285 @@
+# SPDX-License-Identifier: GPL-2.0-only
+What: /sys/devices/platform/gs-drm-connector/panel/serial_number
+Date: September 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client can use to view serial number of panel.
+  This value should be unique to each panel device.
+
+What: /sys/devices/platform/gs-drm-connector/panel/panel_extinfo
+Date: September 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client can use to view build information of the panel.
+  The format of this data is module-dependent, but should
+  be able to identify build revision, manufacturer, and other related data.
+
+What: /sys/devices/platform/gs-drm-connector/panel/panel_name
+Date: September 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client can use to view the name of the panel.
+
+What: /sys/devices/platform/gs-drm-connector/panel/panel_model
+Date: November 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client can use to view a string describing the exact panel model.
+  The format is: "[Project Code]-[Vendor Info][Panel Revision]-[Extra Info]"
+
+What: /sys/devices/platform/gs-drm-connector/panel/panel_idle
+Date: September 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client can use to view or override whether idle mode is
+  possible for the panel.
+  Idle mode allows the panel to aggressively change its internal refresh rate
+  when the panel is expected to be idle for a large length of time.
+  Usually, idle mode becomes active when self-refresh mode is activated.
+
+What: /sys/devices/platform/gs-drm-connector/panel/idle_delay_ms
+Date: September 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client uses this to view or override the time delay between the last
+  refresh rate change and when idle mode is able to be activated. The panel will
+  not enter idle mode until at least this long after the last mode/refresh change.
+
+What: /sys/devices/platform/gs-drm-connector/panel/op_hz
+Date: December 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client uses this to view or override the operating rate of the panel.
+  This operation is not supported on every panel implementation, or if the panel
+  is not active.
+
+What: /sys/devices/platform/gs-drm-connector/panel/refresh_rate
+Date: December 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client uses this to view the current refresh rate of the panel.
+
+What: /sys/devices/platform/gs-drm-connector/panel/refresh_ctrl
+Date: December 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client uses this to manually control certain operations relating to
+  the refresh capabilities of the panel. This is done using a bitmap of different
+  refresh features, representing frame insertion, idle mode, etc.
+  Not all controls are supported for all panels.
+
+What: /sys/devices/platform/gs-drm-connector/panel/panel_need_handle_idle_exit
+Date: September 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client uses this to check whether the flag for the panel needing
+  special handling to exit idle mode is on or off, or to override its value.
+  Some panels may need special handling when exiting idle mode because of clock or
+  bandwidth requirements due to the idle mode TE rate. This file exposes the flag
+  controlling this behavior to userspace.
+
+What: /sys/devices/platform/gs-drm-connector/panel/min_vrefresh
+Date: September 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client uses this to view or override the minimum value for vrefresh rate
+  that may be entered into without client's involvement, often because of idle mode.
+
+What: /sys/devices/platform/gs-drm-connector/panel/backlight/panel0-backlight/hbm_mode
+Date: October 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client uses this to activate global high brightness mode (HBM), which
+  is used to access higher brightness levels than what is normally available for
+  use in direct sunlight applications.
+
+What: /sys/devices/platform/gs-drm-connector/panel/backlight/panel0-backlight/dimming_on
+Date: October 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client uses this to view or override dimming mode for NBM and HBM transition.
+
+What: /sys/devices/platform/gs-drm-connector/panel/backlight/panel0-backlight/state
+Date: December 2023
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client uses this to read backlight state. This information includes if the panel is
+  on, off, in low-power mode, or in a HBM state, as well as providing high-level information
+  about the current operating mode, if active (resolution and refresh rate).
+
+What: /sys/devices/platform/gs-drm-connector/panel/backlight/panel0-backlight/acl_mode
+Date: January 2024
+KernelVersion: 6.1
+Contact: "Gil Liu" <gilliu@google.com>
+Description:
+  Userspace client can activate ACL mode to reduce panel voltage at higher brightness levels.
+  This prevents potential damage to the PMIC.
+
+What: /sys/devices/platform/gs-drm-connector/panel/backlight/panel0-backlight/als_table
+Date: April 2024
+KernelVersion: 6.1
+Contact: "Taylor Nelms" <tknelms@google.com>
+Description:
+  Userspace client can adjust thresholds at which the ambient light sensor (als)
+  is notified of changes in panel brightness. This has the same range as the `brightness`
+  and `actual_brightness` nodes (0-4096), and is input as a space-delimited list
+  of whole positive integers.
+
+What: /sys/devices/platform/gs-drm-connector/panel/time_in_state
+Date: January 2024
+KernelVersion:	6.1
+Contact: "Ken Huang" <kenbshuang@google.com>
+Description:
+  The file provides the time (msec) spent in various display states.
+  The format is: "[Display state] [Display width] [Display height] [Refresh rate] [Time]"
+
+What: /sys/devices/platform/gs-drm-connector/panel/available_disp_stats
+Date: January 2024
+KernelVersion:	6.1
+Contact: "Ken Huang" <kenbshuang@google.com>
+Description:
+  The file provides the different available display states for which stats can be displayed.
+  The format is: "[Display state] [Display width] [Display height] [Refresh rate]"
+
+What: /sys/devices/platform/gs-drm-connector/panel/backlight/panel0-backlight/ssc_en
+Date: February 2024
+KernelVersion: 6.1
+Contact: "Gil Liu" <gilliu@google.com>
+Description:
+  Userspace client can activate SSC mode to control dynamic OSC clock SSC(Spread Spectrum Clocking).
+  This sysfs node by control by RIL team and desense team to avoid signal interference.
+
+What: /sys/devices/platform/gs-drm-connector/panel/te2_rate_hz
+Date: March 2024
+KernelVersion: 6.1
+Contact: "Chris Lu" <luchris@google.com>
+Description:
+  Userspace client uses this to write and read the TE2 rate. The unit is Hz.
+
+What: /sys/devices/platform/gs-drm-connector/panel/te2_option
+Date: March 2024
+KernelVersion: 6.1
+Contact: "Chris Lu" <luchris@google.com>
+Description:
+  Userspace client uses this to write and read TE2 option. The value could be 0 (changeable)
+  or 1 (fixed).
+
+What: /sys/devices/platform/gs-drm-connector/panel/power_state
+Date: April 2024
+KernelVersion: 6.1
+Contact: "Kevin Ying" <kevinying@google.com>
+Description:
+  Userspace client uses this to read panel power state. This information includes only if the panel
+  is on, off, in low-power mode, or in a HBM state.
+
+What: /sys/devices/platform/gs-drm-connector/panel/error_count_te
+Date: May, 2024
+KernelVersion: 6.1
+Contact: "Weizhung Ding" <weizhungding@google.com>
+Description:
+  Userspace client uses this to read the count of all TE errors detected during runtime.
+
+What: /sys/devices/platform/gs-drm-connector/panel/error_count_unknown
+Date: May, 2024
+KernelVersion: 6.1
+Contact: "Weizhung Ding" <weizhungding@google.com>
+Description:
+  Userspace client uses this to read the count of all unclassified errors detected during runtime.
+
+What: /sys/devices/platform/gs-drm-connector/panel/te_rate_hz
+Date: April 2024
+KernelVersion: 6.1
+Contact: "Burney Yu" <bosyuyu@google.com>
+Description:
+  This file provides the TE frequency.
+  Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What: /sys/devices/platform/gs-drm-connector/panel/te_option
+Date: April 2024
+KernelVersion: 6.1
+Contact: "Burney Yu" <bosyuyu@google.com>
+Description:
+  This file provides the TE option (fixed/changeable).
+  Valid panels are 'primary-panel' or 'secondary-panel'.
+
+What: /sys/class/drm/card0/device/primary-panel/color_data
+Date: Nov 2024
+KernelVersion: 6.1
+Contact: "Kevin Ying" <kevinying@google.com>
+Description:
+  Userspace client uses this to read vendor DDIC color data on supported panels. The client
+  first writes a configuration string, e.g. "1 0" for luminance segment 0, then reads the
+  corresponding color data while the panel is active. For each configuration string, a
+  fixed result will be returned specific to the panel. Fake data can also be injected with
+  "2 <byte offset> <data>" where <data> is up to 3 2-byte integers.
+
+What: /sys/devices/platform/gs-drm-connector/panel/frame_rate
+Date: June 2024
+KernelVersion: 6.1
+Contact: "Jeremy DeHaan" <jdehaan@google.com>
+Description:
+  Userspace client uses this to write the current frame rate. This is to inform the panel about
+  the frequency of frames exiting the OS's display management system (such as SurfaceFlinger),
+  in cases where that information may affect a particular panel's behavior. Not all panels
+  need (or support) this feature. Setting this value directly will not affect the
+  refresh_rate of the panel. The unit is frames per second.
+
+What: /sys/devices/platform/gs-drm-connector/panel/power_mode
+Date: June 2024
+KernelVersion: 6.1
+Contact: "Attis Chen" <attis@google.com>
+Description:
+  Userspace client uses this to read the display_on, normal and sleep bits at
+  bit 2, 3, 4 respectively of power mode register.
+
+What: /sys/devices/platform/gs-drm-connector/panel/backlight/panel0-backlight/dim_brightness
+Date: August 2024
+KernelVersion: 6.1
+Contact: "Ken Lin" <lyenting@google.com>
+Description:
+  Userspace client uses this to read lower minimum brightness.
+
+What: /sys/devices/platform/gs-drm-connector/panel/backlight/panel0-backlight/cabc_mode
+Date: August 2024
+KernelVersion: 6.1
+Contact: "Ken Lin" <lyenting@google.com>
+Description:
+  Userspace client can activate Content Adaptive Brightness Control to save backlight power.
+
+What: /sys/devices/platform/gs-drm-connector/panel/expected_present_time_ns
+Date: August 2024
+KernelVersion: 6.1
+Contact: "Tai-Hua Tseng" <taihua@google.com>
+Description:
+  Userspace client can use this node to deliver next frame's expected present timestamp,
+  similar with CRTC property expected present timestamp, but it can be noticed
+  far ahead from setting property with atomic_commit (e.g., 30ms).
+  Could assist connector targeting appropriate DCS timing during idle scenarios with
+  frame_interval information.
+  The unit is nanosecond.
+
+What: /sys/devices/platform/gs-drm-connector/panel/frame_interval_ns
+Date: August 2024
+KernelVersion: 6.1
+Contact: "Tai-Hua Tseng" <taihua@google.com>
+Description:
+  Userspace client can use this node to deliver next frame's interval,
+  similar with connector property frame interval, but it can be noticed
+  far ahead from setting property with atomic_commit (e.g., 30ms).
+  Could assist connector targeting appropriate DCS timing during idle scenarios with
+  expected present information.
+  The unit is nanosecond.

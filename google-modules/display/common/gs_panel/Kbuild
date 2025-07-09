@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+
+ccflags-y += -I$(srctree)/$(src)/../include
+
+gs-panel-y := gs_panel.o
+
+#helpers
+gs-panel-y += gs_dsi_dcs_helper.o
+gs-panel-y += drm_bridge_funcs.o
+gs-panel-y += drm_panel_funcs_defaults.o
+gs-panel-y += gs_panel_connector_funcs.o
+gs-panel-y += gs_panel_sysfs.o
+gs-panel-y += gs_panel_trace.o
+gs-panel-y += gs_panel_funcs_defaults.o
+gs-panel-y += gs_panel_lhbm.o
+gs-panel-$(CONFIG_DEBUG_FS) += gs_panel_debugfs.o
+
+obj-$(CONFIG_GS_DRM_PANEL_UNIFIED) += gs-panel.o
+
+gs-panel-$(CONFIG_DEBUG_PANEL_TEST) += gs_panel_test.o

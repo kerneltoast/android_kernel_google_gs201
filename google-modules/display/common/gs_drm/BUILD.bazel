@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: MIT
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "gs_drm",
+    srcs = glob([
+        "*.c",
+    ]) + [
+        "Kbuild",
+        "//private/google-modules/display/common:headers",
+    ],
+    outs = [
+        "gs-drm-connector.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/display:__subpackages__",
+        "//private/google-modules/touch:__subpackages__",
+    ],
+)
