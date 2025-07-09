@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: bbd_pps driver device tree bindings
+
+maintainers:
+  - Cheng Chang <chengchang@google.com>
+
+description: |
+  The bbd_pps driver provides userspace the last GPIO interrupt kernel boot time, and
+  the pulse is from the BCM47765 Gnss MCU at precise 1 second interval.
+
+properties:
+  compatible:
+    const: bbd_pps
+
+  gpios:
+    description:
+       A connection GPIO and configuration to receive the interrupt pulse.
+    maxItems: 1
+
+  assert-falling-edge:
+    description:
+       Informs the Linux kernel on how to interpret a pulse signal connected to a GPIO pin.
+    maxItems: 1
+    type: boolean
+
+required:
+  - compatible
+  - gpios
+  - assert-falling-edge
+
