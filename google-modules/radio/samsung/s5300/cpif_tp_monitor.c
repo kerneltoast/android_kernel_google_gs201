@@ -1572,6 +1572,26 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 		mif_dt_count_u32_array(child_np, "level",
 			child_data.level, child_data.num_level);
 
+		/*
+		 * Block specific tpmon features without modifying DTBO. Add a
+		 * build-time assertion to catch when a new tpmon target is
+		 * added, so we'll know about it and block it too if needed.
+		 */
+		BUILD_BUG_ON(MAX_TPMON_TARGET != 17);
+		switch (child_data.target) {
+		case TPMON_TARGET_MIF:
+		case TPMON_TARGET_INT_FREQ:
+		case TPMON_TARGET_CPU_CL0:
+		case TPMON_TARGET_CPU_CL1:
+		case TPMON_TARGET_CPU_CL2:
+		case TPMON_TARGET_MIF_MAX:
+		case TPMON_TARGET_INT_FREQ_MAX:
+		case TPMON_TARGET_CPU_CL0_MAX:
+		case TPMON_TARGET_CPU_CL1_MAX:
+		case TPMON_TARGET_CPU_CL2_MAX:
+			continue;
+		}
+
 		/* boost */
 		for_each_child_of_node(child_np, boost_np) {
 			if (count >= MAX_TPMON_DATA) {
