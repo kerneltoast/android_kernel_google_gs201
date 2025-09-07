@@ -1579,7 +1579,11 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 		 */
 		BUILD_BUG_ON(MAX_TPMON_TARGET != 17);
 		switch (child_data.target) {
+		case TPMON_TARGET_RPS:
 		case TPMON_TARGET_MIF:
+		case TPMON_TARGET_IRQ_MBOX:
+		case TPMON_TARGET_IRQ_PCIE:
+		case TPMON_TARGET_IRQ_DIT:
 		case TPMON_TARGET_INT_FREQ:
 		case TPMON_TARGET_CPU_CL0:
 		case TPMON_TARGET_CPU_CL1:
