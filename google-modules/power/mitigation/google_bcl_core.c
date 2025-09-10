@@ -2360,6 +2360,11 @@ static int google_bcl_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct bcl_device *bcl_dev;
+	struct power_supply *batt_psy;
+
+	batt_psy = power_supply_get_by_phandle(pdev->dev.of_node, PSY_NAME);
+	if (IS_ERR_OR_NULL(batt_psy))
+		return -EPROBE_DEFER;
 
 	bcl_dev = devm_kzalloc(&pdev->dev, sizeof(*bcl_dev), GFP_KERNEL);
 	if (IS_ERR_OR_NULL(bcl_dev))
