@@ -1,0 +1,12 @@
+#
+# LWIS camera drivers
+#
+
+config LWIS
+      bool "Drivers under LWIS implementation"
+      depends on VIDEO_GOOGLE
+      default n
+      help
+		    This is the LWIS implementation
+
+
