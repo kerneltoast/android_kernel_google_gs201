@@ -1,0 +1,7 @@
+What:		/sys/kernel/pixel_stat/gpu/mem/slc_pin_partition
+Date:		Feb 2024
+Contact:	"Jack Diver" <diverj@google.com>
+Description:
+		Write-only node to manually pin the SLC partition in the enabled
+		state. This useful when profiling SLC performance.
+

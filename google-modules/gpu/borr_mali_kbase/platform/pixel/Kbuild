@@ -1,0 +1,58 @@
+#
+# (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+# SPDX-License-Identifier: GPL-2.0
+#
+#
+
+mali_kbase-y += \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu.o \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_power.o \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_uevent.o \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_itmon.o
+
+mali_kbase-$(CONFIG_MALI_MIDGARD_DVFS) += \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_dvfs.o \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_dvfs_governor.o \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_dvfs_metrics.o \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_sysfs.o
+
+mali_kbase-$(CONFIG_MALI_PIXEL_GPU_PM) += \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_power.o
+
+mali_kbase-$(CONFIG_MALI_PIXEL_GPU_QOS) += \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_dvfs_qos.o
+
+mali_kbase-$(CONFIG_MALI_PIXEL_GPU_THERMAL) += \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_tmu.o
+
+ifneq ($(filter -DCONFIG_MALI_PIXEL_GPU_SSCD, $(ccflags-y)),)
+mali_kbase-y += \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_sscd.o
+endif
+
+ifeq ($(CONFIG_MALI_PIXEL_GPU_SLC),y)
+	mali_kbase-y += \
+		platform/$(MALI_PLATFORM_DIR)/pixel_gpu_slc.o
+
+	ifeq ($(CONFIG_SOC_ZUMA),y)
+		ccflags-y += -DPIXEL_GPU_SLC_ACPM_SIGNAL
+	endif
+endif
+
+mali_kbase-$(CONFIG_MALI_CSF_SUPPORT) += \
+	platform/$(MALI_PLATFORM_DIR)/pixel_gpu_debug.o

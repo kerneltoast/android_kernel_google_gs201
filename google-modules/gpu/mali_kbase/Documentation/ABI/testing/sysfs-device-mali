@@ -1,0 +1,251 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+/*
+ *
+ * (C) COPYRIGHT 2017-2024 ARM Limited. All rights reserved.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU license.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ */
+
+What:		/sys/class/misc/mali%u/device/core_mask
+Description:
+		This attribute is used to restrict the number of shader cores
+		available in this instance, is useful for debugging purposes.
+		Reading this attribute provides us mask of all cores available.
+		Writing to it will set the current core mask. Doesn't
+		allow disabling all the cores present in this instance.
+
+What:		/sys/class/misc/mali%u/device/debug_command
+Description:
+		This attribute is used to issue debug commands that supported
+		by the driver. On reading it provides the list of debug commands
+		that are supported, and writing back one of those commands will
+		enable that debug option.
+
+What:		/sys/class/misc/mali%u/device/dvfs_period
+Description:
+		This is used to set the DVFS sampling period to be used by the
+		driver, On reading it provides the current DVFS sampling period,
+		on writing a value we set the DVFS sampling period.
+
+What:		/sys/class/misc/mali%u/device/fw_timeout
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. This attribute is
+		used to set the duration value in milliseconds for the
+		waiting timeout used for a GPU status change request being
+		acknowledged by the FW.
+
+What:		/sys/class/misc/mali%u/device/gpuinfo
+Description:
+		This attribute provides description of the present Mali GPU.
+		Its a read only attribute provides details like GPU family, the
+		number of cores, the hardware version and the raw product id.
+
+What:		/sys/class/misc/mali%u/device/idle_hysteresis_time
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. This attribute is
+		used to configure the timeout value in microseconds for the
+		GPU idle handling. If GPU has been idle for this timeout
+		period, then it is put to sleep for GPUs where sleep feature
+		is supported or is powered down after suspending command
+		stream groups.
+
+What:		/sys/class/misc/mali%u/device/idle_hysteresis_time_ns
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. This attribute is
+		used to configure the timeout value in nanoseconds for the
+		GPU idle handling. If GPU has been idle for this timeout
+		period, then it is put to sleep for GPUs where sleep feature
+		is supported or is powered down after suspending command
+		stream groups.
+
+What:		/sys/class/misc/mali%u/device/pm_poweroff
+Description:
+		This attribute contains the current values, represented as the
+		following space-separated integers:
+		• PM_GPU_POWEROFF_TICK_NS.
+		• PM_POWEROFF_TICK_SHADER.
+		• PM_POWEROFF_TICK_GPU.
+
+		Example:
+		echo 100000 4 4 > /sys/class/misc/mali0/device/pm_poweroff
+
+		Sets the following new values: 100,000ns tick, four ticks
+		for shader power down, and four ticks for GPU power down.
+
+What:		/sys/class/misc/mali%u/device/power_policy
+Description:
+		This attribute is used to find the current power policy been
+		used, reading will list the power policies available and
+		enclosed in square bracket is the current one been selected.
+
+		Example:
+		cat /sys/class/misc/mali0/device/power_policy
+		[demand] coarse_demand always_on
+
+		To switch to a different policy at runtime write the valid entry
+		name back to the attribute.
+
+		Example:
+		echo "coarse_demand" > /sys/class/misc/mali0/device/power_policy
+
+What:		/sys/class/misc/mali%u/device/progress_timeout
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. This attribute
+		is used to set the progress timeout value and read the current
+		progress timeout value.
+
+		Progress timeout value is the maximum number of GPU cycles
+		without forward progress to allow to elapse before terminating a
+		GPU command queue group.
+
+What:           /sys/class/misc/mali%u/device/mcu_shader_pwroff_timeout
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. The duration value unit
+		is in micro-seconds and is used for configuring MCU shader Core power-off
+		timer. The configured MCU shader Core power-off timer will only have
+		effect when the host driver has delegated the shader cores
+		power management to MCU. The supplied value will be
+		recorded internally without any change. But the actual field
+		value will be subject to core power-off timer source frequency
+		scaling and maximum value limiting. The default source will be
+		SYSTEM_TIMESTAMP counter. But in case the platform is not able
+		to supply it, the GPU CYCLE_COUNTER source will be used as an
+		alternative.
+
+		If we set the value to zero then MCU-controlled shader/tiler
+		power management will be disabled.
+
+What:       /sys/class/misc/mali%u/device/mcu_shader_pwroff_timeout_ns
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. The duration value unit
+		is in nanoseconds and is used for configuring MCU shader Core power-off
+		timer. The configured MCU shader Core power-off timer will only have
+		effect when the host driver has delegated the shader cores
+		power management to MCU. The supplied value will be
+		recorded internally without any change. But the actual field
+		value will be subject to core power-off timer source frequency
+		scaling and maximum value limiting. The default source will be
+		SYSTEM_TIMESTAMP counter. But in case the platform is not able
+		to supply it, the GPU CYCLE_COUNTER source will be used as an
+		alternative.
+
+		If we set the value to zero then MCU-controlled shader/tiler
+		power management will be disabled.
+
+What:           /sys/class/misc/mali%u/device/csg_scheduling_period
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. The duration value unit
+		is in milliseconds and is used for configuring csf scheduling
+		tick duration.
+
+What:		/sys/class/misc/mali%u/device/reset_timeout
+Description:
+		This attribute is used to set the number of milliseconds to
+		wait for the soft stop to complete for the GPU jobs before
+		proceeding with the GPU reset.
+
+What:		/sys/class/misc/mali%u/device/soft_job_timeout
+Description:
+		This attribute is available only with platform device that
+                supports a Job Manager based GPU. It used to set the timeout
+		value for waiting for any soft event to complete.
+
+What:		/sys/class/misc/mali%u/device/scheduling/serialize_jobs
+Description:
+		This attribute is available only with platform device that
+                supports a Job Manager based GPU.
+
+		Various options available under this are:
+		• none - for disabling serialization.
+		• intra-slot - Serialize atoms within a slot, only one
+				atom per job slot.
+		• inter-slot - Serialize atoms between slots, only one
+				job slot running at any time.
+		• full - it a combination of both inter and intra slot,
+				so only one atom and one job slot running
+				at any time.
+		• full-reset - full serialization and Reset the GPU after
+				each atom completion
+
+		These options are useful for debugging and investigating
+		failures and gpu hangs to narrow down atoms that could cause
+		troubles.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Compute iterator count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only attribute
+		which indicates the maximum number of Compute iterators
+		supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/CSHWIF count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only
+		attribute which indicates the maximum number of	CSHWIFs
+		supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Fragment iterator count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only
+		attribute which indicates the maximum number of
+		Fragment iterators supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Scoreboard set count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only
+		attribute which indicates the maximum number of
+		Scoreboard set supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Tiler iterator count/*
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. Its a read-only
+		attribute which indicates the maximum number of	Tiler iterators
+		supported by the GPU.
+
+What:		/sys/class/misc/mali%u/device/firmware_config/Log verbosity/*
+Description:
+		This attribute is available only with mali platform
+                device-driver that supports a CSF GPU.
+
+		Used to enable firmware logs, logging levels valid values
+		are indicated using 'min' and 'max' attributes, which are read-only.
+
+		Log level can be set using the 'cur' read, write attribute,
+		we can use a valid log level value from min and max range values
+		and set a valid desired log level for firmware logs.
+
+What:		/sys/class/misc/mali%u/device/gpu_top
+Date:		Nov 2024
+Contact:	"Renato Grottesi" <otaner@google.com>
+Description:
+		Read only node that prints a list of all the UIDs that
+		ever used the GPU since boot, together with the percentage
+		of GPU usage since the last read of this node.
+		The output consists of multiple "UID,PI.PD" lines where:
+		* UID is an integer with the UID of the process
+		* PI is the integer part of the percentage (from 0 to 100)
+		* PD is the first 2 decimal digits of the percentage
