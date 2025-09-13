@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: GPL-2.0
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "include/**/*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/aoc:__pkg__",
+        "//private/google-modules/hdcp/samsung:__pkg__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
+
+filegroup(
+    name = "trusty.kconfig",
+    srcs = [
+        "drivers/trusty/Kconfig",
+    ],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
+
+kernel_module(
+    name = "trusty",
+    srcs = glob([
+        "drivers/trusty/*.c",
+        "drivers/trusty/*.h",
+        "drivers/trusty/*.S",
+    ]) + [
+        "Kbuild",
+        "drivers/trusty/Kbuild",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+        "//private/google-modules/trusty:headers",
+    ],
+    outs = [
+        "trusty-core.ko",
+        "trusty-ipc.ko",
+        "trusty-log.ko",
+        "trusty-test.ko",
+        "trusty-virtio.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/hdcp/samsung:__pkg__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
