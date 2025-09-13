@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+load("//build/kernel/kleaf:kernel.bzl", "checkpatch", "kernel_module")
+
+checkpatch(
+    name = "checkpatch",
+    checkpatch_pl = "//common:scripts/checkpatch.pl",
+)
+
+kernel_module(
+    name = "gxp",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "Makefile",
+        "gcip-kernel-driver/drivers/gcip/Makefile",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+    ],
+    outs = [
+        "gxp.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+    deps = [
+        "//private/google-modules/edgetpu/janeiro/drivers/edgetpu:edgetpu.janeiro",
+        "//private/google-modules/soc/gs:gs_soc_module",
+    ],
+)
