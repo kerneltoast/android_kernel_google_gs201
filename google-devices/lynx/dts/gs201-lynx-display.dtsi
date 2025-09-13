@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Display nodes for slider-related boards.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+&drmdsim0 {
+	sdc_s6e3fc3_l10: panel@0 {
+		compatible = "samsung,s6e3fc3-l10";
+		label = "sdc-s6e3fc3-l10";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo27_reg>;
+		vddi-supply = <&s_bucka_reg>;
+		touch = <&spitouch>;
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+	};
+	sdc_s6e3fc3_p10: panel@2 {
+		compatible = "samsung,s6e3fc3-p10";
+		label = "sdc-s6e3fc3-p10";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo27_reg>;
+		vddi-supply = <&s_bucka_reg>;
+		touch = <&spitouch>;
+	};
+	sdc_s6e3fc5: panel@3 {
+		compatible = "samsung,s6e3fc5";
+		label = "sdc-s6e3fc5";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+		vci-supply = <&m_ldo27_reg>;
+		vddi-supply = <&s_bucka_reg>;
+		touch = <&spitouch>;
+	};
+};
+
+&dsim_modes {
+	dsim-modes {
+		1080x2400 {
+			mode-name = "1080x2400";
+			pmsk = <
+				0x2 0xB3 0x2 0x5CAB /* p m s k */
+				>;
+			hs-clk = <1102>;
+			esc-clk = <20>;
+		};
+	};
+};
+
+

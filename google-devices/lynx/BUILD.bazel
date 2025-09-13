@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//private/devices/google/common/kleaf:device_build.bzl", "device_build")
+load("//private/devices/google/gs201:constants.bzl", "GS201_DTBS", "GS201_MODULE_OUTS")
+load(":constants.bzl", "LYNX_DTBOS")
+
+package(
+    default_visibility = [
+        "//private/devices/google/gs201:__subpackages__",
+    ],
+)
+
+device_build(
+    name = "lynx",
+    base_device = "//private/devices/google/gs201:gs201_base",
+    build_dtb = True,
+    build_dtbo = True,
+    build_system_dlkm = True,
+    build_vendor_dlkm = True,
+    build_vendor_kernel_boot = True,
+    defconfig_fragments = ["lynx_defconfig"],
+    dtb_outs = GS201_DTBS,
+    dtbo_outs = LYNX_DTBOS,
+    dts_makefile = "dts/Makefile",
+    dts_srcs = glob(["dts/**"]) + [
+        "//private/google-modules/soc/gs:gs.dt-bindings",
+    ],
+    ext_modules = [
+        # keep sorted
+        "//private/devices/google/lynx/display:drm_panel.google",
+        "//private/google-modules/amplifiers/cs35l41",
+        "//private/google-modules/amplifiers/cs40l26",
+        "//private/google-modules/amplifiers/snd_soc_wm_adsp:snd-soc-wm-adsp",
+        "//private/google-modules/bluetooth/qcom:bluetooth.qcom",
+        "//private/google-modules/gps/broadcom/bcm47765",
+        "//private/google-modules/nfc",
+        "//private/google-modules/radio/samsung/s5300:cpif",
+        "//private/google-modules/touch/common:touch.common",
+        "//private/google-modules/touch/focaltech/ft3658",
+        "//private/google-modules/touch/goodix",
+        "//private/google-modules/wlan/wcn6740/cnss2",
+        "//private/google-modules/wlan/wcn6740/wlan/qcacld-3.0",
+    ],
+    insmod_cfgs = glob(["insmod_cfg/*.cfg"]),
+    kconfig_exts = ["Kconfig.ext.lynx"],
+    kconfigs = [
+        # keep sorted
+        "//private/google-modules/radio/samsung/s5300:cpif.kconfig",
+        "//private/google-modules/touch/common:touch.common.kconfig",
+    ],
+    module_outs = GS201_MODULE_OUTS,
+    vendor_dlkm_modules_blocklists = ["vendor_dlkm.blocklist.lynx"],
+    vendor_ramdisk_modules_lists = ["vendor_ramdisk.modules.lynx"],
+)
+
+# For compatibility
+alias(
+    name = "gs201_lynx_dist",
+    actual = ":lynx/dist",
+)
+
+alias(
+    name = "gs201_lynx_abi_update_symbol_list",
+    actual = ":lynx/kernel_abi_update_symbol_list",
+)
+
+alias(
+    name = "kernel",
+    actual = ":lynx/kernel",
+)
+
+alias(
+    name = "kernel_abi_update_symbol_list",
+    actual = ":lynx/kernel_abi_update_symbol_list",
+)
+
+alias(
+    name = "kernel_compile_commands",
+    actual = ":lynx/kernel_compile_commands",
+)

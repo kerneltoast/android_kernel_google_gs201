@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Bluetooth device tree for raven.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs201/gs101-pinctrl.h"
+
+&serial_18 {
+	status = "okay";
+};
+
+/delete-node/ &bt_reg_on;
+/delete-node/ &bt_dev_wake;
+/delete-node/ &bt_host_wake;
+/delete-node/ &btbcm;
+
+&pinctrl_4 {
+	bt_reset: bt-reset {
+		samsung,pins ="gpp16-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+	bt_wake: bt-wake {
+		samsung,pins ="gpp16-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&pinctrl_1 {
+	bt_hostwake: bt-hostwake {
+		samsung,pins ="gpa6-6";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+};
+
+&pinctrl_7 {
+	bt_0p95_en: bt-0p95-en {
+		samsung,pins = "gph2-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+/ {
+	fragment@model {
+		target-path = "/";
+		__overlay__ {
+			btpower: bt-power {
+				compatible = "qcom,wcn6740";
+				pinctrl-names = "default", "supply";
+				pinctrl-0 = <&bt_reset &bt_wake &bt_hostwake>;
+				pinctrl-1 = <&bt_0p95_en>;
+				qcom,bt-reset-gpio = <&gpp16 2 GPIO_ACTIVE_HIGH>;  /* BT_EN */
+				qcom,wl-reset-gpio = <&gph2 4 GPIO_ACTIVE_HIGH>;   /* WL_EN */
+				qcom,bthostwake_gpio = <&gpa6 6 GPIO_ACTIVE_HIGH>; /* BT_HOST_WAKE */
+				qcom,btwake_gpio = <&gpp16 3 GPIO_ACTIVE_HIGH>;    /* BT_DEV_WAKE */
+				qcom,xo-clk-gpio = <&gph2 5 GPIO_ACTIVE_HIGH>;     /* EN_0P95 */
+				status = "okay";
+			};
+		};
+	};
+};

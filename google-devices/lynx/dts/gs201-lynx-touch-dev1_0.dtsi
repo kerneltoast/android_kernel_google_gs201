@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google L10 touch device tree source
+ *
+ * Copyright 2022 Google Inc.
+ *
+ */
+
+#include <arm64/exynos/exynos-pinctrl.h>
+
+/*
+ * Touch is connected to spi_0, pins:
+ *   CLK=GPP20[0], MOSI=GPP20[1], MISO=GPP20[2], CS=GPP20[3]
+ * TS_RESET_L = C26 = XAPC_USI11_RTSN_DI = GPP23[2] = <&gpp23 2 0>
+ * TS_INT_L = AT22 = XEINT_8 = GPA7[0] = <&gpa7 0 0>
+ *
+ * DVDD = PP1800_L25M_TSP_DVDD = ??? = VLDO25M = "PP1800_L25M_TSP"?
+ * AVDD = PP3300_L26M_TS_AVDD  = ??? = VLDO26M = "PP3300_L26M_TSP"?
+ *
+ * AP2AOC: XHSI1_GPIO2 - GPH1[0] -> XAOC_GPIO13 - gpio_in[87]
+ * AOC2AP: XAOC_GPIO8 - gpio_in[74] -> XEINT_19 - GPA8[7]
+ */
+
+&spi_0 {
+	dma-mode;
+	dmas = <&pdma0 0 &pdma0 1>;
+	swap-mode = <1> ;
+	cs-gpio = <&gpp20 3 GPIO_ACTIVE_LOW>;
+	num-cs = <1>;
+};
+
+&spitouch {
+	status = "ok";
+	compatible = "focaltech,ts";
+
+	spi-max-frequency = <10000000>;
+
+	focaltech,irq-gpio = <&gpa7 0 0>;
+	focaltech,reset-gpio = <&gpp23 2 0>;
+	focaltech,max-touch-number = <10>;
+	focaltech,display-coords = <0 0 1079 2399>;
+	focaltech,panel_map = <&sdc_s6e3fc3_p10 0>;
+
+	controller-data {
+		samsung,spi-feedback-delay = <0>;
+		samsung,spi-chip-select-mode = <1>;
+		cs-clock-delay = <1>;
+	};
+};

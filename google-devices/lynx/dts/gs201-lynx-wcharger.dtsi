@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Wireless Charger device tree entries.
+ *
+ * Copyright 2020 Google Inc.
+ */
+
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs201/gs101-pinctrl.h"
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	fragment@wlc {
+		target-path = "/";
+		__overlay__ {
+			google,charger {
+				google,wlc-power-supply = "wireless";
+			};
+		};
+	};
+};
+
+&pinctrl_0 {
+	/* XIENT_25 P9412 Wireless Charger Interrupt */
+	wc_irq: wc_irq {
+		samsung,pins = "gpa9-5"; /* QI_INT_R */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_4 {
+	/* XAPC_GPIO0 P9412 Wireless Charger Enable */
+	wc_en: wc_en {
+		samsung,pins = "gpp0-0"; /* QI_EN_L */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&hsi2c_15 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	p9222@61 {
+		compatible = "idt,p9222";
+		reg = <0x61>;
+		status = "ok";
+
+		/* Support p9412 GPIO */
+		idt,has_p9412_gpio;
+
+		idt,has_rtx = <0>;
+
+		google,power_mitigate_threshold = <90>;
+		google,has-sw-ramp;
+		google,epp_dcicl_default_ma = <750000>;
+		google,wcin_inlim_en = <&max77759_gpio 0 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wc_irq &wc_en>;
+
+		idt,wlc_en-gpio = <&gpp0 0 GPIO_ACTIVE_LOW>;
+		idt,qi_vbus_en-gpio = <&s2mpg12_gpio 2 GPIO_ACTIVE_HIGH>;
+		idt,qien-gpio = <&gpp0 0 GPIO_ACTIVE_LOW>;
+		idt,irq-gpio = <&gpa9 5 GPIO_ACTIVE_LOW>;
+		idt,slct-gpio = <&s2mpg12_gpio 0 GPIO_ACTIVE_HIGH>;
+		idt,gpio_slct_value = <0>;
+
+		idt,max_vout_mv = <10000>;  /* max voltage in mV */
+
+		google,q_value = <43>;
+		fod = [A9 20 89 27 8D 25 92 23 9B 10 A0 0F];
+		fod_epp = [84 68 89 4D 92 2B 8A 4B 93 20 93 26 01 01 FF 19];
+
+		google,iop_en;		/* IOP enable */
+		google,light_load;	/* Calibration light load */
+
+		p9xxx_gpio: p9xxx_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+		};
+	};
+};
