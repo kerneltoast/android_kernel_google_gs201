@@ -1,0 +1,9 @@
+What:		/sys/devices/platform/[0-9]+.aoc/notify_timeout_aoc_status
+Date:		Nov 2023
+KernelVersion:	2.6.22
+Contact:	alexiacobucci@google.com
+Description:
+		Read-only node used by AOC's kernel driver to notify userspace
+		if a request for AOC fabric to reach a certain state has timed out.
+
+Users:		AOC kernel driver, aocd process in userspace.

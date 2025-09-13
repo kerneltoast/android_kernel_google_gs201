@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# ASoC-based USB driver
+#
+
+ccflags-y += -I$(srctree)/drivers/usb/host
+ccflags-y += -I$(srctree)/sound/usb
+ccflags-y += -I$(srctree)/../private/google-modules/aoc_ipc
+ccflags-y += -I$(srctree)/../private/google-modules/aoc
+ccflags-y += -I$(srctree)/../private/google-modules/soc/gs/drivers/usb/host
+
+obj-$(CONFIG_AOC_DRIVER)	+= aoc_usb_driver.o
+aoc_usb_driver-objs		:= aoc_usb_dev.o xhci_hooks_impl_whi.o usb_hooks_impl_whi.o
