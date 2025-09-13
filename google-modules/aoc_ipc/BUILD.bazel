@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/aoc:__subpackages__",
+    ],
+)
+
+filegroup(
+    name = "sources",
+    srcs = glob([
+        "*.c",
+        "*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/aoc:__subpackages__",
+    ],
+)
