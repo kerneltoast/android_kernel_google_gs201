@@ -1,0 +1,1 @@
+../components/umac/mlme/wfa_config/dispatcher/inc/wlan_wfa_ucfg_api.h

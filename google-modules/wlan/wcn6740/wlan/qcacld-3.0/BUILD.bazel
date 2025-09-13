@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "kernel_module")
+
+kernel_module(
+    name = "qcacld-3.0",
+    srcs = glob([
+        "**/Makefile",
+        "**/Kbuild",
+        "**/*.c",
+        "**/*.h",
+    ]) + [
+        "configs/default_defconfig",
+        "headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+        "//private/google-modules/wlan/wcn6740/cnss2:cnss2_headers",
+        "//private/google-modules/wlan/wcn6740/wlan/fw-api",
+    ],
+    outs = [
+        "wlan.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+    deps = [
+        "//private/google-modules/soc/gs:gs_soc_module",
+        "//private/google-modules/wlan/wcn6740/cnss2",
+    ],
+)
+
+ddk_headers(
+    name = "headers",
+    hdrs = [
+        "//private/google-modules/wlan/wcn6740/wlan/qcacld-3.0/cmn:qcacmn",
+    ],
+    includes = [],
+    visibility = ["//visibility:private"],
+)
