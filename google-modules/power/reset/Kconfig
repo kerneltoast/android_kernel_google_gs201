@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config PIXEL_POWER_REBOOT
+	tristate "Pixel Power Reboot driver"
+	depends on SOC_GS101 || SOC_GS201 || SOC_ZUMA
+	help
+	  Reboot driver support for Pixel devices.
