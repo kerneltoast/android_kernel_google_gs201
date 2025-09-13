@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+
+ccflags-y += -I$(srctree)/$(src)/../include
+
+gs-drm-connector-y := gs_drm_connector.o
+
+obj-$(CONFIG_GS_DRM_PANEL_UNIFIED) += gs-drm-connector.o

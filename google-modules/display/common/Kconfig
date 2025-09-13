@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT
+
+menu "GS Display Configuration"
+	depends on DRM
+
+config GS_DRM_PANEL_UNIFIED
+	tristate "Support for GS Unified panel driver"
+	depends on OF && DRM
+	select DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	help
+	  Choose this option to support the unified panel driver framework.
+	  This option is designed to be decoupled from DPU code
+	  to reduce interdependency. This feature is currently in development
+	  and is not meant for use on in-market devices.
+
+config GS_PANEL_SIMPLE
+	tristate "Support for simple gs_panel, primarily for simulation"
+	depends on GS_DRM_PANEL_UNIFIED
+	help
+	  Select this option to enable support for the simple (sim) panel
+
+config DEBUG_PANEL_TEST
+	bool "Support for panel test module"
+	default n
+	help
+	  Select this option to enable support for panel test modules
+
+config COMMON_PANEL_TEST
+	tristate "Support for common panel test module"
+	depends on DEBUG_PANEL_TEST
+	help
+	  Select this option to enable support for the common panel test
+
+endmenu
