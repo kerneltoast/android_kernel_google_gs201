@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+
+load("//build/kernel/kleaf:kernel.bzl", "kernel_module")
+
+kernel_module(
+    name = "tas256x",
+    outs = [
+        "snd-soc-tas256x.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        "//private/devices/google:__subpackages__",
+    ],
+)

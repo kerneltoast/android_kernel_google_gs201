@@ -1,0 +1,117 @@
+What:		/sys/devices/platform/audiometrics/cca_show
+Date:		Aug, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides CCA count but not resets count value.
+
+What:		/sys/devices/platform/audiometrics/cca_count_read_once_show
+Date:		Aug, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides CCA count and resets count value.
+
+What: /sys/devices/platform/audiometrics/call_count
+Date: Jul, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides total count of voice-call and VoIP-call
+
+What:		/sys/devices/platform/audiometrics/pdm_state
+Date:		Mar, 2023
+KernelVersion:	5.15
+Contact:	yixuanjiang <yixuanjiang@google.com>
+Description:
+		Reading from this file provides silence detect status of each
+		PDM from AoC recording path
+
+What:		/sys/devices/platform/audiometrics/waves
+Date:		May, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides duration and counts of active waves effect.
+
+What:		/sys/devices/platform/audiometrics/adapted_info_active_count
+Date:		May, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides active count of the audio adapted information
+		such as thermal throttling.
+
+What:		/sys/devices/platform/audiometrics/adapted_info_active_duration
+Date:		May, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides active duration audio adapted information
+		such as thermal throttling.
+
+What:		/sys/devices/platform/audiometrics/bt_usage
+Date:		Jun, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides active usage of each Bluetooth codec.
+
+What:		/sys/devices/platform/audiometrics/pcm_latency
+Date:		Jun, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides average latency in milliseconds from PCM
+    usage.
+
+What:		/sys/devices/platform/audiometrics/pcm_count
+Date:		Jun, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides total count of PCM usage.
+
+What:		/sys/devices/platform/audiometrics/voice_info_noise_level
+Date:		Jul, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides noise level duration in seconds.
+
+What:		/sys/devices/platform/audiometrics/offload_effects_id_show
+Date:		Jul, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides offload effects id. This value is associated
+		with offload_effects_duration_show file.
+
+What:		/sys/devices/platform/audiometrics/offload_effects_duration_show
+Date:		Jul, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides a duration of offload effects. Each duration
+		Is from a specific effect listed in offload_effects_id_show.
+
+What:		/sys/devices/platform/audiometrics/dsp_record_count
+Date:		Jul, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides a count of dsp record events.
+
+What:		/sys/devices/platform/audiometrics/dsp_record_duration
+Date:		Jul, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides a total duration of the dsp record events.
+
+What:		/sys/devices/platform/audiometrics/audio_software_restart_count,
+Date:		Jul, 2023
+KernelVersion:	5.15
+Contact:	poomarin <poomarin@google.com>
+Description:
+		Reading from this file provides a software restart count.

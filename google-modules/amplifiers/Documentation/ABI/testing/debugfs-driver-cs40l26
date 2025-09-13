@@ -1,0 +1,44 @@
+What:		/sys/kernel/debug/cs40l26/active_seq
+Date:		February 2024
+Contact:	patches@opensource.cirrus.com
+Description:
+		Display contents of the active write sequencer.
+
+		Access: Read
+
+What:		/sys/kernel/debug/cs40l26/power_on_seq
+Date:		October 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Display contents of the power-on write sequencer.
+
+		Access: Read
+
+What:		/sys/kernel/debug/cs40l26/hardware/register
+Date:		October 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Hardware register address to access.
+		Only registers that are exposed by the driver can be accessed in this way.
+		Depending on the functionality of the register, writes may be ignored
+		(e.g. address 0x0 cannot be changed as it contains the device ID).
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal
+			Default: 0x00000000
+
+What:		/sys/kernel/debug/cs40l26/hardware/value
+Date:		October 2023
+Contact:	patches@opensource.cirrus.com
+Description:
+		Contents of the register with address represented by
+		/sys/kernel/debug/hardware/register.
+		Writing to this control will change the value of the
+		register; use extreme caution when utilizing this control as improper
+		configuration could damage/corrupt the device, and there are no
+		checks in place that prevent assigning invalid settings.
+
+		Access: Read, Write
+
+		Valid values: Represented as hexadecimal
