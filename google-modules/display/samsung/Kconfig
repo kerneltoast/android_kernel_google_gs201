@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: MIT
+
+config DRM_SAMSUNG
+	tristate "DRM Support for Samsung EXYNOS Series"
+	depends on OF && DRM && (SOC_EXYNOS9820 || SOC_GS101 || SOC_GS201 || SOC_ZUMA)
+	select DRM_KMS_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_HELPER
+	select VIDEOMODE_HELPERS
+	help
+	  Choose this option if you have a Samsung EXYNOS SoC chipset.
+	  If M is selected the module will be called exynosdrm. It will
+	  control various panel drivers and display hardware on Samsung
+	  Exynos SoC chipset.
+
+if DRM_SAMSUNG
+
+config DRM_SAMSUNG_DPP
+	bool "DPP on Exynos"
+	default DRM_SAMSUNG
+	depends on DRM_SAMSUNG
+	help
+	  This enables support for DPP(Display Pre Processor) device on
+	  Samsung Exynos SoC. It will support scaling, rotation, compression
+	  and so on.
+
+comment "CRTCs"
+
+config DRM_SAMSUNG_DECON
+	bool "DECON on Exynos"
+	depends on !FB_S3C && !DRM_EXYNOS
+	default DRM_SAMSUNG
+	help
+	  Choose this option if you want to use Exynos DECON for DRM. It
+	  will control DECON hardware. It can blend all windows connected
+	  to DPP.
+
+comment "Encoders and Bridges"
+
+config DRM_SAMSUNG_DSI
+	bool "MIPI-DSI host"
+	depends on DRM_SAMSUNG_DECON
+	select DRM_MIPI_DSI
+	select DRM_PANEL
+	default DRM_SAMSUNG
+	help
+	  This enables support for Exynos MIPI-DSI device. It will encode
+	  data as mipi standard and transfer to the mipi panel. It also
+	  supports to read and write mipi command to and from the mipi panel.
+	  So, this driver can use various panel feature.
+
+config DSIM_LOGBUFF
+	bool "DSIM logbuffer"
+	depends on DRM_SAMSUNG_DSI
+	default n
+	help
+	  This enables support for logging DSI commands in a logbuffer.
+
+config DRM_SAMSUNG_WB
+	bool "WB on Exynos"
+	depends on DRM_SAMSUNG_DECON
+	default DRM_SAMSUNG
+	help
+	  This enables support for Exynos Concurrent Writeback device.
+	  It can be attached writeback at runtime. It will dump blended
+	  output buffer which is displaying on LCD.
+	  This means that both writeback and LCD display can be operated
+	  simultaneously.
+
+config DRM_SAMSUNG_DP
+	bool "DP on Exynos"
+	depends on DRM_SAMSUNG_DECON
+	default n
+	help
+	  This enables support for Exynos DisplayPort device. It will encode
+	  data as DP standard and transfer to the DP Dongle(USB type C to DP) or monitor.
+
+config DRM_SAMSUNG_DP_AUDIO
+	bool "DP Audio on Exynos"
+	depends on DRM_SAMSUNG_DP
+	help
+	  This enables Audio support for Exynos DisplayPort device.
+
+config DRM_SAMSUNG_TUI
+	bool "TUI reverse proxy on Exynos"
+	depends on DRM_SAMSUNG
+	default DRM_SAMSUNG
+	help
+	  This enables the TUI reverse proxy which allows the TA to allocate
+	  framebuffer.
+
+config QUEUE_DDIC_CMD_CALL_BACK
+	bool "dsim driver send callback after queue command"
+	depends on !GS_DRM_PANEL_UNIFIED
+	default n
+	help
+	  This will enable sending a notification to exynos panel
+	  when a command is queued on dsim driver.
+
+endif
