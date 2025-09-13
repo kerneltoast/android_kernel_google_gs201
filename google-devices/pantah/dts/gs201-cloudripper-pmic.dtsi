@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Cloudripper-specific PMIC settings
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+#include "gs201-raven-display-constants.dtsi"
+
+/* Cloudripper uses LDO23M for audio - MIC2 */
+&m_ldo23_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* Cloudripper uses LDO24M for display - R3 Display VDDI */
+&m_ldo24_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* Cheetah, Ravenclaw & Cloudripper use LDO28M for display. */
+&m_ldo28_reg {
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+	regulator-min-microvolt = <RAVEN_VDD_LP_MICROVOLT>;
+	regulator-max-microvolt = <RAVEN_VDD_NORMAL_MICROVOLT>;
+	regulator-ramp-delay = <1200>;
+	regulator-enable-ramp-delay = <125>;
+};
+
+/* Cloudripper uses LDO4S for audio - ALC5682 */
+&s_ldo4_reg {
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* Display: RAVEN VCI */
+&s_ldo6_reg {
+	regulator-min-microvolt = <RAVEN_VCI_MICROVOLT>;
+	regulator-max-microvolt = <RAVEN_VCI_MICROVOLT>;
+	regulator-always-on;
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+};
+
+/* Cloudripper uses LDO[26,27]S for EXTRA S5910 VDD[12,18] */
+&s_ldo26_reg {
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+	regulator-always-on;
+};
+
+&s_ldo27_reg {
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+	regulator-always-on;
+};
+
+/* Cloudripper uses LDO28S for audio - HEADPHONE CODEC (MICVIDD) */
+&s_ldo28_reg {
+	regulator-initial-mode = <SEC_OPMODE_ON>;
+	regulator-always-on;
+};
+
+/* ODPM */
+&m_ext4_rail {
+	schematic-name = "VSYS_PWR_DISPLAY";
+	subsys-name = "Display";
+};
+
+&s_ext4_rail {
+	schematic-name = "VSYS_PWR_WLAN_BT";
+	subsys-name = "WLAN-BT";
+};
+
+&s_ext5_rail {
+	schematic-name = "VSEN_C5_NC";
+	subsys-name = "Spare";
+};
+
+&s_ext6_rail {
+	schematic-name = "VSYS_PWR_MMWAVE";
+	subsys-name = "Cellular";
+};
+
+/* VSEN_C3 not available: replace to L3M_VDD_AOC_RET*/
+&ch3 {
+	rail-name = "LDO3M";
+};
+
+/* VSEN_C5 not available: replace to VSYS_PWR_MMWAVE */
+&ch14 {
+	rail-name = "VSEN_C6";
+};

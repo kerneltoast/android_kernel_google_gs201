@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Display nodes for cloudripper-related boards.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+#include "gs201-cheetah-display-constants.dtsi"
+
+&drmdsim0 {
+	sdc_s6e3hc3_c10: panel@0 {
+		compatible = "samsung,s6e3hc3-c10";
+		label = "sdc-s6e3hc3-c10";
+		channel = <0>;
+		#include "gs201-cheetah-display-common.dtsi"
+	};
+	panel@1 {
+		compatible = "samsung,emul";
+		label = "samsung-emul";
+		channel = <0>;
+
+		/* reset, power */
+		reset-gpios = <&gpa7 1 GPIO_ACTIVE_HIGH>;
+	};
+	boe_nt37290: panel@2 {
+		compatible = "boe,nt37290";
+		label = "boe-nt37290";
+		channel = <0>;
+		#include "gs201-cheetah-display-common.dtsi"
+	};
+	sdc_s6e3hc4: panel@3 {
+		compatible = "samsung,s6e3hc4";
+		label = "sdc-s6e3hc4";
+		channel = <0>;
+		#include "gs201-cheetah-display-common.dtsi"
+	};
+};
+
+&dsim_modes {
+	dsim-modes {
+		1080x2340 {
+			mode-name = "1080x2340";
+			pmsk = <
+				0x2 0xDB 0x2 0x1355 /* p m s k */
+				>;
+			hs-clk = <1346>;
+			esc-clk = <20>;
+		};
+	};
+};
+
+&sdc_s6e3hc4 {
+	vddd-normal-microvolt = <CHEETAH_3HC4_VDDD_NORMAL_MICROVOLT>;
+};

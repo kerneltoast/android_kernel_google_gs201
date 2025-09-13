@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Cloudripper DEV device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "gs201-ravenclaw-common.dtsi"
+
+/ {
+	board_id = <0x30201>;
+	board_rev = <0x10000>;
+	fragment@boardbase {
+		target-path="/";
+		__overlay__ {
+			model = "GS201 Ravenclaw Dev 1.0 based on GS201";
+			compatible = "google,GS201 RAVENCLAW", "google,GS201";
+		};
+	};
+};
+
+&serial_0 {
+	status = "okay";
+};

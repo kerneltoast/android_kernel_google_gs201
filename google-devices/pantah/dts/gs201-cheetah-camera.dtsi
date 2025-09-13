@@ -1,0 +1,992 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs201 camera lwis device tree for cheetah
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+#include <dt-bindings/clock/gs201.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs201/gs101-pinctrl.h"
+
+&slg51002_ldo1 {
+	regulator-min-microvolt = <2850000>;
+	regulator-max-microvolt = <2850000>;
+};
+
+&slg51002_ldo2 {
+	regulator-min-microvolt = <2850000>;
+	regulator-max-microvolt = <2850000>;
+};
+
+&slg51002_ldo3 {
+	regulator-min-microvolt = <2250000>;
+	regulator-max-microvolt = <2250000>;
+};
+
+&slg51002_ldo4 {
+	regulator-min-microvolt = <2900000>;
+	regulator-max-microvolt = <2900000>;
+};
+
+&slg51002_ldo5 {
+	regulator-min-microvolt = <2850000>;
+	regulator-max-microvolt = <2850000>;
+};
+
+&slg51002_ldo6 {
+	regulator-min-microvolt = <1100000>;
+	regulator-max-microvolt = <1100000>;
+};
+
+&slg51002_ldo7 {
+	regulator-min-microvolt = <1000000>;
+	regulator-max-microvolt = <1000000>;
+};
+
+&slg51002_ldo8 {
+	regulator-min-microvolt = <1100000>;
+	regulator-max-microvolt = <1100000>;
+};
+
+&s_ldo12_reg {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&pinctrl_4 {
+	hsi2c1_bus: hsi2c1-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c1_bus_in: hsi2c1-bus-in {
+		samsung,pins = "gpp2-0", "gpp2-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	hsi2c2_bus: hsi2c2-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c2_bus_in: hsi2c2-bus-in {
+		samsung,pins = "gpp4-0", "gpp4-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	hsi2c3_bus: hsi2c3-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c3_bus_in: hsi2c3-bus-in {
+		samsung,pins = "gpp6-0", "gpp6-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	hsi2c4_bus: hsi2c4-bus {
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	};
+
+	hsi2c4_bus_in: hsi2c4-bus-in {
+		samsung,pins = "gpp8-0", "gpp8-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	/* GPP8[2] Flashlight Enable */
+	flash_en: flash-en {
+		samsung,pins = "gpp8-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&hsi2c_1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp2 0 GPIO_ACTIVE_HIGH &gpp2 1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	clock-frequency = <1000000>;
+	samsung,reset-before-trans;
+	samsung,hybrid-polling-mode;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c1_bus_in>;
+	pinctrl-1 = <&hsi2c1_bus>;
+	pinctrl-2 = <&hsi2c1_bus_in>;
+};
+
+&hsi2c_2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp4 0 GPIO_ACTIVE_HIGH &gpp4 1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	clock-frequency = <950000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c2_bus_in>;
+	pinctrl-1 = <&hsi2c2_bus>;
+	pinctrl-2 = <&hsi2c2_bus_in>;
+};
+
+&hsi2c_3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp6 0 GPIO_ACTIVE_HIGH &gpp6 1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	clock-frequency = <950000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c3_bus_in>;
+	pinctrl-1 = <&hsi2c3_bus>;
+	pinctrl-2 = <&hsi2c3_bus_in>;
+};
+
+&hsi2c_4 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp8 0 GPIO_ACTIVE_HIGH &gpp8 1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	clock-frequency = <1000000>;
+	samsung,reset-before-trans;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c4_bus_in>;
+	pinctrl-1 = <&hsi2c4_bus>;
+	pinctrl-2 = <&hsi2c4_bus_in>;
+};
+
+&hsi2c_15 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	gpios = <&gpp24 0 GPIO_ACTIVE_HIGH &gpp24 1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	clock-frequency = <400000>;
+
+	pinctrl-names = "default","on_i2c","off_i2c";
+	pinctrl-0 = <&hsi2c15_bus &flash_en>;
+	pinctrl-1 = <&hsi2c15_bus>;
+	pinctrl-2 = <&hsi2c15_bus>;
+};
+/ {
+	fragment@lwiscamera {
+		target-path = "/";
+		__overlay__ {
+			/* REAR CAMERA NAGUAL */
+			sensor0: sensor@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor-nagual";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_1>;
+				i2c-addr = <0x3D>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <16>;
+
+				/* GPIOs */
+				/* CSID_RST_L GPP2[2] */
+				reset-gpios = <&gpp2 2 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo1-supply = <&slg51002_ldo1>;
+				ldo4-supply = <&slg51002_ldo4>;
+				ldo8-supply = <&slg51002_ldo8>;
+				gpio3-supply = <&slg51002_gpio3>;
+
+				clocks =
+					<&clock CIS_CLK3>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK3>;
+				clock-names =
+					"CIS_CLK3",
+					"GATE_DFTMUX_CMU_CIS_CLK3";
+				clock-rates =
+					<26000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk4_fn>;
+				pinctrl-1 = <&sensor_mclk4_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"ldo4",
+					"gpio3",
+					"ldo8",
+					"ldo1",
+					"reset",
+					"mclk_on";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator",
+					"regulator",
+					"regulator",
+					"gpio",
+					"pinctrl";
+				power-up-seq-delays-us =
+					<0
+					 1000
+					 0
+					 0
+					 2000
+					 1000
+					 9000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"mclk_off",
+					"reset",
+					"ldo1",
+					"ldo8",
+					"gpio3",
+					"ldo4",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"pinctrl",
+					"gpio",
+					"regulator",
+					"regulator",
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<1000
+					 1000
+					 0
+					 0
+					 6000
+					 0
+					 0>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <0>;
+			};
+
+			/* FRONT CAMERA DOKKAEBI */
+			sensor1: sensor@1 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor-dokkaebi";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x10>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <16>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp4 2 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo8-supply = <&slg51002_ldo8>;
+				gpio4-supply = <&slg51002_gpio4>;
+
+				clocks =
+					<&clock CIS_CLK1>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK1>;
+				clock-names =
+					"CIS_CLK1",
+					"GATE_DFTMUX_CMU_CIS_CLK1";
+				clock-rates =
+					<24000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk2_fn>;
+				pinctrl-1 = <&sensor_mclk2_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"ldo8",
+					"gpio4",
+					"mclk_on",
+					"reset";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator",
+					"pinctrl",
+					"gpio";
+				power-up-seq-delays-us =
+					<0
+					 0
+					 1000
+					 1000
+					 8000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"reset",
+					"mclk_off",
+					"gpio4",
+					"ldo8",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"gpio",
+					"pinctrl",
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<0
+					 1000
+					 0
+					 0
+					 1000>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <1>;
+			};
+
+			/* REAR ULTRA WIDE CAMERA SANDWORM */
+			sensor2: sensor@2 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor-sandworm";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x1A>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* GPIOs */
+				reset-gpios = <&gpp6 3 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo2-supply = <&slg51002_ldo2>;
+				ldo6-supply = <&slg51002_ldo6>;
+
+				clocks =
+					<&clock CIS_CLK0>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK0>;
+				clock-names =
+					"CIS_CLK0",
+					"GATE_DFTMUX_CMU_CIS_CLK0";
+				clock-rates =
+					<24000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk1_fn>;
+				pinctrl-1 = <&sensor_mclk1_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"ldo6",
+					"ldo2",
+					"mclk_on",
+					"reset";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator",
+					"pinctrl",
+					"gpio";
+				power-up-seq-delays-us =
+					<0
+					 0
+					 1000
+					 1000
+					 10000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"reset",
+					"mclk_off",
+					"ldo2",
+					"ldo6",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"gpio",
+					"pinctrl",
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<1000
+					 1000
+					 0
+					 0
+					 1000>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <2>;
+			};
+
+			/* REAR Folded Tele Camera KRAKEN */
+			sensor3: sensor@3 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "sensor-kraken";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x2D>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <16>;
+
+				/* GPIOs */
+				/* RTCAM_RST_L GPP6[2] */
+				reset-gpios = <&gpp6 2 GPIO_ACTIVE_HIGH>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo3-supply = <&slg51002_ldo3>;
+				ldo7-supply = <&slg51002_ldo7>;
+
+				clocks =
+					<&clock CIS_CLK2>,
+					<&clock GATE_DFTMUX_CMU_CIS_CLK2>;
+				clock-names =
+					"CIS_CLK2",
+					"GATE_DFTMUX_CMU_CIS_CLK2";
+				clock-rates =
+					<24000000>,
+					<0>;
+
+				/* MCLK Control */
+				pinctrl-names = "mclk_on", "mclk_off";
+				pinctrl-0 = <&sensor_mclk3_fn>;
+				pinctrl-1 = <&sensor_mclk3_out>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"ldo7",
+					"ldo3",
+					"mclk_on",
+					"reset";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator",
+					"pinctrl",
+					"gpio";
+				power-up-seq-delays-us =
+					<300
+					 0
+					 0
+					 1000
+					 10000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"reset",
+					"mclk_off",
+					"ldo7",
+					"s2mpg13_ldo12",
+					"ldo3";
+				power-down-seq-types =
+					"gpio",
+					"pinctrl",
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<0
+					 0
+					 1000
+					 0
+					 0>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <3>;
+				transaction-process-limit = <20>;
+			};
+
+			/* EEPROM GARGOYLE for NAGUAL*/
+			eeprom0: eeprom@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom-gargoyle";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_1>;
+				i2c-addr = <0x24>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <32>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				gpio1-supply = <&slg51002_gpio1>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"gpio1";
+				power-up-seq-types =
+					"regulator",
+					"regulator";
+				power-up-seq-delays-us =
+					<1000
+					 1000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"gpio1",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<1000
+					 1000>;
+
+				i2c-lock-group-id = <0>;
+			};
+
+			/* EEPROM SMAUG for DOKKAEBI */
+			eeprom1: eeprom@1 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom-smaug-dokkaebi";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_2>;
+				i2c-addr = <0x51>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12";
+				power-up-seq-types =
+					"regulator";
+				power-up-seq-delays-us =
+					<1000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"regulator";
+				power-down-seq-delays-us =
+					<1000>;
+
+				i2c-lock-group-id = <1>;
+			};
+
+			/* EEPROM SMAUG for SANDWORM */
+			eeprom2: eeprom@2 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom-smaug-sandworm";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0x50>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12";
+				power-up-seq-types =
+					"regulator";
+				power-up-seq-delays-us =
+					<1000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"regulator";
+				power-down-seq-delays-us =
+					<1000>;
+
+				i2c-lock-group-id = <2>;
+			};
+
+			/* EEPROM JOTNAR for KRAKEN*/
+			eeprom3: eeprom@3 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "eeprom-jotnar";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x34>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo5-supply = <&slg51002_ldo5>;
+				gpio1-supply = <&slg51002_gpio1>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"ldo5",
+					"gpio1";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator";
+				power-up-seq-delays-us =
+					<1000
+					 0
+					 0>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"gpio1",
+					"ldo5",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<0
+					 0
+					 0>;
+
+				i2c-lock-group-id = <3>;
+			};
+
+			/* Actuator SLENDERMAN for NAGUAL*/
+			actuator0: actuator@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "act-slenderman";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_1>;
+				i2c-addr = <0xC>;
+
+				/* Registers */
+				reg-addr-bitwidth = <8>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo4-supply = <&slg51002_ldo4>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"ldo4";
+				power-up-seq-types =
+					"regulator",
+					"regulator";
+				power-up-seq-delays-us =
+					<0
+					 0>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"ldo4",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<0
+					 0>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <0>;
+			};
+
+			/* Actuator JOTNAR for KRAKEN */
+			actuator1: actuator@1 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "act-jotnar";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x34>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo5-supply = <&slg51002_ldo5>;
+				gpio1-supply = <&slg51002_gpio1>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"ldo5",
+					"gpio1";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator";
+				power-up-seq-delays-us =
+					<1000
+					 0
+					 0>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"gpio1",
+					"ldo5",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<0
+					 0
+					 0>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <3>;
+			};
+
+			/* Actuator SLENDERMAN for SANDWORM*/
+			actuator2: actuator@2 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "act-slenderman-sandworm";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_3>;
+				i2c-addr = <0xF>;
+
+				/* Registers */
+				reg-addr-bitwidth = <8>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo4-supply = <&slg51002_ldo4>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"ldo4";
+				power-up-seq-types =
+					"regulator",
+					"regulator";
+				power-up-seq-delays-us =
+					<0
+					 0>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"ldo4",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<0
+					 0>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <2>;
+			};
+
+			/* Ois GARGOYLE for NAGUAL*/
+			ois0: ois@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "ois-gargoyle";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_1>;
+				i2c-addr = <0x24>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <32>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				gpio1-supply = <&slg51002_gpio1>;
+				gpio2-supply = <&slg51002_gpio2>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"gpio1",
+					"gpio2";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator";
+				power-up-seq-delays-us =
+					<1000
+					 1000
+					 1000>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"gpio2",
+					"gpio1",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<5000
+					 4000
+					 0>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <0>;
+			};
+
+			/* Ois JOTNAR for KRAKEN */
+			ois1: ois@1 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "ois-jotnar";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_4>;
+				i2c-addr = <0x34>;
+
+				/* Registers */
+				reg-addr-bitwidth = <16>;
+				reg-value-bitwidth = <8>;
+
+				/* Power supplies */
+				s2mpg13_ldo12-supply = <&s_ldo12_reg>;
+				ldo5-supply = <&slg51002_ldo5>;
+				gpio1-supply = <&slg51002_gpio1>;
+
+				/* Power up sequence */
+				power-up-seqs =
+					"s2mpg13_ldo12",
+					"ldo5",
+					"gpio1";
+				power-up-seq-types =
+					"regulator",
+					"regulator",
+					"regulator";
+				power-up-seq-delays-us =
+					<1000
+					 0
+					 0>;
+
+				/* Power down sequence */
+				power-down-seqs =
+					"gpio1",
+					"ldo5",
+					"s2mpg13_ldo12";
+				power-down-seq-types =
+					"regulator",
+					"regulator",
+					"regulator";
+				power-down-seq-delays-us =
+					<0
+					 0
+					 0>;
+
+				/* Thread priority */
+				transaction-thread-priority = <99>;
+
+				i2c-lock-group-id = <3>;
+			};
+
+			flash0: flash@0 {
+				compatible = "google,lwis-i2c-device";
+
+				/* Device node name */
+				node-name = "flash-lm3644";
+
+				/* I2C */
+				i2c-bus = <&hsi2c_15>;
+				i2c-addr = <0x63>;
+
+				/* Registers */
+				reg-addr-bitwidth = <8>;
+				reg-value-bitwidth = <8>;
+
+				/* Power Management hibernation (deep sleep) */
+				/* 1 : enable, 0 : disable */
+				pm-hibernation = <0>;
+
+				/* GPIOs */
+				/* HW_ENABLE GPP8[2] */
+				/* FLASH_STROBE GPP27[0] */
+				enable-gpios =
+					<&gpp8 2 GPIO_ACTIVE_HIGH
+					 &gpp27 0 GPIO_ACTIVE_LOW>;
+			};
+		};
+	};
+};

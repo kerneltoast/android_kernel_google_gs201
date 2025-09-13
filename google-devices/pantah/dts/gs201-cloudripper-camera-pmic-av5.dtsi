@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * gs201 pmic device tree source for av5
+ *
+ * Copyright 2021 Google LLC.
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+
+&hsi2c_8 {
+	/* SLG51000 */
+	status = "ok";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	slg51000: slg51000@75 {
+		compatible = "dlg,slg51000";
+		reg = <0x75>;
+		status = "ok";
+		dlg,pu-gpios = <&s2mpg13_gpio 4 GPIO_ACTIVE_HIGH>;
+		dlg,buck-gpios = <&s2mpg13_gpio 3 GPIO_ACTIVE_HIGH>;
+		dlg,bb-gpios = <&s2mpg13_gpio 1 GPIO_ACTIVE_HIGH>;
+		dlg,cs-gpios = <&s2mpg13_gpio 0 GPIO_ACTIVE_HIGH>;
+		dlg,op-mode = <4>;
+		dlg,reg-init-cells = <2>;
+
+		regulators {
+			slg51000_ldo1: ldo1 {
+				regulator-name = "ldo1";
+				regulator-min-microvolt = <2250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_ldo2: ldo2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <2250000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			slg51000_ldo3: ldo3 {
+				regulator-name = "ldo3";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_ldo4: ldo4 {
+				regulator-name = "ldo4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_ldo5: ldo5 {
+				regulator-name = "ldo5";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_ldo6: ldo6 {
+				regulator-name = "ldo6";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			slg51000_ldo7: ldo7 {
+				regulator-name = "ldo7";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+
+			slg51000_ldo_dummy: ldo_dummy {
+				regulator-name = "ldo_dummy";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3750000>;
+			};
+		};
+
+		slg51000_gpio: slg51000_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <8>;
+			gpio-ranges = <&slg51000_pinctrl 0 0 8>;
+		};
+
+		slg51000_pinctrl: slg51000_pinctrl {
+		};
+	};
+};

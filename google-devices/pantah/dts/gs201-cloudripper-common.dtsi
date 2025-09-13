@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Cloudripper device tree source (inhereted by Ravenclaw too)
+ *
+ * Copyright 2020 Google,LLC
+ */
+
+#include "gs201/gs201-common.dtsi"
+#include "gs201/gs201-cloudripper-battery.dtsi"
+#include "gs201/gs201-cloudripper-bcl.dtsi"
+#include "gs201/gs201-cloudripper-bluetooth.dtsi"
+#include "gs201-cloudripper-camera-av5.dtsi"
+#include "gs201-cloudripper-camera-pmic-av5.dtsi"
+#include "gs201-cloudripper-charging.dtsi"
+#include "gs201/gs201-cloudripper-cp-s5300-sit.dtsi"
+#include "gs201/gs201-cloudripper-ese.dtsi"
+#include "gs201-cloudripper-fingerprint.dtsi"
+#include "gs201/gs201-cloudripper-gsa-gsc.dtsi"
+#include "gs201-cloudripper-ldaf.dtsi"
+#include "gs201/gs201-cloudripper-nfc.dtsi"
+#include "gs201/gs201-cloudripper-sbbm.dtsi"
+#include "gs201/gs201-cloudripper-wlan.dtsi"
+#include "gs201/gs101-faceauth-dma-heap.dtsi"
+

@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("//private/devices/google/common/kleaf:device_build.bzl", "device_build")
+load("//private/devices/google/gs201:constants.bzl", "GS201_DTBS", "GS201_MODULE_OUTS")
+load(":constants.bzl", "PANTAH_DTBOS")
+
+package(
+    default_visibility = [
+        "//private/devices/google/gs201:__subpackages__",
+    ],
+)
+
+device_build(
+    name = "pantah",
+    base_device = "//private/devices/google/gs201:gs201_base",
+    build_dtb = True,
+    build_dtbo = True,
+    build_system_dlkm = True,
+    build_vendor_dlkm = True,
+    build_vendor_kernel_boot = True,
+    defconfig_fragments = ["pantah_defconfig"],
+    dtb_outs = GS201_DTBS,
+    dtbo_outs = PANTAH_DTBOS,
+    dts_makefile = "dts/Makefile",
+    dts_srcs = glob(["dts/**"]) + [
+        "//private/google-modules/soc/gs:gs.dt-bindings",
+    ],
+    ext_modules = [
+        # keep sorted
+        "//private/google-modules/amplifiers/cs35l41",
+        "//private/google-modules/amplifiers/cs35l45",
+        "//private/google-modules/amplifiers/cs40l26",
+        "//private/google-modules/amplifiers/snd_soc_wm_adsp:snd-soc-wm-adsp",
+        "//private/google-modules/bluetooth/broadcom:bluetooth.broadcom",
+        "//private/google-modules/gps/broadcom/bcm47765",
+        "//private/google-modules/nfc",
+        "//private/google-modules/radio/samsung/s5300:cpif",
+        "//private/google-modules/touch/common:touch.common",
+        "//private/google-modules/touch/focaltech/ft3658",
+        "//private/google-modules/touch/sec",
+        "//private/google-modules/touch/synaptics/syna_c10:syna_touch",
+        "//private/google-modules/uwb/qorvo/dw3000/kernel:uwb.dw3000",
+        "//private/google-modules/wlan/bcm4389:bcmdhd4389",
+    ],
+    insmod_cfgs = glob(["insmod_cfg/*.cfg"]),
+    kconfig_exts = ["Kconfig.ext.pantah"],
+    kconfigs = [
+        # keep sorted
+        "//private/google-modules/radio/samsung/s5300:cpif.kconfig",
+        "//private/google-modules/touch/common:touch.common.kconfig",
+        "//private/google-modules/touch/sec:sec.kconfig",
+    ],
+    module_outs = GS201_MODULE_OUTS,
+    vendor_dlkm_modules_blocklists = ["vendor_dlkm.blocklist.pantah"],
+    vendor_ramdisk_modules_lists = ["vendor_ramdisk.modules.pantah"],
+)
+
+# For compatibility
+alias(
+    name = "gs201_pantah_dist",
+    actual = ":pantah/dist",
+)
+
+alias(
+    name = "gs201_pantah_abi_update_symbol_list",
+    actual = ":pantah/kernel_abi_update_symbol_list",
+)
+
+alias(
+    name = "kernel",
+    actual = ":pantah/kernel",
+)
+
+alias(
+    name = "kernel_abi_update_symbol_list",
+    actual = ":pantah/kernel_abi_update_symbol_list",
+)
+
+alias(
+    name = "kernel_compile_commands",
+    actual = ":pantah/kernel_compile_commands",
+)

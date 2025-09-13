@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Lynx cs40l26 device tree source
+ *
+ * Copyright (c) 2025 Google, LLC
+ *		https://www.google.com
+ *
+*/
+
+&cs40l26a_haptics {
+	cirrus,pm-active-timeout-ms = <18>;
+};
