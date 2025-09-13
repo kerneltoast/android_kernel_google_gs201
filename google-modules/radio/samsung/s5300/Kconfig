@@ -1,0 +1,220 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig EXYNOS_MODEM_IF
+	tristate "Samsung Mobile CP Interface"
+	default n
+	depends on GOOGLE_MODEMCTL
+	help
+	  Samsung Dual Modem Interface Driver
+
+if EXYNOS_MODEM_IF
+
+config SEC_MODEM_S5000AP
+	tristate "Exynos ModAP S5xxxAP"
+	select LINK_DEVICE_SHMEM
+	select CP_SECURE_BOOT
+	select MCU_IPC
+	select SHM_IPC
+	select CP_PMUCAL
+	select CPIF_PAGE_RECYCLING
+	default n
+
+config SEC_MODEM_S5100
+	tristate "Exynos S51xx"
+	select LINK_DEVICE_PCIE
+	select CPIF_PAGE_RECYCLING
+	default n
+
+menu "Configuration Description"
+config MCU_IPC
+	tristate "MCU IPC Support"
+	default n
+	help
+	  This enables MCU_IPC driver to control the MCU_IPC Device.
+	  MCU_IPC is the Mailbox which has 16 interrupts for TX/RX each
+	  and 256 bytes memory for communicating messages.
+	  AP and CP can share the messages through this device.
+
+config SHM_IPC
+	tristate "Shared Memory for IPC support"
+	default n
+	help
+	  This enables SHM_IPC driver to control the Shared memory
+	  for AP-CP Interface.
+
+config BOOT_DEVICE_SPI
+	tristate "boot device: SPI"
+	default n
+
+config LINK_DEVICE_WITH_SBD_ARCH
+	tristate "Link device with the SBD architecture from MIPI-LLI"
+	default n
+
+config CP_PKTPROC
+	tristate "Support packet processor"
+	default n
+	help
+	Packet processor
+
+config CP_PKTPROC_UL
+	tristate "Support packet processor for UL"
+	default n
+	help
+	Packet processor UL
+
+config LINK_DEVICE_SHMEM
+	tristate "Real system-level shared-memory on a system bus"
+	default n
+
+config LINK_DEVICE_PCIE
+	tristate "modem driver link device PCIe"
+	default n
+
+config CP_SECURE_BOOT
+	tristate "Support CP Secure Boot"
+	default n
+
+config GPIO_DS_DETECT
+	tristate "Support GPIO DS Detect"
+	default n
+
+config CP_UART_NOTI
+	tristate "Support CP UART notification API"
+	default n
+
+config PMU_UART_SWITCH
+	tristate "Support AP <-> CP UART switch by PMU"
+	depends on CP_UART_NOTI
+	default n
+
+config CP_BTL
+	tristate "Support CP BTL(Back Trace Log) feature"
+	default n
+
+config HW_REV_DETECT
+	tristate "Support HW REV Detect"
+	default n
+
+config MODEM_IF_QOS
+	tristate "Implement QoS"
+	default n
+	help
+	  This enables QoS
+
+config MODEM_IF_LEGACY_QOS
+	tristate "Implement QoS for legacy buffer"
+	select MODEM_IF_QOS
+	default n
+	help
+	  This enables QoS for legacy buffer model
+
+config CPIF_AP_SUSPEND_DURING_VOICE_CALL
+	bool "control wake_lock by voice call start/end notification"
+	depends on LINK_DEVICE_PCIE
+	default n
+	help
+	  This enables AP suspend during PCM over PCIE
+
+config CPIF_TP_MONITOR
+	tristate "Support CP network throughput monitor"
+	default n
+	help
+	  This enables CP network throughput monitor
+
+config LINK_DEVICE_PCIE_IOCC
+	bool "Use PCIE IOCC"
+	depends on LINK_DEVICE_PCIE
+	default n
+	help
+	  This enables PCIe IOCC
+
+config LINK_DEVICE_PCIE_IOMMU
+	bool "Use PCIE IOMMU"
+	depends on LINK_DEVICE_PCIE && EXYNOS_PCIE_IOMMU
+	default n
+	help
+	  This enables PCIe IOMMU
+
+config CPIF_CHECK_SJTAG_STATUS
+	tristate "Check secure JTAG status to disable CP memory dump"
+	default n
+	help
+	  Check secure JTAG status to disable CP memory dump
+
+config CP_LCD_NOTIFIER
+	tristate "Enable LCD notifier for CP"
+	default n
+	help
+	  This enables LCD notifier for CP
+
+config LINK_DEVICE_PCIE_GPIO_WA
+	bool "Workaround for discarded GPIOs"
+	depends on LINK_DEVICE_PCIE
+	default n
+	help
+	  Use a GPIO for the other purpose instead
+
+config CP_WRESET_WA
+	bool "CP warm reset WA due to WRSTBI disabled"
+	depends on LINK_DEVICE_PCIE
+	default n
+	help
+	  CP warm reset WA
+
+config EXYNOS_DIT
+	tristate "Enable DIT"
+	default n
+	help
+	  Enable DIT (Direct Internet Packet Transfer)
+
+config EXYNOS_DIT_VERSION
+	hex "DIT version"
+	depends on EXYNOS_DIT
+	default 0x02010000
+	help
+	  DIT version
+
+config CPIF_DIRECT_DM
+	tristate "Enable direct dm path"
+	default n
+	help
+	  This enables direct dm path
+
+config CH_EXTENSION
+	tristate "Enable Channel Extension"
+	default n
+	help
+	  Enable Channel Extension
+
+config CPIF_VENDOR_HOOK
+	tristate "Enable Android vendor hook"
+	default n
+	help
+	  This enables Android vendor hook
+
+config CPIF_PAGE_RECYCLING
+	tristate "Enable page recycling"
+	default n
+	help
+	  This enables page recycling to improve alloc overhead
+
+config CP_PKTPROC_CLAT
+	tristate "Enable HW PKTPROC CLAT"
+	default n
+	help
+	  Enable HW pktproc clat
+
+config CP_PKTPROC_LRO
+	tristate "Enable HW PKTPROC LRO"
+	default n
+	help
+	  Enable HW pktproc LRO
+
+config CP_THERMAL
+    tristate "Enable CP thermal zones"
+    depends on THERMAL
+    help
+      Enables support for reporting CP temperature sensor data to kernel thermal
+      framework.
+
+endmenu
+endif
