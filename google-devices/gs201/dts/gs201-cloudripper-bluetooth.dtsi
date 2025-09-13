@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Bluetooth device tree for raven.
+ *
+ * Copyright 2021 Google LLC
+ *
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs101-pinctrl.h"
+
+&pinctrl_4 {
+	bt_timesync: bt-timesync {
+		samsung,pins = "gpp11-1";
+		samsung,pin-function= <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+    };
+};
+
+&btbcm {
+	pinctrl-0 = <&bt_reg_on &bt_dev_wake &bt_host_wake &bt_timesync>;
+	timesync-gpios = <&gpp11 1 GPIO_ACTIVE_HIGH>;
+};

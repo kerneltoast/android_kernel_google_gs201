@@ -1,0 +1,236 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Battery device tree entries specific to raviole
+ *
+ * Copyright 2020 Google,LLC
+ *
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	fragment@battery {
+		target-path = "/";
+		__overlay__ {
+
+			google_battery: google,battery {
+				status = "okay";
+				compatible = "google,battery";
+				google,fg-psy-name = "maxfg";
+
+				/* charge table */
+				google,chg-temp-limits = <0 100 200 420 460 480 550>;
+				google,chg-cv-limits = <4200000 4300000 4450000>;
+				google,chg-cc-limits = <
+					30  10   0
+					50  30  30
+					100  70  50
+					80  50  50
+					50  50   0
+					30   0   0
+				>;
+
+				google,aact-cv-limits = <4200000 4300000 4450000>;
+				google,aact-temp-limits = <0 100 200 420 460 480 550>;
+				google,chg-aact-ecc = <0 300 1000>;
+				google,aact-cc-limits = <
+					30  10   0
+					50  30  30
+					100  70  50
+					80  50  50
+					50  50   0
+					30   0   0
+					30  10   0
+					50  30  30
+					95  70  50
+					80  50  50
+					50  50   0
+					30   0   0
+					30  10   0
+					50  30  30
+					90  70  50
+					80  50  50
+					50  50   0
+					30   0   0
+				>;
+
+				google,ttf-temp-idx= <2>;
+				google,ttf-adapter = <1800>;
+				google,ttf-soc-table =  <49 59 72 78 93 95  98 100>;
+				google,ttf-elap-table = <45 52 56 67 78 91 104 120>;
+				google,ttf-tier-table = <0 71 78>;
+
+				/* IRDrop Compensation */
+				google,fv-uv-resolution = <10000>;
+				/* NOTE: high value for DC charging */
+				google,fv-uv-margin-dpct = <1025>;
+				/* tier switch */
+				google,cv-range-accuracy = <20000>;
+				google,cv-otv-margin = <12000>;
+				google,cv-debounce-cnt = <3>;
+				google,cv-tier-ov-cnt = <10>;
+				google,cv-tier-switch-cnt = <3>;
+
+				google,eeprom-pairing;
+
+				/* rest charging */
+				google,chg-rest-rate = <15>;
+				google,chg-rest-soc = <80>;
+				/* TRICKLE-DEFEND threshold */
+				google,bd-trickle-recharge-soc = <80>;
+				/* Disable TRICKLE-DEFEND, b/259428308 */
+				/* google,bd-trickle-enable; */
+				/* Battery virtual sensor */
+				google,batt-vs-tz-name = "batt_vs";
+
+				/* record over temperature time */
+				google,temp-record-thr = <300 350 400>;
+				google,soc-record-thr = <90 90 95>;
+
+				#thermal-sensor-cells = <0>;
+				#cooling-cells = <2>;
+				google,dc-irdrop;
+				google,fv-dc-ratio = <35>;
+
+				google,bhi-status-marginal = <79>;
+				google,bhi-status-need-rep = <79>;
+				google,bhi-cycle-grace = <200>;
+
+				google,first-usage-date = <0>;
+			};
+
+			google_bms {
+				nvmem = <&pack_bee>;
+				nvmem-names = "6-00500";
+				/* pack eeprom is available only with P20+ batteries */
+				google,bee-name = "6-00500";
+			};
+
+		};
+	};
+};
+
+&pinctrl_0 {
+/* [MAX77759: FG_INTB] > FG_INT_L > [XEINT_23 : SC59845XWE] */
+	if_pmic_fg_irq: if-pmic-fg-irq {
+		samsung,pins = "gpa9-3"; /* XEINT_23 */
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_0 {
+/* [MAX77729FEWN : INTB] > IF_PMIC_IRQ_L > [XEINT_24 : SC59845XWE] */
+	if_pmic_irq: if-pmic-irq {
+		samsung,pins = "gpa9-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+};
+
+&hsi2c13_bus {
+	samsung,pins = "gpp25-0", "gpp25-1";
+	samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+	samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+};
+
+&hsi2c_15 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsi2c15_bus>;
+
+	pack_bee: m24c08@50 {
+		status = "okay";
+		compatible = "at,24c08";
+
+		reg = <0x50>;
+	};
+};
+
+&hsi2c_13 {
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	clock-frequency = <400000>;
+
+	/* also as max77759 pmic  */
+	max77729_pmic:max77729pmic@66 {
+		status = "okay";
+		compatible = "maxim,max77729pmic";
+		reg = <0x66>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&if_pmic_irq>;
+		max777x9,irq-gpio = <&gpa9 4 GPIO_ACTIVE_LOW>;
+
+		max77759,max_m5 = <&max77759_fg>;
+
+		max777x9_gpio: max777x9_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <6>;
+
+			interrupt-parent = <&gpa9>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <5 IRQ_TYPE_NONE>,
+				     <6 IRQ_TYPE_NONE>;
+		};
+	};
+
+	max77759_fg:max77759fg@36 {
+		status = "okay";
+		compatible = "maxim,max77759";
+		reg = <0x36>;
+
+		/* FG_INT_L -> XEINT_23 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&if_pmic_fg_irq>;
+		maxim,irq-gpio = <&gpa9 3 GPIO_ACTIVE_LOW>;
+
+		maxim,gauge-type = <2>;
+		maxim,force-batt-id = <170>;
+		maxim,rsense-default = <500>;
+		maxim,batt-id-range-pct = <0>;
+
+		maxim,psy-type-unknown;
+		maxim,fg-data {
+			#include "gs101-fake-battery-data.dtsi"
+		};
+	};
+
+	max77759_chg:max77759chrg@69 {
+		status = "okay";
+		compatible = "maxim,max77759chrg";
+		reg = <0x69>;
+
+		interrupt-parent = <&gpa9>;
+		max77759,irq-gpio = <&gpa9 4 GPIO_ACTIVE_LOW>;
+
+		max77759,max_m5 = <&max77759_fg>;
+		max77759,pmic = <&max77729_pmic>;
+
+		max77759,chg-term-voltage = <4400>;
+
+		#thermal-sensor-cells = <1>;
+
+		max77759,wcin-inlim-headroom = <40000>;
+
+		max77759_gpio: max77759_gpio {
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <1>;
+		};
+	};
+
+};
+
+

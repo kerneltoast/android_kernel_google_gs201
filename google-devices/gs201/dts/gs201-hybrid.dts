@@ -1,0 +1,218 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2019 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+*/
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@zebu {
+		target-path="/";
+		__overlay__ {
+			model = "GS201 EVT0 HYBRID EMULATOR ML3_DEV06 board based on GS201";
+			compatible = "samsung,GS201", "samsung,GS201 EMULATOR";
+
+			firmware {
+				android: android {
+					compatible = "android,firmware";
+					fstab {
+						compatible = "android,fstab";
+						system: system {
+							compatible = "android,system";
+							dev = "/dev/block/platform/14620000.dwmmc2/by-name/system";
+							type = "ext4";
+							mnt_flags = "ro";
+							fsmgr_flags = "wait";
+							status = "okay";
+						};
+						vendor: vendor {
+							compatible = "android,vendor";
+							dev = "/dev/block/platform/14620000.dwmmc2/by-name/vendor";
+							type = "ext4";
+							mnt_flags = "ro";
+							fsmgr_flags = "wait";
+							status = "okay";
+						};
+					};
+				};
+			};
+
+			virtio_block@14630000 {
+				compatible = "virtio,mmio";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x0 0x14630000 0x10000>;
+				interrupts = <0 222 4>;
+			};
+		};
+	};
+};
+
+/ {
+	fragment@serial0 {
+		target-path = "/";
+		__overlay__ {
+			uart@10A00000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart0_bus>;
+			};
+		};
+	};
+};
+
+&serial_0 {
+	samsung,fifo-size = <256>;
+	clocks = <&ext_26m>, <&ext_26m>;
+	status = "okay";
+};
+
+&mct {
+	clocks = <&ext_1m>, <&ext_1m>;
+};
+
+&memory_0 {
+	reg = <0x0 0x80000000 0x40000000>;
+};
+
+&chosen {
+		bootargs = "earlycon=exynos4210,mmio32,0x10A00000 console=ttySAC0,115200n8 root=/dev/ram0 rw ramdisk_size=65536 initrd=0x84000000,64M clk_ignore_unused mem=1024M maxcpus=1 firmware_class.path=/vendor/firmware androidboot.first_stage_console=1 androidboot.force_normal_boot=1 clocksource=arch_sys_counter";
+};
+
+&pinctrl_6 {
+	status = "disabled";
+};
+
+&pinctrl_7 {
+	status = "disabled";
+};
+
+&amba {
+	status = "disabled";
+};
+
+&dwmmc_2 {
+	status = "okay";
+};
+
+/* [TEMP] Temporarily disable SysMMU power-domains as this feature has not yet
+ * been implemented on the hybrid emulator.
+ *
+ * Also disable the TPU SysMMU instance because it is not available on the
+ * hybrid emulator.
+ */
+
+&sysmmu_bo {
+	power-domains;
+};
+
+&sysmmu_csis0 {
+	power-domains;
+};
+
+&sysmmu_csis1 {
+	power-domains;
+};
+
+&sysmmu_dns {
+	power-domains;
+};
+
+&sysmmu_dpu0 {
+	power-domains;
+};
+
+&sysmmu_dpu1 {
+	power-domains;
+};
+
+&sysmmu_dpu2 {
+	power-domains;
+};
+
+&sysmmu_g2d0 {
+	power-domains;
+};
+
+&sysmmu_g2d1 {
+	power-domains;
+};
+
+&sysmmu_g2d2 {
+	power-domains;
+};
+
+&sysmmu_g3aa {
+	power-domains;
+};
+
+&sysmmu_gdc0 {
+	power-domains;
+};
+
+&sysmmu_gdc1 {
+	power-domains;
+};
+
+&sysmmu_gdc2 {
+	power-domains;
+};
+
+&sysmmu_ipp {
+	power-domains;
+};
+
+&sysmmu_mcsc0 {
+	power-domains;
+};
+
+&sysmmu_mcsc1 {
+	power-domains;
+};
+
+&sysmmu_mcsc2 {
+	power-domains;
+};
+
+&sysmmu_mfc0 {
+	power-domains;
+};
+
+&sysmmu_mfc1 {
+	power-domains;
+};
+
+&sysmmu_tnr0 {
+	power-domains;
+};
+
+&sysmmu_tnr1 {
+	power-domains;
+};
+
+&sysmmu_tnr2 {
+	power-domains;
+};
+
+&sysmmu_tnr3 {
+	power-domains;
+};
+
+&sysmmu_tnr4 {
+	power-domains;
+};
+
+&sysmmu_tpu {
+	status = "disabled";
+	power-domains;
+};
+
+&sysmmu_aur_idma {
+	power-domains;
+};
+
+&sysmmu_aur_inst_data {
+	power-domains;
+};

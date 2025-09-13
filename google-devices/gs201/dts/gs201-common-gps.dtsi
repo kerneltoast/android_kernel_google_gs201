@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google GS201 GPS device tree source
+ *
+ * Copyright 2021 Google,LLC
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <arm64/exynos/exynos-pinctrl.h>
+
+&spi_5 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi5_bus &spi5_cs_func>;
+
+	dma-mode;
+	dmas = <&pdma0 10 &pdma0 11>;
+	swap-mode = <1> ;
+
+	bcm4775@0 {
+		compatible = "ssp-spi,bcm4775";
+		reg = <0>;
+		spi-max-frequency = <26000000>;
+		spi-cpol;
+		spi-cpha;
+
+		pinctrl-names = "default";
+		pinctrl-0 =
+		<&gps_host_req &gps_mcu_req &gps_mcu_resp &gps_nstandby>;
+
+		mcu-req-gpios = <&gpp4 3 GPIO_ACTIVE_HIGH>;
+		nstandby-gpios= <&gph2 3 GPIO_ACTIVE_LOW>;
+		host-req-gpios = <&gpa6 4 GPIO_ACTIVE_HIGH>;
+		mcu-resp-gpios = <&gph2 2 GPIO_ACTIVE_HIGH>;
+
+		controller-data {
+			samsung,spi-feedback-delay = <1>;
+			samsung,spi-chip-select-mode = <0>;
+		};
+	};
+};
+
+&pinctrl_1 {
+	gps_host_req: gps-host-req {
+		samsung,pins = "gpa6-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&pinctrl_4 {
+	gps_mcu_req: gps-mcu-req {
+		samsung,pins = "gpp4-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&pinctrl_7 {
+	gps_mcu_resp: gps-mcu-resp {
+		samsung,pins = "gph2-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_DOWN>;
+	};
+	gps_nstandby: gps-nstandby {
+		samsung,pins ="gph2-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+/ {
+	fragment@bbd_pps {
+		target-path = "/";
+		__overlay__ {
+			bbd_pps {
+				compatible = "bbd-pps-gpio";
+				status = "okay";
+				gpios = <&gpp15 1 GPIO_ACTIVE_HIGH>;
+				pinctrl-names = "default";
+				assert-falling-edge = <0>;
+			};
+		};
+	};
+};

@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2024 Google LLC
+
+build:gs201_base --//private/google-modules/soc/gs:gs_soc_module=//private/devices/google/gs201:gs201_soc
+
+build:gs201 --config=gs201_base
+build:gs201 --//private/devices/google/common:kernel=//private/devices/google/gs201:gs201/kernel

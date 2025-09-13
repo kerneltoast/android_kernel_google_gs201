@@ -1,0 +1,197 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright 2022 Google LLC.
+ *
+ */
+
+/ {
+	sysmmu_sync_aur_idma: sysmmu_sync_aur_idma@25b10000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x25b10000 0x10000>;
+	};
+
+	sysmmu_sync_aur_inst_data: sysmmu_sync_aur_inst_data@25b20000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x25b20000 0x10000>;
+	};
+
+	sysmmu_sync_bo: sysmmu_sync_bo@1caa0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1caa0000 0x10000>;
+	};
+
+	sysmmu_sync_cpucl0: sysmmu_sync_cpucl0@20cd0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x20cd0000 0x10000>;
+	};
+
+	sysmmu_sync_csis0: sysmmu_sync_csis0@1a560000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1a560000 0x10000>;
+	};
+
+	sysmmu_sync_csis1: sysmmu_sync_csis1@1a570000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1a570000 0x10000>;
+	};
+
+	sysmmu_sync_dns: sysmmu_sync_dns@1b060000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1b060000 0x10000>;
+	};
+
+	sysmmu_sync_dpu0: sysmmu_sync_dpu0@1c040000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1c040000 0x10000>;
+	};
+
+	sysmmu_sync_dpu1: sysmmu_sync_dpu1@1c050000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1c050000 0x10000>;
+	};
+
+	sysmmu_sync_dpu2: sysmmu_sync_dpu2@1c060000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1c060000 0x10000>;
+	};
+
+	sysmmu_sync_eh: sysmmu_sync_eh@17070000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x17070000 0x10000>;
+	};
+
+	sysmmu_sync_g2d0: sysmmu_sync_g2d0@1c6e0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1c6e0000 0x10000>;
+	};
+
+	sysmmu_sync_g2d1: sysmmu_sync_g2d1@1c6f0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1c6f0000 0x10000>;
+	};
+
+	sysmmu_sync_g2d2: sysmmu_sync_g2d2@1c750000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1c750000 0x10000>;
+	};
+
+	sysmmu_sync_g3aa: sysmmu_sync_g3aa@1a8b0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1a8b0000 0x10000>;
+	};
+
+	sysmmu_sync_g3d0: sysmmu_sync_g3d0@20090000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x20090000 0x10000>;
+	};
+
+	sysmmu_sync_g3d1: sysmmu_sync_g3d1@200a0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x200a0000 0x10000>;
+	};
+
+	sysmmu_sync_g3d2: sysmmu_sync_g3d2@200b0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x200b0000 0x10000>;
+	};
+
+	sysmmu_sync_g3d3: sysmmu_sync_g3d3@201f0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x201f0000 0x10000>;
+	};
+
+	sysmmu_sync_gdc0: sysmmu_sync_gdc0@1d2d0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1d2d0000 0x10000>;
+	};
+
+	sysmmu_sync_gdc1: sysmmu_sync_gdc1@1d2e0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1d2e0000 0x10000>;
+	};
+
+	sysmmu_sync_gdc2: sysmmu_sync_gdc2@1d2f0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1d2f0000 0x10000>;
+	};
+
+	sysmmu_sync_gsa: sysmmu_sync_gsa@17c70000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x17c70000 0x10000>;
+	};
+
+	sysmmu_sync_hsi0: sysmmu_sync_hsi0@11110000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x11110000 0x10000>;
+	};
+
+	sysmmu_sync_hsi1: sysmmu_sync_hsi1@118b0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x118b0000 0x10000>;
+	};
+
+	sysmmu_sync_hsi2: sysmmu_sync_hsi2@145f0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x145f0000 0x10000>;
+	};
+
+	sysmmu_sync_ipp: sysmmu_sync_ipp@1acf0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1acf0000 0x10000>;
+	};
+
+	sysmmu_sync_mcsc0: sysmmu_sync_mcsc0@1b990000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1b990000 0x10000>;
+	};
+
+	sysmmu_sync_mcsc1: sysmmu_sync_mcsc1@1b9a0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1b9a0000 0x10000>;
+	};
+
+	sysmmu_sync_mcsc2: sysmmu_sync_mcsc2@1b9b0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1b9b0000 0x10000>;
+	};
+
+	sysmmu_sync_mfc0: sysmmu_sync_mfc0@1c900000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1c900000 0x10000>;
+	};
+
+	sysmmu_sync_mfc1: sysmmu_sync_mfc1@1c910000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1c910000 0x10000>;
+	};
+
+	sysmmu_sync_misc: sysmmu_sync_misc@101f0000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x101f0000 0x10000>;
+	};
+
+	sysmmu_sync_tnr0: sysmmu_sync_tnr0@1bf00000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1bf00000 0x10000>;
+	};
+
+	sysmmu_sync_tnr1: sysmmu_sync_tnr1@1bf10000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1bf10000 0x10000>;
+	};
+
+	sysmmu_sync_tnr2: sysmmu_sync_tnr2@1bf20000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1bf20000 0x10000>;
+	};
+
+	sysmmu_sync_tnr3: sysmmu_sync_tnr3@1bf30000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1bf30000 0x10000>;
+	};
+
+	sysmmu_sync_tnr4: sysmmu_sync_tnr4@1bf40000 {
+		compatible = "google,sysmmu_sync";
+		reg = <0x0 0x1bf40000 0x10000>;
+	};
+};

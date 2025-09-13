@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * SAMSUNG EXYNOS SoC device tree source
+ *
+ * Copyright (c) 2019 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ */
+
+/ {
+	dsim_modes: dsim_modes {
+		/* parameters used to calcuate dsim_mode at runtime */
+		pll-input = /bits/ 64 <24576000>; /* 24.576 MHz */
+		pll-optimum = /bits/ 64 <13000000>; /* 13 MHz */
+		pll-out-range = /bits/ 64 <52000000 6600000000>; /* 55 to 6600 MHz*/
+		pll-vco-range = /bits/ 64 <3300000000 6600000000>; /* 3300 to 6600 MHz */
+		p-range = <1 63>; /* inclusive */
+		m-range = <64 1023>; /* inclusive */
+		s-range = <0 6>; /* inclusive */
+		k-bits = <16>; /* K is a two's complement 16-bit intger */
+
+		dsim-modes {
+			1440x3040 {
+				mode-name = "1440x3040";
+				/*
+				 * p m s k
+				 * mfr mrr sel_pf icp
+				 * afc_enb extafc feed_en fsel
+				 * fout_mask rsel
+				 */
+				pmsk = <
+					0x2 0xB3 0x2 0x0955
+					0xd 0x3 0x0 0x0
+					0x0 0x0 0x0 0x0
+					0x0 0x0
+					>;
+				hs-clk = <1100>;
+				esc-clk = <20>;
+			};
+			1440x2960 {
+				mode-name = "1440x2960";
+				pmsk = <
+					/* 0x2 0xe4 0x2 0xdd55  */
+					 0x2 0xF3 0x2 0x8355 /* p m s k */
+					>;
+				hs-clk = <1490>;
+				esc-clk = <20>;
+			};
+			1080x2340 {
+				mode-name = "1080x2340";
+				pmsk = <
+					0x2 0xD4 0x3 0x96AB /* p m s k */
+					>;
+				hs-clk = <650>;
+				esc-clk = <20>;
+			};
+			1440x3120 {
+				mode-name = "1440x3120";
+				pmsk = <
+					0x2 0xDB 0x2 0x1355 /* p m s k */
+					>;
+				hs-clk = <1346>;
+				esc-clk = <20>;
+			};
+			1080x2400 {
+				mode-name = "1080x2400";
+				pmsk = <
+					0x2 0xB6 0x2 0x4AAB /* p m s k */
+					>;
+				hs-clk = <1120>;
+				esc-clk = <20>;
+			};
+			1200x1920 {
+				mode-name = "1200x1920";
+				pmsk = <
+					0x2 0x9E 0x2 0xB700 /* p m s k */
+					>;
+				hs-clk = <969>;
+				esc-clk = <20>;
+			};
+			1840x2208 {
+				mode-name = "1840x2208";
+				pmsk = <
+					0x2 0xD0 0x2 0x5555 /* p m s k */
+					>;
+				hs-clk = <1280>;
+				esc-clk = <20>;
+			};
+			1080x2092 {
+				mode-name = "1080x2092";
+				pmsk = <
+					0x2 0xEE 0x3 0xA155 /* p m s k */
+					>;
+				hs-clk = <730>;
+				esc-clk = <20>;
+			};
+		};
+	};
+
+	dphy_diags: dphy_diags {
+		reg_400m {
+			diag-name = "reg_400m";
+			desc = "Reference voltage-400mV for HS Function control pin";
+			help = "0: 380mV, 1: 390mV, 2: 400mV, 3: 410mV, 4: 420mV, 5: 430mV,
+6: 440mV, 7: 450mV";
+			reg-base = "dphy-extra";
+			reg-offset = /bits/ 16 <0x8>;
+			bit-range = /bits/ 8 <6 4>; /* bit [6:4] */
+		};
+		edge_con {
+			diag-name = "edge_con";
+			desc = "Cap Peaking Control Registers for clock and 4 data lanes";
+			help = "0: Cap-Peaking Off, 1: Low-strength cap-peaking,
+3: Mid-strength cap-peaking, 7: High-strength cap-peaking";
+			reg-base = "dphy";
+			/* M0_DPHY_M#C_ANA_CON0
+			 * M0_COMBO_M#D0_ANA_CON0
+			 * M0_COMBO_M#D1_ANA_CON0
+			 * M0_COMBO_M#D2_ANA_CON0
+			 * M0_COMBO_M#D3_ANA_CON0
+			 */
+			reg-offset = /bits/ 16 <0x208 0x308 0x408 0x508 0x608>;
+			bit-range = /bits/ 8 <14 12>;
+		};
+		edge_con_dir {
+			diag-name = "edge_con_dir";
+			desc = "Cap Peaking Direction Control Registers for clock and data lanes";
+			help = "0: Forward CapPeaking (@slop high),
+1: Backward Cap Peaking (@slop low)";
+			reg-base = "dphy";
+			reg-offset = /bits/ 16 <0x208 0x308 0x408 0x508 0x608>;
+			bit-range = /bits/ 8 <9 9>;
+		};
+		edge_con_en {
+			diag-name = "edge_con_en";
+			desc = "Cap Peaking Enable Registers for clock and data lanes";
+			help = "0: disable, 1: enable";
+			reg-base = "dphy";
+			reg-offset = /bits/ 16 <0x208 0x308 0x408 0x508 0x608>;
+			bit-range = /bits/ 8 <8 8>;
+		};
+		res_up {
+			diag-name = "res_up";
+			desc = "High-Speed Driver Up Resistor Control Registers for clock and
+data lanes";
+			help = "0: 43, 1: 46, 2: 49, 3: 52, 4: 56, 5: 60, 7: 73, 8: 30, 9: 31.2,
+10: 32.5, 11: 34, 12: 35.5, 13: 37, 14: 39, 15: 31";
+			reg-base = "dphy";
+			reg-offset = /bits/ 16 <0x208 0x308 0x408 0x508 0x608>;
+			bit-range = /bits/ 8 <7 4>;
+		};
+		res_down {
+			diag-name = "res_down";
+			desc = "High-Speed Driver Down Resistor Control Registers for clock and
+data lanes";
+			help = "0: 43, 1: 46, 2: 49, 3: 52, 4: 56, 5: 60, 7: 73, 8: 30, 9: 31.2,
+10: 32.5, 11: 34, 12: 35.5, 13: 37, 14: 39, 15: 31";
+			reg-base = "dphy";
+			reg-offset = /bits/ 16 <0x208 0x308 0x408 0x508 0x608>;
+			bit-range = /bits/ 8 <3 0>;
+		};
+		emp {
+			diag-name = "emp";
+			desc = "De-Emphasis Control Registers for clock and data lanes";
+			help = "0: de-emphasis off, 1: -1.6 dB, 2: -3.5 dB, 3 -6 dB";
+			reg-base = "dphy";
+			/* M0_DPHY_M#C_ANA_CON1
+			 * M0_COMBO_M#D0_ANA_CON1
+			 * M0_COMBO_M#D1_ANA_CON1
+			 * M0_COMBO_M#D2_ANA_CON1
+			 * M0_COMBO_M#D3_ANA_CON1
+			 */
+			reg-offset = /bits/ 16 <0x20c 0x30c 0x40c 0x50c 0x60c>;
+			bit-range = /bits/ 8 <1 0>;
+		};
+		hs_prepare {
+			diag-name = "hs_prepare";
+			desc = "THS-PREPARE (D-PHY) Timing Counter Registers for data lanes";
+			help = "This count value is used in High-Speed Transmit operation.";
+			reg-base = "dphy";
+			/* M0_COMBO_M#D0_TIME_CON1
+			 * M0_COMBO_M#D1_TIME_CON1
+			 * M0_COMBO_M#D2_TIME_CON1
+			 * M0_COMBO_M#D3_TIME_CON1
+			 */
+			reg-offset = /bits/ 16 <0x334 0x434 0x534 0x634>;
+			bit-range = /bits/ 8 <7 0>;
+		};
+		clk_prepare {
+			diag-name = "clk_prepare";
+			desc = "TCLK-PREPARE Timing Counter Register";
+			help = "This count value is used in High-Speed Transmit operations";
+			reg-base = "dphy";
+			/* M0_DPHY_M#C_TIME_CON1 */
+			reg-offset = /bits/ 16 <0x234>;
+			bit-range = /bits/ 8 <7 0>;
+		};
+	};
+
+};

@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Google Cloudripper device tree source
+ *
+ * Copyright 2021 Google Inc.
+ *
+ */
+
+/* Touch is connected to spi_0, pins:
+ *   CLK=GPP20[0], MOSI=GPP20[1], MISO=GPP20[2], CS=GPP20[3]
+ * TS_RESET_L = C26 = XAPC_USI11_RTSN_DI = GPP23[2] = <&gpp23 2 0>
+ * TS_INT_L = AT22 = XEINT_8 = GPA7[0] = <&gpa7 0 0>
+ *
+ * DVDD = PP1800_L25M_TSP_DVDD = ??? = VLDO25M = "PP1800_L25M_TSP"?
+ * AVDD = PP3300_L26M_TS_AVDD  = ??? = VLDO26M = "PP3300_L26M_TSP"?
+ *
+ * AP2AOC: XHSI1_GPIO2 - GPH1[0] -> XAOC_GPIO13 - gpio_in[87]
+ * AOC2AP: XAOC_GPIO8 - gpio_in[74] -> XEINT_19 - GPA8[7]
+ */
+
+#include <arm64/exynos/exynos-pinctrl.h>
+#include "gs101-pinctrl.h"
+
+/ {
+	fragment@touch_bus_negotiator {
+		target-path = "/";
+		__overlay__ {
+			tbn: tbn {
+				compatible = "touch_bus_negotiator";
+
+				/* Low: AP, High: AOC */
+				/* Note: The following GPIO flags are not used by the driver. */
+				tbn,ap2aoc_gpio = <&gph1 0 GPIO_ACTIVE_LOW>;
+				tbn,aoc2ap_gpio = <&gpa8 7 GPIO_ACTIVE_LOW>;
+			};
+		};
+	};
+};
+
+&pinctrl_1 {
+	ts_irq: ts-irq {
+		samsung,pins = "gpa7-0";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	aoc2ap_irq: aoc2ap-irq {
+		samsung,pins = "gpa8-7";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+};
+
+&pinctrl_5 {
+	ts_reset: ts-reset {
+		samsung,pins = "gpp23-2";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	ts_spi_bus_active: ts_spi_bus_active {
+		samsung,pins = "gpp20-0", "gpp20-1";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	ts_spi_miso_active: ts_spi_miso_active {
+		samsung,pins = "gpp20-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	ts_spi_cs_active: ts_spi_cs_active {
+		samsung,pins = "gpp20-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+	};
+
+	ts_spi_bus_sleep: ts_spi_bus_sleep {
+		samsung,pins = "gpp20-0", "gpp20-1", "gpp20-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+
+	ts_spi_cs_sleep: ts_spi_cs_sleep {
+		samsung,pins = "gpp20-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <GS101_PIN_DRV_2_5_MA>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_UP>;
+	};
+};
+
+&pinctrl_6 {
+	ap2aoc: ap2aoc-spi-sel {
+		samsung,pins = "gph1-0";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-con-pdn = <EXYNOS_PIN_PDN_PREV>;
+		samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+	};
+};
+
+&spi_0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	pinctrl-0 = <>;
+
+	spitouch: touchscreen@0 {
+		status = "disabled";
+		reg = <0>;
+
+		pinctrl-names = "ts_active", "ts_suspend";
+		pinctrl-0 = <&ts_irq &ts_reset &ap2aoc &aoc2ap_irq
+			     &ts_spi_bus_active &ts_spi_miso_active &ts_spi_cs_active>;
+		pinctrl-1 = <&ts_spi_bus_sleep &ts_spi_cs_sleep>;
+
+		vdd-supply = <&m_ldo25_reg>; /* VIO 1.8V */
+		avdd-supply = <&m_ldo26_reg>; /* AVDD 3.3V */
+	};
+};

@@ -1,0 +1,4 @@
+KCONFIG_EXT_MODULES_PREFIX=$(realpath ${ROOT_DIR} --relative-to ${ROOT_DIR}/${KERNEL_DIR})/
+KCONFIG_SOC_GS_PREFIX=${KCONFIG_EXT_MODULES_PREFIX}/private/google-modules/soc/gs/
+
+DTC_INCLUDE=${ROOT_DIR}/private/google-modules/soc/gs/include/dtc
