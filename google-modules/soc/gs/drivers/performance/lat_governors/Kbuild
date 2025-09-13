@@ -1,0 +1,8 @@
+# Google memory latency drivers
+
+ccflags-y := -DDYNAMIC_DEBUG_MODULE
+ccflags-y += -I$(srctree)/drivers/performance
+ccflags-y += -I$(srctree)/drivers/devfreq
+
+obj-$(CONFIG_GS_MEMLAT_GOVERNOR)		+= gs_governor_memlat.o gs_governor_utils.o
+obj-$(CONFIG_GS_DSULAT_GOVERNOR)		+= gs_governor_dsulat.o

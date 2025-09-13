@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Copyright (C) 2021, Google LLC
+
+if TYPEC_TCPM
+
+config USB_PSY
+	tristate
+
+config TYPEC_COOLING_DEV
+	tristate "USB TYPE-C port cooling device"
+	depends on EXTCON
+	select THERMAL
+	select GOOGLE_VOTABLE
+	help
+	  Type-C port passive cooling device to throttle when the port is hot.
+
+config GOOGLE_TCPCI_SHIM
+	tristate "Type-C Port Controller Shim Interface Driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Type-C Port Controller Shim Interface Driver for TCPCI-compliant
+	  controller.
+
+config TYPEC_FUSB307
+	tristate "Fairchild FUSB307B Type-C chip driver"
+	select USB_PSY
+	select GOOGLE_TCPCI_SHIM
+	help
+	  The Fairchild FUSB307 Type-C chip driver that works with
+	  Type-C Port Controller Manager to provide USB PD and USB
+	  Type-C functionalities.
+
+config TYPEC_MAX77759
+	tristate "Maxim MAX77759 Type-C driver"
+	select USB_PSY
+	select GOOGLE_TCPCI_SHIM
+	help
+	  MAX77759 TCPCI driver to interface with TCPM.
+
+config TYPEC_MAX77759_CONTAMINANT
+	tristate "Maxim MAX77759 specific contaminant detection routines"
+	depends on TYPEC_MAX77759
+	help
+	  Maxim MAX77759 specific contaminant detection routines.
+
+config TYPEC_MAX77779_CONTAMINANT
+        tristate "Maxim MAX77779 specific contaminant detection routines"
+        depends on TYPEC_MAX77759
+        help
+          Maxim MAX77779 specific contaminant detection routiness.
+
+endif # TYPEC_TCPM
+
+config POGO_TRANSPORT
+	tristate "Pogo transport management driver"
+	depends on TYPEC_MAX77759
+	select GOOGLE_LOGBUFFER
+	help
+	  Pogo transport management driver

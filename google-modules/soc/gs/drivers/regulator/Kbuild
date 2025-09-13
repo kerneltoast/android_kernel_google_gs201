@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Makefile for regulator drivers.
+#
+
+obj-$(CONFIG_REGULATOR_MAX77826_GS) += max77826-gs-regulator.o
+obj-$(CONFIG_DRV_SAMSUNG_PMIC) += pmic_class.o
+obj-$(CONFIG_REGULATOR_S2MPG10) += s2mpg10-regulator.o s2mpg10-powermeter.o
+obj-$(CONFIG_REGULATOR_S2MPG11) += s2mpg11-regulator.o s2mpg11-powermeter.o
+obj-$(CONFIG_REGULATOR_S2MPG12) += s2mpg12-regulator.o s2mpg12-powermeter.o
+obj-$(CONFIG_REGULATOR_S2MPG13) += s2mpg13-regulator.o s2mpg13-powermeter.o
+obj-$(CONFIG_REGULATOR_S2MPG14) += s2mpg14-regulator.o s2mpg14-powermeter.o
+obj-$(CONFIG_REGULATOR_S2MPG15) += s2mpg15-regulator.o s2mpg15-powermeter.o
+obj-$(CONFIG_REGULATOR_SLG51000_GS) += slg51000-regulator.o
+obj-$(CONFIG_REGULATOR_SLG51002) += slg51002-regulator.o
+obj-$(CONFIG_REGULATOR_RT6160_GS) += rt6160-regulator.o
+
+ccflags-$(CONFIG_REGULATOR_DEBUG) += -DDEBUG

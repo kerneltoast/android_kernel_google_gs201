@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if IOMMU_SUPPORT
+
+config SAMSUNG_IOMMU
+	tristate "Samsung IOMMU Support"
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_DMA
+	select SAMSUNG_IOMMU_GROUP
+	help
+	  Support for IOMMU on GS SoCs.
+
+config SAMSUNG_IOMMU_V9
+	tristate "Samsung IOMMU V9 Support"
+	select ARM_DMA_USE_IOMMU
+	select IOMMU_DMA
+	select SAMSUNG_IOMMU_GROUP
+	help
+	  Support for IOMMU V9 on Samsung Exynos SoCs.
+
+config SAMSUNG_IOMMU_GROUP
+	tristate "Samsung IOMMU Group Support"
+	help
+	  Support for IOMMU group on GS SoCs.
+
+config SAMSUNG_SECURE_IOVA
+	tristate "Samsung Secure IOVA Support"
+	help
+	  Support secure device virtual address management for GS SoCs.
+
+config EXYNOS_PCIE_IOMMU
+	tristate "Enable Exynos PCIe IOMMU"
+	depends on PCI_EXYNOS_GS
+	help
+	  Support for IOMMU feature for Exynos PCIe. Memory shared between the
+	  PCIe Root Complex and the Endpoints is susceptible to attacks by
+	  malicious firmware loaded into the Endpoints. Enabling this provides
+	  secure access of memory shared between PCIe RC and the EPs.
+
+config PCIE_IOMMU_HISTORY_LOG
+	bool "Enable Exynos PCIe IOMMU Map/Unmap History"
+	depends on EXYNOS_PCIE_IOMMU
+	help
+	  Support for saving map and unmap history of shared memory between the
+	  Root Complex and Endpoints of the Exynos PCIe interface. This history
+	  can be used for debugging purposes.
+
+	  Say Y to enable this feature.
+
+config IOVAD_VENDOR_HOOKS
+	tristate "Enable Pixel IOVA allocator optimizations"
+	help
+	  Say M here to enable vendor-specific hooks in the I/O Virtual
+	  Address (IOVA) allocator code. These hooks allow customizing IOVA
+	  allocation behavior.
+
+	  Enabling this option provides support for two main features
+	  configured via Device Tree properties:
+
+	  1. Best-Fit IOVA Allocation: This allocation strategy attempts
+	     to find the smallest free IOVA range that satisfies a
+	     request, which can help reduce fragmentation of the IOVA
+	     space. To enable it, add the boolean property
+	     "iommu-best-fit-algo;" (or the legacy property
+	     "lwis,iommu-best-fit-algo;") to the relevant IOMMU node
+	     in the Device Tree.
+
+	  2. Maximum IOVA Alignment Shift Cap: This allows limiting the
+	     maximum alignment automatically applied by the IOVA framework
+	     during allocation. By default, the framework aligns allocations
+	     to the smallest power-of-2 multiple of PAGE_SIZE that is
+	     greater than or equal to the requested allocation size.
+	     For very large allocations (e.g., > 64 MB), this default
+	     behavior can lead to excessively large alignments, which
+	     quickly exhausts the available IOVA space, particularly for
+	     devices limited to 32-bit DMA addresses.
+
+	     This feature introduces a configurable cap on the maximum
+	     alignment the IOVA allocator will impose. Use the Device
+	     Tree property "iommu-max-align-shift = <n>;" to specify the
+	     maximum alignment shift value (n). The automatically
+	     calculated alignment will not exceed 2^n pages, even if the
+	     allocation size might otherwise dictate a larger alignment.
+
+	  Enable this option only if you are building a kernel to require or
+	  benefit from these custom IOVA allocation behaviors.
+
+	  If unsure, say N.
+
+endif # IOMMU_SUPPORT

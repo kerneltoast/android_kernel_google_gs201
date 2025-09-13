@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0
+config DMABUF_SAMSUNG_HEAPS
+	tristate "DMA-BUF Userland Memory Heaps for Samsung"
+	select SAMSUNG_SECURE_IOVA if EXYNOS_CONTENT_PATH_PROTECTION
+	select DMABUF_HEAPS_PAGE_POOL
+	select DMABUF_HEAPS_DEFERRED_FREE
+	select TRUSTY_DMA_BUF_SHARED_MEM_ID
+	depends on DMABUF_HEAPS
+	help
+	  Choose this option to enable the DMA-BUF userland memory heaps for samsung.
+	  This options creates per heap chardevs in /dev/dma_heap/* which allows
+	  userspace to allocate dma-bufs that can be shared between drivers.
+
+config DMABUF_HEAPS_SAMSUNG_CHUNK
+	bool "DMA-BUF CHUNK Samsung Heap"
+	help
+	  Choose this option to enable dma-buf CHUNK heap. This heap is backed
+	  by the Contiguous Memory Allocator (CMA) and allocates the buffers that
+	  are arranged into a list of fixed size chunks taken from CMA.
+
+config DMABUF_HEAPS_SAMSUNG_CMA
+	bool "DMA-BUF CMA Samsung Heap"
+	help
+	  Choose this option to enable dma-buf CMA heap for samsung.
+	  This heap is backed by the Contiguous Memory Allocator (CMA) and have own
+	  cma region by dt binding.
+
+config DMABUF_HEAPS_SAMSUNG_CARVEOUT
+	bool "DMA-BUF Carveout Samsung Heap"
+	help
+	  Choose this option to enable dma-buf Carveout heap for samsung.
+	  This heap has own reserved region by dt binding.
+
+config DMABUF_HEAPS_GOOGLE_GCMA
+	bool "DMA-BUF GCMA Heap"
+	depends on GCMA
+	help
+	  Choose this option to enable dma-buf GCMA heap. It allows
+	  using the carved out memory space for clean page cache when memory
+	  is not claimed by owner.
+	  This heap has own reserved region by dt binding.
+
+config DMABUF_HEAPS_SAMSUNG_SYSTEM
+	bool "DMA-BUF System Samsung Heap"
+	help
+	  Choose this option to enable dma-buf System heap for samsung.

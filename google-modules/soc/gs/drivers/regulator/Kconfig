@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+if REGULATOR
+
+config REGULATOR_MAX77826_GS
+	tristate "GS-specific Maxim MAX77826 regulator"
+	help
+	  If you say yes here you get support for Maxim MAX77826 PMIC.
+
+config DRV_SAMSUNG_PMIC
+	tristate "Samsung PMIC sysfs system"
+	depends on I2C
+	help
+	  This driver supports a Samsung PMIC sysfs.
+	  The sysfs directory made by this config includes directories of
+	  regulator and powermeter of S2MPGs.
+	  They provide Speedy read and write function through for debugging.
+
+config REGULATOR_S2MPG10
+	tristate "Samsung S2MPG10 voltage regulator"
+	depends on MFD_S2MPG10
+	help
+	  This driver supports a Samsung S2MPG10 voltage output regulator
+	  via speedy bus. S2MPG10 is comprised of high efficient Buck converters
+	  including Dual-Phase Buck converter, Buck-Boost converter and
+	  various LDOs. This driver file includes functions for reading and
+	  writing output voltage, controlling operation mode, setting ramp
+	  rate of each regulator.
+
+config REGULATOR_S2MPG11
+	tristate "Samsung S2MPG11 voltage regulator"
+	depends on MFD_S2MPG11
+	help
+	  This driver supports a Samsung S2MPG11 voltage output regulator
+	  via I2C bus. S2MPG11 is comprised of high efficient Buck converters
+	  including Dual-Phase Buck converter, Buck-Boost converter and
+	  various LDOs. This driver file includes functions for reading and
+	  writing output voltage, controlling operation mode, setting ramp
+	  rate of each regulator.
+
+config REGULATOR_S2MPG14
+	tristate "Samsung S2MPG14 voltage regulator"
+	depends on MFD_S2MPG14
+	help
+	  This driver supports a Samsung S2MPG14 voltage output regulator
+	  via spmi bus. S2MPG14 is comprised of high efficient Buck converters
+	  including Dual-Phase Buck converter, Buck-Boost converter and
+	  various LDOs. This driver file includes functions for reading and
+	  writing output voltage, controlling operation mode, setting ramp
+	  rate of each regulator.
+
+config REGULATOR_S2MPG15
+	tristate "Samsung S2MPG15 voltage regulator"
+	depends on MFD_S2MPG15
+	help
+	  This driver supports a Samsung S2MPG15 voltage output regulator
+	  via spmi bus. S2MPG15 is comprised of high efficient Buck converters
+	  including Dual-Phase Buck converter, Buck-Boost converter and
+	  various LDOs. This driver file includes functions for reading and
+	  writing output voltage, controlling operation mode, setting ramp
+	  rate of each regulator.
+
+config POWERMETER_S2MPG10
+	tristate "Samsung S2MPG10 Powermeter"
+	depends on MFD_S2MPG10
+	help
+	  This driver supports a Samsung S2MPG10 powermeter which has 8 ADC
+	  channels for saving current and voltage data of each regulator.
+	  The sysfs files in the sysfs directory created by the config
+	  DRV_SAMSUNG_PMIC is are made by this driver for debugging.
+
+config POWERMETER_S2MPG11
+	tristate "Samsung S2MPG11 Powermeter"
+	depends on MFD_S2MPG11
+	help
+	  This driver supports a Samsung S2MPG11 powermeter which has 8 ADC
+	  channels for saving current and voltage data of each regulator.
+	  The sysfs files in the sysfs directory created by the config
+	  DRV_SAMSUNG_PMIC is are made by this driver for debugging.
+
+config REGULATOR_S2MPG12
+	tristate "Samsung S2MPG12 voltage regulator"
+	depends on MFD_S2MPG12
+	help
+	  This driver supports a Samsung S2MPG12 voltage output regulator
+	  via I2C bus. S2MPG12 is comprised of high efficient Buck converters
+	  including Dual-Phase Buck converter, Buck-Boost converter, various LDOs.
+
+config REGULATOR_S2MPG13
+	tristate "Samsung S2MPG13 voltage regulator"
+	depends on MFD_S2MPG13
+	help
+	  This driver supports a Samsung S2MPG13 voltage output regulator
+	  via I2C bus. S2MPG13 is comprised of high efficient Buck converters
+	  including Dual-Phase Buck converter, Buck-Boost converter, various LDOs.
+
+config POWERMETER_S2MPG14
+	tristate "Samsung S2MPG14 Powermeter"
+	depends on MFD_S2MPG14
+	help
+	  This driver supports a Samsung S2MPG14 powermeter which has 14 ADC
+	  channels for saving current and voltage data of each regulator.
+	  The sysfs files in the sysfs directory created by the config
+	  DRV_SAMSUNG_PMIC is are made by this driver for debugging.
+
+config POWERMETER_S2MPG15
+	tristate "Samsung S2MPG15 Powermeter"
+	depends on MFD_S2MPG15
+	help
+	  This driver supports a Samsung S2MPG15 powermeter which has 14 ADC
+	  channels for saving current and voltage data of each regulator.
+	  The sysfs files in the sysfs directory created by the config
+	  DRV_SAMSUNG_PMIC is are made by this driver for debugging.
+
+config REGULATOR_SLG51000_GS
+	tristate "Dialog Semiconductor SLG51000 regulators for some GS SoCs"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor SLG51000 for GS
+	  SOCs. The SLG51000 is seven compact and customizable low dropout
+	  regulators.
+
+config REGULATOR_SLG51002
+	tristate "Dialog Semiconductor SLG51002 regulators"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say y here to support for the Dialog Semiconductor SLG51002.
+	  The SLG51002 is eight compact and customizable low dropout
+	  regulators.
+
+config REGULATOR_RT6160_GS
+	tristate "Richtek RT6160 BuckBoost voltage regulator for some GS SoCs"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for voltage regulator in Richtek RT6160.
+	  This device automatically change voltage output mode from
+	  Buck or Boost. The mode transition depend on the input source voltage.
+	  The wide output range is from 2025mV to 5200mV and can be used on most
+	  common application scenario.
+
+
+endif

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Input misc drivers configuration
+#
+
+if INPUT_MISC
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/input/misc/vl53l1/Kconfig"
+
+endif
+

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Makefile for misc devices that really don't fit anywhere else.
+#
+
+obj-$(CONFIG_GSC_TPM)		+= gsc-spi.o
+obj-$(CONFIG_S5910)		    += s5910/
+obj-$(CONFIG_SBB_MUX)		+= sbb-mux/
+obj-$(CONFIG_SUBSYSTEM_COREDUMP)	+= sscoredump/
+obj-$(CONFIG_ACCESS_RAMOOPS)	+= access_ramoops.o

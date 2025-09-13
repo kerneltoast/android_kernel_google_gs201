@@ -1,0 +1,3 @@
+config BOOT_CONTROL
+	tristate "Driver for BootControl service"
+	default n

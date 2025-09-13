@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config GS_PERF_MON
+	tristate "Google CPU Performance Monitor"
+	default n
+	help
+	  A monitoring module to provide high resolution CPU state info.
+	  The monitor makes use of PMU/AMU events provided by the ARM cores
+	  and hooks from CPU state change functions to supply fine
+	  grained CPU information. Some example clients are memory latency
+	  governors. WARNING: this monitor allocates PMU counters so it can
+	  conflict with other profiling tools.

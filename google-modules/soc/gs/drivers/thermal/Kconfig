@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Generic thermal drivers configuration
+#
+
+if THERMAL
+
+menu "Samsung thermal drivers"
+depends on (ARCH_EXYNOS || SOC_GOOGLE) || COMPILE_TEST
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/thermal/samsung/Kconfig"
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/thermal/google/Kconfig"
+endmenu
+
+endif

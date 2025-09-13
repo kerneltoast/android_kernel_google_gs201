@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+# generic pinmux support
+
+subdir-ccflags-$(CONFIG_DEBUG_PINCTRL)	+= -DDEBUG
+
+obj-$(CONFIG_PINCTRL_SLG51000)	+= pinctrl-slg51000.o
+obj-$(CONFIG_PINCTRL_SLG51002)	+= pinctrl-slg51002.o
+
+obj-y	+= gs/

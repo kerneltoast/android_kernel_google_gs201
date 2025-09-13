@@ -1,0 +1,12 @@
+* Google Battery Current Limiter (BCL)
+
+** Required properties:
+
+- compatible : One of the following:
+	       "google,gs101-bcl"
+
+Example:
+	google_bcl: google,bcl{
+		compatible = "google,gs101-bcl";
+		};
+	};

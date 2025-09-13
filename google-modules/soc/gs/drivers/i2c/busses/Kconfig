@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+config I2C_EXYNOS5_GS
+	tristate "Exynos high-speed I2C driver for GS SoCs"
+	depends on OF
+	help
+	  High-speed I2C controller on Google GS101.
+
+config I2C_ACPM
+	tristate "I2C_ACPM driver"
+	help
+	  I2C ACPM driver on GS SoCs.

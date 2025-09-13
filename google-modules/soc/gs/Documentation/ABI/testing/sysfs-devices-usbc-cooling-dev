@@ -1,0 +1,18 @@
+What:		/sys/devices/platform/google,usbc_port_cooling_dev/trip_time
+Date:		June, 2021
+Contact:	"Badhri Jagan Sridharan" <badhri@google.com>
+Description:
+		Time elapsed in seconds since last plug in of an usb-c accessory.
+
+What:		/sys/devices/platform/google,usbc_port_cooling_dev/hysteresis_time
+Date:		June, 2021
+Contact:	"Badhri Jagan Sridharan" <badhri@google.com>
+Description:
+		Duration in seconds cooling device was throttling usb-c port.
+
+What:		/sys/devices/platform/google,usbc_port_cooling_dev/cleared_time
+Date:		June, 2021
+Contact:	"Badhri Jagan Sridharan" <badhri@google.com>
+Description:
+		Duration in seconds elapsed since the cooling device had exited
+		the throttling state and USB-C port was actually re-enabled.

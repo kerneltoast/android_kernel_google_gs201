@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+if SPMI
+
+config SPMI_BITBANG
+	tristate "SPMI BITBANG Driver"
+	default n
+	depends on SPMI
+	help
+		SPMI Bitbang Driver
+
+endif # SPMI

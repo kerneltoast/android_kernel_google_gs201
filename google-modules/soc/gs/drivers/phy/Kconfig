@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# PHY
+#
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/phy/samsung/Kconfig"

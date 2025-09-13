@@ -1,0 +1,39 @@
+What:		/sys/kernel/metrics/cpuidle_histogram/enable
+Date:		November, 2023
+Contact:	"Vishvam Mazumdar" <vmazumdar@google.com>
+Description:
+		This file used to enable logging CPU Idle histograms. Setting this to 1
+		registers a callback for the cpu idle trace. This populates the values queried
+		from /sys/kernel/metrics/cpuidle_histogram/cpuidle_histogram to create a
+		histogram of the time each CPU spends in the valid idle states.
+		0 means "disable" and 1 means "enable".
+
+What:		/sys/kernel/metrics/cpuidle_histogram/reset
+Date:		November, 2023
+Contact:	"Vishvam Mazumdar" <vmazumdar@google.com>
+Description:
+		This file used to reset the values logging CPU Idle histograms. All values saved
+		for the CPU Idle histogram will be reset to 0.
+		Pass in any value to this node to trigger the reset.
+
+What:		/sys/kernel/metrics/cpuidle_histogram
+Date:		November, 2023
+Contact:	"Vishvam Mazumdar" <vmazumdar@google.com>
+Description:
+		This file is a read only file that allows reading the CPU Idle histogram values
+		at the current time. The CPU Idle histogram values keep track of the time each
+		CPU spends in each idle state. The bin corresponding to each value is incremented
+		with each new entry. The histogram bins are created as percentages of the target
+		residency for each CPU (i.e. bin 1 = 0 to 25% target residency, bin 2 = 25 to 50
+		% target residency, etc.).
+
+What:		/sys/kernel/metrics/cpucluster_histogram
+Date:		November, 2023
+Contact:	"Vishvam Mazumdar" <vmazumdar@google.com>
+Description:
+		This file is a read only file that allows reading the CPU Cluster histogram values
+		at the current time. The CPU Cluster histogram values keep track of the time each
+		cluster spends in CPD and SICD. The bin corresponding to each value is incremented
+		with each new entry. The histogram bins are created as percentages of the target
+		residency for each cluster (i.e. bin 1 = 0 to 25% target residency, bin 2 = 25 to 50
+		% target residency, etc.).

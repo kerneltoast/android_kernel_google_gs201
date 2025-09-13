@@ -1,0 +1,278 @@
+What:		/sys/devices/platform/<....>ufs/pixel/enable_pixel_ufs_logging
+Date:		Aug, 2023
+Contact:	"Randall Huang" <huangrandall@google.com>
+Description:
+		Enable/Disable UFS command logging.
+
+What:		/sys/devices/platform/<....>ufs/pixel/power_event_mode
+Date:		June, 2023
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		Enables UFS driver to set Kibble triggers on power events.
+
+What:		/sys/devices/platform/<....>ufs/power_stats
+Date:		April, 2022
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This directory contains UFS power related statistical info.
+		fdevinit_read_count: number of time fDeviceInit flag read was
+			issued
+		fdevinit_read_max_latency_us: total amount of time in
+			microseconds fDeviceInit flag read operations consumed
+		fdevinit_read_time_spent_us: maximum latency in microseconds
+			of a single fDeviceInit flag read operation
+		fdevinit_set_count: number of time fDeviceInit flag set was
+			issued
+		fdevinit_set_max_latency_us: total amount of time in
+			microseconds fDeviceInit flag set operations consumed
+		fdevinit_set_time_spent_us: maximum latency in microseconds
+			of a single fDeviceInit flag set operation
+
+What:		/sys/devices/platform/<....>ufs/power_info
+Date:		December, 2020
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This directory contains UFS power related settings info.
+		gear_tx: Current transmit gear
+		gear_rx: Current receive gear
+		lane_tx: Current transmit lane
+		lane_rx: Current receive lane
+		pwr_tx: Current transmit power
+		pwr_rx: Current receive power
+		hs_rate: Current high speed rate
+
+What:		/sys/devices/platform/<....>ufs/curr_dev_pwr_mode
+Date:		December, 2020
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This file contains the current device power mode. Either of
+		ACTIVE, SLEEP, or POWERDOWN.
+
+What:		/sys/devices/platform/<....>ufs/uic_link_state
+Date:		December, 2020
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This file contains the device link state. Either of OFF,
+		ACTIVE, or HIBERN8.
+
+What:		/sys/devices/platform/<....>ufs/hc_register_ifc
+Date:		December, 2020
+Contact:	"Konstantin Vyshetsky" <vkon@google.com>
+Description:
+		This directory contains Host Controller Registers specified
+		in UFS Host Controller Interface version 2.1.
+		cap: Controller Capabilities
+		ver: UFS Version
+		hcpid: Host Controller Identification Descriptor - Product ID
+		hcmid: Host Controller Identification Descriptor - Manufacturer ID
+		ahit: Auto-Hiberne Idle Timer
+		is: Interrupt Status
+		ie: Interrupt Enable
+		hcs: Host Controller Status
+		hce: Host Controller Enable
+		uecpa: Host UIC Error Code PHY Adapter Layer
+		uecdl: Host UIC Error Code Data Link Layer
+		uecn: Host UIC Error Code Network Layer
+		uect: Host UIC Error Code Transport Layer
+		uecdme: Host UIC Error Code
+
+What:		/sys/devices/platform/<....>ufs/manual_gc
+Date:		April, 2018
+Contact:	"Jaegeuk Kim" <jaegeuk@google.com>
+Description:
+		Control UFS to give a time for internal Garbage Collections,
+		given manual_gc_hold seconds.
+
+What:		/sys/devices/platform/<....>ufs/manual_gc_hold
+Date:		April, 2018
+Contact:	"Jaegeuk Kim" <jaegeuk@google.com>
+Description:
+		Give the seconds to UFS for internal GCs.
+
+What:		/sys/devices/platform/<....>ufs/health_descriptor
+Date:		September 2017
+contact:	Jaegeuk Kim <jaegeuk@google.com>
+Description:
+		This directory contains health information reported by UFS.
+		- life_time_estimation_c
+		  1% granularity device life time used
+
+What:		/sys/devices/platform/<....>ufs/slowio_read_us
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+Description:
+		Contains watermark value in micro seconds unit for slow
+		UFS read I/O logging and counting. Can be updated by writing
+		value to.
+
+What:		/sys/devices/platform/<....>ufs/slowio_read_cnt
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+Description:
+		Contains the number of UFS read I/O requests which took more
+		or equal to the defined slow I/O water mark time.
+		Can be reset by writing any value.
+
+What:		/sys/devices/platform/<....>ufs/slowio_write_us
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+Description:
+		Contains watermark value in micro seconds unit for slow
+		UFS write I/O logging and counting. Can be updated by writing
+		value to.
+
+What:		/sys/devices/platform/<....>ufs/slowio_write_cnt
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+Description:
+		Contains the number of UFS write I/O requests which took more
+		or equal to the defined slow I/O water mark time.
+		Can be reset by writing any value.
+
+What:		/sys/devices/platform/<....>ufs/slowio_unmap_us
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+Description:
+		Contains watermark value in micro seconds unit for slow
+		UFS unmap I/O logging and counting. Can be updated by writing
+		value to.
+
+What:		/sys/devices/platform/<....>ufs/slowio_unmap_cnt
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+Description:
+		Contains the number of UFS unmap I/O requests which took more
+		or equal to the defined slow I/O water mark time.
+		Can be reset by writing any value.
+
+What:		/sys/devices/platform/<....>ufs/slowio_sync_us
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+Description:
+		Contains watermark value in micro seconds unit for slow
+		UFS sync I/O logging and counting. Can be updated by writing
+		value to.
+
+What:		/sys/devices/platform/<....>ufs/slowio_sync_cnt
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+Description:
+		Contains the number of UFS sync I/O requests which took more
+		or equal to the defined slow I/O water mark time.
+		Can be reset by writing any value.
+
+What:		/sys/devices/platform/<....>ufs/vendor
+Date:		Mar, 2018
+Contact:	"Jaegeuk Kim" <jaegeuk@google.com>
+Description:
+		Show the UFS manufacturer name.
+
+What:		/sys/devices/platform/<....>ufs/model
+Date:		Mar, 2018
+Contact:	"Jaegeuk Kim" <jaegeuk@google.com>
+Description:
+		Show the UFS product name.
+
+What:		/sys/devices/platform/<....>ufs/rev
+Date:		Mar, 2018
+Contact:	"Jaegeuk Kim" <jaegeuk@google.com>
+Description:
+		Show the UFS firmware revision.
+
+What:		/sys/devices/platform/<....>ufs/platform_version
+Date:		March, 2020
+Contact:	"Jaegeuk Kim" <jaegeuk@google.com>
+Description:
+		Show the UFS protocol version.
+
+What:		/sys/devices/platform/<....>ufs/set_gid
+Date:		Aug, 2023
+Contact:	"Jaegeuk Kim" <jaegeuk@google.com>
+Description:
+		Enable/Disable setting GROUP ID by default to control command-
+		based WriteBooster. (Default: selective)
+		 - "disable" : disable
+		 - "selective" : enable WriteBooster to REQ_META and REQ_IDLE
+		                 commands
+		 - "all" : enable WriteBooster to all incoming commands
+
+What:		/sys/devices/platform/<....>ufs/err_stats
+Date:		Oct, 2020
+Contact:	"Leo Liou" <leoliou@google.com>
+Description:
+		This directory contains error information reported by UFS.
+		- count shows the amount of error hitting
+		- lasttime shows the last error happening time
+		- error types
+		pa_err: UIC error on unipro phy adapter layer
+		dl_err: UIC error on unipro data link layer
+		nl_err: UIC error on unipro network layer
+		tl_err: UIC error on unipro transport layer
+		dme_err: UIC error on dme command error
+		auto_hibern8_err: Failed to switch auto hibern8 on/off
+		fatal_err: Any fatal errors from device, e.g. crypto, bus,
+		           controller
+		link_startup_err: Failed to startup Unipro link
+		resume_err: Failed to resume device
+		suspend_err: Failed to suspend device
+		dev_reset: Abnormal UFS device reset event
+		host_reset: Abnormal Host reset event
+		task_abort: Abnormal Abort tasks event
+
+What:		/sys/devices/platform/<....>ufs/io_stats
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+		"Jaegeuk Kim" <jaegeuk@google.com>
+Description:
+		This directory contains the UFS I/O statistics information.
+		The host driver records 6 I/O types for statistical purposes.
+		- ReadCnt: number of read cmds
+		- ReadBytes: total bytes from read cmds
+		- WriteCnt: number of write cmds
+		- WriteBytes: total bytes from write cmds
+		- RWCnt: number of read/write cmds
+		- RWBytes: total bytes from read/write cmds
+		For different IO types, there are three logs for querying.
+		-'Started': It has six 64 bit numbers, which are increased
+		             when UFS requests are sent.
+		-'Completed': It also has six 64 bit numbers, and the
+		               numbers are increased when UFS requests are
+		               completed.
+		-'MaxDiff': It contains the maximum observed differences
+		            between 'Started' and 'Completed' numbers.
+		The I/O statistics can be reset by writing any value to the
+		sysfs entry file. e.g. echo 1 > reset_io_status
+
+What:		/sys/devices/platform/<....>ufs/ufs_stats
+Date:		Oct, 2020
+Contact:	"Leo Liou" <leoliou@google.com>
+Description:
+		This directory contains hibern8 information reported by UFS.
+		- hibern8_total_us: the total time of staying hibern8 mode
+		                    (unit: usec)
+		- hibern8_exit_cnt: the count of exiting hibern8 mode
+		- last_hibern8_enter_time: the last timing which entered
+		                           hibern8 mode (unit: usec)
+		- last_hibern8_exit_time: the last timing which exited hibern8
+		                          mode (unit: usec)
+
+What:		/sys/devices/platform/<....>ufs/req_stats
+Date:		May, 2018
+Contact:	"Hyojun Kim" <hyojun@google.com>
+		"Jaegeuk Kim" <jaegeuk@google.com>
+		"Leo Liou" <leoliou@google.com>
+Description:
+		This directory contains the UFS request information. In UFS
+		req_stats, host driver records 5 request types for statistics
+		based on these SCSI commands:
+		- Read: READ_10, READ_16
+		- Write: WRITE_10, WRITE_16
+		- Flush: SYNCHRONIZE_CACHE
+		- Discard: UNMAP
+		- Security: SECURITY_PROTOCAL_IN, SECURITY_PROTOCAL_OUT
+		For different request types, there are three logs for querying
+		on sysfs.
+		- min: the minimum time of request spending
+		- max: the maximum time of request spending
+		- avg: the average time of request spending
+		- sum: the total time of request spending

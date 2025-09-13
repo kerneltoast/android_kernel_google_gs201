@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Industrial I/O subsystem configuration
+#
+
+if IIO
+
+source "$(KCONFIG_SOC_GS_PREFIX)drivers/iio/power/Kconfig"
+
+endif # IIO

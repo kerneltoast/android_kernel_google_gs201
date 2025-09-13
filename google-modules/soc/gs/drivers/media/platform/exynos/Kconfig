@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Exynos multimedia device drivers
+#
+config VIDEO_EXYNOS
+        bool "Exynos Multimedia Devices"
+        default y
+        help
+          This is a representative exynos multimedia device.
+
+if VIDEO_EXYNOS
+	source "$(KCONFIG_SOC_GS_PREFIX)drivers/media/platform/exynos/mfc/Kconfig"
+endif
+
+config MEDIA_EXYNOS
+        bool
+        depends on VIDEO_EXYNOS
+        default y
+        help
+          Compile mdev to use exynos media device driver.
