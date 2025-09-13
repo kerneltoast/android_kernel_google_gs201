@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Google Battery Current Limiter driver
+
+maintainers:
+  - George Lee <geolee@google.com>
+  - Sam Ou <samou@google.com>
+  - Hiroshi Akiyama <hiroshiakiyama@google.com>
+
+description:
+  Google Battery Current Limiter driver.
+
+  Main for mitigating brownout
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - google,mitigation
+
+  google,ifpmic:
+    description: IFPMIC enum
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo_lower:
+    description: Lower BATOILO1 threshold Limit
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo_upper:
+    description: Upper BATOILO1 threshold Limit
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo2_lower:
+    description: Lower BATOILO2 threshold Limit
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo2_upper:
+    description: Upper BATOILO2 threshold Limit
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo_wlc_trig_lvl:
+    description: BATOILO threshold during Battery Share
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo2_wlc_trig_lvl:
+    description: BATOILO2 threshold during Battery Share
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo_trig_lvl:
+    description: BATOILO threshold during normal usage
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo2_trig_lvl:
+    description: BATOILO2 threshold during normal usage
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo_otg_trig_lvl:
+    description: BATOILO threshold when OTG enabled
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo2_otg_trig_lvl:
+    description: BATOILO2 threshold when OTG enabled
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo_usb_trig_lvl:
+    description: BATOILO threshold when plugged in
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo2_usb_trig_lvl:
+    description: BATOILO2 threshold when plugged in
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo_otg_bat_open_to:
+    description: BATOILO timer when BATFET opens and OTG enabled
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo_bat_open_to:
+    description: BATOILO timer when BATFET opens
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo2_bat_open_to:
+    description: BATOILO2 timer when BATFET opens
+    $ref: /schemas/types.yaml#/definitions/int32
+
+  batoilo_rel:
+    description: BATOILO VDROOP release timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  batoilo2_rel:
+    description: BATOILO2 VDROOP release timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  batoilo_int_rel:
+    description: BATOILO release timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  batoilo2_int_rel:
+    description: BATOILO2 release timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  batoilo_det:
+    description: BATOILO VDROOP detect deglitch timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  batoilo2_det:
+    description: BATOILO2 VDROOP detect deglitch timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  batoilo_int_det:
+    description: BATOILO detect deglitch timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  batoilo2_int_det:
+    description: BATOILO2 detect deglitch timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  uvlo1_rel:
+    description: UVLO1 release timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  uvlo2_rel:
+    description: UVLO2 release timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  uvlo1_det:
+    description: UVLO1 detect deglitch timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  uvlo2_det:
+    description: UVLO2 detect deglitch timer
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  evt_cnt_enable:
+    description: Event Counter Enable
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  usb_otg_conf:
+    description: USB OTG Enable
+    $ref: /schemas/types.yaml#/definitions/bool
+
+  evt_cnt_rate:
+    description: Event Counter Sampling Rate
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  vimon_pwr_loop_thresh:
+    description: Battery current threshold for vimon power loop
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  vimon_pwr_loop_cnt:
+    description: vimon sample num to start power loop
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  vimon_pwr_loop_en:
+    description: vimon power loop enable
+    $ref: /schemas/types.yaml#/definitions/flag
+
+  bat_ktimer_en:
+    description: BATFET Kernel Timer Enable
+    $ref: /schemas/types.yaml#/definitions/bool
+
+  bat_ktimer:
+    description: BATFET Kernel Timer (unit ms)
+    $ref: /schemas/types.yaml#/definitions/uint32

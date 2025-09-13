@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config GOOGLE_BCL
+	tristate "Google Battery current limiter"
+	depends on SOC_GS101 || SOC_GS201 || SOC_ZUMA
+	# GOOGLE_MODEMCTL is an optional dependency.
+	depends on GOOGLE_MODEMCTL || !GOOGLE_MODEMCTL
+	help
+	  This enables the monitoring and reporting of different types of system
+	  throttling as a result of battery current limiter.
