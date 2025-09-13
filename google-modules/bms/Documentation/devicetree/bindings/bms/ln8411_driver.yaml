@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: LN8411 driver
+
+maintainers:
+  - Prasanna Prapancham <prapancham@google.com>
+
+description: |
+  LN8411 Parallel Charger driver.
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - ln8411
+
+  reg:
+    description: i2c address of the charger.
+
+  ln8411,psy_name:
+    description: ln8411 charger power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  ln8411,irq-gpio:
+    description: IRQ gpio
+
+  ln8411,input-current-limit:
+    description: Input current limit.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ln8411,ta-max-vol-4_1:
+    description: Travel Adapter 4-1 mode max voltage limit.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ln8411,ta-max-vol-2_1:
+    description: Travel Adapter 2-1 mode max voltage limit.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ln8411,input-itopoff:
+    description: Input topoff current. Used to detect end of charge. Units -uV
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ln8411,iin-max-offset:
+    description: Max input current offset. Units uA.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ln8411,iin-cc_comp-offset:
+    description: Max input constant charge current compensation offset. Units uA.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  ln8411,si-fet-ovp-drive:
+    description: Set safety switch to 10V Si FET
+    type: boolean
+
+  google,usb-port-tz-name:
+    description: USBC thermal zone name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  ln8411,google_cpm:
+    description: Google CPM phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  ln8411_gpio:
+    description: ln8411 GPIO controller config
+
+required:
+  - compatible
+  - reg
+  - gpio-controller

@@ -1,0 +1,226 @@
+What:		/sys/class/power_supply/wireless/device/version
+Contact:	pixel-bms-sw@google.com
+Description:
+		Version information about the chip and driver such as chip id, firmware
+		version date and time codes in human readable format
+
+What:		/sys/class/power_supply/wireless/device/status
+Contact:	pixel-bms-sw@google.com
+Description:
+		Driver status and state information printed in human readable format
+
+What:		/sys/class/power_supply/wireless/device/addr
+Contact:	pixel-bms-sw@google.com
+Description:
+		i2c 16-bit register address input to send manual i2c commands
+
+What:		/sys/class/power_supply/wireless/device/count
+Contact:	pixel-bms-sw@google.com
+Description:
+		i2c count input to send manual i2c commands in number of bytes to read/write
+
+What:		/sys/class/power_supply/wireless/device/data
+Contact:	pixel-bms-sw@google.com
+Description:
+		i2c data information to send manual i2c commands in 0xAA 0xBB 0xCC format
+
+What:		/sys/class/power_supply/wireless/device/ccreset
+Contact:	pixel-bms-sw@google.com
+Description:
+		Reset the in-band communication channel between RX and TX
+
+What:		/sys/class/power_supply/wireless/device/txbusy
+Contact:	pixel-bms-sw@google.com
+Description:
+		Check if the in-band communication channel is busy transmitting
+
+What:		/sys/class/power_supply/wireless/device/txdone
+Contact:	pixel-bms-sw@google.com
+Description:
+		Check if the transmission over in-band communication channel is done
+
+What:		/sys/class/power_supply/wireless/device/txlen
+Contact:	pixel-bms-sw@google.com
+Description:
+		Number of bytes to transmit in the in-band communication channel
+
+What:		/sys/class/power_supply/wireless/device/rxlen
+Contact:	pixel-bms-sw@google.com
+Description:
+		Number of bytes received in the in-band communication channel
+
+What:		/sys/class/power_supply/wireless/device/rxdone
+Contact:	pixel-bms-sw@google.com
+Description:
+		Whether the in-band communication channel data receiving is complete
+
+What:		/sys/class/power_supply/wireless/device/icl_ramp_ua
+Contact:	pixel-bms-sw@google.com
+Description:
+		Value to ramp the ICL to during BPP
+
+What:		/sys/class/power_supply/wireless/device/icl_ramp_delay_ms
+Contact:	pixel-bms-sw@google.com
+Description:
+		Amount of time to delay betwenn BPP ICL ramp steps in ms
+
+What:		/sys/class/power_supply/wireless/device/force_epp
+Contact:	pixel-bms-sw@google.com
+Description:
+		Always have the driver act as if the device is in EPP even if it isn't
+
+What:		/sys/class/power_supply/wireless/device/dc_icl_bpp
+Contact:	pixel-bms-sw@google.com
+Description:
+		Set the DC_ICL in BPP mode
+
+What:		/sys/class/power_supply/wireless/device/dc_icl_epp
+Contact:	pixel-bms-sw@google.com
+Description:
+		Set the DC_ICL in EPP mode
+
+What:		/sys/class/power_supply/wireless/device/alignment
+Contact:	pixel-bms-sw@google.com
+Description:
+		Show the alignment status
+
+What:		/sys/class/power_supply/wireless/device/aicl_delay_ms
+Contact:	pixel-bms-sw@google.com
+Description:
+		Legacy interface for setting AICL_DELAY power supply property for QC compat
+
+What:		/sys/class/power_supply/wireless/device/aicl_icl_ua
+Contact:	pixel-bms-sw@google.com
+Description:
+		Legacy interface for setting AICL_ICL power supply property for QC compat
+
+What:		/sys/class/power_supply/wireless/device/operating_freq
+Contact:	pixel-bms-sw@google.com
+Description:
+		Show the current operating frequency of the WLC
+
+What:		/sys/class/power_supply/wireless/device/ptmc_id
+Contact:	pixel-bms-sw@google.com
+Description:
+		Show the TX ID as received through Bidi (proprietary)
+
+What:		/sys/class/power_supply/wireless/device/ext_ben
+Contact:	pixel-bms-sw@google.com
+Description:
+		External boost on or off
+
+What:		/sys/class/power_supply/wireless/device/qi_vbus_en
+Contact:	pixel-bms-sw@google.com
+Description:
+		QI_VBUS_EN gpio on or off
+
+What:		/sys/class/power_supply/wireless/device/has_wlc_dc
+Contact:	pixel-bms-sw@google.com
+Description:
+		Enable or disable HPP feature
+
+What:		/sys/class/power_supply/wireless/device/gpp_enhanced
+Contact:	pixel-bms-sw@google.com
+Description:
+		Enable or disable GPP15W feature
+
+What:		/sys/class/power_supply/wireless/device/authstart
+Contact:	pixel-bms-sw@google.com
+Description:
+		Start WPC Authentication sequence
+
+What:		/sys/class/power_supply/wireless/device/log_current_filtered
+Contact:	pixel-bms-sw@google.com
+Description:
+		Enable printing WLC current continuously into the log
+
+What:		/sys/class/power_supply/wireless/device/charge_stats
+Contact:	pixel-bms-sw@google.com
+Description:
+		Dump out and clear charge stats from the last charging session
+
+What:		/sys/class/power_supply/wireless/device/fw_rev
+Contact:	pixel-bms-sw@google.com
+Description:
+		Saved FW version from the last WLC power on
+
+What:		/sys/class/power_supply/wireless/device/authtype
+Contact:	pixel-bms-sw@google.com
+Description:
+		Authentication type to run (0 = Bidi, others = WPC packet types)
+
+What:		/sys/class/power_supply/wireless/device/features
+Contact:	pixel-bms-sw@google.com
+Description:
+		Supported feature mask in the format "id:features". id=0 corresponds to just set
+		current session
+
+What:		/sys/class/power_supply/wireless/device/mitigate_threshold
+Contact:	pixel-bms-sw@google.com
+Description:
+		SOC threshold at which to trigger dream defend on DL/LL
+
+What:		/sys/class/power_supply/wireless/device/wpc_ready
+Contact:	pixel-bms-sw@google.com
+Description:
+		Check this node to see if the driver/HW is ready for WPC authentication
+
+What:		/sys/class/power_supply/wireless/device/qien
+Contact:	pixel-bms-sw@google.com
+Description:
+		Check/force state of the WLC disable GPIO
+
+What:		/sys/class/power_supply/wireless/device/align_delta
+Contact:	pixel-bms-sw@google.com
+Description:
+		Set the opfreq delta threshold for being considered misaligned
+
+What:		/sys/class/power_supply/wireless/device/ldo_en
+Contact:	pixel-bms-sw@google.com
+Description:
+		Interface for enable/disable external LDO for chips that support it
+
+What:		/sys/class/power_supply/wireless/device/rtx_sw
+Contact:	pixel-bms-sw@google.com
+Description:
+		Change/check the RTX switch status
+
+What:		/sys/class/power_supply/wireless/device/rtx_boost
+Contact:	pixel-bms-sw@google.com
+Description:
+		Turn on the RTX boost to power on the WLC chip. For debug and FW update
+
+What:		/sys/class/power_supply/wireless/device/rtx
+Contact:	pixel-bms-sw@google.com
+Description:
+		Turn on RTX
+
+What:		/sys/class/power_supply/wireless/device/rtx_status
+Contact:	pixel-bms-sw@google.com
+Description:
+		Read the status of RTX
+
+What:		/sys/class/power_supply/wireless/device/is_rtx_connected
+Contact:	pixel-bms-sw@google.com
+Description:
+		Check if RTX is connected
+
+What:		/sys/class/power_supply/wireless/device/rx_lvl
+Contact:	pixel-bms-sw@google.com
+Description:
+		Check the battery level of the device being charged in RTX
+
+What:		/sys/class/power_supply/wireless/device/rtx_err
+Contact:	pixel-bms-sw@google.com
+Description:
+		Read the current RTX error
+
+What:		/sys/class/power_supply/wireless/device/txdata
+Contact:	pixel-bms-sw@google.com
+Description:
+		Set data to be sent over in-band wireless communication
+
+What:		/sys/class/power_supply/wireless/device/rxdata
+Contact:	pixel-bms-sw@google.com
+Description:
+		Read data from in-band wireless communication

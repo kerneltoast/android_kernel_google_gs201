@@ -1,0 +1,26 @@
+What:		/sys/devices/platform/*.hsi2c/i2c-[0-9]+/[0-9]+-006e/soft_reset
+Date:		Mar 2023
+KernelVersion:	5.15
+Contact:	"Prasanna Prapancham" <prapancham@google.com>
+Description:
+		Reset chip
+
+Users:		Debug
+
+What:		/sys/devices/platform/*.hsi2c/i2c-[0-9]+/[0-9]+-006e/registers_dump
+Date:		Mar 2023
+KernelVersion:	5.15
+Contact:	"Prasanna Prapancham" <prapancham@google.com>
+Description:
+		Dump all registers
+
+Users:		DumpState
+
+What:		/sys/devices/platform/*.hsi2c/i2c-[0-9]+/[0-9]+-006e/chg_stats
+Date:		Mar 2023
+KernelVersion:	5.15
+Contact:	"Prasanna Prapancham" <prapancham@google.com>
+Description:
+		Print LN8411 charge stats
+
+Users:		Charge Stats

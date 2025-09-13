@@ -1,0 +1,8 @@
+What:		/sys/devices/platform/*.hsi2c/i2c-[0-10]+/[0-10]+-005b/registers_dump
+Date:		Jun 2024
+KernelVersion:	6.1
+Contact:	"Jack Wu" <wjack@google.com>
+Description:
+		Dump all registers
+
+Users:		DumpState

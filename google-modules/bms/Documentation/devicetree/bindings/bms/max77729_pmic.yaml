@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: max77729 pmic driver
+
+maintainers:
+  - Daniel Okazaki <dtokazaki@google.com>
+  - Prasanna Prapancham <prapancham@google.com>
+  - Jack Wu <wjack@google.com>
+  - Ken Yang <yangken@google.com>
+  - Baltazar Ortiz <baltazarortiz@google.com>
+
+description: |
+  max77729/max77759 pmic driver
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - maxim,max77729pmic
+      - maxim,max77759pmic
+
+  reg:
+    description: i2c address of the pmic.
+
+  max77759,max_m5:
+    description: Fuel Gauge driver phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  goog,maxq-poll:
+    description: Enable polling mode in maxq opcode driver.
+    type: boolean
+
+  max777x9,irq-gpio:
+    description: IRQ gpio
+
+  max777x9_gpio:
+    description: GPIO controller configuration
+
+required:
+  - compatible
+  - reg
+  - pinctrl-names
+  - pinctrl-0

@@ -1,0 +1,183 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: max77759 charger driver
+
+maintainers:
+  - Daniel Okazaki <dtokazaki@google.com>
+  - Prasanna Prapancham <prapancham@google.com>
+  - Jack Wu <wjack@google.com>
+  - Ken Yang <yangken@google.com>
+  - Baltazar Ortiz <baltazarortiz@google.com>
+
+description: |
+  max77759 charger driver
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - maxim,max77759chrg
+
+  reg:
+    description: i2c address of the charger.
+
+  max77759,psy-name:
+    description: max77759 charger power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,max77759-thm2-monitor:
+    description: Enable thm2 monitoring
+    type: boolean
+
+  max77759,usb-mon:
+    description: When not set, disables thm2 monitoring.
+    When set, leaves thm2 register as is.
+    type: boolean
+
+  max77759,otg-fccm-vbatt-upperbd:
+    description: Upper batt voltage threshold to enable external boost for OTG.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77759,otg-fccm-vbatt-lowerbd:
+    description: Lower batt voltage threshold to disable external boost for OTG.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77759,chg-term-voltage:
+    description: Charge termination voltage.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77759,chg-term-volt-debounce:
+    description: Charge termination voltage debounce voltage.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77759,usb-otg-mv:
+    description: OTG bypass output voltage
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77759,dcin-is-dock:
+    description: DC input is a dock.
+    type: boolean
+
+  max77759,wcin-inlim-period:
+    description: Number of milliseconds between ilim tracking polling.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77759,wcin-inlim-headroom:
+    description: Headroom above actual current allowed.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77759,wcin_inlim_step:
+    description: Maximum step size per timestep.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77759_gpio:
+    description: GPIO controller config.
+
+  max77759,irq-gpio:
+    description: IRQ gpio
+
+  max77759,pmic:
+    description: max77759 PMIC device phandle.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  max77759,max_m5:
+    description: max77759 Fuel Gauge device phandle.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  max77759,dc-psy-type-wireless:
+    description: DC input is a wireless power supply.
+    type: boolean
+
+  max77759,dc-psy-name:
+    description: Name of DC power supply
+    $ref: /schemas/types.yaml#/definitions/string
+
+  max77759,bst-on:
+    description: external boost enable gpio.
+
+  max77759,bst-sel:
+    description: external boost select gpio.
+
+  max77759,extbst-ctl:
+    description: external boost control gpio.
+
+  max77759,pogo-ovp-en:
+    description: pogo pin charging overvoltage protection enable gpio.
+
+  max77759,pogo-vout-sw-en:
+    description: pogo pin charging vout software enable gpio.
+
+  max77759,vin-is_valid:
+    description: NBC workaround for OTG gpio.
+
+  max77759,lsw1-is_closed:
+    description: Load switch 1 closed gpio.
+
+  max77759,lsw1-is_open:
+    description: Load switch 1 open gpio.
+
+  max77759,otg-enable:
+    description: OTG enable gpio.
+
+  max77759,wlc-en:
+    description: WLC enable gpio.
+
+  max77759,wlc-vbus_en:
+    description: WLC vbus enable gpio.
+
+  max77759,cpout-en:
+    description: WLC cpout gpio
+
+  max77759,wlc-spoof:
+    description: WLC spoof gpio. Used during thermal throttling.
+
+  max77759,cpout-ctl:
+    description: WLC cpout control gpio.
+
+  max77759,cpout_21-en:
+    description: WLC cpout control gpio. 2:1 cpout mode.
+
+  max77759,ls1-en:
+    description: Load Switch 1 enable gpio.
+
+  max77759,ls2-en:
+    description: Load Switch 2 enable gpio.
+
+  max77759,sw-en:
+    description: OTG+RTXL enable gpio.
+
+  max77759,extbst-mode:
+    description: External boost mode gpio.
+
+  max77759,rx-to-rx-otg-en:
+    description: wlc_rx to wlc_rx + otg supported.
+    type: boolean
+
+  max77759,ext-otg-only:
+    description: external boost OTG only.
+    type: boolean
+
+  max77759,bst-lsw-sequence:
+    description: use boost on first on/off sequence of wlc_tx.
+    type: boolean
+
+  max77759,wlc-otg-extbst-en:
+    description: only enable external boost when in wlc+otg mode
+    type: boolean
+
+  max77759,gpio_dc_switch:
+    description: WLC DC mode enable gpio.
+
+required:
+  - compatible
+  - reg
+  - #thermal-sensor-cells
+
+dependencies:
+  max77759,otg-fccm-vbatt-lowerbd: [ 'max77759,otg-fccm-vbatt-upperbd' ]
+  max77759,chg-term-volt-debounce: [ 'max77759,chg-term-voltage' ]

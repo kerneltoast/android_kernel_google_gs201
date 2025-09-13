@@ -1,0 +1,164 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Google CPM driver
+
+maintainers:
+  - Daniel Okazaki <dtokazaki@google.com>
+  - Prasanna Prapancham <prapancham@google.com>
+  - Ken Yang <yangken@google.com>
+  - Jenny Ho <hsiufangho@google.com>
+  - Baltazar Ortiz <baltazarortiz@google.com>
+
+
+description: |
+  Google Central Power Management driver
+
+  Controls charging voltage/current of
+    - main charger
+    - parallel charger (optional)
+    - wireless charger (optional)
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - google,cpm
+
+  google,psy-name:
+    description: Main charger power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,tcpm-power-supply:
+    description: TCPM power supply phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  google,wlc_dc-power-supply:
+    description: Wireless DC power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,dc-en:
+    description: DC enable gpio
+    type: boolean
+
+  google,dc-en-value:
+    description: DC enable gpio output active HIGH. Absence of gpio indicates
+    output active LOW.
+    type: boolean
+
+  google,dc_limit-demand:
+    description: Charge current floor to enable DC charging
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dc_limit-cc_min:
+    description: Wired charge current to disable DC charging if already enabled.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dc_limit-cc_min_wlc:
+    description: Wireless charge current to disable DC charging if already enabled.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dc_limit-vbatt_min:
+    description: Charge voltage to enable DC charging.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dc_limit-vbatt_low:
+    description: Don't start DC charging until batt voltage low is reached.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dc_limit-vbatt_max:
+    description: Stop DC charging at batt voltage.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dc_limit-vbatt_high:
+    description: Don't start DC charging at batt voltage.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,dc_limit-soc_high:
+    description: Don't start DC charging at soc.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,taper_step-fv-margin:
+    description: Float voltage countdown steps before dc_done while taper charging.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,taper_step-cc-step:
+    description: Constant charge current countdown steps before dc_done while taper
+    charging.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,taper_step-interval:
+    description: Seconds countdown interval steps before dc_done while taper charging.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,taper_step-count:
+    description: Countdown steps before dc_done while taper charging.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,taper_step-grace:
+    description: Steps from voltage before countdown while taper charging.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,taper_step-voltage:
+    description: Voltage before countdown while taper charging.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,taper_step-current:
+    description: Current before countdown while taper charging.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,wlc-dc-fcc-ua:
+    description: Wireless DC charging fast constant charge current.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,no-init-wlc-ta-vol:
+    description: Don't set the wlc init voltage.
+    type: boolean
+
+  google,cop-supported:
+    description: Charge Overcurent Protection support on main-charger.
+      If supported, on COP WARN interrupt, taper charge current down until interrupts
+      stop, then reset to normal levels.
+    type: boolean
+
+  google,chg-power-supplies:
+    description: List of charger power supply names.
+    $ref: /schemas/types.yaml#/definitions/string-array
+
+  google,mdis-out-sel-online:
+    description: Source online selection criteria for MDIS thermal engine
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,mdis-thermal-mitigation:
+    description: Table to associate thermal mitigation level to dissipation
+    budget in mW.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  google,mdis-fan-alarm-level:
+    description: Thermal level to set FAN_LVL_ALARM
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  google,pps-awake:
+    description: PPS keep wakelock while charging.
+    type: boolean
+
+patternProperties:
+  "^(google,mdis-out[0-9]+-limits)$":
+    description: Thermal mitigation charging current limit profile. Different profiles
+    are used for different charging chips.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+    dependencies: [ 'google,mdis-thermal-mitigation', 'google,mdis-out-sel-online' ]
+
+required:
+  - compatible
+  - #cooling-cells
+
+dependencies:
+  google,mdis-out-sel-online: [ 'google,mdis-thermal-mitigation' ]
+  google,mdis-fan-alarm-level: [ 'google,mdis-thermal-mitigation', 'google,mdis-out-sel-online', '"^(google,mdis-out[0-9]+-limits)$"' ]
+  google,dc-en-value: [ 'google,dc-en' ]

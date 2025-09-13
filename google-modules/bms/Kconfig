@@ -1,0 +1,256 @@
+menuconfig GOOGLE_BMS
+	bool "Google, LLC. Charging and Fuel Gauge support"
+	help
+	  Say Y here to enable Google, LLC. support for Battery and Charging.
+
+if GOOGLE_BMS
+
+config GOOGLE_BATTERY_CHARGING
+	tristate "Google Battery and Charging Control"
+	select GOOGLE_CHARGER
+	select GOOGLE_BATTERY
+	help
+	  Say Y here to enable new Google Gen Features.
+	  This option selects Google Battery and Multi Step Charging enabling
+	  new features such as battery controlled charge tables and charge path
+	  resistance compensation. New gen features require configuration in
+	  device tree.
+
+config GOOGLE_CHARGER
+	tristate "Google Multi Step Charging"
+	help
+	  Say Y here to choose the Google Multi Step Charging control.
+	  The driver implements a multi CC-CV steps charging using battery
+	  temperature and voltage to set the charger constant charging
+	  current and float voltage.
+
+config GOOGLE_BATTERY
+	tristate "Google Battery"
+	help
+	  Say Y here to choose the Google Battery.
+	  The driver handles charge tables, recharge threshold, state of charge,
+	  battery statistics such as bin count and other features common to all
+	  google battery powered devices.
+
+config GOOGLE_DUAL_BATT_GAUGE
+        tristate "Google Dual Battery Gauge"
+        help
+          Say Y here to choose the Google Dual Battery Gauge.
+          The driver handles 2 battery gauges and called by google battery.
+
+config GOOGLE_CPM
+	tristate "Google Charging Policy Manager"
+	help
+	  Say Y here to enable the Charging Policy Manager.
+	  The driver manages multiple chargers (eg primary, secondary).
+
+config GOOGLE_DOCK
+        tristate "Google Dock"
+        help
+          Say Y here to choose the Google Dock.
+          The driver handles dock driver and called by google charger.
+
+config GOOGLE_CCD
+        tristate "Google Charger Combine Driver"
+        help
+          Say Y here to choose the Charger Combine Driver.
+          The driver handles multiple chargers and called by google charger.
+
+config USB_OVERHEAT_MITIGATION
+	tristate "Google USB Overheat Mitigation"
+	help
+	  Say Y here to enable Google USB overheat mitigation
+
+config PMIC_VOTER_COMPAT
+	tristate "QC Pmic Voter compatibility shim"
+	help
+	  Say Y here to enable voter compatibility shim layer.
+	  This option enables a call interface between the legacy voter
+	  interface and the Google Voting interface.
+
+config GOOGLE_BEE
+	tristate "Google Battery EEPROM"
+	help
+	  Say Y here to enable the support for google battery EEPROM
+	  The EEPROM contains the battery type, lifetime data and other
+	  infomation.
+
+endif	# GOOGLE_BMS
+
+config CHARGER_P9221
+	tristate "IDT P9221 wireless power receiver driver"
+	depends on I2C
+	help
+	  This driver provides support for the IDT P9221 wireless
+	  power receiver.
+
+config CHARGER_MAX77729
+	tristate "Maxim MAX77729 battery charger driver"
+	depends on I2C && OF
+	help
+	  Say Y to enable support for the Maxim MAX77729 battery charger.
+
+config CHARGER_MAX77759
+	tristate "Maxim MAX77759 battery charger driver"
+	depends on I2C && OF
+	help
+	  Say Y to enable support for the Maxim MAX77759 battery charger.
+
+config CHARGER_MAX77779
+	tristate "Maxim MAX77779 battery charger driver"
+	depends on OF
+	help
+	  Say Y to enable support for the Maxim MAX77779 battery charger.
+choice
+	default CHARGER_MAX77779_I2C
+	prompt "MAX77779 Charger Bus module"
+config CHARGER_MAX77779_I2C
+	bool "I2C"
+	depends on I2C
+	select REGMAP_I2C
+endchoice
+
+config FG_MAX77779
+	tristate "Maxim MAX77779 battery fuel gauge driver"
+	depends on OF
+	help
+	  Say Y to enable support for the Maxim MAX77779 battery fg.
+choice
+	default FG_MAX77779_I2C
+	prompt "MAX77779 FG Bus module"
+config FG_MAX77779_I2C
+	bool "I2C"
+	depends on I2C
+	select REGMAP_I2C
+endchoice
+
+config VIMON_MAX77779
+	tristate "Maxim MAX77779 VIMON driver"
+	depends on OF
+	help
+	  Say Y to enable support for the Maxim MAX77779 VIMON.
+choice
+	default VIMON_MAX77779_I2C
+	prompt "MAX77779 Vimon Bus module"
+config VIMON_MAX77779_I2C
+	bool "I2C"
+	depends on I2C
+	select REGMAP_I2C
+endchoice
+
+config PMIC_MAX77729
+	tristate "Maxim MAX77729 PMIC driver"
+	depends on I2C && OF
+	help
+	  Say Y to enable support for the Maxim MAX77729 PMIC.
+
+config UIC_MAX77729
+	tristate "Maxim MAX77729 TCPCI driver"
+	depends on I2C && OF
+	help
+	  Say Y to enable support for the Maxim MAX77729 TCPCI.
+
+config PCA9468
+	tristate "NXP PCA9468 Direct charger"
+	depends on I2C && OF
+	help
+	  Say Y to enable support for the PCA9648 direct charger.
+
+config MAX20339
+	tristate "Maxim MAX20339 input protection chip"
+	depends on I2C && OF
+	help
+	  Say Y to enable support for Max20339 OVP and LS circuits.
+
+config MAXQ_MAX77759
+	tristate "Maxim MAX77759 MAXQ"
+	depends on I2C && PMIC_MAX77729
+	help
+	  Say Y to enable support for MAX77759 MAXQ support.
+
+config LN8411
+	tristate "LN8411 Direct charger"
+	depends on I2C && OF
+	help
+	  Say Y to enable support for the LN8411 direct charger.
+
+config MAX77779_I2CM
+	tristate "Maxim 77779 I2C Bridge Bus"
+	depends on OF
+	help
+	  Bus to bridge I2C to Maxim 77779
+choice
+	default MAX77779_I2CM_I2C
+	prompt "MAX77779 I2CM Bus module"
+config MAX77779_I2CM_I2C
+	bool "I2C"
+	depends on I2C
+	select REGMAP_I2C
+endchoice
+
+config MAX77779_PMIC
+	tristate "Maxim 77779 PMIC"
+	depends on OF
+	help
+	  Handle IRQs for Sequoia
+choice
+	default MAX77779_PMIC_I2C
+	prompt "MAX77779 PMIC Bus module"
+config MAX77779_PMIC_I2C
+	bool "I2C"
+	depends on I2C
+	select REGMAP_I2C
+endchoice
+
+config MAX77779_PMIC_IRQ
+	tristate "Maxim 77779 PMIC IRQ"
+	depends on OF && MAX77779_PMIC
+	help
+	  Handle IRQs for Sequoia
+
+config MAX77779_PMIC_PINCTRL
+	tristate "Maxim 77779 PMIC PINCTRL"
+	depends on OF && MAX77779_PMIC
+	help
+	  Handle PINCTRL for Sequoia
+
+config MAX77779_PMIC_SGPIO
+	tristate "Maxim 77779 PMIC SGPIO"
+	depends on OF && MAX77779_PMIC
+	help
+	  Handle GPIOS for Sequoia
+
+config MAX77779_SP
+	tristate "Maxim 77779 Scratchpad"
+	depends on OF
+	help
+	  Handle Scratchpad for Sequoia
+choice
+	default MAX77779_SP_I2C
+	prompt "MAX77779 Scratchpad Bus module"
+config MAX77779_SP_I2C
+	bool "I2C"
+	depends on I2C
+	select REGMAP_I2C
+endchoice
+
+config FWUPDATE_MAX77779
+	tristate "Maxim 77779 Firmware Update"
+	depends on I2C && OF
+	select FW_LOADER
+	help
+	  Handle firmware update for Sequoia
+
+config CHARGER_RT9471
+	tristate "Richtek RT9470/RT9470D/RT9471/RT9471D battery charger driver"
+	depends on I2C
+	help
+	  Say Y to enable support for Richtek RT9470, RT9470D,
+	  RT9471 and RT9471D battery chargers.
+	  RT9470D and RT9471D support BC1.2, but not RT9470 and RT9471
+
+config HL7132
+	tristate "HL7132 Direct charger"
+	depends on I2C && OF
+	help
+	  Say Y to enable support for the HL7132 direct charger.

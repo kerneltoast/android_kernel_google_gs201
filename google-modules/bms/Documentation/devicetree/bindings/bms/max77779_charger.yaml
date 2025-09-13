@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: max77779 charger driver
+
+maintainers:
+  - Daniel Okazaki <dtokazaki@google.com>
+  - Prasanna Prapancham <prapancham@google.com>
+  - Jack Wu <wjack@google.com>
+  - Ken Yang <yangken@google.com>
+  - Baltazar Ortiz <baltazarortiz@google.com>
+
+description: |
+  max77779 charger driver.
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - maxim,max77779chrg-i2c
+
+  reg:
+    description: address of the charger.
+
+  max77779,psy-name:
+    description: max77779 charger power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  google,max77779-thm2-monitor:
+    description: Enable thm2 monitoring
+    type: boolean
+
+  max77779,usb-mon:
+    description: When not set, disables thm2 monitoring.
+    When set, leaves thm2 register as is.
+    type: boolean
+
+  max77779,chg-term-voltage:
+    description: Charge termination voltage.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77779,chg-term-volt-debounce:
+    description: Charge termination voltage debounce voltage.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77779,usb-otg-mv:
+    description: OTG bypass output voltage
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77779,dcin-is-dock:
+    description: DC input is a dock.
+    type: boolean
+
+  max77779,wcin-inlim-period:
+    description: Number of milliseconds between ilim tracking polling.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77779,wcin-inlim-headroom:
+    description: Headroom above actual current allowed.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77779,wcin_inlim_step:
+    description: Maximum step size per timestep.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  max77779_gpio:
+    description: GPIO controller config.
+
+  max77779,dc-psy-type-wireless:
+    description: DC input is a wireless power supply.
+    type: boolean
+
+  max77779,dc-psy-name:
+    description: Name of DC power supply
+    $ref: /schemas/types.yaml#/definitions/string
+
+  max77779,disable-internal-irq-handler:
+    description: Only run the top level charger interrupt handler and route to
+    registered IRQ handlers. Skip the internal IRQ handler.
+    type: boolean
+
+  max77779,pmic:
+    description: max77779 PMIC device phandle.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  max77779,bst-on:
+    description: external boost enable gpio.
+
+  max77779,extbst-ctl:
+    description: external boost control gpio.
+
+  max77779,extbst-mode:
+    description: External boost mode gpio.
+
+  max77779,wlc-en:
+    description: WLC enable gpio.
+
+  max77779,wlc-spoof:
+    description: WLC spoof gpio. Used during thermal throttling.
+
+  max77779,wlc-spoof-vbyp:
+    description: WLC spoof vbypass gpio.
+
+  max77779,rx-to-rx-otg-en:
+    description: wlc_rx to wlc_rx + otg supported.
+    type: boolean
+
+  max77779,ext-otg-only:
+    description: external boost OTG only.
+    type: boolean
+
+  max77779,reverse_12-en:
+    description: reverse 1:2 mode supported.
+    type: boolean
+
+  max77779,rtx-ready:
+    description: RTX usecase ready gpio.
+
+  max77779,rtx-available:
+    description: RTX usecase available gpio.
+
+required:
+  - compatible
+  - reg
+
+dependencies:
+  max77779,chg-term-volt-debounce: [ 'max77779,chg-term-voltage' ]

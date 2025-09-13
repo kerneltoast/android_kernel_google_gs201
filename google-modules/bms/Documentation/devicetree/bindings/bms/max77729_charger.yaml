@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright 2024 Google LLC
+%YAML 1.2
+---
+
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: max77729 charger driver
+
+maintainers:
+  - Daniel Okazaki <dtokazaki@google.com>
+  - Prasanna Prapancham <prapancham@google.com>
+  - Jack Wu <wjack@google.com>
+  - Ken Yang <yangken@google.com>
+  - Baltazar Ortiz <baltazarortiz@google.com>
+
+description: |
+  max77729 charger driver.
+
+properties:
+  # A dictionary of DT properties for this binding schema
+  compatible:
+    enum:
+      - maxim,max77729chrg
+
+  reg:
+    description: i2c address of the charger.
+
+  max77729,psy-name:
+    description: max77729 charger power supply name
+    $ref: /schemas/types.yaml#/definitions/string
+
+  max77729,irq-gpio:
+    description: IRQ gpio
+
+required:
+  - compatible
+  - reg
